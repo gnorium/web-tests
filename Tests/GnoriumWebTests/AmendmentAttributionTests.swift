@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// Ticking fields for attribution on the Submit Amendment form: a box
-/// before every field and every row, ticked by editing the field, drawn
+/// before every field, every row and every part of the date, ticked by editing the field, drawn
 /// blue when ticked and unedited. Nothing is submitted. Needs a signed-in
 /// account, made for the test and removed after (see `TestAdmin`).
 @Suite("Amendment attribution", .serialized)
@@ -92,6 +92,42 @@ struct AmendmentAttributionTests {
       #expect(ring.contains("1px"), "the ticked field's control has no ring: \(ring)")
       try await scriptBox.uncheck()
       try await expect(scriptBox).toBeChecked(false)
+
+      // The date is ticked part by part: a box in each part's own label row,
+      // and none for the whole date, which would stand on the qualifier's row
+      // alone. The record's date is a range, so its end parts show.
+      func datePart(_ part: String) -> Locator {
+        work.locator(".attribute-field-view[data-attribute-key='date.\(part)']")
+      }
+      try await expect(work.locator(".attribute-field-view[data-attribute-key='date']")).toHaveCount(0)
+      for part in ["yearQualifier", "era", "year", "month", "day", "eraEnd", "yearEnd"] {
+        try await expect(datePart(part)).toHaveCount(1)
+      }
+      for part in ["yearQualifier", "era", "year", "eraEnd", "yearEnd"] {
+        let layout = try await datePart(part).evaluate(
+          """
+          (el) => {
+            const box = el.querySelector('.attribute-field-view-checkbox').getBoundingClientRect();
+            const row = el.querySelector('.text-input-label-row, label:has(> .dropdown-label-text)')
+              .getBoundingClientRect();
+            const inRow = box.top >= row.top - 1 && box.bottom <= row.bottom + 1;
+            return inRow && box.width > 0 ? 'ok' : JSON.stringify({box, row});
+          }
+          """
+        ).string ?? ""
+        #expect(layout == "ok", "date.\(part)'s box is not in its own label row: \(layout)")
+      }
+
+      // Editing the year ticks the year alone.
+      let yearBox = datePart("year").locator(".attribute-field-view-checkbox .checkbox-input")
+      let yearInput = datePart("year").locator(".text-input-input")
+      let year = try await yearInput.inputValue()
+      try await yearInput.fill("1897")
+      try await expect(yearBox).toBeChecked()
+      try await expect(datePart("yearQualifier").locator(".attribute-field-view-checkbox .checkbox-input"))
+        .toBeChecked(false)
+      try await yearInput.fill(year)
+      try await expect(yearBox).toBeChecked(false)
     }
   }
 }
