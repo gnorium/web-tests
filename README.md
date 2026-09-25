@@ -130,7 +130,7 @@ Each reads the page again until it holds or the timeout passes (`expect(x, timeo
 
 ```sh
 swift test                                  # every engine
-BROWSERS=chrome swift test        # the library's own tests on Chrome only
+BROWSERS=chrome swift test                  # Chrome only
 WEB_TESTS_HEADED=1 swift test               # watch Chrome work
 ```
 
@@ -161,8 +161,11 @@ Until then, Safari tests are skipped with these steps as the reason.
 - **Watchtower**: each permit link opens the records page whose Treatment filter (or Pipelines, as it may be named) shows the link's phrase.
 - **Footer**: the links sit in one wrapping flex row, with no "|" separators in text or CSS.
 - **Date picker**: on Mission Control's contributors page, "Active since date" opens Gnorium's popover (not a native picker, and by tap on a touch phone), as wide as its field; ArrowRight, Enter, Reset, Done and Esc work.
+- **Field validation**: account forms carry `novalidate`, so an empty sign-in shows Gnorium's inline messages (with `aria-invalid` and `aria-describedby`) instead of the browser's bubbles and sends nothing; register names each broken rule.
+- **Form item rows**: on the Submit Amendment form, removing a middle author renumbers the rows after it and the form serializes both remaining rows. Nothing is submitted.
+- **Amendment attribution**: on the Submit Amendment form, every field, row, date part and field of a creation statement has its own attribution box, ticked by editing that field alone. Nothing is submitted.
 
-The date picker needs an admin. The test registers a throwaway account over HTTP with a random password that never leaves memory, makes it an admin with one `UPDATE` in the dev database (`GNORIUM_DATABASE_URL`, psql from `GNORIUM_PSQL` or Homebrew), signs it in over HTTP, sets the session cookie in the browser context, and deletes that account's row afterwards. No one's password is typed anywhere.
+The date picker, form item rows and amendment attribution tests need an admin. Each registers a throwaway account over HTTP with a random password that never leaves memory, makes it an admin with one `UPDATE` in the dev database (`GNORIUM_DATABASE_URL`, psql from `GNORIUM_PSQL` or Homebrew), signs it in over HTTP, sets the session cookie in the browser context, and deletes that account's row afterwards. No one's password is typed anywhere.
 
 ## Design notes
 
