@@ -87,6 +87,14 @@ struct TestAdmin: Sendable {
     "DELETE FROM users WHERE username = '\(username)' AND (email = '\(username)@gnorium.test' OR (email IS NULL AND deleted_at IS NOT NULL));"
   }
 
+  /// How many sign-in sessions this account has on the server.
+  func sessionCount() throws -> Int {
+    Int(
+      try Self.query(
+        "SELECT COUNT(*) FROM sessions JOIN users ON users.id = sessions.user_id WHERE users.username = '\(username)';"
+      ).trimmingCharacters(in: .whitespacesAndNewlines)) ?? -1
+  }
+
   /// One column of this account's row, as psql prints it ("" for null).
   func column(_ name: String) throws -> String {
     try Self.query("SELECT COALESCE(\(name)::text, '') FROM users WHERE username = '\(username)';")
