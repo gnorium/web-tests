@@ -40,7 +40,7 @@ struct AmendmentAttributionTests {
       // A real input per field and per row, unticked.
       try await expect(titleBox).toHaveAttribute("name", "attribute[]")
       try await expect(titleBox).toBeChecked(false)
-      try await expect(work.locator(".attribute-field-view[data-attribute-key='author[1]']:not([data-item-template] *)")).toHaveCount(1)
+      try await expect(work.locator(".attribute-field-view[data-attribute-key='author[1].name']:not([data-item-template] *)")).toHaveCount(1)
 
       // The work's fields sit in its Metadata accordion: open it if shut.
       if !(try await titleInput.isVisible()) {
@@ -51,7 +51,7 @@ struct AmendmentAttributionTests {
       // The box sits inline in the field's label row, before its label, and
       // the control under it starts at the row's own edge: no indent. The
       // same in a repeated row's card (the first author).
-      for field in [title, work.locator(".attribute-field-view[data-attribute-key='author[1]']:not([data-item-template] *)")] {
+      for field in [title, work.locator(".attribute-field-view[data-attribute-key='author[1].name']:not([data-item-template] *)")] {
         let layout = try await field.evaluate(
           """
           (el) => {
@@ -68,6 +68,26 @@ struct AmendmentAttributionTests {
         ).string ?? ""
         #expect(layout == "ok", "the attribute box is not inline in the label row: \(layout)")
       }
+
+      // An author's row is ticked field by field: its name has its box, the
+      // row none. Editing the second author's name ticks that name alone.
+      func authorName(_ row: Int) -> Locator {
+        work.locator(".attribute-field-view[data-attribute-key='author[\(row)].name']:not([data-item-template] *)")
+      }
+      for row in [1, 2] {
+        try await expect(work.locator(".attribute-field-view[data-attribute-key='author[\(row)]']")).toHaveCount(0)
+        try await expect(authorName(row)).toHaveCount(1)
+      }
+      try await expect(authorName(2).locator(".attribute-field-view-checkbox .label-text"))
+        .toHaveText("Attribute Author 2 name")
+      let secondAuthor = authorName(2).locator(".text-input-input")
+      let secondName = try await secondAuthor.inputValue()
+      try await secondAuthor.fill(secondName + " (edited)")
+      try await expect(authorName(2).locator(".attribute-field-view-checkbox .checkbox-input")).toBeChecked()
+      try await expect(authorName(1).locator(".attribute-field-view-checkbox .checkbox-input")).toBeChecked(false)
+      try await expect(titleBox).toBeChecked(false)
+      try await secondAuthor.fill(secondName)
+      try await expect(authorName(2).locator(".attribute-field-view-checkbox .checkbox-input")).toBeChecked(false)
 
       // "This is a translation" is a value, not a sourced fact: it has no
       // attribute box, and none stands around it.

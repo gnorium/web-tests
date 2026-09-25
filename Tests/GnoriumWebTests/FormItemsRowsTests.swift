@@ -94,6 +94,11 @@ struct FormItemsRowsTests {
       let first = loaded[0].value
       let second = loaded[1].value
 
+      // The rows' script bound: it shows each row's Remove button, which
+      // moves the Add button down. A click before then (a busy machine,
+      // suites in parallel) adds nothing, or lands on a Remove button.
+      try await expect(active.nth(1).locator(".item-remove-btn")).toBeVisible()
+
       // A third author, then the middle one taken away.
       try await authors.locator("[data-item-add-btn='true'] button").click()
       try await expect(active).toHaveCount(3)
@@ -103,7 +108,7 @@ struct FormItemsRowsTests {
       // Attribution keys follow a moment after (the attribution script
       // renumbers once the click has run).
       try await expect(active.nth(1).locator(".attribute-field-view").first)
-        .toHaveAttribute("data-attribute-key", "author[2]")
+        .toHaveAttribute("data-attribute-key", "author[2].name")
 
       // Each row is its place now: names, ids, labels, attribute keys.
       var now = try await rows(authors)
@@ -114,8 +119,8 @@ struct FormItemsRowsTests {
       #expect(now[0].id.hasSuffix("work-author-item1-text-input"))
       #expect(now[1].id.hasSuffix("work-author-item2-text-input"))
       for row in now { #expect(row.dangling.isEmpty, "row \(row.index ?? "?") names ids it does not hold: \(row.dangling)") }
-      #expect(now.map(\.key) == ["author[1]", "author[2]"])
-      #expect(now.map(\.boxValue) == ["author[1]", "author[2]"])
+      #expect(now.map(\.key) == ["author[1].name", "author[2].name"])
+      #expect(now.map(\.boxValue) == ["author[1].name", "author[2].name"])
 
       // Author 2 was the second author and is now "Third Author": a change
       // at that place, diffed against it and ticked for attribution.
@@ -146,12 +151,12 @@ struct FormItemsRowsTests {
       try await authors.locator("[data-item-add-btn='true'] button").click()
       try await expect(active).toHaveCount(3)
       try await expect(active.nth(2).locator(".attribute-field-view").first)
-        .toHaveAttribute("data-attribute-key", "author[3]")
+        .toHaveAttribute("data-attribute-key", "author[3].name")
       now = try await rows(authors)
       #expect(now.map(\.index) == ["1", "2", "3"])
       #expect(Set(now.map(\.id)).count == 3, "row ids repeat: \(now.map(\.id))")
       #expect(now[2].name == "work-author-item3-text-input")
-      #expect(now.map(\.key) == ["author[1]", "author[2]", "author[3]"])
+      #expect(now.map(\.key) == ["author[1].name", "author[2].name", "author[3].name"])
       for row in now { #expect(row.dangling.isEmpty, "row \(row.index ?? "?") names ids it does not hold: \(row.dangling)") }
       // No author stood third: the row is new.
       #expect(now[2].original == "" || now[2].original == nil)
