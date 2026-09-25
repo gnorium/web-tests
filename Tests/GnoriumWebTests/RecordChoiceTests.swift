@@ -35,8 +35,9 @@ struct RecordChoiceTests {
       try await page.openHydrated(Self.form)
       let field = page.locator(".record-choice-field-view")
       try await expect(field.locator("legend")).toContainText("Biblio-record")
-      try await expect(field.locator(".record-choice-note"))
-        .toContainText("Fill in the language, title, authors and category")
+      // Nothing to choose from until the key fields are filled: a disabled
+      // select reading "—".
+      try await expect(field.locator(".select-view")).toContainText("—")
 
       // The key fields: a dropdown tells its hidden input, as a pick does.
       _ = try await page.evaluate(
