@@ -68,6 +68,64 @@ struct FieldValidationTests {
     }
   }
 
+  /// The validation handler moves the focus before it cancels the submit,
+  /// and a focus change runs callbacks of its own. Here one always does: the
+  /// focus change dispatches an `input` event, which the client's own
+  /// listener handles. The outer handler's `preventDefault()` must still land
+  /// on the submit, not on the event that ran inside it.
+  @Test(arguments: gnorium.engines)
+  func aCallbackInsideTheSubmitHandlerLeavesItsCancelOnTheSubmit(engine: BrowserEngine) async throws {
+    try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine)) { page in
+      try await page.openHydrated("/auth/sign-in")
+      try await page.evaluate(
+        """
+        (() => {
+          window.__submits = [];
+          window.__nested = 0;
+          window.__cancelledBeforeFocus = false;
+          window.__escaped = false;
+          // Window capture runs before the client's document capture listener.
+          window.addEventListener('submit', (e) => {
+            window.__submits.push(e);
+            window.__inSubmit = true;
+            setTimeout(() => { window.__inSubmit = false; });
+          }, true);
+          // Reached only when the client's stopPropagation() missed the submit.
+          window.addEventListener('submit', () => { window.__escaped = true; });
+          window.addEventListener('focusin', (e) => {
+            if (!window.__inSubmit) return;
+            window.__nested += 1;
+            window.__cancelledBeforeFocus ||= window.__submits.some((s) => s.defaultPrevented);
+            e.target.dispatchEvent(new Event('input', { bubbles: true }));
+          }, true);
+          return true;
+        })()
+        """)
+
+      try await page.locator("form.sign-in-form button[type='submit']").click()
+      try await expect(page.locator("#email-or-username")).toBeFocused()
+
+      let outcome = try await page.evaluate(
+        """
+        ({
+          submits: window.__submits.length,
+          prevented: window.__submits.every((e) => e.defaultPrevented),
+          nested: window.__nested,
+          cancelledBeforeFocus: window.__cancelledBeforeFocus,
+          escaped: window.__escaped,
+        })
+        """)
+      #expect(outcome["submits"].int == 1)
+      #expect((outcome["nested"].int ?? 0) >= 1, "the focus change ran no callback inside the submit handler")
+      #expect(outcome["cancelledBeforeFocus"].bool == false, "the handler cancelled before it moved the focus")
+      #expect(outcome["prevented"].bool == true, "the submit was not cancelled")
+      #expect(outcome["escaped"].bool == false, "the submit went on to the page's own handler")
+      try await expect(page.locator(".sign-in-alerts .alert-view")).toHaveCount(0)
+      try await expect(page).toHaveURL("the sign-in page") { $0.path == "/auth/sign-in" }
+      try await page.expectNoErrors()
+    }
+  }
+
   @Test(arguments: gnorium.engines)
   func registerNamesEachBrokenRule(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine)) { page in
