@@ -45,12 +45,12 @@ struct FormItemsRowsTests {
             }
           }
         }
-        const field = row.querySelector('.attribute-field-view');
-        const box = field && field.querySelector('.attribute-field-view-checkbox .checkbox-input');
+        const field = row.querySelector('.selectable-field-view');
+        const box = field && field.querySelector('.selectable-field-view-checkbox .checkbox-input');
         return {
           index: row.getAttribute('data-item-index'),
           id: input.id, name: input.name, value: input.value, dangling,
-          key: field ? field.getAttribute('data-attribute-key') : null,
+          key: field ? field.getAttribute('data-selectable-key') : null,
           boxValue: box ? box.value : null, ticked: box ? box.checked : null,
           diff: input.getAttribute('data-diff-state'),
           original: input.getAttribute('data-form-item-original')
@@ -107,8 +107,8 @@ struct FormItemsRowsTests {
       try await expect(active).toHaveCount(2)
       // Attribution keys follow a moment after (the attribution script
       // renumbers once the click has run).
-      try await expect(active.nth(1).locator(".attribute-field-view").first)
-        .toHaveAttribute("data-attribute-key", "author[2].name")
+      try await expect(active.nth(1).locator(".selectable-field-view").first)
+        .toHaveAttribute("data-selectable-key", "author[2].name")
 
       // Each row is its place now: names, ids, labels, attribute keys.
       var now = try await rows(authors)
@@ -150,8 +150,8 @@ struct FormItemsRowsTests {
       // Another row after that is the third, not a second "item3".
       try await authors.locator("[data-item-add-btn='true'] button").click()
       try await expect(active).toHaveCount(3)
-      try await expect(active.nth(2).locator(".attribute-field-view").first)
-        .toHaveAttribute("data-attribute-key", "author[3].name")
+      try await expect(active.nth(2).locator(".selectable-field-view").first)
+        .toHaveAttribute("data-selectable-key", "author[3].name")
       now = try await rows(authors)
       #expect(now.map(\.index) == ["1", "2", "3"])
       #expect(Set(now.map(\.id)).count == 3, "row ids repeat: \(now.map(\.id))")

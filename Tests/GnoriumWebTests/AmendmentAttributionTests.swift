@@ -31,16 +31,16 @@ struct AmendmentAttributionTests {
     try await withPage(engine, gnorium, viewport: viewport, cookies: [admin.cookie]) { page in
       try await page.openHydrated(Self.form)
       let work = page.locator(".submit-amendment-work")
-      let title = work.locator(".attribute-field-view[data-attribute-key='title']")
-      let titleBox = title.locator(".attribute-field-view-checkbox .checkbox-input")
+      let title = work.locator(".selectable-field-view[data-selectable-key='title']")
+      let titleBox = title.locator(".selectable-field-view-checkbox .checkbox-input")
       let titleInput = title.locator(".text-input-input")
-      let script = work.locator(".attribute-field-view[data-attribute-key='script']")
-      let scriptBox = script.locator(".attribute-field-view-checkbox .checkbox-input")
+      let script = work.locator(".selectable-field-view[data-selectable-key='script']")
+      let scriptBox = script.locator(".selectable-field-view-checkbox .checkbox-input")
 
       // A real input per field and per row, unticked.
       try await expect(titleBox).toHaveAttribute("name", "attribute[]")
       try await expect(titleBox).toBeChecked(false)
-      try await expect(work.locator(".attribute-field-view[data-attribute-key='author[1].name']:not([data-item-template] *)")).toHaveCount(1)
+      try await expect(work.locator(".selectable-field-view[data-selectable-key='author[1].name']:not([data-item-template] *)")).toHaveCount(1)
 
       // The work's fields sit in its Metadata accordion: open it if shut.
       if !(try await titleInput.isVisible()) {
@@ -51,11 +51,11 @@ struct AmendmentAttributionTests {
       // The box sits inline in the field's label row, before its label, and
       // the control under it starts at the row's own edge: no indent. The
       // same in a repeated row's card (the first author).
-      for field in [title, work.locator(".attribute-field-view[data-attribute-key='author[1].name']:not([data-item-template] *)")] {
+      for field in [title, work.locator(".selectable-field-view[data-selectable-key='author[1].name']:not([data-item-template] *)")] {
         let layout = try await field.evaluate(
           """
           (el) => {
-            const box = el.querySelector('.attribute-field-view-checkbox').getBoundingClientRect();
+            const box = el.querySelector('.selectable-field-view-checkbox').getBoundingClientRect();
             const row = el.querySelector('.text-input-label-row').getBoundingClientRect();
             const text = el.querySelector('.text-input-label').getBoundingClientRect();
             const input = el.querySelector('.text-input-input').getBoundingClientRect();
@@ -72,27 +72,27 @@ struct AmendmentAttributionTests {
       // An author's row is ticked field by field: its name has its box, the
       // row none. Editing the second author's name ticks that name alone.
       func authorName(_ row: Int) -> Locator {
-        work.locator(".attribute-field-view[data-attribute-key='author[\(row)].name']:not([data-item-template] *)")
+        work.locator(".selectable-field-view[data-selectable-key='author[\(row)].name']:not([data-item-template] *)")
       }
       for row in [1, 2] {
-        try await expect(work.locator(".attribute-field-view[data-attribute-key='author[\(row)]']")).toHaveCount(0)
+        try await expect(work.locator(".selectable-field-view[data-selectable-key='author[\(row)]']")).toHaveCount(0)
         try await expect(authorName(row)).toHaveCount(1)
       }
-      try await expect(authorName(2).locator(".attribute-field-view-checkbox .label-text"))
-        .toHaveText("Attribute Author 2 name")
+      try await expect(authorName(2).locator(".selectable-field-view-checkbox .label-text"))
+        .toHaveText("Select Author 2 name")
       let secondAuthor = authorName(2).locator(".text-input-input")
       let secondName = try await secondAuthor.inputValue()
       try await secondAuthor.fill(secondName + " (edited)")
-      try await expect(authorName(2).locator(".attribute-field-view-checkbox .checkbox-input")).toBeChecked()
-      try await expect(authorName(1).locator(".attribute-field-view-checkbox .checkbox-input")).toBeChecked(false)
+      try await expect(authorName(2).locator(".selectable-field-view-checkbox .checkbox-input")).toBeChecked()
+      try await expect(authorName(1).locator(".selectable-field-view-checkbox .checkbox-input")).toBeChecked(false)
       try await expect(titleBox).toBeChecked(false)
       try await secondAuthor.fill(secondName)
-      try await expect(authorName(2).locator(".attribute-field-view-checkbox .checkbox-input")).toBeChecked(false)
+      try await expect(authorName(2).locator(".selectable-field-view-checkbox .checkbox-input")).toBeChecked(false)
 
       // "This is a translation" is a value, not a sourced fact: it has no
       // attribute box, and none stands around it.
       try await expect(work.locator(".is-translation-checkbox-wrapper")).toHaveCount(1)
-      try await expect(work.locator(".attribute-field-view .is-translation-checkbox-wrapper")).toHaveCount(0)
+      try await expect(work.locator(".selectable-field-view .is-translation-checkbox-wrapper")).toHaveCount(0)
 
       // Editing a field ticks it; undoing the edit unticks it again.
       let before = try await titleInput.inputValue()
@@ -118,9 +118,9 @@ struct AmendmentAttributionTests {
       // and none for the whole date, which would stand on the qualifier's row
       // alone. The record's date is a range, so its end parts show.
       func datePart(_ part: String) -> Locator {
-        work.locator(".attribute-field-view[data-attribute-key='date.\(part)']")
+        work.locator(".selectable-field-view[data-selectable-key='date.\(part)']")
       }
-      try await expect(work.locator(".attribute-field-view[data-attribute-key='date']")).toHaveCount(0)
+      try await expect(work.locator(".selectable-field-view[data-selectable-key='date']")).toHaveCount(0)
       for part in ["yearQualifier", "era", "year", "month", "day", "eraEnd", "yearEnd"] {
         try await expect(datePart(part)).toHaveCount(1)
       }
@@ -128,7 +128,7 @@ struct AmendmentAttributionTests {
         let layout = try await datePart(part).evaluate(
           """
           (el) => {
-            const box = el.querySelector('.attribute-field-view-checkbox').getBoundingClientRect();
+            const box = el.querySelector('.selectable-field-view-checkbox').getBoundingClientRect();
             const row = el.querySelector('.text-input-label-row, label:has(> .dropdown-label-text)')
               .getBoundingClientRect();
             const inRow = box.top >= row.top - 1 && box.bottom <= row.bottom + 1;
@@ -140,12 +140,12 @@ struct AmendmentAttributionTests {
       }
 
       // Editing the year ticks the year alone.
-      let yearBox = datePart("year").locator(".attribute-field-view-checkbox .checkbox-input")
+      let yearBox = datePart("year").locator(".selectable-field-view-checkbox .checkbox-input")
       let yearInput = datePart("year").locator(".text-input-input")
       let year = try await yearInput.inputValue()
       try await yearInput.fill("1897")
       try await expect(yearBox).toBeChecked()
-      try await expect(datePart("yearQualifier").locator(".attribute-field-view-checkbox .checkbox-input"))
+      try await expect(datePart("yearQualifier").locator(".selectable-field-view-checkbox .checkbox-input"))
         .toBeChecked(false)
       try await yearInput.fill(year)
       try await expect(yearBox).toBeChecked(false)
@@ -154,10 +154,10 @@ struct AmendmentAttributionTests {
       // agent's role and name, each part of its date, each box in its own
       // label row; never the statement or an agent's row whole.
       func statementField(_ key: String) -> Locator {
-        work.locator(".attribute-field-view[data-attribute-key='\(key)']:not([data-item-template] *)")
+        work.locator(".selectable-field-view[data-selectable-key='\(key)']:not([data-item-template] *)")
       }
       for group in ["creation", "creation[1]", "creation.date"] {
-        try await expect(work.locator(".attribute-field-view[data-attribute-key='\(group)']")).toHaveCount(0)
+        try await expect(work.locator(".selectable-field-view[data-selectable-key='\(group)']")).toHaveCount(0)
       }
       let statementKeys =
         ["creation.place", "creation[1].role", "creation[1].agent"]
@@ -174,7 +174,7 @@ struct AmendmentAttributionTests {
         let layout = try await statementField(key).evaluate(
           """
           (el) => {
-            const box = el.querySelector('.attribute-field-view-checkbox').getBoundingClientRect();
+            const box = el.querySelector('.selectable-field-view-checkbox').getBoundingClientRect();
             const row = el.querySelector('.text-input-label-row, label:has(> .dropdown-label-text)')
               .getBoundingClientRect();
             const inRow = box.top >= row.top - 1 && box.bottom <= row.bottom + 1;
@@ -188,7 +188,7 @@ struct AmendmentAttributionTests {
       // Editing the first agent's name ticks that name alone: not its role,
       // not the place, not the date.
       func statementBox(_ key: String) -> Locator {
-        statementField(key).locator(".attribute-field-view-checkbox .checkbox-input")
+        statementField(key).locator(".selectable-field-view-checkbox .checkbox-input")
       }
       let agent = statementField("creation[1].agent").locator(".text-input-input")
       let name = try await agent.inputValue()
