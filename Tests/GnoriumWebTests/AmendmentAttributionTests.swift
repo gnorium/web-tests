@@ -47,6 +47,32 @@ struct AmendmentAttributionTests {
       }
       try await expect(titleInput).toBeVisible()
 
+      // The box sits inline in the field's label row, before its label, and
+      // the control under it starts at the row's own edge: no indent. The
+      // same in a repeated row's card (the first author).
+      for field in [title, work.locator(".attribute-field-view[data-attribute-key='author[1]']:not([data-item-template] *)")] {
+        let layout = try await field.evaluate(
+          """
+          (el) => {
+            const box = el.querySelector('.attribute-field-view-checkbox').getBoundingClientRect();
+            const row = el.querySelector('.text-input-label-row').getBoundingClientRect();
+            const text = el.querySelector('.text-input-label').getBoundingClientRect();
+            const input = el.querySelector('.text-input-input').getBoundingClientRect();
+            const inRow = box.top >= row.top - 1 && box.bottom <= row.bottom + 1;
+            const before = box.right <= text.left;
+            const flush = Math.abs(box.left - input.left) <= 1 && Math.abs(row.left - input.left) <= 1;
+            return inRow && before && flush ? 'ok' : JSON.stringify({box, row, text, input});
+          }
+          """
+        ).string ?? ""
+        #expect(layout == "ok", "the attribute box is not inline in the label row: \(layout)")
+      }
+
+      // "This is a translation" is a value, not a sourced fact: it has no
+      // attribute box, and none stands around it.
+      try await expect(work.locator(".is-translation-checkbox-wrapper")).toHaveCount(1)
+      try await expect(work.locator(".attribute-field-view .is-translation-checkbox-wrapper")).toHaveCount(0)
+
       // Editing a field ticks it; undoing the edit unticks it again.
       let before = try await titleInput.inputValue()
       try await titleInput.fill(before + " (edited)")
