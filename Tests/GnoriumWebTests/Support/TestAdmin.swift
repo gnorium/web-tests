@@ -17,6 +17,9 @@ import WebTests
 struct TestAdmin: Sendable {
   let username: String
   let cookie: Cookie
+  /// The random password, in memory only, for a test that types it (Delete
+  /// account asks for it). Never printed.
+  let password: String
   private let baseURL: URL
 
   /// Why an admin cannot be made here, if it cannot: the tests that need
@@ -28,8 +31,9 @@ struct TestAdmin: Sendable {
   static func create(baseURL: URL) async throws -> TestAdmin {
     // A run killed mid-test leaves its account behind; sweep those (and only
     // those: web_tests_ accounts on the reserved .test domain, an hour old).
+    // A deleted one has no email left.
     try? runSQL(
-      "DELETE FROM users WHERE username LIKE 'web\\_tests\\_%' AND email LIKE 'web\\_tests\\_%@gnorium.test' AND created_at < now() - interval '1 hour';"
+      "DELETE FROM users WHERE username LIKE 'web\\_tests\\_%' AND (email LIKE 'web\\_tests\\_%@gnorium.test' OR (email IS NULL AND deleted_at IS NOT NULL)) AND created_at < now() - interval '1 hour';"
     )
     let suffix = randomHex(bytes: 5)
     // The username rule: 3–20 lowercase letters, digits and underscores.
@@ -56,12 +60,15 @@ struct TestAdmin: Sendable {
       try? runSQL(deleteStatement(username))
       throw WebTestError("Signing the test admin in failed with HTTP \(signedIn.statusCode).")
     }
-    return TestAdmin(username: username, cookie: Cookie(name: "auth_token", value: token, url: baseURL), baseURL: baseURL)
+    return TestAdmin(
+      username: username, cookie: Cookie(name: "auth_token", value: token, url: baseURL), password: password,
+      baseURL: baseURL)
   }
 
-  private init(username: String, cookie: Cookie, baseURL: URL) {
+  private init(username: String, cookie: Cookie, password: String, baseURL: URL) {
     self.username = username
     self.cookie = cookie
+    self.password = password
     self.baseURL = baseURL
   }
 
@@ -74,8 +81,15 @@ struct TestAdmin: Sendable {
     try? Self.runSQL(Self.deleteStatement(username))
   }
 
+  /// The account's row, whether or not a test deleted the account through
+  /// the site (which keeps the row and erases its email).
   private static func deleteStatement(_ username: String) -> String {
-    "DELETE FROM users WHERE username = '\(username)' AND email = '\(username)@gnorium.test';"
+    "DELETE FROM users WHERE username = '\(username)' AND (email = '\(username)@gnorium.test' OR (email IS NULL AND deleted_at IS NOT NULL));"
+  }
+
+  /// One column of this account's row, as psql prints it ("" for null).
+  func column(_ name: String) throws -> String {
+    try Self.query("SELECT COALESCE(\(name)::text, '') FROM users WHERE username = '\(username)';")
   }
 
   // MARK: - HTTP
@@ -127,11 +141,17 @@ struct TestAdmin: Sendable {
     ?? "postgresql://gnorium:password@localhost:5432/gnorium_dev"
 
   private static func runSQL(_ sql: String) throws {
+    _ = try query(sql)
+  }
+
+  /// Runs `sql` and returns what psql prints, unaligned and without headers.
+  private static func query(_ sql: String) throws -> String {
     guard let psqlPath else { throw WebTestError(unavailableReason() ?? "psql is missing.") }
     let process = Process()
     process.executableURL = URL(fileURLWithPath: psqlPath)
-    process.arguments = [databaseURL, "-v", "ON_ERROR_STOP=1", "-q", "-c", sql]
-    process.standardOutput = FileHandle.nullDevice
+    process.arguments = [databaseURL, "-v", "ON_ERROR_STOP=1", "-q", "-At", "-c", sql]
+    let output = Pipe()
+    process.standardOutput = output
     let errors = Pipe()
     process.standardError = errors
     try process.run()
@@ -140,6 +160,8 @@ struct TestAdmin: Sendable {
       let message = String(data: errors.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
       throw WebTestError("psql failed: \(message.trimmingCharacters(in: .whitespacesAndNewlines))")
     }
+    let printed = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+    return printed.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
   // MARK: - Randomness

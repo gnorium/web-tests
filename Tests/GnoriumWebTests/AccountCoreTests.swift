@@ -12,10 +12,11 @@ struct AccountCoreTests {
   static let paths = [
     "/auth/sign-in",
     "/auth/register",
-    "/auth/choose-your-username?email=someone%40gnorium.test&suggested=someone",
+    // With no sign-in with Google waiting, the card says to start again.
+    "/auth/choose-your-username",
     "/auth/forgot-password",
     "/auth/reset-password?token=not-a-real-token",
-    "/admin-console/sign-in?error=Invalid+credentials",
+    "/admin-console/sign-in?error=invalid",
     "/auth/verify-email?token=not-a-real-token",
   ]
 
@@ -95,13 +96,16 @@ struct AccountCoreTests {
         frames.append((path, try await Self.frame(of: page, at: path)))
       }
       Self.check(frames)
-      // The admin console's refusal is drawn, at the top of the card.
-      _ = try await page.goto("/admin-console/sign-in?error=Invalid+credentials", waitUntil: .load)
+      // The admin console's refusal is drawn, at the top of the card; text
+      // that isn't one of its codes never is.
+      _ = try await page.goto("/admin-console/sign-in?error=invalid", waitUntil: .load)
       try await expect(page.locator(".account-core-card .page-alerts .alert-view")).toBeVisible()
+      _ = try await page.goto("/admin-console/sign-in?error=Call+this+number", waitUntil: .load)
+      try await expect(page.locator(".account-core-card .page-alerts .alert-view")).toHaveCount(0)
     }
   }
 
-  /// Change password is signed in only.
+  /// Change password and Delete account are signed in only.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func changePasswordIsTheSameCard(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -113,6 +117,7 @@ struct AccountCoreTests {
         Self.check([
           ("/auth/forgot-password", try await Self.frame(of: page, at: "/auth/forgot-password")),
           ("/account/password", try await Self.frame(of: page, at: "/account/password")),
+          ("/account/delete", try await Self.frame(of: page, at: "/account/delete")),
         ])
       }
     } catch {
