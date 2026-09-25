@@ -73,7 +73,9 @@ struct AccountCoreTests {
     for (path, frame) in frames {
       #expect(abs(frame.top - frame.bottom) <= 1, "\(path): the card is off centre: \(frame)")
       #expect(frame.overflow <= 0, "\(path): the page scrolls sideways: \(frame)")
-      #expect(frame.padding == "40px", "\(path): \(frame)")
+      // 40 in at full width; 24 on a phone, where the card is narrower
+      // than its 480 and "Continue with Google" must keep to one line.
+      #expect(frame.padding == (frame.width >= 480 ? "40px" : "24px"), "\(path): \(frame)")
       #expect(frame.titleSize == "28px", "\(path): \(frame)")
       #expect(frame.titleWeight == "400", "\(path): \(frame)")
       #expect(frame.titleAlign == "center", "\(path): \(frame)")
