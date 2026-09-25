@@ -152,8 +152,10 @@ struct TestAdmin: Sendable {
     _ = try query(sql)
   }
 
-  /// Runs `sql` and returns what psql prints, unaligned and without headers.
-  private static func query(_ sql: String) throws -> String {
+  /// Runs `sql` against the dev database and returns what psql prints,
+  /// unaligned and without headers. A test's own fixtures only: rows it
+  /// makes under its throwaway account and removes after.
+  static func query(_ sql: String) throws -> String {
     guard let psqlPath else { throw WebTestError(unavailableReason() ?? "psql is missing.") }
     let process = Process()
     process.executableURL = URL(fileURLWithPath: psqlPath)
