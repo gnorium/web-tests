@@ -166,9 +166,9 @@ private struct ScratchWork {
       """
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(ids["submission"]!)', '\(user)');
-      INSERT INTO bibliographic_evidences (id, batch_id, source_url, language, processing_status, title, category, edition, year)
+      INSERT INTO bibliographic_evidences (id, batch_id, reference_url, language, processing_status, title, category, edition, year)
         VALUES ('\(ids["evidence"]!)', '\(ids["submission"]!)', 'https://example.org/web-tests', 'eng', 'pending', '\(title)', 'report', 'First edition', 1958);
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_evidence_id, source_url, language, processing_status)
+      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_evidence_id, reference_url, language, processing_status)
         VALUES ('\(ids["overture"]!)', '\(ids["submission"]!)', '\(ids["evidence"]!)', 'https://example.org/web-tests', 'eng', 'pending');
       INSERT INTO bibliographic_concertos (id, bibliographic_overture_id, requested_by_user_id, processing_status)
         VALUES ('\(ids["concerto"]!)', '\(ids["overture"]!)', '\(user)', 'submitted');
