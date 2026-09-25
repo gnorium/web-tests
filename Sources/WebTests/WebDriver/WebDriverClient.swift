@@ -30,7 +30,12 @@ struct WebDriverClient: Sendable {
       request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
       request.httpBody = Data((body ?? [:]).jsonText.utf8)
     }
-    let (data, _) = try await session.data(for: request)
+    let data: Data
+    do {
+      (data, _) = try await session.data(for: request)
+    } catch let error as URLError where error.code == .timedOut {
+      throw WebTestError("safaridriver did not answer \(method) /\(path) within \(Int(timeout))s.")
+    }
     let value = (try? JSONDecoder().decode(JSONValue.self, from: data))?["value"] ?? .null
     if let error = value["error"].string {
       throw WebDriverError(error: error, message: value["message"].string ?? "")

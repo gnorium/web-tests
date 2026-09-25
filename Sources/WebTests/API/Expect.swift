@@ -61,13 +61,27 @@ public struct LocatorAssertions: Sendable {
   let locator: Locator
   let timeout: Duration
   let location: CodeLocation
+  var negated = false
+
+  /// The same assertions, expecting the opposite:
+  /// `expect(field).not.toHaveValue("")`.
+  public var not: LocatorAssertions {
+    var copy = self
+    copy.negated.toggle()
+    return copy
+  }
 
   private func check(
     _ assertion: String, options: JSONValue = [:], _ predicate: @escaping (JSONValue) -> (pass: Bool, actual: String)
   ) async throws {
+    let negated = negated
     try await poll(
-      assertion, subject: locator.description, timeout: timeout, location: location,
-      read: { try await locator.inspect(options) }, check: predicate)
+      (negated ? "not." : "") + assertion, subject: locator.description, timeout: timeout, location: location,
+      read: { try await locator.inspect(options) },
+      check: { value in
+        let (pass, actual) = predicate(value)
+        return (pass != negated, actual)
+      })
   }
 
   /// One element matches, and it is visible.

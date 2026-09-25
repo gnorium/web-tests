@@ -14,6 +14,9 @@ final class SafariPage: PageDriver, @unchecked Sendable {
 
   func navigate(to url: URL, waitUntil: LoadState, timeout: Duration) async throws -> NavigationResult {
     try? await collect()
+    // A page loaded in a window that is not in front gets no animation
+    // frames, and whatever it defers to one (hydration, say) never runs.
+    try? await ensureFrontmost()
     // Navigate To returns once the document has loaded (page load strategy
     // "normal").
     _ = try await context.command("POST", "url", ["url": .string(url.absoluteString)], timeout: timeout.milliseconds / 1000 + 5)
@@ -22,6 +25,7 @@ final class SafariPage: PageDriver, @unchecked Sendable {
 
   func reload(waitUntil: LoadState, timeout: Duration) async throws -> NavigationResult {
     try? await collect()
+    try? await ensureFrontmost()
     _ = try await context.command("POST", "refresh", timeout: timeout.milliseconds / 1000 + 5)
     return try await afterLoad(waitUntil, timeout: timeout)
   }
@@ -159,7 +163,47 @@ final class SafariPage: PageDriver, @unchecked Sendable {
 
   // MARK: - Input
 
+  /// Safari delivers simulated pointer events only to its key window: with
+  /// another app in front, a click is silently dropped (keys still arrive).
+  /// So bring Safari forward first when its page has lost focus.
+  private func ensureFrontmost() async throws {
+    if try await hasFocus() { return }
+    // macOS may turn an activation down while the user is busy in another
+    // app, so ask again each second.
+    let deadline = Deadline(.seconds(6))
+    while !deadline.hasPassed {
+      let open = Process()
+      open.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+      open.arguments = ["-b", "com.apple.Safari"]
+      open.standardOutput = FileHandle.nullDevice
+      open.standardError = FileHandle.nullDevice
+      try open.run()
+      open.waitUntilExit()
+      for _ in 0..<20 {
+        if try await hasFocus() { return }
+        try await Task.sleep(for: .milliseconds(50))
+      }
+    }
+    throw WebTestError(
+      "Safari's automation window is not in front and could not be brought there; Safari drops pointer input to a window that is not the key window. Leave the Mac to the test while Safari runs.")
+  }
+
+  private func hasFocus() async throws -> Bool {
+    try await evaluate("document.hasFocus()").bool == true
+  }
+
   func dispatchMouse(_ actions: [MouseAction]) async throws {
+    try await ensureFrontmost()
+    try await performMouse(actions)
+    // Focus lost while the actions ran means they were most likely dropped:
+    // bring Safari back and send them once more.
+    if try await !hasFocus() {
+      try await ensureFrontmost()
+      try await performMouse(actions)
+    }
+  }
+
+  private func performMouse(_ actions: [MouseAction]) async throws {
     var steps: [JSONValue] = []
     for action in actions {
       switch action {

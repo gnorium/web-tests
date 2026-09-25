@@ -108,6 +108,11 @@ public func withPage(
       }
     }
     await context.close()
+    // A failed #require has recorded its own issue already.
+    if error is ExpectationFailedError {
+      if message != "\(error)" { Issue.record(Comment(rawValue: message), severity: .warning, sourceLocation: sourceLocation) }
+      return
+    }
     let location = (error as? WebTestError)?.location.map {
       SourceLocation(fileID: $0.fileID, filePath: $0.filePath, line: $0.line, column: $0.column)
     }
