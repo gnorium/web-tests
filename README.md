@@ -130,14 +130,14 @@ Each reads the page again until it holds or the timeout passes (`expect(x, timeo
 
 ```sh
 swift test                                  # every engine
-WEB_TESTS_BROWSERS=chrome swift test        # the library's own tests on Chrome only
+BROWSERS=chrome swift test        # the library's own tests on Chrome only
 WEB_TESTS_HEADED=1 swift test               # watch Chrome work
 ```
 
 | Variable | Meaning |
 |---|---|
 | `<PREFIX>_BASE_URL` | where relative URLs point (for Gnorium, `GNORIUM_BASE_URL`, default `http://localhost:8080`) |
-| `<PREFIX>_BROWSERS` | `chrome`, `safari` or `chrome,safari` (the default) |
+| `BROWSERS` | `chrome`, `safari` or `chrome,safari` (the default) |
 | `WEB_TESTS_CHROME` | another Chrome binary |
 | `WEB_TESTS_HEADED` | `1` shows Chrome's window |
 | `WEB_TESTS_ARTIFACTS` | where failure artifacts go |
