@@ -187,6 +187,32 @@ struct AmendmentAttributionTests {
       try await expect(statementBox("creation[1].agent")).toBeChecked(false)
       try await place.fill(placeValue)
       try await expect(statementBox("creation.place")).toBeChecked(false)
+
+      // A day its month has not is marked as it is typed: 29 February only
+      // in a leap year.
+      let dateYear = statementField("creation.date.year").locator(".text-input-input")
+      let day = statementField("creation.date.day").locator(".text-input-input")
+      // Chosen as the dropdowns choose: their hidden inputs, changed. An
+      // exact date shows its month and day.
+      for (part, value) in [("yearQualifier", "exact"), ("month", "february")] {
+        _ = try await statementField("creation.date.\(part)").evaluate(
+          """
+          (el) => {
+            const input = el.querySelector('input[type=hidden]');
+            input.value = '\(value)';
+            input.dispatchEvent(new Event('change'));
+            return input.value;
+          }
+          """)
+      }
+      let (yearBefore, dayBefore) = (try await dateYear.inputValue(), try await day.inputValue())
+      try await dateYear.fill("1613")
+      try await day.fill("29")
+      try await expect(day).toHaveAttribute("data-validation", "invalid")
+      try await dateYear.fill("1612")
+      #expect(try await day.getAttribute("data-validation") == nil, "1612 is a leap year")
+      try await dateYear.fill(yearBefore)
+      try await day.fill(dayBefore)
     }
   }
 }
