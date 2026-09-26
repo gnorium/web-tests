@@ -4,11 +4,13 @@ import WebTests
 import WebTestsTesting
 
 /// The Biblio-record field of Submit Testament: a searchable dropdown of
-/// every record from the start. Once the work's language, title, author and
-/// category are filled, the match is chosen, "New title" among the choices;
-/// a record found by typing and picked fills those fields in from it. The
-/// chosen record's chronicle tree follows with the new testament in it, the
-/// only node that moves. Nothing is submitted. A throwaway admin owns a
+/// every record from the start, each in two rows (its title; its language,
+/// progenitors and category), a note ending a list cut at 50. Once the
+/// work's language, title, author and category are filled, the match is
+/// chosen; choosing it again unselects it, back to "—", no choice. A record
+/// found by typing and picked fills those fields in from it. The chosen
+/// record's chronicle tree follows with the new testament in it, the only
+/// node that moves. Nothing is submitted. A throwaway admin owns a
 /// scratch work — its author, evidence, overture, concerto, hallmark, record
 /// and attributed version, made by SQL — removed after.
 @Suite("Record choice", .serialized)
@@ -44,6 +46,16 @@ struct RecordChoiceTests {
       let dropdown = field.locator(".dropdown-view")
       try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("—")
       try await expect(dropdown.locator(".dropdown-option[data-value='\(work.recordID)']")).toHaveCount(1)
+      // Cut at 50 records, the list says so after its last option, and
+      // only then; the note is no option.
+      let records = Int(try TestAdmin.query("SELECT count(*) FROM biblio_records")) ?? 0
+      let note = dropdown.locator(".dropdown-options-list:not([data-dropdown-results]) > .dropdown-note")
+      if records > 50 {
+        try await expect(note).toHaveText("Showing the first 50. Type to narrow the list.")
+        try await expect(note).not.toHaveAttribute("data-dropdown-option", "true")
+      } else {
+        try await expect(note).toHaveCount(0)
+      }
 
       // The key fields: a dropdown tells its hidden input, as a pick does.
       _ = try await page.evaluate(
@@ -57,14 +69,16 @@ struct RecordChoiceTests {
       try await form.locator("input[name='title']").fill(work.title)
       try await author.fill(work.author)
 
-      // The scratch work is the match, chosen, first; "New title" is the
-      // other way.
+      // The scratch work is the match, chosen, first; no "New title".
       try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText(work.title)
       try await expect(dropdown.locator(".dropdown-option").first).toHaveAttribute("data-value", work.recordID)
-      try await expect(dropdown.locator(".dropdown-option[data-value='new']")).toHaveText("New title")
+      try await expect(dropdown.locator(".dropdown-option[data-value='new']")).toHaveCount(0)
+      // Two rows: its title; its language, progenitors and category. No path.
       let option = dropdown.locator(".dropdown-option[data-value='\(work.recordID)']")
-      try await expect(option).toContainText("\(work.author) · Report")
-      try await expect(option).toContainText(work.path)
+      try await expect(option.locator("span")).toHaveCount(2)
+      try await expect(option.locator(".dropdown-option-display-text")).toHaveText(work.title)
+      try await expect(option.locator(".dropdown-option-alt-text")).toHaveText("English · \(work.author) · Report")
+      try await expect(option).not.toContainText(work.path)
 
       // Its tree: the edition it has, fixed, and the new testament after it.
       let tree = field.locator(".record-placement-view")
@@ -85,13 +99,18 @@ struct RecordChoiceTests {
       let placement = try await field.locator("input[name='placement']").inputValue()
       #expect(placement.contains(#""edition-new":{"parent":"work","position":0}"#), "\(placement)")
 
-      // "New title": no record, no tree, and nothing cleared.
+      // Chosen again, it is unselected: "—", no record, no tree, and
+      // nothing cleared; it stays so (the best match is not chosen again).
       try await dropdown.locator(".dropdown-trigger").click()
-      try await dropdown.locator(".dropdown-option[data-value='new']").click()
+      try await option.click()
+      try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("—")
       try await expect(field.locator(".record-placement-view")).toHaveCount(0)
-      try await expect(field.locator("input[name='biblio-record']")).toHaveValue("new")
+      try await expect(field.locator("input[name='placement-version']")).toHaveCount(0)
+      try await expect(field.locator("input[name='biblio-record']")).toHaveValue("")
       try await expect(form.locator("input[name='title']")).toHaveValue(work.title)
       try await expect(author).toHaveValue(work.author)
+      try await Task.sleep(for: .milliseconds(800))
+      try await expect(field.locator("input[name='biblio-record']")).toHaveValue("")
 
       // Afresh: found by typing, picked, and the key fields are its.
       try await page.openHydrated(Self.form)
@@ -100,9 +119,15 @@ struct RecordChoiceTests {
       try await dropdown.locator(".dropdown-search-input").fill(work.suffix)
       let results = dropdown.locator(".dropdown-options-list[data-dropdown-results='true']")
       try await expect(results).toBeVisible()
-      try await expect(results.locator(".dropdown-option")).toHaveCount(2)
+      try await expect(results.locator(".dropdown-option")).toHaveCount(1)
+      try await expect(results.locator(".dropdown-note")).toHaveCount(0)
       let found = results.locator(".dropdown-option[data-value='\(work.recordID)']")
-      try await expect(found).toContainText("\(work.author) · Report")
+      try await expect(found.locator(".dropdown-option-alt-text")).toHaveText("English · \(work.author) · Report")
+      // Found by its title only, never its author's name.
+      try await dropdown.locator(".dropdown-search-input").fill("Web Tests Author \(work.suffix)")
+      try await expect(results.locator(".dropdown-option")).toHaveCount(0)
+      try await dropdown.locator(".dropdown-search-input").fill(work.suffix)
+      try await expect(results.locator(".dropdown-option")).toHaveCount(1)
       try await found.click()
 
       try await expect(field.locator("input[name='biblio-record']")).toHaveValue(work.recordID)
