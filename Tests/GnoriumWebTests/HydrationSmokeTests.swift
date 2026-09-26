@@ -7,7 +7,7 @@ import WebTestsTesting
 /// fail, and does not scroll sideways, on a phone and on a desktop.
 @Suite("Hydration smoke")
 struct HydrationSmokeTests {
-  static let pages = ["/", "/biblio-records", "/lexico-records", "biblio-record", "/auth/sign-in"]
+  static let pages = ["/", "/biblio-records", "/lexico-records", "biblio-record", "lexico-record", "/auth/sign-in"]
 
   @Test(arguments: gnorium.engines, Layout.allCases)
   func pagesHydrateCleanly(engine: BrowserEngine, layout: Layout) async throws {
@@ -15,7 +15,9 @@ struct HydrationSmokeTests {
       var failures: [String] = []
       for path in Self.pages {
         do {
-          let target = path == "biblio-record" ? try await Self.firstBiblioRecord(page) : path
+          let target =
+            path == "biblio-record" ? try await Self.firstRecord(page, in: "/biblio-records")
+            : path == "lexico-record" ? try await Self.firstRecord(page, in: "/lexico-records") : path
           try await page.clearDiagnostics()
           try await page.openHydrated(target)
           try await page.expectNoErrors()
@@ -30,13 +32,13 @@ struct HydrationSmokeTests {
     }
   }
 
-  /// A biblio-record page, found the way a reader would: the first record
-  /// the index lists.
-  static func firstBiblioRecord(_ page: Page) async throws -> String {
-    try await page.goto("/biblio-records")
-    let link = page.locator("a[href^='/biblio-records/']").first
+  /// A record page, found the way a reader would: the first record the
+  /// index lists.
+  static func firstRecord(_ page: Page, in index: String) async throws -> String {
+    try await page.goto(index)
+    let link = page.locator("a[href^='\(index)/']").first
     guard let href = try await link.getAttribute("href") else {
-      throw WebTestError("/biblio-records lists no record to open.")
+      throw WebTestError("\(index) lists no record to open.")
     }
     return href
   }
