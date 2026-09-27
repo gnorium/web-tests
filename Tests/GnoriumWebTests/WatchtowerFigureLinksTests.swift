@@ -10,9 +10,9 @@ import WebTestsTesting
 /// the filter keeps.
 @Suite("Watchtower figure links")
 struct WatchtowerFigureLinksTests {
-  /// The objects' figures, each opening a lifecycle list or the rebuttals
-  /// register — not a stage's, which count runs rather than rows.
-  static let figureLinks = ".watchtower-object-figures-view a[href]"
+  /// Every figure: an object's, opening a lifecycle list or the rebuttals
+  /// register, and a stage's, opening the runs it counts.
+  static let figureLinks = ".watchtower-object-figures-view a[href], .watchtower-stage-figures a[href]"
 
   struct Figure: Decodable {
     let text: String
@@ -50,7 +50,8 @@ struct WatchtowerFigureLinksTests {
     try await withPage(engine, gnorium) { page in
       try await page.openHydrated("/")
       let figures = try await Self.figures(page)
-      try #require(figures.count >= 40, "the Watchtower shows \(figures.count) figure links")
+      try #require(figures.count >= 76, "the Watchtower shows \(figures.count) figure links")
+      try #require(figures.filter { $0.href.contains("show=runs") }.count == 36, "every stage has three run links")
       for figure in figures {
         let count = try #require(Int(figure.text.prefix { $0.isNumber }))
         let listed = try await Self.listed(page, figure.href)
@@ -65,6 +66,38 @@ struct WatchtowerFigureLinksTests {
   /// The testaments' pending overtures, whose list must be filtered on the
   /// first render, not only after Apply.
   static let pendingTestamentOvertures = "/mission-control/lifecycles?tab=bibliographic&object=overture&status=pending"
+
+  /// A stage's figure opens the runs list: its filter bar names the stage,
+  /// the status and "Runs", with no placeholder, and it lists as many runs as
+  /// the figure.
+  @Test(arguments: enginesAndLayouts)
+  func aStageFigureOpensItsRuns(engine: BrowserEngine, layout: Layout) async throws {
+    let href = "/mission-control/lifecycles?tab=bibliographic&status=failed&stage=sight&since=1w&show=runs"
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      try await page.openHydrated("/")
+      let link = page.locator(".watchtower-stage-figures a[href='\(href)']").first
+      let phrase = try await link.textContent()
+      let count = try #require(Int(phrase.prefix { $0.isNumber }), "\(href) reads \(phrase)")
+      try await link.click()
+      try await expect(page, timeout: .seconds(15)).toHaveURL(href)
+      try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
+      let fields = try await page.locator(".filter-bar-field-picker .dropdown-selected-text").allTextContents()
+      #expect(fields.contains("Stage") && fields.contains("Status") && fields.contains("Show"), "fields: \(fields)")
+      let values = try await page.locator(".filter-bar-value-select .dropdown-selected-text").allTextContents()
+      #expect(values.contains("Sight") && values.contains("Failed") && values.contains("Runs"), "values: \(values)")
+      let placeholders = try await page.evaluate(
+        """
+        [...document.querySelectorAll('.filter-bar-value-select .dropdown-selected-text')]
+          .filter(e => e.getAttribute('data-selected') !== 'true').length
+        """, as: Int.self)
+      #expect(placeholders == 0, "\(placeholders) filter rows show a placeholder")
+      if count == 0 {
+        try await expect(page.locator(".mission-control-core-empty")).toBeVisible()
+      } else {
+        try await expect(page.locator(".bibliographic-runs-table")).toHaveAttribute("data-total-items", "\(count)")
+      }
+    }
+  }
 
   @Test(arguments: enginesAndLayouts)
   func aFigureOpensItsFilteredList(engine: BrowserEngine, layout: Layout) async throws {
