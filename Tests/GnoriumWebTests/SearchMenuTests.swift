@@ -164,6 +164,12 @@ struct SearchMenuTests {
         if layout == .phone {
           try await page.locator(".navbar-slide-close-btn").click()
         }
+        // No voice or etymon column: the sidebar's fields find records by them.
+        try await expect(
+          page.locator(
+            ".records-results-view [data-table-column-id='author'], .records-results-view [data-table-column-id='etymon']"
+          )
+        ).toHaveCount(0)
 
         let header = page.locator(".records-results-view .table-sort-button[data-column-id='\(column)']")
         try await header.click()
