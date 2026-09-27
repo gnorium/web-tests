@@ -62,7 +62,7 @@ struct TestamentLevelsTests {
         (form) => {
           const at = (selector) => form.querySelector(selector);
           const chain = [
-            '#work-language', '#work-title', "[data-item-list='work-progenitor']", "[name='year']", '#work-place',
+            '#work-language', '#work-title', "[data-item-list='work-voice']", "[name='year']", '#work-place',
             '#work-type', "[data-item-list='work-genre']", '.bibliographic-level-divider',
             ".activity-statement-view[data-as-namespace='publication']", '#work-edition',
             ".activity-statement-view[data-as-namespace='production']", '#testament-copy-label',

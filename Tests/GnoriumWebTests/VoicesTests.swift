@@ -3,18 +3,19 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// Submit Testament's voices: a person a row ("Voice", "+ Add voice"), each
-/// with a role (Author, Translator, Compiler: an editor is the edition's), a
-/// row added starting as an author; the
-/// form posts each row's type and name. In a translation the rows stay, and
+/// Submit Testament's voices: a person a row ("Voice", "+ Add voice") under
+/// a heading that counts them ("Voice" over one row, "Voices" over two, kept
+/// in step as rows come and go), each with a role (Author, Translator,
+/// Compiler: an editor is the edition's), a row added starting as an author;
+/// the form posts each row's role and name. In a translation the rows stay, and
 /// the Submitted card has no translator of its own. Every chain step has a
 /// Biblio-record at its top, which fills that step in from the record it
 /// picks; the form's own Biblio-record comes first.
 /// Nothing is submitted (the submit event is dispatched by hand, which runs
 /// the form's script but never posts). A throwaway admin owns a scratch
 /// work, removed after.
-@Suite("Progenitors", .serialized)
-struct ProgenitorsTests {
+@Suite("Voices", .serialized)
+struct VoicesTests {
   static let form = "/mission-control/submit/bibliographic/evidence-testament"
 
   @Test(arguments: gnorium.engines, Layout.allCases)
@@ -37,11 +38,15 @@ struct ProgenitorsTests {
     try await withPage(engine, gnorium, viewport: viewport, cookies: [admin.cookie]) { page in
       try await page.openHydrated(Self.form)
       let form = page.locator(".submit-testament-form")
-      let list = form.locator("[data-item-list='work-progenitor']")
+      let list = form.locator("[data-item-list='work-voice']")
       let rows = list.locator("[data-item-section='true']:not([data-item-template] *)")
+      let heading = list.locator(":scope > .form-items-heading")
 
-      // One row to start, an author; three roles, Title Case, no editor.
+      // One row to start, an author, headed "Voice", labeled "Voice"; three
+      // roles, Title Case, no editor.
       try await expect(rows).toHaveCount(1)
+      try await expect(heading).toHaveText("Voice")
+      try await expect(rows.first.locator(".text-input-label").first).toContainText("Voice")
       let firstType = rows.first.locator(".dropdown-view")
       try await expect(firstType.locator(".dropdown-selected-text")).toHaveText("Author")
       try await expect(rows.first.locator("input[id$='-dropdown']")).toHaveValue("author")
@@ -55,6 +60,7 @@ struct ProgenitorsTests {
       // A second row starts as an author; made a translator.
       try await list.locator("[data-item-add-btn='true'] button").click()
       try await expect(rows).toHaveCount(2)
+      try await expect(heading).toHaveText("Voices")
       let second = rows.nth(1)
       try await expect(second.locator("input[id$='-dropdown']")).toHaveValue("author")
       try await second.locator(".dropdown-trigger").click()
@@ -62,12 +68,19 @@ struct ProgenitorsTests {
       try await expect(second.locator(".dropdown-selected-text")).toHaveText("Translator")
       try await second.locator(".text-input-input").fill("Alexander Pope")
 
-      // What the form posts: each row's type and name, in order.
+      // A third row, taken away again: "Voices" still over two.
+      try await list.locator("[data-item-add-btn='true'] button").click()
+      try await expect(rows).toHaveCount(3)
+      try await rows.nth(2).locator(".item-remove-btn").click()
+      try await expect(rows).toHaveCount(2)
+      try await expect(heading).toHaveText("Voices")
+
+      // What the form posts: each row's role and name, in order.
       let posted = try await list.evaluate(
         """
         (group) => {
           group.closest('form').dispatchEvent(new Event('submit', { cancelable: true }));
-          return group.querySelector('.work-progenitor-json').value;
+          return group.querySelector('.work-voice-json').value;
         }
         """
       ).string ?? ""

@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// The Biblio-record field of Submit Testament: a searchable dropdown of
 /// every record from the start, each in two rows (its language › its title,
-/// a breadcrumb with BreadcrumbView's own chevron; its progenitors and
+/// a breadcrumb with BreadcrumbView's own chevron; its voices and
 /// type), a note ending a list cut at 50; the closed dropdown names the
 /// chosen record so too. Once the
 /// work's language, title, author and type are filled, the match is
@@ -45,7 +45,7 @@ struct RecordChoiceTests {
       let field = page.locator(".record-choice-field-view")
       let form = page.locator(".submit-testament-form")
       let author = form.locator(
-        "[data-item-list='work-progenitor'] [data-item-section='true']:not([data-item-template] *) .text-input-input"
+        "[data-item-list='work-voice'] [data-item-section='true']:not([data-item-template] *) .text-input-input"
       ).first
       try await expect(field.locator("legend")).toContainText("Biblio-record")
       // A dropdown of every record from the start, none chosen: "—".
@@ -102,7 +102,7 @@ struct RecordChoiceTests {
           setTimeout(() => { observer.disconnect(); resolve(false); }, 15000);
         })
         """, timeout: .seconds(20))
-      // Two rows: its language › its title; its progenitors and type.
+      // Two rows: its language › its title; its voices and type.
       // No path, and no language in the second row.
       let option = dropdown.locator(".dropdown-option[data-value='\(work.recordID)']")
       try await expect(option.locator(":scope > span")).toHaveCount(2)

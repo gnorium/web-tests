@@ -181,7 +181,7 @@ private struct ScratchRecord {
         VALUES ('\(recordID)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)', '\(authorSlug)',
           'report', 'eng', '[]', 1958, 'AD 1958');
       INSERT INTO persons (id, display_name, slug) VALUES ('\(personID)', '\(author)', '\(authorSlug)');
-      INSERT INTO biblio_record_authors (id, biblio_record_id, person_id, progenitor_role, position)
+      INSERT INTO biblio_record_voices (id, biblio_record_id, person_id, role, position)
         VALUES ('\(authorshipID)', '\(recordID)', '\(personID)', 'author', 0);
       COMMIT;
       """)
@@ -192,7 +192,7 @@ private struct ScratchRecord {
       """
       BEGIN;
       DELETE FROM url_histories WHERE entity_id IN ('\(recordID)', '\(personID)');
-      DELETE FROM biblio_record_authors WHERE id = '\(authorshipID)';
+      DELETE FROM biblio_record_voices WHERE id = '\(authorshipID)';
       DELETE FROM biblio_records WHERE id = '\(recordID)';
       DELETE FROM persons WHERE id = '\(personID)';
       COMMIT;

@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// The site's search offers a record as every record field does, in two rows:
 /// its language › its title, a breadcrumb with BreadcrumbView's own
-/// chevron, the name in link blue; then its progenitors and its type, "—"
+/// chevron, the name in link blue; then its voices and its type, "—"
 /// each when unknown, and no language. The navbar's
 /// search menu on both tabs.
 ///
@@ -232,11 +232,11 @@ struct SearchMenuTests {
     """
 
   /// What the search answers first for `name`: its language, its
-  /// progenitors, its type and its path, as the JSON gives them.
+  /// voices, its type and its path, as the JSON gives them.
   private struct Answer {
     let name: String
     let language: String
-    let progenitors: String
+    let voices: String
     let type: String
     let path: String
   }
@@ -248,7 +248,7 @@ struct SearchMenuTests {
     try await expect(crumb.locator(".breadcrumb-label-context")).toHaveText(expected.language)
     try await expect(crumb.locator(".breadcrumb-separator-view .next-icon-view")).toHaveCount(1)
     try await expect(crumb.locator(".breadcrumb-label-text")).toHaveText(expected.name)
-    try await expect(row.locator(detail)).toHaveText("\(expected.progenitors) · \(expected.type)")
+    try await expect(row.locator(detail)).toHaveText("\(expected.voices) · \(expected.type)")
     // The chevron on the language's line, after it.
     let line = try await crumb.evaluate(
       """
@@ -342,7 +342,7 @@ struct SearchMenuTests {
       throw WebTestError("\(endpoint) finds no record named \(name).")
     }
     return Answer(
-      name: name, language: language, progenitors: found["qualifier"].string ?? "—",
+      name: name, language: language, voices: found["qualifier"].string ?? "—",
       type: found["type"].string ?? "—", path: found["url"].string ?? "")
   }
 }

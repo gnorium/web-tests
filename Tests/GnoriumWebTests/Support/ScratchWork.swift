@@ -42,7 +42,7 @@ struct ScratchWork {
     let statement = references ? #""attribution":"Courtesy of the web tests","# : ""
     let metadata = """
       {"sourceUrl":"https://example.org/web-tests","sourceKind":"iiif-manifest","title":"\(title)",\
-      "progenitors":[{"name":"\(author)","type":"author"}],\
+      "voices":[{"name":"\(author)","role":"author"}],\
       "language":"eng","category":"report","edition":"First edition","year":1958,"genres":[],"isTranslation":false,\
       \(statement)"translationChain":[],"activityStatements":[],"citations":[]}
       """
@@ -82,7 +82,7 @@ struct ScratchWork {
         VALUES ('\(ids["record"]!)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)', '\(authorSlug)',
           'report', 'eng', '[]', 1958, 'AD 1958');
       INSERT INTO persons (id, display_name, slug) VALUES ('\(ids["person"]!)', '\(author)', '\(authorSlug)');
-      INSERT INTO biblio_record_authors (id, biblio_record_id, person_id, progenitor_role, position)
+      INSERT INTO biblio_record_voices (id, biblio_record_id, person_id, role, position)
         VALUES ('\(ids["authorship"]!)', '\(ids["record"]!)', '\(ids["person"]!)', 'author', 0);
       INSERT INTO bibliographic_hallmarks (id, thread_id, bibliographic_overture_id, bibliographic_concerto_id, biblio_record_id, metadata_json, processing_status, permitted_by_user_id, permitted_at)
         VALUES ('\(ids["hallmark"]!)', '\(ids["hallmark"]!)', '\(ids["overture"]!)', '\(ids["concerto"]!)', '\(ids["record"]!)', '\(metadata)', 'permitted', '\(user)', now());
@@ -102,7 +102,7 @@ struct ScratchWork {
       DELETE FROM bibliographic_hallmarks WHERE id = '\(ids["hallmark"]!)';
       DELETE FROM bibliographic_concertos WHERE id = '\(ids["concerto"]!)';
       DELETE FROM url_histories WHERE entity_id = '\(ids["record"]!)';
-      DELETE FROM biblio_record_authors WHERE id = '\(ids["authorship"]!)';
+      DELETE FROM biblio_record_voices WHERE id = '\(ids["authorship"]!)';
       DELETE FROM biblio_records WHERE id = '\(ids["record"]!)';
       DELETE FROM url_histories WHERE entity_id = '\(ids["person"]!)';
       DELETE FROM persons WHERE id = '\(ids["person"]!)';
