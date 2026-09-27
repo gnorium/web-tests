@@ -4,8 +4,10 @@ import WebTests
 import WebTestsTesting
 
 /// The Biblio-record field of Submit Testament: a searchable dropdown of
-/// every record from the start, each in two rows (its title; its language,
-/// progenitors and category), a note ending a list cut at 50. Once the
+/// every record from the start, each in two rows (its language › its title,
+/// a breadcrumb with BreadcrumbView's own chevron; its progenitors and
+/// category), a note ending a list cut at 50; the closed dropdown names the
+/// chosen record so too. Once the
 /// work's language, title, author and category are filled, the match is
 /// chosen; choosing it again unselects it, back to "—", no choice. A record
 /// found by typing and picked fills those fields in from it. The chosen
@@ -69,16 +71,54 @@ struct RecordChoiceTests {
       try await form.locator("input[name='title']").fill(work.title)
       try await author.fill(work.author)
 
-      // The scratch work is the match, chosen, first; no "New title".
-      try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText(work.title)
+      // The scratch work is the match, chosen, first; no "New title". The
+      // closed dropdown names it as its option does: English › its title.
+      try await expect(dropdown.locator(".dropdown-selected-text .breadcrumb-label-context")).toHaveText("English")
+      try await expect(dropdown.locator(".dropdown-selected-text .breadcrumb-label-text")).toHaveText(work.title)
       try await expect(dropdown.locator(".dropdown-option").first).toHaveAttribute("data-value", work.recordID)
       try await expect(dropdown.locator(".dropdown-option[data-value='new']")).toHaveCount(0)
-      // Two rows: its title; its language, progenitors and category. No path.
+      // Settled: a later answer to the key fields' asks redraws the field, and
+      // on a phone it could land after the move below, undoing it.
+      try await Task.sleep(for: .milliseconds(800))
+      // Two rows: its language › its title; its progenitors and category.
+      // No path, and no language in the second row.
       let option = dropdown.locator(".dropdown-option[data-value='\(work.recordID)']")
-      try await expect(option.locator("span")).toHaveCount(2)
-      try await expect(option.locator(".dropdown-option-display-text")).toHaveText(work.title)
-      try await expect(option.locator(".dropdown-option-alt-text")).toHaveText("English · \(work.author) · Report")
+      try await expect(option.locator(":scope > span")).toHaveCount(2)
+      let label = option.locator(".dropdown-option-display-text .breadcrumb-label-view")
+      try await expect(label.locator(".breadcrumb-label-context")).toHaveText("English")
+      try await expect(label.locator(".breadcrumb-separator-view .next-icon-view")).toHaveCount(1)
+      try await expect(label.locator(".breadcrumb-label-text")).toHaveText(work.title)
+      try await expect(option.locator(".dropdown-option-alt-text")).toHaveText("\(work.author) · Report")
       try await expect(option).not.toContainText(work.path)
+      // One running line that wraps, as a breadcrumb does: the chevron on the
+      // language's line, the page breadcrumb's icon at its size. (Its colour
+      // is the Search menu suite's: this option, chosen, is drawn inverted.)
+      // Measured with its menu shown for the moment, and hidden again, with
+      // no click: the field's state is not touched.
+      let row = try await label.evaluate(
+        """
+        (el) => {
+          const menu = el.closest('.dropdown-menu');
+          menu.dataset.open = 'true';
+          const box = (s) => el.querySelector(s).getBoundingClientRect();
+          const context = box('.breadcrumb-label-context'), chevron = box('.breadcrumb-separator-view');
+          const trail = document.querySelector('.breadcrumb-view .breadcrumb-separator-view .next-icon-view');
+          const measured = {
+            display: getComputedStyle(el).display,
+            sameLine: Math.abs((chevron.top + chevron.bottom) / 2 - (context.top + context.bottom) / 2) < 8,
+            after: chevron.left >= context.right,
+            size: el.querySelector('.breadcrumb-separator-view .next-icon-view').getBoundingClientRect().width,
+            trail: trail ? trail.getBoundingClientRect().width : null,
+          };
+          menu.dataset.open = 'false';
+          return measured;
+        }
+        """)
+      #expect(row["display"].string == "inline")
+      #expect(row["sameLine"].bool == true, "the chevron left the language's line")
+      #expect(row["after"].bool == true)
+      #expect(row["size"].double == 8)
+      if let trail = row["trail"].double { #expect(row["size"].double == trail) }
 
       // Its tree: the edition it has, fixed, and the new testament after it.
       let tree = field.locator(".record-placement-view")
@@ -122,7 +162,9 @@ struct RecordChoiceTests {
       try await expect(results.locator(".dropdown-option")).toHaveCount(1)
       try await expect(results.locator(".dropdown-note")).toHaveCount(0)
       let found = results.locator(".dropdown-option[data-value='\(work.recordID)']")
-      try await expect(found.locator(".dropdown-option-alt-text")).toHaveText("English · \(work.author) · Report")
+      try await expect(found.locator(".breadcrumb-label-context")).toHaveText("English")
+      try await expect(found.locator(".breadcrumb-label-text")).toHaveText(work.title)
+      try await expect(found.locator(".dropdown-option-alt-text")).toHaveText("\(work.author) · Report")
       // Found by its title only, never its author's name.
       try await dropdown.locator(".dropdown-search-input").fill("Web Tests Author \(work.suffix)")
       try await expect(results.locator(".dropdown-option")).toHaveCount(0)
@@ -131,6 +173,7 @@ struct RecordChoiceTests {
       try await found.click()
 
       try await expect(field.locator("input[name='biblio-record']")).toHaveValue(work.recordID)
+      try await expect(dropdown.locator(".dropdown-selected-text .breadcrumb-label-text")).toHaveText(work.title)
       try await expect(form.locator("#work-language")).toHaveValue("eng")
       try await expect(form.locator("[data-dropdown-id='work-language'] .dropdown-selected-text")).toHaveText("English")
       try await expect(form.locator("#work-category")).toHaveValue("report")
@@ -143,90 +186,5 @@ struct RecordChoiceTests {
       try await Task.sleep(for: .milliseconds(800))
       try await expect(field.locator("input[name='biblio-record']")).toHaveValue(work.recordID)
     }
-  }
-}
-
-/// A work with one attributed version whose tree holds one edition and its
-/// manifest, owned by the test's account. Every row by its own id, removed
-/// in the order the foreign keys allow.
-private struct ScratchWork {
-  let title: String
-  let author: String
-  /// What makes its title and author unique: a search finds it by this.
-  let suffix: String
-  let recordID: String
-  let versionID: String
-  let path: String
-  private let ids: [String: String]
-
-  init(owner: TestAdmin) throws {
-    let user = try owner.column("id")
-    var ids: [String: String] = [:]
-    for name in [
-      "submission", "evidence", "overture", "concerto", "record", "hallmark", "version", "person", "authorship",
-    ] {
-      ids[name] = UUID().uuidString.lowercased()
-    }
-    let suffix = String(ids["record"]!.prefix(8))
-    self.suffix = suffix
-    title = "Web tests placement \(suffix)"
-    let slug = "web-tests-placement-\(suffix)"
-    author = "Web Tests Author \(suffix)"
-    let authorSlug = "web-tests-author-\(suffix)"
-    path = "/biblio-records/eng/\(slug)/\(authorSlug)/report"
-    // As the server writes them: upper case.
-    recordID = ids["record"]!.uppercased()
-    versionID = ids["version"]!.uppercased()
-    self.ids = ids
-    let evidence = ids["evidence"]!.uppercased()
-    let metadata = """
-      {"sourceUrl":"https://example.org/web-tests","sourceKind":"iiif-manifest","title":"\(title)","authors":[],\
-      "language":"eng","category":"report","edition":"First edition","year":1958,"genres":[],"isTranslation":false,\
-      "translationChain":[],"activityStatements":[],"formerOwners":[],"citations":[]}
-      """
-    let shape = """
-      {"edition-\(evidence)":{"parent":"work","position":0},"manifest-\(evidence)":{"parent":"edition-\(evidence)","position":0},"work":{"parent":null,"position":0}}
-      """
-    _ = try TestAdmin.query(
-      """
-      BEGIN;
-      INSERT INTO submissions (id, user_id) VALUES ('\(ids["submission"]!)', '\(user)');
-      INSERT INTO bibliographic_evidences (id, batch_id, source_url, language, processing_status, title, category, edition, year)
-        VALUES ('\(ids["evidence"]!)', '\(ids["submission"]!)', 'https://example.org/web-tests', 'eng', 'pending', '\(title)', 'report', 'First edition', 1958);
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_evidence_id, source_url, language, processing_status)
-        VALUES ('\(ids["overture"]!)', '\(ids["submission"]!)', '\(ids["evidence"]!)', 'https://example.org/web-tests', 'eng', 'pending');
-      INSERT INTO bibliographic_concertos (id, bibliographic_overture_id, requested_by_user_id, processing_status)
-        VALUES ('\(ids["concerto"]!)', '\(ids["overture"]!)', '\(user)', 'submitted');
-      INSERT INTO biblio_records (id, corpus_id, title, title_slug, authors, category, language, genres, year, date_display)
-        VALUES ('\(ids["record"]!)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)', '\(authorSlug)',
-          'report', 'eng', '[]', 1958, 'AD 1958');
-      INSERT INTO persons (id, display_name, slug) VALUES ('\(ids["person"]!)', '\(author)', '\(authorSlug)');
-      INSERT INTO biblio_record_authors (id, biblio_record_id, person_id, position)
-        VALUES ('\(ids["authorship"]!)', '\(ids["record"]!)', '\(ids["person"]!)', 0);
-      INSERT INTO bibliographic_hallmarks (id, thread_id, bibliographic_overture_id, bibliographic_concerto_id, biblio_record_id, metadata_json, processing_status, permitted_by_user_id, permitted_at)
-        VALUES ('\(ids["hallmark"]!)', '\(ids["hallmark"]!)', '\(ids["overture"]!)', '\(ids["concerto"]!)', '\(ids["record"]!)', '\(metadata)', 'permitted', '\(user)', now());
-      INSERT INTO biblio_record_versions (id, biblio_record_id, bibliographic_hallmark_id, metadata_json, shape_json, treatment, created_at)
-        VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["hallmark"]!)', '\(metadata)', '\(shape)', 1, now());
-      COMMIT;
-      """)
-  }
-
-  func remove() {
-    _ = try? TestAdmin.query(
-      """
-      BEGIN;
-      DELETE FROM biblio_record_versions WHERE id = '\(ids["version"]!)';
-      DELETE FROM bibliographic_hallmarks WHERE id = '\(ids["hallmark"]!)';
-      DELETE FROM bibliographic_concertos WHERE id = '\(ids["concerto"]!)';
-      DELETE FROM url_histories WHERE entity_id = '\(ids["record"]!)';
-      DELETE FROM biblio_record_authors WHERE id = '\(ids["authorship"]!)';
-      DELETE FROM biblio_records WHERE id = '\(ids["record"]!)';
-      DELETE FROM url_histories WHERE entity_id = '\(ids["person"]!)';
-      DELETE FROM persons WHERE id = '\(ids["person"]!)';
-      DELETE FROM bibliographic_overtures WHERE id = '\(ids["overture"]!)';
-      DELETE FROM bibliographic_evidences WHERE id = '\(ids["evidence"]!)';
-      DELETE FROM submissions WHERE id = '\(ids["submission"]!)';
-      COMMIT;
-      """)
   }
 }
