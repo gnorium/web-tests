@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// The testament form is the testament tree's four levels (user,
 /// 2026-09-27): the work first, then an edition's Publication, a copy's
-/// Holding and a manifest's Digitization, each an accordion of its date,
+/// Preservation and a manifest's Digitization, each an accordion of its date,
 /// place and agents and its own fields, parted by dividers; no level named,
 /// no Creation. Every copy has its holding (institution, shelf mark, copy
 /// label); only a manuscript's has its production: those rows show only
@@ -97,7 +97,7 @@ struct TestamentLevelsTests {
       let copy = form.locator(".activity-statement-view[data-as-namespace='production']")
       let production = copy.locator(".as-event")
       try await expect(copy).toBeVisible()
-      try await expect(form.locator("#as-accordion-production .accordion-title").first).toContainText("Holding")
+      try await expect(form.locator("#as-accordion-production .accordion-title").first).toContainText("Preservation")
       let holding = form.locator("#as-accordion-production")
       if !(try await form.locator("#testament-copy-label").isVisible()) {
         try await holding.locator(".accordion-summary").first.click()
@@ -217,7 +217,7 @@ struct TestamentLevelsTests {
         try await page.openHydrated("/mission-control/overtures/bibliographic/\(overture)/modify")
         let form = page.locator(".modify-bibliographic-overture-form")
         let copy = form.locator(".activity-statement-view[data-as-namespace='production']")
-        try await expect(form.locator("#as-accordion-production .accordion-title").first).toContainText("Holding")
+        try await expect(form.locator("#as-accordion-production .accordion-title").first).toContainText("Preservation")
         let label = form.locator("#testament-copy-label")
         if !(try await label.isVisible()) {
           try await form.locator("#as-accordion-production .accordion-summary").first.click()
