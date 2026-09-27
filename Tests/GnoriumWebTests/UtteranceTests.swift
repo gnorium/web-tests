@@ -14,9 +14,8 @@ import WebTestsTesting
 @Suite("Utterance", .serialized)
 struct UtteranceTests {
   /// Five pages; the utterance on the third, its sentence ending on the
-  /// fourth. The third page projects as "Third page, first line.\nThird
-  /// page, second line.\nHere the scratchword begins\n" (gnorium-python's
-  /// diplomatic_text): its sentence's first part is 49..<76, its word 58..<69.
+  /// fourth. On the third page the word is the third of its third line
+  /// (after two `<lb/>`s: "Here the scratchword begins"), p. 3, l. 3, w. 3.
   static let tei: String = {
     func page(_ number: Int, _ body: String) -> String {
       #"<pb n="\#(number)" facs="https://example.org/iiif/webtests-p\#(number)/full/1300,/0/default.jpg"/>"# + body
@@ -54,7 +53,7 @@ struct UtteranceTests {
         owner: admin,
         anchor: .init(
           recordID: scratch.reading.work.recordID, versionID: scratch.versionID,
-          canvasID: "https://example.org/iiif/webtests-p3", passage: 49..<76, headword: 58..<69))
+          canvasID: "https://example.org/iiif/webtests-p3", page: 3, line: 3, word: 3, surface: "scratchword"))
       word = scratchWord
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(scratchWord.path)
@@ -68,8 +67,9 @@ struct UtteranceTests {
 
         try await page.locator("#record-row-s-1-1 > .accordion-summary").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
-        // Its testament, named and dated, linked to the testament at its page.
-        try await expect(attestation.locator(".attestation-view-testament")).toHaveText("Web tests testament · AD 1901")
+        // Its testament, named, dated and cited by page, line and word, linked to the testament at its page.
+        try await expect(attestation.locator(".attestation-view-testament")).toHaveText(
+          "Web tests testament · AD 1901 · p. 3, l. 3, w. 3")
         let utterance = attestation.locator(".utterance-view")
         try await expect(utterance).toHaveCount(1)
         // The page and the pages either side, each opened by its label.
@@ -115,6 +115,24 @@ struct UtteranceTests {
           """)
         #expect(landed == .string("\(scratch.reading.work.path)/versions/\(scratch.versionID)?semblance=2"))
 
+        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoErrors()
+
+        // Read again, the testament changed the word: the utterance is read where
+        // it was anchored, still marked, and says it awaits Gloss again.
+        _ = try TestAdmin.query(
+          """
+          INSERT INTO word_reanchorings (id, from_version_id, to_version_id, anchor_json, status, reason, utterance_id, created_at)
+            VALUES ('\(UUID().uuidString.lowercased())', '\(scratch.versionID)', '\(scratch.reading.work.versionID.lowercased())',
+              '{}', 'flagged', 'Its reading changed in the later version: scratchword', 'u-1', now());
+          """)
+        try await page.openHydrated(scratchWord.path)
+        try await page.locator("#record-row-s-1-1 > .accordion-summary").click()
+        try await expect(row).toHaveAttribute("data-open-finished", "true")
+        let notice = attestation.locator(".reading-changed-view")
+        try await expect(notice).toHaveText(
+          "A later reading of this testament changed this word (Its reading changed in the later version: scratchword). It awaits Gloss again.")
+        try await expect(attestation.locator(".utterance-view mark[data-highlight='headword']")).toHaveText("scratchword")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }

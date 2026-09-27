@@ -16,14 +16,17 @@ struct ScratchWord {
   private let ids: [String: String]
 
   /// Where an utterance is in a testament: its record, version and page
-  /// (image service), its passage and its word, counted as the concordance
+  /// (image service, and its place among the version's pages), and its word
+  /// by line and place in the line, with its surface, as the concordance
   /// counts the page.
   struct Anchor {
     let recordID: String
     let versionID: String
     let canvasID: String
-    let passage: Range<Int>
-    let headword: Range<Int>
+    let page: Int
+    let line: Int
+    let word: Int
+    let surface: String
   }
 
   init(owner: TestAdmin, distinction: String? = nil, anchor: Anchor? = nil) throws {
@@ -41,7 +44,7 @@ struct ScratchWord {
     } ?? ""
     let utterances = anchor.map {
       (
-        #"[{"biblioRecordID":"\#($0.recordID)","canvasID":"\#($0.canvasID)","charEnd":\#($0.passage.upperBound),"charStart":\#($0.passage.lowerBound),"headwordEnd":\#($0.headword.upperBound),"headwordStart":\#($0.headword.lowerBound),"id":"u-1","versionID":"\#($0.versionID)"}]"#,
+        #"[{"biblioRecordID":"\#($0.recordID)","canvasID":"\#($0.canvasID)","end":{"line":\#($0.line),"surface":"\#($0.surface)","word":\#($0.word)},"id":"u-1","page":\#($0.page),"start":{"line":\#($0.line),"surface":"\#($0.surface)","word":\#($0.word)},"versionID":"\#($0.versionID)"}]"#,
         #"["u-1"]"#,
         #","chronology":[{"testamentTitle":"Web tests testament","text":"The scratch word stood in a sentence.","utteranceID":"u-1","year":1901,"yearEnd":1901}]"#)
     } ?? ("[]", "[]", "")
