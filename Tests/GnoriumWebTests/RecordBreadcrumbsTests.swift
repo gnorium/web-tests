@@ -21,7 +21,7 @@ struct RecordBreadcrumbsTests {
     let work = try ScratchRecord()
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-        try await Self.climb(page, from: work.path, labels: ["English", work.title, "report"])
+        try await Self.climb(page, from: work.path, labels: ["English", work.title, "Report"])
       }
     } catch {
       work.remove()
@@ -36,7 +36,7 @@ struct RecordBreadcrumbsTests {
     let (work, namesake) = try ScratchRecord.pair()
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-        try await Self.climb(page, from: work.path, labels: ["English", work.title, "report", work.author])
+        try await Self.climb(page, from: work.path, labels: ["English", work.title, "Report", work.author])
         // The three segments are the list of the two.
         let group = work.path.split(separator: "/").prefix(4).joined(separator: "/")
         try await page.openHydrated("/\(group)")
