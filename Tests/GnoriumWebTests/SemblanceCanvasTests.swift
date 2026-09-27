@@ -1,0 +1,96 @@
+import Foundation
+import Testing
+import WebTests
+import WebTestsTesting
+
+/// A testament's reader holds one semblance per page, each a canvas, in its
+/// viewer's canvas slot (user, 2026-09-28): only the page on screen is shown
+/// and only its canvas holds tiles; a canvas paged away lets go of them, and
+/// its transcript pages with it. The manifest is a data URL, so no IIIF
+/// server is asked for anything but the images, which need not load.
+@Suite("Semblance canvas", .serialized)
+struct SemblanceCanvasTests {
+  static let services = (1...3).map { "/web-tests-iiif/semblance-\($0)" }
+
+  static let tei = """
+    <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
+    \(services.enumerated().map { #"<pb n="\#($0.offset + 1)" facs="\#($0.element)/full/1300,/0/default.jpg"/><p>Page \#($0.offset + 1).</p>"# }.joined(separator: "\n"))
+    </body></text></TEI>
+    """
+
+  /// A IIIF v3 manifest of the three pages, as a data URL.
+  static var manifestURL: String {
+    let canvases = services.enumerated().map { index, service in
+      #"{"type":"Canvas","width":1000,"height":1400,"label":{"none":["p\#(index + 1)"]},"items":[{"items":[{"body":{"id":"\#(service)/full/max/0/default.jpg","service":[{"id":"\#(service)"}]}}]}]}"#
+    }
+    let manifest = #"{"type":"Manifest","label":{"none":["Web tests"]},"items":[\#(canvases.joined(separator: ","))]}"#
+    return "data:application/json,"
+      + (manifest.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? manifest)
+  }
+
+  /// Per canvas: whether it is shown, and how many tile images it holds.
+  struct Canvas: Decodable { let service: String; let shown: Bool; let tiles: Int }
+
+  static let canvasesScript = """
+    (viewer) => JSON.stringify([...viewer.querySelectorAll('.semblance-view')].map(s => ({
+      service: s.dataset.serviceId,
+      shown: getComputedStyle(s).display !== 'none',
+      tiles: s.querySelectorAll('.canvas-view-tile-image').length,
+    })))
+    """
+
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func onlyThePageOnScreenReadsItsImage(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let reading = try ScratchReading(owner: admin, tei: Self.tei)
+    _ = try TestAdmin.query(
+      """
+      UPDATE bibliographic_evidences SET source_url = '\(Self.manifestURL)' WHERE title = '\(reading.work.title)';
+      """)
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+        try await page.openHydrated(reading.path)
+        let viewer = page.locator(".artifact-view").first
+        try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
+        try await expect(viewer.locator(".semblance-view")).toHaveCount(3)
+        try await expect(viewer.locator("#artifact-page-total")).toHaveText("3")
+
+        func canvases() async throws -> [Canvas] {
+          let json = try await viewer.evaluate(Self.canvasesScript).string ?? "[]"
+          return try JSONDecoder().decode([Canvas].self, from: Data(json.utf8))
+        }
+        func expectShown(_ index: Int) async throws {
+          // The backdrop is drawn once the image service's format is probed.
+          try await expect(viewer.locator(".semblance-view[data-active='true'] .canvas-view-tile-image").first)
+            .toHaveCount(1)
+          let read = try await canvases()
+          #expect(read.map(\.shown) == (0..<3).map { $0 == index }, "only page \(index + 1) is shown")
+          #expect(read[index].tiles > 0, "the page on screen holds no tiles")
+          for (other, canvas) in read.enumerated() where other != index {
+            #expect(canvas.tiles == 0, "page \(other + 1), off screen, holds tiles")
+          }
+          try await expect(
+            viewer.locator(".artifact-transcript .tei-transcript[data-active='true']")
+          ).toHaveAttribute("data-service-id", Self.services[index])
+        }
+
+        try await expectShown(0)
+        try await viewer.locator(".pagination-next").first.click()
+        try await expectShown(1)
+        try await viewer.locator(".pagination-next").first.click()
+        try await expectShown(2)
+        try await viewer.locator(".pagination-prev").first.click()
+        try await expectShown(1)
+        try await page.expectNoHorizontalOverflow()
+      }
+    } catch {
+      reading.remove()
+      await admin.remove()
+      throw error
+    }
+    reading.remove()
+    await admin.remove()
+  }
+}
