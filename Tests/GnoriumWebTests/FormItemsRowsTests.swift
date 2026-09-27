@@ -88,6 +88,11 @@ struct FormItemsRowsTests {
         try await work.locator(".accordion-summary").first.click()
       }
       try await expect(firstInput).toBeVisible()
+      // Opened all the way: an accordion still growing moves the rows' buttons
+      // under a click (it landed on a Remove button, or on nothing).
+      let details = page.locator(".accordion-details:has([data-item-list='work-progenitor'])").last
+      try await expect(details).toHaveAttribute("data-open-finished", "true")
+      try await expect(details).toHaveAttribute("data-motion", "idle")
 
       let loaded = try await rows(authors)
       try #require(loaded.count == 2, "the record should load with two authors: \(loaded.map(\.value))")

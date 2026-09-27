@@ -6,9 +6,9 @@ import WebTestsTesting
 /// The Biblio-record field of Submit Testament: a searchable dropdown of
 /// every record from the start, each in two rows (its language › its title,
 /// a breadcrumb with BreadcrumbView's own chevron; its progenitors and
-/// category), a note ending a list cut at 50; the closed dropdown names the
+/// type), a note ending a list cut at 50; the closed dropdown names the
 /// chosen record so too. Once the
-/// work's language, title, author and category are filled, the match is
+/// work's language, title, author and type are filled, the match is
 /// chosen; choosing it again unselects it, back to "—", no choice. A record
 /// found by typing and picked fills those fields in from it. The chosen
 /// record's chronicle tree follows with the new testament in it, the only
@@ -37,7 +37,11 @@ struct RecordChoiceTests {
 
   private func run(engine: BrowserEngine, viewport: Viewport, admin: TestAdmin, work: ScratchWork) async throws {
     try await withPage(engine, gnorium, viewport: viewport, cookies: [admin.cookie]) { page in
+      // Counted either side of the page's drawing: other suites' scratch
+      // works come and go meanwhile.
+      let before = Int(try TestAdmin.query("SELECT count(*) FROM biblio_records")) ?? 0
       try await page.openHydrated(Self.form)
+      let after = Int(try TestAdmin.query("SELECT count(*) FROM biblio_records")) ?? 0
       let field = page.locator(".record-choice-field-view")
       let form = page.locator(".submit-testament-form")
       let author = form.locator(
@@ -49,38 +53,56 @@ struct RecordChoiceTests {
       try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("—")
       try await expect(dropdown.locator(".dropdown-option[data-value='\(work.recordID)']")).toHaveCount(1)
       // Cut at 50 records, the list says so after its last option, and
-      // only then; the note is no option.
-      let records = Int(try TestAdmin.query("SELECT count(*) FROM biblio_records")) ?? 0
+      // only then; the note is no option. (Unasked if the count crossed 50
+      // while the page was drawn.)
       let note = dropdown.locator(".dropdown-options-list:not([data-dropdown-results]) > .dropdown-note")
-      if records > 50 {
+      if before > 50 && after > 50 {
         try await expect(note).toHaveText("Showing the first 50. Type to narrow the list.")
         try await expect(note).not.toHaveAttribute("data-dropdown-option", "true")
-      } else {
+      } else if before <= 50 && after <= 50 {
         try await expect(note).toHaveCount(0)
       }
 
       // The key fields: a dropdown tells its hidden input, as a pick does.
       _ = try await page.evaluate(
         """
-        for (const [id, value] of [['work-language', 'eng'], ['work-category', 'report']]) {
-          const input = document.getElementById(id);
-          input.value = value;
-          input.dispatchEvent(new Event('change'));
-        }
+        (() => {
+          for (const [id, value] of [['work-language', 'eng'], ['work-type', 'report']]) {
+            const input = document.getElementById(id);
+            input.value = value;
+            input.dispatchEvent(new Event('change'));
+          }
+        })()
         """)
       try await form.locator("input[name='title']").fill(work.title)
       try await author.fill(work.author)
 
       // The scratch work is the match, chosen, first; no "New title". The
       // closed dropdown names it as its option does: English › its title.
-      try await expect(dropdown.locator(".dropdown-selected-text .breadcrumb-label-context")).toHaveText("English")
+      // (Asked after a 500ms pause; with every suite running, the answer can
+      // take longer than the usual 5s.)
+      try await expect(dropdown.locator(".dropdown-selected-text .breadcrumb-label-context"), timeout: .seconds(15))
+        .toHaveText("English")
       try await expect(dropdown.locator(".dropdown-selected-text .breadcrumb-label-text")).toHaveText(work.title)
       try await expect(dropdown.locator(".dropdown-option").first).toHaveAttribute("data-value", work.recordID)
       try await expect(dropdown.locator(".dropdown-option[data-value='new']")).toHaveCount(0)
       // Settled: a later answer to the key fields' asks redraws the field, and
-      // on a phone it could land after the move below, undoing it.
-      try await Task.sleep(for: .milliseconds(800))
-      // Two rows: its language › its title; its progenitors and category.
+      // it could land after the move below, undoing it. Each field typed asks
+      // again after a 500ms pause, and with every suite running an answer
+      // can take seconds: wait until the field has not been redrawn for 1.5s.
+      _ = try await field.evaluate(
+        """
+        (el) => new Promise((resolve) => {
+          const slot = el.querySelector('.record-choice-field-slot');
+          let quiet;
+          const settle = () => { clearTimeout(quiet); quiet = setTimeout(() => { observer.disconnect(); resolve(true); }, 1500); };
+          const observer = new MutationObserver(settle);
+          observer.observe(slot, { childList: true });
+          settle();
+          setTimeout(() => { observer.disconnect(); resolve(false); }, 15000);
+        })
+        """, timeout: .seconds(20))
+      // Two rows: its language › its title; its progenitors and type.
       // No path, and no language in the second row.
       let option = dropdown.locator(".dropdown-option[data-value='\(work.recordID)']")
       try await expect(option.locator(":scope > span")).toHaveCount(2)
@@ -173,11 +195,12 @@ struct RecordChoiceTests {
       try await found.click()
 
       try await expect(field.locator("input[name='biblio-record']")).toHaveValue(work.recordID)
-      try await expect(dropdown.locator(".dropdown-selected-text .breadcrumb-label-text")).toHaveText(work.title)
+      try await expect(dropdown.locator(".dropdown-selected-text .breadcrumb-label-text"), timeout: .seconds(15))
+        .toHaveText(work.title)
       try await expect(form.locator("#work-language")).toHaveValue("eng")
       try await expect(form.locator("[data-dropdown-id='work-language'] .dropdown-selected-text")).toHaveText("English")
-      try await expect(form.locator("#work-category")).toHaveValue("report")
-      try await expect(form.locator("[data-dropdown-id='work-category'] .dropdown-selected-text")).toHaveText("Report")
+      try await expect(form.locator("#work-type")).toHaveValue("report")
+      try await expect(form.locator("[data-dropdown-id='work-type'] .dropdown-selected-text")).toHaveText("Report")
       try await expect(form.locator("input[name='title']")).toHaveValue(work.title)
       try await expect(author).toHaveValue(work.author)
       try await expect(field.locator(".record-placement-view")).toBeVisible()

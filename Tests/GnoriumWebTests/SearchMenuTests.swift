@@ -4,24 +4,36 @@ import WebTests
 import WebTestsTesting
 
 /// The site's search offers a record as every record field does, in two rows:
-/// its language › its title or lemma, a breadcrumb with BreadcrumbView's own
-/// chevron, the name in link blue; then its progenitors and its category or
-/// part of speech, "—" each when unknown, and no language. The navbar's
-/// search menu on both tabs. Each record is found the way a reader would: the
-/// first its index lists.
+/// its language › its title, a breadcrumb with BreadcrumbView's own
+/// chevron, the name in link blue; then its progenitors and its type, "—"
+/// each when unknown, and no language. The navbar's
+/// search menu on both tabs.
 ///
 /// The records pages' sidebar search offers nothing under its bar: it filters
 /// the page's table as it is typed.
+///
+/// Every test searches for its own scratch work and word (a throwaway admin
+/// owns them, made by SQL and removed after), by names no other row has, so
+/// other suites' scratch rows, made and removed meanwhile, change nothing
+/// it asserts.
 @Suite("Search menu")
 struct SearchMenuTests {
   @Test(arguments: gnorium.engines, Layout.allCases)
   func recordsAreOfferedUnderTheirLanguage(engine: BrowserEngine, layout: Layout) async throws {
+    try await Self.withScratch { work, word in
+      try await Self.recordsAreOffered(engine: engine, layout: layout, work: work, word: word)
+    }
+  }
+
+  private static func recordsAreOffered(engine: BrowserEngine, layout: Layout, work: ScratchWork, word: ScratchWord)
+    async throws
+  {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-      for (tab, index, endpoint, field) in [
-        ("biblio-records", "/biblio-records", "/biblio-records/search", "q"),
-        ("lexico-records", "/lexico-records", "/lexico-records/search", "lemma"),
+      for (tab, index, endpoint, field, name) in [
+        ("biblio-records", "/biblio-records", "/biblio-records/search", "q", work.title),
+        ("lexico-records", "/lexico-records", "/lexico-records/search", "title", word.title),
       ] {
-        let name = try await Self.firstName(page, in: index)
+        try await page.goto(index)
         let expected = try await Self.answer(page, endpoint: endpoint, field: field, name: name)
 
         try await page.openHydrated(index)
@@ -57,24 +69,28 @@ struct SearchMenuTests {
   }
 
   /// The sidebar's search on the records pages, the whole list and a
-  /// prefix's (the first record's language): no menu under the bar; typing
-  /// swaps the table, its count and the address (the page's own path, what
-  /// is typed, the field); an empty box is the whole list again. On a phone
-  /// the sidebar is the slide menu's copy.
+  /// prefix's (the scratch rows' language, English): no menu under the bar;
+  /// typing swaps the table, its count and the address (the page's own path,
+  /// what is typed, the field); an empty box is the whole list again. On a
+  /// phone the sidebar is the slide menu's copy.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func sidebarSearchFiltersTheTable(engine: BrowserEngine, layout: Layout) async throws {
+    try await Self.withScratch { work, word in
+      try await Self.sidebarSearch(engine: engine, layout: layout, work: work, word: word)
+    }
+  }
+
+  private static func sidebarSearch(engine: BrowserEngine, layout: Layout, work: ScratchWork, word: ScratchWord)
+    async throws
+  {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-      for (index, parameter, field, noun) in [
-        ("/biblio-records", "q", "title", "biblio-records"),
-        ("/lexico-records", "lemma", "lemma", "lexico-records"),
+      for (index, parameter, field, noun, name, path) in [
+        ("/biblio-records", "q", "title", "biblio-records", work.title, work.path),
+        ("/lexico-records", "title", "title", "lexico-records", word.title, word.path),
       ] {
-        let name = try await Self.firstName(page, in: index)
-        let href = try await page.locator("a[href^='\(index)/']").first.getAttribute("href") ?? ""
-        let language = "/" + href.split(separator: "/").prefix(2).joined(separator: "/")
-        for list in [index, language] {
+        for list in [index, "\(index)/eng"] {
           try await page.openHydrated(list)
           let count = page.locator(".records-count-view")
-          let whole = try await count.textContent().trimmingCharacters(in: .whitespacesAndNewlines)
           if layout == .phone {
             try await page.locator(".sidebar-menu-btn").click()
           }
@@ -90,23 +106,22 @@ struct SearchMenuTests {
           try await Self.expectAddress(page, list, [parameter: "zzqxj", "field": field])
           try await expect(page.locator(".search-bar-suggestion-item")).toHaveCount(0)
 
-          // The first record's name: its rows, every one of that name.
+          // The scratch row's name, no other row's: that row alone.
           try await input.fill(name)
           try await Self.expectAddress(page, list, [parameter: name, "field": field])
+          try await expect(count).toHaveText("1 \(noun.dropLast())")
           let rows = page.locator(".records-results-view tbody a[href^='\(index)/']")
-          try await expect(rows.first).toBeVisible()
-          let named = try await page.evaluate(
-            """
-            [...document.querySelectorAll(".records-results-view tbody a[href^='\(index)/']")]
-              .every((a) => a.textContent.trim().toLowerCase().includes(\(Self.quoted(name.lowercased()))))
-            """)
-          #expect(named.bool == true, "\(list): a row does not hold \(name)")
+          try await expect(rows).toHaveCount(1)
+          try await expect(rows.first).toHaveText(name)
+          // The page writes "—" as it is; the scratch path is percent-encoded.
+          try await expect(rows.first).toHaveAttribute("href", path.removingPercentEncoding ?? path)
           try await expect(page.locator(".search-bar-suggestion-item")).toHaveCount(0)
 
           // Cleared: the whole list, at its own address.
-          try await input.fill("")
-          try await expect(count).toHaveText(whole)
-          try await expect(page).toHaveURL(list)
+          try await Self.expectClearedToTheWholeList(page, input, list) {
+            try await input.fill(name)
+            try await Self.expectAddress(page, list, [parameter: name, "field": field])
+          }
           try await page.expectNoHorizontalOverflow()
           try await page.expectNoErrors()
         }
@@ -121,12 +136,19 @@ struct SearchMenuTests {
   /// address and the filtered rows stay as they are.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func sortingKeepsTheLiveSearch(engine: BrowserEngine, layout: Layout) async throws {
+    try await Self.withScratch { work, word in
+      try await Self.sorting(engine: engine, layout: layout, work: work, word: word)
+    }
+  }
+
+  private static func sorting(engine: BrowserEngine, layout: Layout, work: ScratchWork, word: ScratchWord)
+    async throws
+  {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-      for (index, parameter, field, column, serverSorted) in [
-        ("/lexico-records", "lemma", "lemma", "lemma", true),
-        ("/biblio-records", "q", "title", "title", false),
+      for (index, parameter, field, column, serverSorted, name) in [
+        ("/lexico-records", "title", "title", "title", true, word.title),
+        ("/biblio-records", "q", "title", "title", false, work.title),
       ] {
-        let name = try await Self.firstName(page, in: index)
         try await page.openHydrated(index)
         if layout == .phone {
           try await page.locator(".sidebar-menu-btn").click()
@@ -137,7 +159,8 @@ struct SearchMenuTests {
         let searched = [parameter: name, "field": field]
         try await Self.expectAddress(page, index, searched)
         let count = page.locator(".records-count-view")
-        let filtered = try await count.textContent().trimmingCharacters(in: .whitespacesAndNewlines)
+        let filtered = index == "/lexico-records" ? "1 lexico-record" : "1 biblio-record"
+        try await expect(count).toHaveText(filtered)
         if layout == .phone {
           try await page.locator(".navbar-slide-close-btn").click()
         }
@@ -209,12 +232,12 @@ struct SearchMenuTests {
     """
 
   /// What the search answers first for `name`: its language, its
-  /// progenitors, its category and its path, as the JSON gives them.
+  /// progenitors, its type and its path, as the JSON gives them.
   private struct Answer {
     let name: String
     let language: String
     let progenitors: String
-    let category: String
+    let type: String
     let path: String
   }
 
@@ -225,7 +248,7 @@ struct SearchMenuTests {
     try await expect(crumb.locator(".breadcrumb-label-context")).toHaveText(expected.language)
     try await expect(crumb.locator(".breadcrumb-separator-view .next-icon-view")).toHaveCount(1)
     try await expect(crumb.locator(".breadcrumb-label-text")).toHaveText(expected.name)
-    try await expect(row.locator(detail)).toHaveText("\(expected.progenitors) · \(expected.category)")
+    try await expect(row.locator(detail)).toHaveText("\(expected.progenitors) · \(expected.type)")
     // The chevron on the language's line, after it.
     let line = try await crumb.evaluate(
       """
@@ -239,13 +262,72 @@ struct SearchMenuTests {
     #expect(line.bool == true, "the chevron left the language's line")
   }
 
-  /// The first record's title or lemma as its index lists it.
-  private static func firstName(_ page: Page, in index: String) async throws -> String {
-    try await page.goto(index)
-    let link = page.locator("a[href^='\(index)/']").first
-    let name = try await link.textContent().trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !name.isEmpty else { throw WebTestError("\(index) lists no record to search for.") }
-    return name
+  /// A throwaway admin's scratch work and word for `body`, removed after
+  /// whatever it does. Skipped where no admin can be made.
+  private static func withScratch(_ body: (ScratchWork, ScratchWord) async throws -> Void) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let work: ScratchWork
+    let word: ScratchWord
+    do {
+      work = try ScratchWork(owner: admin)
+      do {
+        word = try ScratchWord(owner: admin)
+      } catch {
+        work.remove()
+        throw error
+      }
+    } catch {
+      await admin.remove()
+      throw error
+    }
+    do {
+      try await body(work, word)
+    } catch {
+      word.remove()
+      work.remove()
+      await admin.remove()
+      throw error
+    }
+    word.remove()
+    work.remove()
+    await admin.remove()
+  }
+
+  /// Cleared, the box shows the whole list at the list's own address: its
+  /// count is the whole list's as the server counted it just before or just
+  /// after the page asked. Other suites add and remove scratch rows
+  /// meanwhile, so a count that moved under the page is tried again, from
+  /// the search `retype` puts back.
+  private static func expectClearedToTheWholeList(
+    _ page: Page, _ input: Locator, _ list: String, retype: () async throws -> Void
+  ) async throws {
+    var tried: [String] = []
+    for attempt in 1...3 {
+      let before = try await wholeCount(page, list)
+      try await input.fill("")
+      // The address changes after the table is swapped: the count is final.
+      try await expect(page).toHaveURL(list)
+      let shown = try await page.locator(".records-count-view").textContent()
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+      let after = try await wholeCount(page, list)
+      if shown == before || shown == after { return }
+      tried.append("\"\(shown)\" (the whole list \"\(before)\", then \"\(after)\")")
+      if attempt < 3 { try await retype() }
+    }
+    Issue.record("\(list): cleared, the count read \(tried.joined(separator: "; "))")
+  }
+
+  /// The whole list's count as the server gives it now.
+  private static func wholeCount(_ page: Page, _ list: String) async throws -> String {
+    try await page.evaluate(
+      """
+      fetch('\(list)?fragment=results', { headers: { Accept: 'text/html' } })
+        .then((r) => r.text())
+        .then((html) => new DOMParser().parseFromString(html, 'text/html')
+          .querySelector('.records-count-view')?.textContent.trim() ?? '')
+      """
+    ).string ?? ""
   }
 
   private static func answer(_ page: Page, endpoint: String, field: String, name: String) async throws -> Answer {
@@ -261,6 +343,6 @@ struct SearchMenuTests {
     }
     return Answer(
       name: name, language: language, progenitors: found["qualifier"].string ?? "—",
-      category: found["category"].string ?? "—", path: found["url"].string ?? "")
+      type: found["type"].string ?? "—", path: found["url"].string ?? "")
   }
 }
