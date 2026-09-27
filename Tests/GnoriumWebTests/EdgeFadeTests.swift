@@ -328,4 +328,48 @@ struct EdgeFadeTests {
       }
     }
   }
+
+  struct ColumnReport: Decodable {
+    let titleWidth: Double
+    let widest: Double
+    let languageShown: String
+    let languageTitle: String
+  }
+
+  /// A phone gives the records tables' title the room: its column at least
+  /// as wide as any other, its language a code (the name its title); at 1400
+  /// wide the name.
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func aPhoneGivesTheTitleTheRoom(engine: BrowserEngine, layout: Layout) async throws {
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      for path in ["/biblio-records", "/lexico-records"] {
+        try await page.openHydrated(path)
+        let columns = try await page.evaluate(
+          """
+          (() => {
+            const heads = [...document.querySelectorAll('.table-table thead th[data-table-column-id]')]
+            const width = (e) => e.getBoundingClientRect().width
+            const title = heads.find((h) => h.getAttribute('data-table-column-id') === 'title')
+            const cell = document.querySelector('.table-tbody tr td .table-cell-compact-value').closest('td')
+            return {
+              titleWidth: width(title),
+              widest: Math.max(...heads.filter((h) => h !== title).map(width)),
+              languageShown: cell.innerText.trim(),
+              languageTitle: cell.title,
+            }
+          })()
+          """, as: ColumnReport.self)
+        switch layout {
+        case .phone:
+          #expect(columns.titleWidth >= columns.widest, "\(path): the title column is \(columns.titleWidth) wide, another \(columns.widest)")
+          #expect(columns.titleWidth >= 150, "\(path): the title column is \(columns.titleWidth) wide at 375")
+          #expect(columns.languageShown.count == 3, "\(path): the language reads \(columns.languageShown) at 375")
+        case .desktop:
+          #expect(columns.languageShown == columns.languageTitle, "\(path): the language reads \(columns.languageShown) at 1400")
+        }
+        #expect(columns.languageTitle.count > 3, "\(path): the language cell's title is \(columns.languageTitle)")
+        try await Self.screenshots(page, "columns\(path.replacingOccurrences(of: "/", with: "-"))", layout)
+      }
+    }
+  }
 }
