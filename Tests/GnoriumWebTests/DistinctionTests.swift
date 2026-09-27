@@ -15,8 +15,8 @@ struct DistinctionTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    // Its utterance is read in a scratch testament (`UtteranceReadingTests`).
-    let testament = try ScratchTestament(owner: admin, tei: UtteranceReadingTests.tei)
+    // Its utterance is in a scratch testament (`UtteranceTests`).
+    let testament = try ScratchTestament(owner: admin, tei: UtteranceTests.tei)
     let word = try ScratchWord(
       owner: admin, distinction: "Unlike sense {branch}, a leaf sense grows no further senses.",
       anchor: .init(

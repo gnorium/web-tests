@@ -3,15 +3,13 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// The testament form is the testament tree's four levels (user,
-/// 2026-09-27): the work first, then an edition's Publication, a copy's
-/// Acquisition and a manifest's Digitization, each an accordion of its date,
-/// place and agents and its own fields, parted by dividers; no level named,
-/// no Creation. Every copy has its holding (institution, shelf mark, copy
-/// label); only a manuscript's has its production: those rows show only
-/// while the type is Manuscript and are not posted otherwise, and a
-/// production already stored is kept when a testament that does not record
-/// it is modified. A level dated before the work is warned of as it is
+/// The testament form is the testament tree's levels (user, 2026-09-28):
+/// the work first, then cards named for events, each on the node the event
+/// happened to — an edition's Publication, a copy's Production and its
+/// Acquisition (holding institution, shelf mark, copy label), a
+/// Digitization — each event as an imprint gives it (place, agents, date);
+/// no level named, no Creation, no type check. A level dated before the
+/// work is warned of as it is
 /// typed, never refused. On Submit Testament nothing is submitted (the
 /// submit event is dispatched by hand, which runs the form's script but
 /// never posts); the modify test posts a modification of its own scratch
@@ -56,7 +54,9 @@ struct TestamentLevelsTests {
       try await shoot(page, "top", layout)
 
       // The work, whole and first; then the three levels, in the tree's
-      // order, each its date, its place, its agents, then its own fields.
+      // order, each as a title page gives it: an edition's forms and
+      // statement, then each level's imprint — its place, its agents, its
+      // date (ISBD area 4, MARC 264) — then its own fields.
       let order = try await form.evaluate(
         """
         (form) => {
@@ -64,7 +64,8 @@ struct TestamentLevelsTests {
           const chain = [
             '#work-language', '#work-title', "[data-item-list='work-voice']", "[name='year']", '#work-place',
             '#work-type', "[data-item-list='work-genre']",
-            ".activity-statement-view[data-as-namespace='publication']", '#work-edition',
+            ".activity-statement-view[data-as-namespace='publication']", "[data-item-list='title-form']",
+            '#work-edition', "[name='as-publication-place']",
             ".activity-statement-view[data-as-namespace='production']", '#testament-copy-label',
             ".activity-statement-view[data-as-namespace='digitization']", '#testament-source-url', '#testament-license',
           ];
@@ -75,7 +76,7 @@ struct TestamentLevelsTests {
           }
           for (const kind of ['publication', 'production', 'digitization']) {
             const block = at(`.activity-statement-view[data-as-namespace='${kind}']`);
-            const parts = [`[name='as-${kind}-year']`, `[name='as-${kind}-place']`, `[data-item-list='as-${kind}']`]
+            const parts = [`[name='as-${kind}-place']`, `[data-item-list='as-${kind}']`, `[name='as-${kind}-year']`]
               .map((s) => block.querySelector(s));
             if (parts.some((p) => !p)) return kind + ' lacks a part';
             if (!(parts[0].compareDocumentPosition(parts[1]) & Node.DOCUMENT_POSITION_FOLLOWING)
@@ -114,31 +115,18 @@ struct TestamentLevelsTests {
       }
       try await expect(form.locator(".section-legend").filter(hasText: "Provision")).toHaveCount(0)
 
-      // The copy's holding, for every type; its production rows hidden
-      // until the type is Manuscript, hidden again after.
-      let copy = form.locator(".activity-statement-view[data-as-namespace='production']")
-      let production = copy.locator(".as-event")
-      try await expect(copy).toBeVisible()
-      try await expect(form.locator("#as-accordion-production .accordion-title").first).toContainText("Acquisition")
-      let holding = form.locator("#as-accordion-production")
+      // The copy's Production, then its Acquisition, whatever the type.
+      try await expect(form.locator("#as-accordion-production .accordion-title").first).toContainText("Production")
+      let acquisition = form.locator("#acquisition-accordion")
+      try await expect(acquisition.locator(".accordion-title").first).toContainText("Acquisition")
+      try await expect(acquisition).toContainText("Who holds this copy and where, with its shelf mark and copy label.")
       if !(try await form.locator("#testament-copy-label").isVisible()) {
-        try await holding.locator(".accordion-summary").first.click()
+        try await acquisition.locator(".accordion-summary").first.click()
       }
       try await expect(form.locator("#testament-copy-label")).toBeVisible()
-      try await expect(copy.locator("input[name='holding-institution-dropdown']")).toHaveCount(1)
-      try await expect(copy.locator(".section-legend").filter(hasText: "Shelf mark or call number")).toBeVisible()
-      try await expect(production).toBeHidden()
-      let type = form.locator(".dropdown-view:has(#work-type)").first
-      try await choose("book", "book", in: type)
-      try await expect(form.locator("#testament-copy-label")).toBeVisible()
-      try await expect(production).toBeHidden()
-      try await choose("manuscript", "manuscript", in: type)
-      try await expect(production).toBeVisible()
-      try await expect(copy.locator("input[name='as-production-place']")).toBeVisible()
-      try await shoot(page, "manuscript", layout)
-      try await choose("book", "book", in: type)
-      try await expect(production).toBeHidden()
-      try await expect(form.locator("#testament-copy-label")).toBeVisible()
+      try await expect(acquisition.locator("input[name='holding-institution-dropdown']")).toHaveCount(1)
+      try await expect(acquisition.locator(".section-legend").filter(hasText: "Shelf mark or call number")).toBeVisible()
+      try await expect(form.locator("input[name='as-production-place']")).toHaveCount(1)
 
       // The date check: a publication before the work is warned of under
       // its date, and the warning goes when the date is mended.
@@ -175,8 +163,8 @@ struct TestamentLevelsTests {
       try await publicationYear.fill("1610")
       try await expect(warning).toHaveCount(0)
 
-      // What the form posts: each level's statement by its kind, a book's
-      // production left out.
+      // What the form posts: each event's statement by its kind, an empty
+      // production a slot.
       let posted = try await form.evaluate(
         """
         (form) => {
@@ -186,7 +174,7 @@ struct TestamentLevelsTests {
         """
       ).string ?? ""
       let statements = try JSONSerialization.jsonObject(with: Data(posted.utf8)) as? [[String: Any]] ?? []
-      #expect(statements.map { $0["kind"] as? String } == ["publication", "digitization"])
+      #expect(statements.map { $0["kind"] as? String } == ["publication", "production", "digitization"])
       #expect(statements.first?["year"] as? Int == 1610)
       #expect(statements.allSatisfy { $0["type"] == nil }, "No creation, no provision tag.")
 
@@ -195,10 +183,10 @@ struct TestamentLevelsTests {
     }
   }
 
-  /// A book's overture, modified: its holding shown and posted, its stored
-  /// production hidden, not posted, and kept by the server as it stood.
+  /// A manuscript's overture, modified: no edition, its Production shown
+  /// and posted as it stands, its Acquisition shown and posted.
   @Test(arguments: gnorium.engines, Layout.allCases)
-  func aModifiedBookKeepsItsHoldingAndItsProduction(engine: BrowserEngine, layout: Layout) async throws {
+  func aModifiedManuscriptKeepsItsProductionAndItsAcquisition(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let submission = UUID().uuidString.lowercased()
@@ -218,8 +206,7 @@ struct TestamentLevelsTests {
     do {
       let user = try admin.column("id")
       let statements = """
-        [{"kind":"publication","place":"London","agents":[],"year":1623},\
-        {"kind":"production","place":"Web tests scriptorium","agents":[{"role":"scribe","name":"Web Tests Scribe"}],"year":1601}]
+        [{"kind":"production","place":"Web tests scriptorium","agents":[{"role":"scribe","name":"Web Tests Scribe"}],"year":1601}]
         """
       _ = try TestAdmin.query(
         """
@@ -227,11 +214,11 @@ struct TestamentLevelsTests {
         INSERT INTO submissions (id, user_id) VALUES ('\(submission)', '\(user)');
         INSERT INTO bibliographic_evidences (id, batch_id, source_url, language, processing_status, title, type, year)
           VALUES ('\(evidence)', '\(submission)', 'https://example.org/web-tests/levels', 'eng', 'pending',
-            'Web tests levels \(overture.prefix(8))', 'book', 1623);
+            'Web tests levels \(overture.prefix(8))', 'manuscript', 1623);
         INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_evidence_id, source_url, language, processing_status, title, type,
           year_qualifier, era, year, provider, holding_institution, copy_label, shelf_mark_json, activity_statements_json)
           VALUES ('\(overture)', '\(submission)', '\(evidence)', 'https://example.org/web-tests/levels', 'eng', 'pending',
-            'Web tests levels \(overture.prefix(8))', 'book', 'exact', 'anno_domini', 1623, 'folger_shakespeare_library',
+            'Web tests levels \(overture.prefix(8))', 'manuscript', 'exact', 'anno_domini', 1623, 'folger_shakespeare_library',
             'folger_shakespeare_library', 'Web tests copy 9', '{"scheme":"stc","value":"22273"}', '\(statements)');
         COMMIT;
         """)
@@ -239,24 +226,21 @@ struct TestamentLevelsTests {
         try await page.openHydrated("/mission-control/overtures/bibliographic/\(overture)/modify")
         let form = page.locator(".modify-bibliographic-overture-form")
         let copy = form.locator(".activity-statement-view[data-as-namespace='production']")
-        try await expect(form.locator("#as-accordion-production .accordion-title").first).toContainText("Acquisition")
+        try await expect(form.locator("#as-accordion-production .accordion-title").first).toContainText("Production")
+        let acquisition = form.locator("#acquisition-accordion")
         let label = form.locator("#testament-copy-label")
         if !(try await label.isVisible()) {
-          try await form.locator("#as-accordion-production .accordion-summary").first.click()
+          try await acquisition.locator(".accordion-summary").first.click()
         }
         try await expect(label).toBeVisible()
         try await expect(label).toHaveValue("Web tests copy 9")
-        try await expect(copy.locator("input[name='shelf_mark_value']")).toHaveValue("22273")
-        try await expect(copy.locator("input[name='holding_institution']")).toHaveValue("folger_shakespeare_library")
-        let production = copy.locator(".as-event")
-        try await expect(production).toBeHidden()
-        // Set to Manuscript, the stored production shows; back to Book, it hides.
-        let type = form.locator(".dropdown-view:has(#work-type)").first
-        try await choose("manuscript", "manuscript", in: type)
+        try await expect(acquisition.locator("input[name='shelf_mark_value']")).toHaveValue("22273")
+        try await expect(acquisition.locator("input[name='holding_institution']")).toHaveValue("folger_shakespeare_library")
+        if !(try await copy.locator("input[name='as-production-place']").isVisible()) {
+          try await form.locator("#as-accordion-production .accordion-summary").first.click()
+        }
         try await expect(copy.locator("input[name='as-production-place']")).toHaveValue("Web tests scriptorium")
-        try await choose("book", "book", in: type)
-        try await expect(production).toBeHidden()
-        try await shoot(page, "modify-book", layout)
+        try await shoot(page, "modify-manuscript", layout)
         try await label.fill("Web tests copy 10")
 
         try await form.locator("button[type='submit']").first.click()
@@ -271,11 +255,11 @@ struct TestamentLevelsTests {
       let content = try TestAdmin.query(
         "SELECT content_json FROM modifications WHERE modifiable_id = '\(overture)' ORDER BY created_at DESC LIMIT 1")
       let json = try JSONSerialization.jsonObject(with: Data(content.utf8)) as? [String: Any] ?? [:]
-      #expect(json["copyLabel"] as? String == "Web tests copy 10", "A book's copy label is posted and kept.")
+      #expect(json["copyLabel"] as? String == "Web tests copy 10", "Its copy label is posted and kept.")
       #expect(json["holdingInstitution"] as? String == "folger_shakespeare_library")
       #expect((json["shelfMarkOrCallNumber"] as? [String: Any])?["value"] as? String == "22273")
       let kept = (json["activityStatements"] as? [[String: Any]] ?? []).first { $0["kind"] as? String == "production" }
-      #expect(kept?["place"] as? String == "Web tests scriptorium", "The stored production is not wiped.")
+      #expect(kept?["place"] as? String == "Web tests scriptorium", "Its production is posted as it stands.")
       #expect(kept?["year"] as? Int == 1601)
     } catch {
       remove()
