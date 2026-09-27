@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// Ticking fields for attribution on the Submit Amendment form: a box
 /// before every field, every row, every part of the date and every field of
-/// an activity statement, never a whole group, ticked by editing the field, drawn
+/// an edition's publication statement, never a whole group, ticked by editing the field, drawn
 /// blue when ticked and unedited. Nothing is submitted. Needs a signed-in
 /// account, made for the test and removed after (see `TestAdmin`).
 @Suite("Amendment attribution", .serialized)
@@ -18,16 +18,20 @@ struct AmendmentAttributionTests {
   func tickingFields(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    // A work with an edition in its tree, for the edition's publication.
+    let scratch = try ScratchWork(owner: admin)
     do {
-      try await run(engine: engine, viewport: layout.viewport(for: engine), admin: admin)
+      try await run(engine: engine, viewport: layout.viewport(for: engine), admin: admin, scratch: scratch)
     } catch {
+      scratch.remove()
       await admin.remove()
       throw error
     }
+    scratch.remove()
     await admin.remove()
   }
 
-  private func run(engine: BrowserEngine, viewport: Viewport, admin: TestAdmin) async throws {
+  private func run(engine: BrowserEngine, viewport: Viewport, admin: TestAdmin, scratch: ScratchWork) async throws {
     try await withPage(engine, gnorium, viewport: viewport, cookies: [admin.cookie]) { page in
       try await page.openHydrated(Self.form)
       let work = page.locator(".submit-amendment-work")
@@ -151,27 +155,44 @@ struct AmendmentAttributionTests {
       try await yearInput.fill(year)
       try await expect(yearBox).toBeChecked(false)
 
-      // The creation statement is ticked field by field: its place, each
+      // The work's place is its own field, with its own box; the work has
+      // no creation statement.
+      try await expect(work.locator(".selectable-field-view[data-selectable-key='place']")).toHaveCount(1)
+      try await expect(work.locator("[data-as-namespace='creation']")).toHaveCount(0)
+
+      // An edition's publication is ticked field by field (on a work whose
+      // tree has an edition): its place, each
       // agent's role and name, each part of its date, each box in its own
       // label row; never the statement or an agent's row whole.
+      try await page.openHydrated("\(scratch.path)/amendments/new")
+      let edition = page.locator(".testament-outliner-form:has([data-as-namespace='publication'])").first
       func statementField(_ key: String) -> Locator {
-        work.locator(".selectable-field-view[data-selectable-key='\(key)']:not([data-item-template] *)")
+        edition.locator(".selectable-field-view[data-selectable-key='\(key)']:not([data-item-template] *)")
       }
-      for group in ["creation", "creation[1]", "creation.date"] {
-        try await expect(work.locator(".selectable-field-view[data-selectable-key='\(group)']")).toHaveCount(0)
+      for group in ["publication", "publication[1]", "publication.date"] {
+        try await expect(edition.locator(".selectable-field-view[data-selectable-key='\(group)']")).toHaveCount(0)
       }
       let statementKeys =
-        ["creation.place", "creation[1].role", "creation[1].agent"]
-        + ["yearQualifier", "era", "year", "month", "day", "eraEnd", "yearEnd"].map { "creation.date.\($0)" }
+        ["publication.place", "publication[1].role", "publication[1].agent"]
+        + ["yearQualifier", "era", "year", "month", "day", "eraEnd", "yearEnd"].map { "publication.date.\($0)" }
       for key in statementKeys {
         try await expect(statementField(key)).toHaveCount(1)
       }
-      let place = statementField("creation.place").locator(".text-input-input")
+      let place = statementField("publication.place").locator(".text-input-input")
       if !(try await place.isVisible()) {
-        try await work.locator(".activity-statement-view[data-as-namespace='creation'] .accordion-summary").first.click()
+        // Its node's Metadata, and every accordion round it, opened.
+        _ = try await edition.evaluate(
+          """
+          (el) => {
+            const chain = [];
+            for (let d = el.closest('details'); d; d = d.parentElement.closest('details')) chain.unshift(d);
+            for (const d of chain) if (!d.open) d.querySelector(':scope > summary').click();
+            return chain.length;
+          }
+          """)
       }
       try await expect(place).toBeVisible()
-      for key in ["creation.place", "creation[1].role", "creation[1].agent", "creation.date.year"] {
+      for key in ["publication.place", "publication[1].role", "publication[1].agent", "publication.date.year"] {
         let layout = try await statementField(key).evaluate(
           """
           (el) => {
@@ -191,32 +212,32 @@ struct AmendmentAttributionTests {
       func statementBox(_ key: String) -> Locator {
         statementField(key).locator(".selectable-field-view-checkbox .checkbox-input")
       }
-      let agent = statementField("creation[1].agent").locator(".text-input-input")
+      let agent = statementField("publication[1].agent").locator(".text-input-input")
       let name = try await agent.inputValue()
       try await agent.fill(name + " Jr.")
-      try await expect(statementBox("creation[1].agent")).toBeChecked()
-      for key in ["creation[1].role", "creation.place", "creation.date.year", "creation.date.yearQualifier"] {
+      try await expect(statementBox("publication[1].agent")).toBeChecked()
+      for key in ["publication[1].role", "publication.place", "publication.date.year", "publication.date.yearQualifier"] {
         try await expect(statementBox(key)).toBeChecked(false)
       }
       try await agent.fill(name)
-      try await expect(statementBox("creation[1].agent")).toBeChecked(false)
+      try await expect(statementBox("publication[1].agent")).toBeChecked(false)
 
       // Editing the place ticks the place alone.
       let placeValue = try await place.inputValue()
       try await place.fill(placeValue + " (edited)")
-      try await expect(statementBox("creation.place")).toBeChecked()
-      try await expect(statementBox("creation[1].agent")).toBeChecked(false)
+      try await expect(statementBox("publication.place")).toBeChecked()
+      try await expect(statementBox("publication[1].agent")).toBeChecked(false)
       try await place.fill(placeValue)
-      try await expect(statementBox("creation.place")).toBeChecked(false)
+      try await expect(statementBox("publication.place")).toBeChecked(false)
 
       // A day its month has not is marked as it is typed: 29 February only
       // in a leap year.
-      let dateYear = statementField("creation.date.year").locator(".text-input-input")
-      let day = statementField("creation.date.day").locator(".text-input-input")
+      let dateYear = statementField("publication.date.year").locator(".text-input-input")
+      let day = statementField("publication.date.day").locator(".text-input-input")
       // Chosen as the dropdowns choose: their hidden inputs, changed. An
       // exact date shows its month and day.
       for (part, value) in [("yearQualifier", "exact"), ("month", "february")] {
-        _ = try await statementField("creation.date.\(part)").evaluate(
+        _ = try await statementField("publication.date.\(part)").evaluate(
           """
           (el) => {
             const input = el.querySelector('input[type=hidden]');

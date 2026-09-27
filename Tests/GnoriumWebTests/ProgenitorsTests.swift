@@ -3,8 +3,9 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// Submit Testament's Progenitors: a person a row, each with a type (Author,
-/// Translator, Editor, Compiler), a row added starting as an author; the
+/// Submit Testament's voices: a person a row ("Voice", "+ Add voice"), each
+/// with a role (Author, Translator, Compiler: an editor is the edition's), a
+/// row added starting as an author; the
 /// form posts each row's type and name. In a translation the rows stay, and
 /// the Submitted card has no translator of its own. Every chain step has a
 /// Biblio-record at its top, which fills that step in from the record it
@@ -39,14 +40,16 @@ struct ProgenitorsTests {
       let list = form.locator("[data-item-list='work-progenitor']")
       let rows = list.locator("[data-item-section='true']:not([data-item-template] *)")
 
-      // One row to start, an author; four types, Title Case.
+      // One row to start, an author; three roles, Title Case, no editor.
       try await expect(rows).toHaveCount(1)
       let firstType = rows.first.locator(".dropdown-view")
       try await expect(firstType.locator(".dropdown-selected-text")).toHaveText("Author")
       try await expect(rows.first.locator("input[id$='-dropdown']")).toHaveValue("author")
-      for (value, display) in [("author", "Author"), ("translator", "Translator"), ("editor", "Editor"), ("compiler", "Compiler")] {
+      for (value, display) in [("author", "Author"), ("translator", "Translator"), ("compiler", "Compiler")] {
         try await expect(firstType.locator(".dropdown-option[data-value='\(value)']")).toHaveAttribute("data-display", display)
       }
+      try await expect(firstType.locator(".dropdown-option[data-value='editor']")).toHaveCount(0)
+      try await expect(list.locator("[data-item-add-btn='true'] button")).toHaveText("+ Add voice")
       try await rows.first.locator(".text-input-input").fill("Homer")
 
       // A second row starts as an author; made a translator.
