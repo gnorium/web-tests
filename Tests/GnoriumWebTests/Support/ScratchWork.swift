@@ -33,7 +33,7 @@ struct ScratchWork {
     let slug = "web-tests-placement-\(suffix)"
     author = "Web Tests Author \(suffix)"
     let authorSlug = "web-tests-author-\(suffix)"
-    path = "/biblio-records/eng/\(slug)/\(authorSlug)/report"
+    path = "/biblio-records/eng/\(slug)/report"
     // As the server writes them: upper case.
     recordID = ids["record"]!.uppercased()
     versionID = ids["version"]!.uppercased()
@@ -78,8 +78,8 @@ struct ScratchWork {
         VALUES ('\(ids["overture"]!)', '\(ids["submission"]!)', '\(ids["evidence"]!)', 'https://example.org/web-tests', 'eng', 'pending');
       INSERT INTO bibliographic_concertos (id, bibliographic_overture_id, requested_by_user_id, processing_status)
         VALUES ('\(ids["concerto"]!)', '\(ids["overture"]!)', '\(user)', 'submitted');
-      INSERT INTO biblio_records (id, corpus_id, title, title_slug, authors, type, language, genres, year, date_display)
-        VALUES ('\(ids["record"]!)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)', '\(authorSlug)',
+      INSERT INTO biblio_records (id, corpus_id, title, title_slug, type, language, genres, year, date_display)
+        VALUES ('\(ids["record"]!)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)',
           'report', 'eng', '[]', 1958, 'AD 1958');
       INSERT INTO persons (id, display_name, slug) VALUES ('\(ids["person"]!)', '\(author)', '\(authorSlug)');
       INSERT INTO biblio_record_voices (id, biblio_record_id, person_id, role, position)

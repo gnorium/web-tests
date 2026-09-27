@@ -12,7 +12,7 @@ import WebTestsTesting
 struct AmendmentAttributionTests {
   /// The Bosworth–Toller record, kept on the dev database.
   static let form =
-    "/biblio-records/ang/an-anglo-saxon-dictionary/joseph-bosworth-and-thomas-northcote-toller/amendments/new"
+    "/biblio-records/ang/an-anglo-saxon-dictionary/book/amendments/new"
 
   @Test(arguments: gnorium.engines, Layout.allCases)
   func tickingFields(engine: BrowserEngine, layout: Layout) async throws {

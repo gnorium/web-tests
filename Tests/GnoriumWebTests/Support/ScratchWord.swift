@@ -19,7 +19,7 @@ struct ScratchWord {
     }
     self.ids = ids
     title = "webtestsword\(ids["record"]!.prefix(8))"
-    path = "/lexico-records/eng/\(title)/%E2%80%94/noun"
+    path = "/lexico-records/eng/\(title)/noun"
     let snapshot = """
       {"lemmaForm":{"headword":"\(title)","inflections":[],"languageCode":"eng","origin":{"citations":[],"derivation":"","etymons":[]},\
       "partOfSpeech":"noun","sources":[{"locator":"s.v.","title":"Web tests dictionary","url":"https://dictionary.example.org/web-tests"}],\
