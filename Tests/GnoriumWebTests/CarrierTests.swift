@@ -12,7 +12,7 @@ import WebTestsTesting
 /// origin's is), the host as typed while no record is chosen, and the
 /// locator. A record contained in another says so in prose ("Contained in
 /// the English report …, volume 1, pages 3–5."), and the host lists it in
-/// its Contents. A throwaway admin owns two scratch works, removed after.
+/// what it Contains. A throwaway admin owns two scratch works, removed after.
 @Suite("Carrier", .serialized)
 struct CarrierTests {
   static let form = "/mission-control/submit/bibliographic/evidence-testament"
@@ -97,9 +97,24 @@ struct CarrierTests {
       try await expect(container.locator(".origin-record-field-view")).toContainText("Container testament")
       try await expect(container.locator(".container-field-view-typed")).toBeHidden()
 
+      // The work's Domains, a row each, as its Genres: the UDC Summary's
+      // classes.
+      let domains = form.locator("[data-item-list='work-domain']")
+      try await expect(domains).toHaveCount(1)
+      try await expect(domains.locator(".dropdown-option[data-value='law']").first).toBeAttached()
+      try await expect(form).toContainText("+ Add domain")
+
       // Nothing scrolls sideways.
       let overflow = try await page.evaluate("document.documentElement.scrollWidth > window.innerWidth").bool
       #expect(overflow == false)
+
+      // The records list's Carrier filter: the article's testament is
+      // printed, so it is listed for printed and not for manuscript.
+      try await page.openHydrated("/biblio-records?carrier=printed")
+      try await expect(page.locator(".filter-bar-view")).toContainText("Carrier")
+      try await expect(page.locator("a[href='\(article.path)']").first).toBeAttached()
+      try await page.openHydrated("/biblio-records?carrier=manuscript")
+      try await expect(page.locator("a[href='\(article.path)']")).toHaveCount(0)
 
       // The article's page: a Container section after its Metadata, in prose.
       try await page.openHydrated(article.path)
@@ -108,11 +123,11 @@ struct CarrierTests {
       try await expect(prose).toHaveText("Contained in the English report \(host.title), volume 1, pages 3–5.")
       try await expect(prose.locator("a[href='\(host.path)']")).toHaveCount(1)
 
-      // The host lists it in its Contents.
+      // The host lists it under Contains.
       try await page.openHydrated(host.path)
-      let contents = page.locator(".record-sidebar-view a[href='\(article.path)']").first
-      try await expect(contents).toBeAttached()
-      try await expect(contents).toContainText("volume 1, pages 3–5")
+      let contains = page.locator(".record-sidebar-view a[href='\(article.path)']").first
+      try await expect(contains).toBeAttached()
+      try await expect(contains).toContainText("volume 1, pages 3–5")
     }
   }
 }
