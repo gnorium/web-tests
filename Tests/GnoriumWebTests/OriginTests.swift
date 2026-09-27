@@ -234,9 +234,11 @@ struct OriginTests {
           + "authored by \(original.author).")
       try await expect(prose.locator("a[href='\(original.path)']")).toHaveCount(1)
 
-      // The original lists it among its translations.
+      // The original lists it under "Translated into", as "Contains"
+      // answers "Contained in".
       try await page.openHydrated(original.path)
       try await expect(page.locator(".record-sidebar-view a[href='\(translation.path)']").first).toBeAttached()
+      try await expect(page.locator(".record-sidebar-view")).toContainText("Translated into")
 
       // A word's origin may name nothing: an Imitation or a Coinage hides
       // the row's record field and typed fields; another relation brings
