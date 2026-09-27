@@ -12,25 +12,21 @@ struct FormRuleTests {
   @Test(arguments: gnorium.engines, Layout.allCases)
   func theVerboseSwitchIsOnARuleUnderTheHeader(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
-    if let reason = await ScratchPassage.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let passage = try await ScratchPassage(owner: admin)
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         for (path, card) in [
           ("/mission-control/submit/bibliographic/evidence-testament", ".submit-testament-card"),
-          (passage.formPath, ".submit-sentiment-card"),
+          ("/mission-control/submit/lexicographic/evidence-sentiment", ".submit-sentiment-card"),
         ] {
           try await page.openHydrated(path)
           try await check(page, card: card)
         }
       }
     } catch {
-      passage.remove()
       await admin.remove()
       throw error
     }
-    passage.remove()
     await admin.remove()
   }
 
