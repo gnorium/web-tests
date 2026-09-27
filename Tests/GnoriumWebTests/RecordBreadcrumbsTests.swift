@@ -182,7 +182,7 @@ struct RecordBreadcrumbsTests {
 /// A bare biblio-record and its one author, made by SQL and removed after:
 /// enough for its page and its prefixes' pages. A pair shares its title and
 /// type, each qualified by its author, as the server qualifies them.
-private struct ScratchRecord {
+struct ScratchRecord {
   let title: String
   let author: String
   let path: String
