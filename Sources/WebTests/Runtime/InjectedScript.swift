@@ -319,6 +319,13 @@ enum InjectedScript {
               Math.round(x) + ', ' + Math.round(y) + ') instead of ' + describe(el) };
           }
         }
+        // The pointer lands in the visual viewport, which a phone's browser
+        // moves over the page (a focused field scrolled into view): the
+        // point as the page lays it out, moved by that offset.
+        const view = window.visualViewport;
+        if (view) {
+          return { status: 'ok', x: (x - view.offsetLeft) * view.scale, y: (y - view.offsetTop) * view.scale };
+        }
         return { status: 'ok', x, y };
       };
 

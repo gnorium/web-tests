@@ -6,8 +6,7 @@ import WebTestsTesting
 /// Unsetting a picked record takes back what its pick filled in and nobody
 /// changed since, as a person would (a dropdown back to its placeholder, a
 /// row the pick filled emptied); a field edited after the pick keeps its
-/// value. Submit Testament's Biblio-record field; the translation chain's
-/// step pickers are the Voices suite's. Nothing is submitted.
+/// value. Submit Testament's Biblio-record field. Nothing is submitted.
 @Suite("Record unpick", .serialized)
 struct RecordUnpickTests {
   static let form = "/mission-control/submit/bibliographic/evidence-testament"

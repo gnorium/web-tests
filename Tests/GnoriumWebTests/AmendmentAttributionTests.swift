@@ -94,10 +94,8 @@ struct AmendmentAttributionTests {
       try await secondAuthor.fill(secondName)
       try await expect(authorName(2).locator(".selectable-field-view-checkbox .checkbox-input")).toBeChecked(false)
 
-      // "This is a translation" is a value, not a sourced fact: it has no
-      // attribute box, and none stands around it.
-      try await expect(work.locator(".is-translation-checkbox-wrapper")).toHaveCount(1)
-      try await expect(work.locator(".selectable-field-view .is-translation-checkbox-wrapper")).toHaveCount(0)
+      // No "This is a translation" box: a translation is an Origin step.
+      try await expect(work.locator(".is-translation-checkbox-wrapper")).toHaveCount(0)
 
       // Editing a field ticks it; undoing the edit unticks it again.
       let before = try await titleInput.inputValue()
