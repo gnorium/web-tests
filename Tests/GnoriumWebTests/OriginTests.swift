@@ -149,7 +149,10 @@ struct OriginTests {
 
       // Unset the pick: "—", the testaments go, the typed fields come back.
       try await picker.locator(".dropdown-trigger").click()
-      try await picker.locator(".dropdown-option[data-value='\(original.recordID)']").first.click()
+      // The menu settled open before its option is aimed at.
+      let chosen = picker.locator(".dropdown-option[data-value='\(original.recordID)']").first
+      try await expect(chosen).toBeVisible()
+      try await chosen.click()
       try await expect(first.locator(".origin-record-field-view")).not.toContainText("Origin testament")
       try await expect(typedFields).toBeVisible()
       // A row removed.
