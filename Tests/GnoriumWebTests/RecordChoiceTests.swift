@@ -41,7 +41,7 @@ struct RecordChoiceTests {
       let field = page.locator(".record-choice-field-view")
       let form = page.locator(".submit-testament-form")
       let author = form.locator(
-        "[data-item-list='work-author'] [data-item-section='true']:not([data-item-template] *) .text-input-input"
+        "[data-item-list='work-progenitor'] [data-item-section='true']:not([data-item-template] *) .text-input-input"
       ).first
       try await expect(field.locator("legend")).toContainText("Biblio-record")
       // A dropdown of every record from the start, none chosen: "—".

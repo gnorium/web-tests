@@ -181,8 +181,8 @@ private struct ScratchRecord {
         VALUES ('\(recordID)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)', '\(authorSlug)',
           'report', 'eng', '[]', 1958, 'AD 1958');
       INSERT INTO persons (id, display_name, slug) VALUES ('\(personID)', '\(author)', '\(authorSlug)');
-      INSERT INTO biblio_record_authors (id, biblio_record_id, person_id, position)
-        VALUES ('\(authorshipID)', '\(recordID)', '\(personID)', 0);
+      INSERT INTO biblio_record_authors (id, biblio_record_id, person_id, progenitor_type, position)
+        VALUES ('\(authorshipID)', '\(recordID)', '\(personID)', 'author', 0);
       COMMIT;
       """)
   }

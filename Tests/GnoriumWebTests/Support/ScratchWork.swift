@@ -41,9 +41,10 @@ struct ScratchWork {
     let evidence = ids["evidence"]!.uppercased()
     let statement = references ? #""attribution":"Courtesy of the web tests","# : ""
     let metadata = """
-      {"sourceUrl":"https://example.org/web-tests","sourceKind":"iiif-manifest","title":"\(title)","authors":[],\
+      {"sourceUrl":"https://example.org/web-tests","sourceKind":"iiif-manifest","title":"\(title)",\
+      "progenitors":[{"name":"\(author)","type":"author"}],\
       "language":"eng","category":"report","edition":"First edition","year":1958,"genres":[],"isTranslation":false,\
-      \(statement)"translationChain":[],"activityStatements":[],"formerOwners":[],"citations":[]}
+      \(statement)"translationChain":[],"activityStatements":[],"citations":[]}
       """
     let shape = """
       {"edition-\(evidence)":{"parent":"work","position":0},"manifest-\(evidence)":{"parent":"edition-\(evidence)","position":0},"work":{"parent":null,"position":0}}
@@ -81,8 +82,8 @@ struct ScratchWork {
         VALUES ('\(ids["record"]!)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)', '\(authorSlug)',
           'report', 'eng', '[]', 1958, 'AD 1958');
       INSERT INTO persons (id, display_name, slug) VALUES ('\(ids["person"]!)', '\(author)', '\(authorSlug)');
-      INSERT INTO biblio_record_authors (id, biblio_record_id, person_id, position)
-        VALUES ('\(ids["authorship"]!)', '\(ids["record"]!)', '\(ids["person"]!)', 0);
+      INSERT INTO biblio_record_authors (id, biblio_record_id, person_id, progenitor_type, position)
+        VALUES ('\(ids["authorship"]!)', '\(ids["record"]!)', '\(ids["person"]!)', 'author', 0);
       INSERT INTO bibliographic_hallmarks (id, thread_id, bibliographic_overture_id, bibliographic_concerto_id, biblio_record_id, metadata_json, processing_status, permitted_by_user_id, permitted_at)
         VALUES ('\(ids["hallmark"]!)', '\(ids["hallmark"]!)', '\(ids["overture"]!)', '\(ids["concerto"]!)', '\(ids["record"]!)', '\(metadata)', 'permitted', '\(user)', now());
       \(attributions)

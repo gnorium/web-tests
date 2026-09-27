@@ -69,8 +69,9 @@ struct AmendmentAttributionTests {
         #expect(layout == "ok", "the attribute box is not inline in the label row: \(layout)")
       }
 
-      // An author's row is ticked field by field: its name has its box, the
-      // row none. Editing the second author's name ticks that name alone.
+      // A progenitor's row is ticked field by field: its type and its name
+      // each have a box, the row none. Editing the second one's name ticks
+      // that name alone.
       func authorName(_ row: Int) -> Locator {
         work.locator(".selectable-field-view[data-selectable-key='author[\(row)].name']:not([data-item-template] *)")
       }
@@ -79,7 +80,7 @@ struct AmendmentAttributionTests {
         try await expect(authorName(row)).toHaveCount(1)
       }
       try await expect(authorName(2).locator(".selectable-field-view-checkbox .label-text"))
-        .toHaveText("Select Author 2 name")
+        .toHaveText("Select Progenitor 2 name")
       let secondAuthor = authorName(2).locator(".text-input-input")
       let secondName = try await secondAuthor.inputValue()
       try await secondAuthor.fill(secondName + " (edited)")

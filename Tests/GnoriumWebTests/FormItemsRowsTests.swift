@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// A repeated field's rows stay numbered by their place in the list: add a
-/// third author on the Submit Amendment form, take the middle one away, and
+/// third progenitor on the Submit Amendment form, take the middle one away, and
 /// every name, id, label, attribute key and live diff is the row's place
 /// now, and the form serializes both rows. Nothing is submitted (the submit
 /// event is dispatched by hand, which runs the form's script but never
@@ -45,7 +45,7 @@ struct FormItemsRowsTests {
             }
           }
         }
-        const field = row.querySelector('.selectable-field-view');
+        const field = input.closest('.selectable-field-view');
         const box = field && field.querySelector('.selectable-field-view-checkbox .checkbox-input');
         return {
           index: row.getAttribute('data-item-index'),
@@ -81,7 +81,7 @@ struct FormItemsRowsTests {
     try await withPage(engine, gnorium, viewport: viewport, cookies: [admin.cookie]) { page in
       try await page.openHydrated(Self.form)
       let work = page.locator(".submit-amendment-work").first
-      let authors = work.locator("[data-item-list='work-author']")
+      let authors = work.locator("[data-item-list='work-progenitor']")
       let active = authors.locator("[data-item-section='true']:not([data-item-template] *)")
       let firstInput = active.first.locator(".text-input-input")
       if !(try await firstInput.isVisible()) {
@@ -107,17 +107,17 @@ struct FormItemsRowsTests {
       try await expect(active).toHaveCount(2)
       // Attribution keys follow a moment after (the attribution script
       // renumbers once the click has run).
-      try await expect(active.nth(1).locator(".selectable-field-view").first)
+      try await expect(active.nth(1).locator(".selectable-field-view[data-selectable-key$='.name']"))
         .toHaveAttribute("data-selectable-key", "author[2].name")
 
       // Each row is its place now: names, ids, labels, attribute keys.
       var now = try await rows(authors)
       #expect(now.map(\.value) == [first, "Third Author"])
       #expect(now.map(\.index) == ["1", "2"])
-      #expect(now[0].name == "work-author-item1-text-input")
-      #expect(now[1].name == "work-author-item2-text-input")
-      #expect(now[0].id.hasSuffix("work-author-item1-text-input"))
-      #expect(now[1].id.hasSuffix("work-author-item2-text-input"))
+      #expect(now[0].name == "work-progenitor-item1-text-input")
+      #expect(now[1].name == "work-progenitor-item2-text-input")
+      #expect(now[0].id.hasSuffix("work-progenitor-item1-text-input"))
+      #expect(now[1].id.hasSuffix("work-progenitor-item2-text-input"))
       for row in now { #expect(row.dangling.isEmpty, "row \(row.index ?? "?") names ids it does not hold: \(row.dangling)") }
       #expect(now.map(\.key) == ["author[1].name", "author[2].name"])
       #expect(now.map(\.boxValue) == ["author[1].name", "author[2].name"])
@@ -137,7 +137,7 @@ struct FormItemsRowsTests {
           const form = group.closest('form');
           const event = new Event('submit', { cancelable: true });
           form.dispatchEvent(event);
-          return JSON.stringify({ prevented: event.defaultPrevented, json: group.querySelector('.work-author-json').value });
+          return JSON.stringify({ prevented: event.defaultPrevented, json: group.querySelector('.work-progenitor-json').value });
         }
         """
       ).string ?? ""
@@ -150,12 +150,12 @@ struct FormItemsRowsTests {
       // Another row after that is the third, not a second "item3".
       try await authors.locator("[data-item-add-btn='true'] button").click()
       try await expect(active).toHaveCount(3)
-      try await expect(active.nth(2).locator(".selectable-field-view").first)
+      try await expect(active.nth(2).locator(".selectable-field-view[data-selectable-key$='.name']"))
         .toHaveAttribute("data-selectable-key", "author[3].name")
       now = try await rows(authors)
       #expect(now.map(\.index) == ["1", "2", "3"])
       #expect(Set(now.map(\.id)).count == 3, "row ids repeat: \(now.map(\.id))")
-      #expect(now[2].name == "work-author-item3-text-input")
+      #expect(now[2].name == "work-progenitor-item3-text-input")
       #expect(now.map(\.key) == ["author[1].name", "author[2].name", "author[3].name"])
       for row in now { #expect(row.dangling.isEmpty, "row \(row.index ?? "?") names ids it does not hold: \(row.dangling)") }
       // No author stood third: the row is new.
