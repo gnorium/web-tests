@@ -241,46 +241,82 @@ struct EdgeFadeTests {
     }
   }
 
+  /// Where a trail's crumbs sit: the page's own crumb on the line of the
+  /// chevron before it, and the trail inside its footer and the page.
+  struct TrailLayout: Decodable {
+    let currentTop: Double
+    let chevronTop: Double
+    let fits: Bool
+  }
+
+  static func trailLayout(_ page: Page, _ trail: String) async throws -> TrailLayout {
+    try await page.evaluate(
+      """
+      (() => {
+        const trail = document.querySelector('\(trail)')
+        const current = trail.querySelector('.breadcrumb-current')
+        const chevrons = [...trail.querySelectorAll('.breadcrumb-separator')]
+        const chevron = chevrons[chevrons.length - 1]
+        const footer = trail.closest('footer') || trail.parentElement
+        return {
+          currentTop: current.getBoundingClientRect().top + current.getBoundingClientRect().height / 2,
+          chevronTop: chevron.getBoundingClientRect().top + chevron.getBoundingClientRect().height / 2,
+          fits: trail.getBoundingClientRect().right <= footer.getBoundingClientRect().right + 0.5
+            && [...trail.querySelectorAll('*')].every((e) => e.getBoundingClientRect().right <= footer.getBoundingClientRect().right + 0.5 || e.closest('[data-overflowing]'))
+            && document.documentElement.scrollWidth <= innerWidth,
+        }
+      })()
+      """, as: TrailLayout.self)
+  }
+
+  /// The page's own crumb stays after its chevron, on the same line, long
+  /// title or short, shallow trail or deep; a long one fades at the line's
+  /// end (and on a phone opens on a tap), a short one does not.
   @Test(arguments: gnorium.engines, Layout.allCases)
-  func aLongCurrentCrumbFades(engine: BrowserEngine, layout: Layout) async throws {
+  func theCurrentCrumbStaysOnItsChevronsLine(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let suffix = String(UUID().uuidString.lowercased().prefix(8))
     let title =
       "Web tests edge fade \(suffix): a title long enough to run past its breadcrumb at every width, "
       + "as the long titles of early printed books do"
-    let work = try ScratchRecord(title: (title: title, slug: "web-tests-edge-fade-\(suffix)"))
+    let long = try ScratchRecord(title: (title: title, slug: "web-tests-edge-fade-\(suffix)"))
+    let short = try ScratchRecord()
     let viewport = layout.viewport(for: engine)
-    do {
-      try await withPage(engine, gnorium, viewport: viewport) { page in
-        // The title's own page: its crumb is the last, the page's own.
-        let titlePage = work.path.split(separator: "/").prefix(3).joined(separator: "/")
-        try await page.openHydrated("/\(titlePage)")
+    defer {
+      long.remove()
+      short.remove()
+    }
+    try await withPage(engine, gnorium, viewport: viewport) { page in
+      let trail = ".footer-breadcrumbs"
+      let titlePage = "/" + long.path.split(separator: "/").prefix(3).joined(separator: "/")
+      let shortTitlePage = "/" + short.path.split(separator: "/").prefix(3).joined(separator: "/")
+      // (page, screenshot, its crumb's text, whether it overflows)
+      let cases: [(String, String, String, Bool)] = [
+        (titlePage, "breadcrumb", title, true),
+        (shortTitlePage, "breadcrumb-short", short.title, false),
+        ("\(long.path)/versions", "breadcrumb-deep", "Versions", false),
+      ]
+      for (path, name, text, overflows) in cases {
+        try await page.openHydrated(path)
         try await page.expectNoErrors()
-        let trail = ".footer-breadcrumbs"
         let current = page.locator("\(trail) .breadcrumb-current")
-        try await expect(current).toHaveAttribute("title", title)
-        try await expect(current).toHaveText(title)
-        try await expect(current).toHaveAttribute("data-overflowing", "true")
+        try await expect(current).toHaveText(text)
         let report = try await Self.settledReport(page, trail)
-        #expect(report.ellipses.isEmpty, "text-overflow: ellipsis on \(report.ellipses)")
-        #expect(report.wrong.isEmpty, "the fade disagrees with the overflow on \(report.wrong)")
-        // The trail stays in the page's width, fading, not running past it.
-        let trailFits = try await page.evaluate(
-          """
-          (() => {
-            const trail = document.querySelector('\(trail)')
-            return trail.getBoundingClientRect().right <= trail.parentElement.getBoundingClientRect().right + 0.5
-              && document.documentElement.scrollWidth <= innerWidth
-          })()
-          """,
-          as: Bool.self)
-        #expect(trailFits, "the breadcrumb trail runs past its footer or the page")
+        #expect(report.ellipses.isEmpty, "\(path): text-overflow: ellipsis on \(report.ellipses)")
+        #expect(report.wrong.isEmpty, "\(path): the fade disagrees with the overflow on \(report.wrong)")
+        if overflows {
+          try await expect(current).toHaveAttribute("title", title)
+          try await expect(current).toHaveAttribute("data-overflowing", "true")
+        }
+        let placed = try await Self.trailLayout(page, trail)
+        #expect(abs(placed.currentTop - placed.chevronTop) < 2,
+          "\(path): the page's crumb is not on its chevron's line (\(placed.currentTop) vs \(placed.chevronTop))")
+        #expect(placed.fits, "\(path): the breadcrumb trail runs past its footer or the page")
         _ = try await current.evaluate("(e) => e.scrollIntoView({ block: 'center' })")
-        try await Self.screenshots(page, "breadcrumb", layout)
-        switch layout {
-        case .desktop:
-          #expect(report.buttons == 0, "\(report.buttons) crumbs expand at 1400 wide")
-        case .phone:
+        try await Self.screenshots(page, name, layout)
+        if layout == .desktop {
+          #expect(report.buttons == 0, "\(path): \(report.buttons) crumbs expand at 1400 wide")
+        } else if overflows {
           // The page's own crumb is no link: a tap anywhere on it opens it.
           try await current.tap()
           try await expect(current).toHaveAttribute("aria-expanded", "true")
@@ -290,10 +326,6 @@ struct EdgeFadeTests {
           try await expect(current).toHaveAttribute("aria-expanded", "true")
         }
       }
-    } catch {
-      work.remove()
-      throw error
     }
-    work.remove()
   }
 }
