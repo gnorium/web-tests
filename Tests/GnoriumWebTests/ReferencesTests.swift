@@ -6,7 +6,7 @@ import WebTestsTesting
 /// A record page's references (user, 2026-09-27): no mark anywhere in the
 /// page's prose, headings or labels; the References accordion at the page's
 /// end, closed until opened, lists each place once, linked, with where it is
-/// served from and the facts it supports as plain text; nothing scrolls
+/// served from, never the facts it supports; nothing scrolls
 /// sideways. A throwaway admin owns a scratch work whose hallmark carries
 /// attributions, and a scratch word with research references, made by SQL
 /// and removed after.
@@ -38,13 +38,12 @@ struct ReferencesTests {
         try await expect(catalogue.locator(".references-view-place a"))
           .toHaveAttribute("href", "https://catalogue.example.org/web-tests")
         try await expect(catalogue.locator(".references-view-source")).toHaveText("catalogue.example.org")
-        try await expect(catalogue.locator(".references-view-facts"))
-          .toHaveText("Supports: Language; Title; Attribution, testament 1.1")
         // Quoted three ways: just its place.
         try await expect(catalogue.locator(".references-view-quote")).toHaveCount(0)
-        try await expect(entries.nth(1).locator(".references-view-facts")).toHaveText("Supports: Title")
-        try await expect(entries.nth(2).locator(".references-view-facts"))
-          .toHaveText("Supports: Edition, testament 1")
+        try await expect(entries.nth(1).locator(".references-view-place a"))
+          .toHaveAttribute("href", "https://titles.example.org/web-tests")
+        // No line naming the facts a place supports.
+        try await expect(page.locator("#references")).not.toContainText("Supports")
         try await expect(entries.nth(2).locator(".references-view-quote")).toHaveText("First edition")
         // Plain: no numbers, arrows or letters.
         #expect(!(try await page.locator("#references").textContent()).contains("↑"))
@@ -80,7 +79,7 @@ struct ReferencesTests {
         let entries = page.locator("#references .references-view-entry")
         try await expect(entries).toHaveCount(2)
         try await expect(entries.nth(0).locator(".references-view-place a")).toContainText("Web tests dictionary")
-        try await expect(entries.nth(0).locator(".references-view-facts")).toHaveText("Supports: Title")
+        try await expect(page.locator("#references")).not.toContainText("Supports")
         try await expect(entries.nth(1).locator(".references-view-place a")).toContainText("Web tests senses")
         try await expect(entries.nth(1).locator(".references-view-source")).toHaveText("senses.example.org")
         try await page.expectNoHorizontalOverflow()
