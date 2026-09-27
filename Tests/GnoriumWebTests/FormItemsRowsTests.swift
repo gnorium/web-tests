@@ -13,7 +13,7 @@ import WebTestsTesting
 struct FormItemsRowsTests {
   /// The Bosworth–Toller record, kept on the dev database: two authors.
   static let form =
-    "/biblio-records/ang/an-anglo-saxon-dictionary/book/amendments/new"
+    "/biblio-records/ang/an-anglo-saxon-dictionary/dictionary/amendments/new"
 
   @Test(arguments: gnorium.engines, Layout.allCases)
   func removingAMiddleRowRenumbersTheRest(engine: BrowserEngine, layout: Layout) async throws {
