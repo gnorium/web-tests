@@ -70,6 +70,45 @@ struct ReferencesTests {
     }
   }
 
+  /// A lexico-record: a mark beside a sentiment's definition, in its row's
+  /// heading, goes to its entry and never opens or closes the row; the
+  /// record's own entry leads back into the closed root Metadata.
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func sentimentHeadingMarks(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let word = try ScratchWord(owner: admin)
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+        try await page.openHydrated(word.path)
+        let row = page.locator("#record-row-s-1-1")
+        try await expect(row).not.toHaveAttribute("open")
+        let mark = page.locator("#reference-2-a")
+        try await expect(mark).toBeVisible()
+        try await mark.click()
+        try await expect(page).toHaveURL("#reference-2", where: { $0.fragment == "reference-2" })
+        try await inViewport(page.locator("#reference-2"))
+        try await Task.sleep(for: .milliseconds(600))
+        try await expect(row).not.toHaveAttribute("open")
+
+        let lemmaMark = page.locator("#reference-1-a")
+        try await expect(lemmaMark).toBeHidden()
+        try await page.locator("#reference-1 .references-view-back-link").click()
+        try await expect(lemmaMark).toBeVisible()
+        try await inViewport(lemmaMark)
+        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoErrors()
+      }
+    } catch {
+      word.remove()
+      await admin.remove()
+      throw error
+    }
+    word.remove()
+    await admin.remove()
+  }
+
   /// The element within the viewport, once scrolling has settled.
   private func inViewport(_ locator: Locator, file: String = #fileID, line: Int = #line) async throws {
     for _ in 0..<50 {
