@@ -114,6 +114,67 @@ struct SearchMenuTests {
     }
   }
 
+  /// A sort after a live search keeps the search. The lexico list sorts on
+  /// the server: its header goes to the page's own path with what is typed,
+  /// the field, the sort and page one, and the list stays filtered; a second
+  /// click turns it descending. The biblio list sorts in the browser: the
+  /// address and the filtered rows stay as they are.
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func sortingKeepsTheLiveSearch(engine: BrowserEngine, layout: Layout) async throws {
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      for (index, parameter, field, column, serverSorted) in [
+        ("/lexico-records", "lemma", "lemma", "lemma", true),
+        ("/biblio-records", "q", "title", "title", false),
+      ] {
+        let name = try await Self.firstName(page, in: index)
+        try await page.openHydrated(index)
+        if layout == .phone {
+          try await page.locator(".sidebar-menu-btn").click()
+        }
+        let form = page.locator("[data-records-search='true']").filter(visible: true).first
+        let input = form.locator(".search-bar-input")
+        try await input.fill(name)
+        let searched = [parameter: name, "field": field]
+        try await Self.expectAddress(page, index, searched)
+        let count = page.locator(".records-count-view")
+        let filtered = try await count.textContent().trimmingCharacters(in: .whitespacesAndNewlines)
+        if layout == .phone {
+          try await page.locator(".navbar-slide-close-btn").click()
+        }
+
+        let header = page.locator(".records-results-view .table-sort-button[data-column-id='\(column)']")
+        try await header.click()
+        if serverSorted {
+          try await Self.expectAddress(
+            page, index, searched.merging(["sort": column, "order": "asc", "page": "1"]) { $1 })
+          try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
+          try await page.locator(".records-results-view .table-sort-button[data-column-id='\(column)']").click()
+          try await Self.expectAddress(
+            page, index, searched.merging(["sort": column, "order": "desc", "page": "1"]) { $1 })
+          try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
+          // The reloaded sidebar still holds the search.
+          if layout == .phone {
+            try await page.locator(".sidebar-menu-btn").click()
+          }
+          try await expect(
+            page.locator("[data-records-search='true']").filter(visible: true).first.locator(".search-bar-input")
+          ).toHaveValue(name)
+        } else {
+          try await Self.expectAddress(page, index, searched)
+        }
+        try await expect(count).toHaveText(filtered)
+        let named = try await page.evaluate(
+          """
+          [...document.querySelectorAll(".records-results-view tbody a[href^='\(index)/']")]
+            .every((a) => a.textContent.trim().toLowerCase().includes(\(Self.quoted(name.lowercased()))))
+          """)
+        #expect(named.bool == true, "\(index): sorting dropped the search for \(name)")
+        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoErrors()
+      }
+    }
+  }
+
   /// The address the search left: the list's own path, and exactly
   /// `query` (in any order).
   private static func expectAddress(_ page: Page, _ path: String, _ query: [String: String]) async throws {
