@@ -27,7 +27,7 @@ struct TestamentFormsTests {
           """
           (group) => JSON.stringify({
             publication: !!group.closest("[data-as-namespace='publication'] .framed-accordion-view"),
-            work: !!group.closest('.bibliographic-work-section'),
+            work: !!group.closest('.biblio-record-metadata-view'),
           })
           """
         ).string ?? "{}"
