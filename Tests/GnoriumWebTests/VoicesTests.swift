@@ -46,7 +46,9 @@ struct VoicesTests {
       // roles, Title Case, no editor.
       try await expect(rows).toHaveCount(1)
       try await expect(heading).toHaveText("Voice")
-      try await expect(rows.first.locator(".text-input-label").first).toContainText("Voice")
+      try await expect(rows.first.locator(".text-input-label").first).toContainText("Voice name")
+      try await expect(rows.first.locator(".text-input-input")).toHaveAttribute("placeholder", "Voice name")
+      try await expect(rows.first).toContainText("Voice role")
       let firstType = rows.first.locator(".dropdown-view")
       try await expect(firstType.locator(".dropdown-selected-text")).toHaveText("Author")
       try await expect(rows.first.locator("input[id$='-dropdown']")).toHaveValue("author")
@@ -130,12 +132,18 @@ struct VoicesTests {
       try await expect(authors).toHaveCount(1)
       try await expect(authors.first).toHaveValue(work.author)
 
-      // Unset: "—", and the typed fields stay as they were filled.
+      // Unset: "—", and what the pick filled in, untouched since, goes
+      // with it; what was edited after the pick stays.
+      try await original.locator("[name='chain-original-work[]']").fill("\(work.title), revised")
       try await dropdown.locator(".dropdown-trigger").click()
       try await dropdown.locator(".dropdown-option[data-value='\(work.recordID)']").first.click()
       try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("—")
       try await expect(original.locator("input[name='chain-original-record']")).toHaveValue("")
-      try await expect(original.locator("[name='chain-original-work[]']")).toHaveValue(work.title)
+      try await expect(original.locator("[name='chain-original-work[]']")).toHaveValue("\(work.title), revised")
+      try await expect(original.locator("#chain-original-language-0")).toHaveValue("")
+      try await expect(original.locator("#chain-original-year")).toHaveValue("")
+      try await expect(authors).toHaveCount(1)
+      try await expect(authors.first).toHaveValue("")
 
       // A translated step: its own picker at its top, its Remove button the
       // house one; a pick fills that step in, and the chain keeps it.

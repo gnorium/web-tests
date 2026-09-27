@@ -63,7 +63,7 @@ struct TestamentLevelsTests {
           const at = (selector) => form.querySelector(selector);
           const chain = [
             '#work-language', '#work-title', "[data-item-list='work-voice']", "[name='year']", '#work-place',
-            '#work-type', "[data-item-list='work-genre']", '.bibliographic-level-divider',
+            '#work-type', "[data-item-list='work-genre']",
             ".activity-statement-view[data-as-namespace='publication']", '#work-edition',
             ".activity-statement-view[data-as-namespace='production']", '#testament-copy-label',
             ".activity-statement-view[data-as-namespace='digitization']", '#testament-source-url', '#testament-license',
@@ -86,6 +86,28 @@ struct TestamentLevelsTests {
         """
       ).string
       #expect(order == "ok", "\(order ?? "")")
+      // Each level a framed card, open on a new testament, parted from the
+      // next by the form's gap: no rule anywhere between them.
+      try await expect(form.locator(".bibliographic-level-divider, .accordion-divider")).toHaveCount(0)
+      for kind in ["publication", "production", "digitization"] {
+        let card = form.locator(".framed-accordion-view:has(> .accordion-view > #as-accordion-\(kind))")
+        try await expect(card).toHaveCount(1)
+        try await expect(card.locator(":scope > .accordion-view")).toHaveAttribute("data-separation", "outline")
+        try await expect(form.locator("#as-accordion-\(kind)")).toHaveAttribute("data-expanded", "true")
+        try await expect(card.locator(".framed-accordion-content").first).toBeVisible()
+      }
+      let surfaces = try await form.evaluate(
+        """
+        (form) => {
+          const card = form.querySelector('.framed-accordion-view');
+          const box = card.querySelector('.framed-accordion-content');
+          const row = box.querySelector('.item-section');
+          const color = (el) => getComputedStyle(el).backgroundColor;
+          return [color(card), color(box), row ? color(row) : ''];
+        }
+        """
+      ).array?.compactMap(\.string) ?? []
+      #expect(surfaces.count == 3 && surfaces[0] != surfaces[1] && surfaces[1] != surfaces[2], "\(surfaces)")
       try await expect(form.locator("[data-as-namespace='creation']")).toHaveCount(0)
       for (kind, heading) in [("publication", "Publication"), ("digitization", "Digitization")] {
         try await expect(form.locator("#as-accordion-\(kind) .accordion-title").first).toContainText(heading)
