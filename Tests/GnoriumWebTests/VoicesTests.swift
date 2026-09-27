@@ -4,8 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// Submit Testament's voices: a person a row ("Voice", "+ Add voice") under
-/// a heading that counts them ("Voice" over one row, "Voices" over two, kept
-/// in step as rows come and go), each with a role (Author, Translator,
+/// no heading (the row labels say what they are), each with a role (Author, Translator,
 /// Compiler: an editor is the edition's), a row added starting as an author;
 /// the form posts each row's role and name; the form's own Biblio-record
 /// comes first. A translation is an Origin row, not a box and a chain.
@@ -38,12 +37,11 @@ struct VoicesTests {
       let form = page.locator(".submit-testament-form")
       let list = form.locator("[data-item-list='work-voice']")
       let rows = list.locator("[data-item-section='true']:not([data-item-template] *)")
-      let heading = list.locator(":scope > .form-items-heading")
-
-      // One row to start, an author, headed "Voice", labeled "Voice"; three
-      // roles, Title Case, no editor.
+      // One row to start, an author, labeled "Voice", with no heading over
+      // the rows (their labels say what they are); three roles, Title Case,
+      // no editor.
       try await expect(rows).toHaveCount(1)
-      try await expect(heading).toHaveText("Voice")
+      try await expect(list.locator(":scope > .form-items-heading")).toHaveCount(0)
       try await expect(rows.first.locator(".text-input-label").first).toContainText("Voice name")
       try await expect(rows.first.locator(".text-input-input")).toHaveAttribute("placeholder", "Voice name")
       try await expect(rows.first).toContainText("Voice role")
@@ -60,7 +58,6 @@ struct VoicesTests {
       // A second row starts as an author; made a translator.
       try await list.locator("[data-item-add-btn='true'] button").click()
       try await expect(rows).toHaveCount(2)
-      try await expect(heading).toHaveText("Voices")
       let second = rows.nth(1)
       try await expect(second.locator("input[id$='-dropdown']")).toHaveValue("author")
       try await second.locator(".dropdown-trigger").click()
@@ -68,12 +65,11 @@ struct VoicesTests {
       try await expect(second.locator(".dropdown-selected-text")).toHaveText("Translator")
       try await second.locator(".text-input-input").fill("Alexander Pope")
 
-      // A third row, taken away again: "Voices" still over two.
+      // A third row, taken away again.
       try await list.locator("[data-item-add-btn='true'] button").click()
       try await expect(rows).toHaveCount(3)
       try await rows.nth(2).locator(".item-remove-btn").click()
       try await expect(rows).toHaveCount(2)
-      try await expect(heading).toHaveText("Voices")
 
       // What the form posts: each row's role and name, in order.
       let posted = try await list.evaluate(

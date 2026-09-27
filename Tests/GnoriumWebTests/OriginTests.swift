@@ -9,10 +9,10 @@ import WebTestsTesting
 /// its testaments to name one by; with no record, the work as typed and
 /// "+ Add origin" under it for its own origin. The form posts the rows as
 /// one JSON list (the submit event is dispatched by hand, which runs the
-/// form's script but never posts). On a record page, the Origin accordion
-/// after the Metadata reads the chain ("Translation of — …", deeper steps
-/// "which is a translation of …"), and the source record lists its
-/// translations. A throwaway admin owns two scratch works, removed after.
+/// form's script but never posts). On a record page, the Origin section
+/// after the Metadata is a paragraph of prose ("A translation of the Old
+/// English …, which is a translation of the English report …, authored by
+/// …."), and the source record lists its translations. A throwaway admin owns two scratch works, removed after.
 @Suite("Origin", .serialized)
 struct OriginTests {
   static let form = "/mission-control/submit/bibliographic/evidence-testament"
@@ -63,21 +63,55 @@ struct OriginTests {
       try await expect(form.locator(".translation-chain-view")).toHaveCount(0)
       let block = form.locator(".origin-field-view")
       try await expect(block).toHaveCount(1)
-      try await expect(block.locator(".origin-field-view-heading")).toHaveText("Origin")
+      // No heading; one row to start, as the voices have.
+      try await expect(block.locator(".origin-field-view-heading")).toHaveCount(0)
       let top = block.locator(":scope > [data-origin-list='true']")
       let rows = top.locator(":scope > [data-origin-row='true']")
-      try await expect(rows).toHaveCount(0)
-
-      // "+ Add origin": a row, its relation, its record field, its typed
-      // fields while no record is picked.
-      try await top.locator(":scope > div > .origin-add-btn").click()
       try await expect(rows).toHaveCount(1)
+
+      // The row: its relation (a plain noun), its record field, its typed
+      // fields while no record is picked, its own "+ Add origin" beside
+      // "× Remove origin".
       let first = rows.first
+      try await expect(first.locator(".origin-record-field-view")).toHaveCount(1)
+      let actions = first.locator(":scope > .origin-field-view-actions")
+      try await expect(actions.locator("button")).toHaveTexts(["+ Add origin", "× Remove origin"])
+      let sideBySide = try await actions.evaluate(
+        "(a) => { const [x, y] = a.querySelectorAll('button'); return Math.abs(x.getBoundingClientRect().top - y.getBoundingClientRect().top) < 4 }"
+      ).bool
+      // One row where there is room; a narrow phone wraps them.
+      if viewport.width >= 768 { #expect(sideBySide == true, "the row's actions are one row") }
       try await expect(first).toContainText("Origin relation")
       let relation = first.locator(".dropdown-view").first
+      // Its tooltip, as the bubble says it when shown.
+      let tooltip = { () async throws -> String in
+        try await relation.locator(".dropdown-label [data-tooltip='true']").hover()
+        let bubble = page.locator(".tooltip-view[data-portal='true'][data-visible='true'] .tooltip-content")
+        try await expect(bubble).toHaveCount(1)
+        let text = try await bubble.evaluate("(e) => e.textContent.trim()").string ?? ""
+        // Away again, so the bubble covers nothing the test clicks next.
+        try await relation.locator(".dropdown-label-text").hover()
+        try await expect(bubble).toHaveCount(0)
+        return text
+      }
+      #expect(try await tooltip() == "How this record came from the one the row names.")
+      // A work's relations in FRBR's order: Transformation (another type of
+      // work) after Adaptation (the same type).
+      try await expect(relation.locator(".dropdown-option .dropdown-option-display-text")).toHaveTexts([
+        "Translation", "Adaptation", "Transformation", "Abridgment", "Continuation", "Commentary", "Derivation",
+        "Compilation", "Conflation",
+      ])
       try await relation.locator(".dropdown-trigger").click()
       try await relation.locator(".dropdown-option[data-value='translation_of']").click()
-      try await expect(relation.locator(".dropdown-selected-text")).toHaveText("Translation of")
+      try await expect(relation.locator(".dropdown-selected-text")).toHaveText("Translation")
+      // The tooltip now says what a translation is.
+      #expect(try await tooltip() == "A rendering of the work in another language.")
+      // How sure it is: optional, certain unless said.
+      let certainty = first.locator(".dropdown-view").nth(1)
+      try await expect(first).toContainText("Certainty")
+      try await certainty.locator(".dropdown-trigger").click()
+      try await certainty.locator(".dropdown-option[data-value='probable']").click()
+      try await expect(certainty.locator(".dropdown-selected-text")).toHaveText("Probable")
       let record = first.locator(":scope > .origin-field-view-record .origin-record-field-view")
       try await expect(record.locator("legend")).toContainText("Origin record")
       let typedFields = first.locator(":scope > .origin-field-view-typed")
@@ -93,6 +127,8 @@ struct OriginTests {
       try await expect(found.locator(".breadcrumb-label-text")).toHaveText(original.title)
       try await found.click()
       try await expect(typedFields).toBeHidden()
+      // A record's origin is its own: no "+ Add origin" under a picked record.
+      try await expect(actions.locator(".origin-add-own-btn")).toBeHidden()
       let node = first.locator(".origin-record-field-view .dropdown-view").nth(1)
       try await expect(first.locator(".origin-record-field-view")).toContainText("Origin testament")
       let edition = node.locator(".dropdown-option[data-value^='edition-']")
@@ -112,9 +148,18 @@ struct OriginTests {
       try await secondRelation.locator(".dropdown-trigger").click()
       try await secondRelation.locator(".dropdown-option[data-value='adaptation_of']").click()
       try await second.locator("input[name$='-title']").first.fill("Web tests typed work")
-      try await second.locator("input[name$='-voices']").first.fill("Ann Author; Bea Author")
+      // Its voices a row each, as the work's own: a role and a name.
+      let voiceList = second.locator(":scope > .origin-field-view-typed > .form-items-view")
+      let voiceRows = voiceList.locator("[data-item-section='true']:not([data-item-template] *)")
+      try await expect(voiceRows).toHaveCount(1)
+      try await voiceRows.first.locator(".text-input-input").fill("Ann Author")
+      try await voiceList.locator("[data-item-add-btn='true'] button").click()
+      try await expect(voiceRows).toHaveCount(2)
+      try await voiceRows.nth(1).locator(".dropdown-trigger").click()
+      try await voiceRows.nth(1).locator(".dropdown-option[data-value='translator']").click()
+      try await voiceRows.nth(1).locator(".text-input-input").fill("Bea Author")
       let nestedList = second.locator(":scope > .origin-field-view-typed > [data-origin-list='true']")
-      try await nestedList.locator(":scope > div > .origin-add-btn").click()
+      try await second.locator(":scope > .origin-field-view-actions .origin-add-own-btn").click()
       let nested = nestedList.locator(":scope > [data-origin-row='true']")
       try await expect(nested).toHaveCount(1)
       try await expect(nested.first.locator(".origin-record-field-view")).toHaveCount(1)
@@ -135,14 +180,17 @@ struct OriginTests {
       let json = try JSONSerialization.jsonObject(with: Data(posted.utf8)) as? [[String: Any]] ?? []
       #expect(json.count == 2, "\(posted)")
       #expect(json.first?["relation"] as? String == "translation_of")
+      #expect(json.first?["certainty"] as? String == "probable")
       #expect(json.first?["record"] as? String == original.recordID)
       #expect((json.first?["node"] as? String)?.hasPrefix("edition-") == true, "\(posted)")
       let secondPosted = json.count > 1 ? json[1] : [:]
       #expect(secondPosted["relation"] as? String == "adaptation_of")
       let secondTyped = secondPosted["typed"] as? [String: Any] ?? [:]
       #expect(secondTyped["title"] as? String == "Web tests typed work")
-      let voices = (secondTyped["voices"] as? [[String: Any]] ?? []).compactMap { $0["name"] as? String }
-      #expect(voices == ["Ann Author", "Bea Author"])
+      let voices = (secondTyped["voices"] as? [[String: Any]] ?? []).map {
+        "\($0["role"] as? String ?? ""):\($0["name"] as? String ?? "")"
+      }
+      #expect(voices == ["author:Ann Author", "translator:Bea Author"])
       let deeper = secondPosted["origins"] as? [[String: Any]] ?? []
       #expect(deeper.count == 1)
       #expect((deeper.first?["typed"] as? [String: Any])?["title"] as? String == "Web tests deeper work")
@@ -156,38 +204,55 @@ struct OriginTests {
       try await expect(first.locator(".origin-record-field-view")).not.toContainText("Origin testament")
       try await expect(typedFields).toBeVisible()
       // A row removed.
-      try await second.locator(":scope > div > .origin-remove-btn").click()
+      try await second.locator(":scope > .origin-field-view-actions .origin-remove-btn").click()
       try await expect(rows).toHaveCount(1)
 
       // Nothing scrolls sideways.
       let overflow = try await page.evaluate("document.documentElement.scrollWidth > window.innerWidth").bool
       #expect(overflow == false)
 
-      // The translation's page: Origin after Metadata, closed; opened, the
-      // chain, the typed step plain, the original linked under it.
+      // The translation's page: an Origin section after the Metadata, a
+      // paragraph of prose as a dictionary's etymology, the typed step plain
+      // and the original linked.
       try await page.openHydrated(translation.path)
-      let accordion = page.locator("#record-origin")
-      try await expect(accordion).toHaveCount(1)
-      try await expect(accordion).not.toHaveAttribute("open", "")
+      let prose = page.locator("#origin .origin-view")
+      try await expect(prose).toHaveCount(1)
+      try await expect(page.locator("#origin .record-section-title")).toHaveText("Origin")
+      try await expect(page.locator("#record-origin")).toHaveCount(0)
       let order = try await page.evaluate(
         """
         (() => {
           const metadata = document.querySelector('#record-metadata');
-          const origin = document.querySelector('#record-origin');
+          const origin = document.querySelector('#origin');
           return !!(metadata && origin && (metadata.compareDocumentPosition(origin) & Node.DOCUMENT_POSITION_FOLLOWING));
         })()
         """
       ).bool
       #expect(order == true, "Origin is not after Metadata")
-      try await page.locator("#record-origin > .accordion-summary").click()
-      let steps = accordion.locator(".origin-list-view-line")
-      try await expect(steps.first).toContainText("Translation of — \(typed) (Old English) · — · —")
-      try await expect(steps.nth(1)).toContainText("which is a translation of — \(original.title) (English)")
-      try await expect(steps.nth(1).locator("a[href='\(original.path)']")).toHaveCount(1)
+      try await expect(prose).toHaveText(
+        "Translated from the Old English \(typed), which was translated from the English report \(original.title), "
+          + "authored by \(original.author).")
+      try await expect(prose.locator("a[href='\(original.path)']")).toHaveCount(1)
 
       // The original lists it among its translations.
       try await page.openHydrated(original.path)
       try await expect(page.locator(".record-sidebar-view a[href='\(translation.path)']").first).toBeAttached()
+
+      // A word's origin may name nothing: an Imitation or a Coinage hides
+      // the row's record field and typed fields; another relation brings
+      // them back.
+      try await page.openHydrated("/mission-control/submit/lexicographic/evidence-sentiment")
+      let wordRow = page.locator(".origin-field-view [data-origin-row='true']").first
+      try await expect(wordRow.locator(".origin-record-field-view")).toHaveCount(1)
+      let wordRelation = wordRow.locator(".dropdown-view").first
+      try await wordRelation.locator(".dropdown-trigger").click()
+      try await wordRelation.locator(".dropdown-option[data-value='coinage']").click()
+      try await expect(wordRow.locator(":scope > .origin-field-view-record")).toBeHidden()
+      try await expect(wordRow.locator(":scope > .origin-field-view-typed")).toBeHidden()
+      try await wordRelation.locator(".dropdown-trigger").click()
+      try await wordRelation.locator(".dropdown-option[data-value='eponym_of']").click()
+      try await expect(wordRow.locator(":scope > .origin-field-view-record")).toBeVisible()
+      try await expect(wordRow.locator(":scope > .origin-field-view-typed")).toBeVisible()
     }
   }
 }
