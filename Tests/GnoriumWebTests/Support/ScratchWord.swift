@@ -6,15 +6,27 @@ import Foundation
 /// leaf's (beside its definition, in its row's heading). Every row by its own
 /// id, removed in the order the foreign keys allow. With a `distinction`,
 /// the leaf's TEI holds it as its `<note type="usage" subtype="distinction">`
-/// (a `{branch}` in it a `<ptr>` to the branch) and the leaf is attested by
-/// one utterance.
+/// (a `{branch}` in it a `<ptr>` to the branch). With an `anchor` (a
+/// testament's record, version and page, and the utterance's passage and
+/// word there), the leaf is attested by an utterance in that testament.
 struct ScratchWord {
   /// The scratch record's title.
   let title: String
   let path: String
   private let ids: [String: String]
 
-  init(owner: TestAdmin, distinction: String? = nil) throws {
+  /// Where an utterance is in a testament: its record, version and page
+  /// (image service), its passage and its word, counted as the concordance
+  /// counts the page.
+  struct Anchor {
+    let recordID: String
+    let versionID: String
+    let canvasID: String
+    let passage: Range<Int>
+    let headword: Range<Int>
+  }
+
+  init(owner: TestAdmin, distinction: String? = nil, anchor: Anchor? = nil) throws {
     let user = try owner.column("id")
     var ids: [String: String] = [:]
     for name in ["submission", "evidence", "overture", "concerto", "lemma", "record", "hallmark", "version"] {
@@ -27,10 +39,12 @@ struct ScratchWord {
       #"<note type=\"usage\" subtype=\"distinction\">"#
         + $0.replacingOccurrences(of: "{branch}", with: ##"<ptr target=\"#s-1\"/>"##) + "</note>"
     } ?? ""
-    let utterances = distinction == nil ? ("[]", "[]", "") : (
-      #"[{"biblioRecordID":"webtests-work","canvasID":"canvas/1","charEnd":30,"charStart":0,"headwordEnd":12,"headwordStart":4,"id":"u-1","versionID":"webtests-version"}]"#,
-      #"["u-1"]"#,
-      #","chronology":[{"testamentTitle":"Web tests testament","text":"The scratch word stood in a sentence.","utteranceID":"u-1","year":1901,"yearEnd":1901}]"#)
+    let utterances = anchor.map {
+      (
+        #"[{"biblioRecordID":"\#($0.recordID)","canvasID":"\#($0.canvasID)","charEnd":\#($0.passage.upperBound),"charStart":\#($0.passage.lowerBound),"headwordEnd":\#($0.headword.upperBound),"headwordStart":\#($0.headword.lowerBound),"id":"u-1","versionID":"\#($0.versionID)"}]"#,
+        #"["u-1"]"#,
+        #","chronology":[{"testamentTitle":"Web tests testament","text":"The scratch word stood in a sentence.","utteranceID":"u-1","year":1901,"yearEnd":1901}]"#)
+    } ?? ("[]", "[]", "")
     let snapshot = """
       {"lemmaForm":{"headword":"\(title)","inflections":[],"languageCode":"eng","origin":{"citations":[],"derivation":"","etymons":[]},\
       "partOfSpeech":"noun","sources":[{"locator":"s.v.","title":"Web tests dictionary","url":"https://dictionary.example.org/web-tests"}],\

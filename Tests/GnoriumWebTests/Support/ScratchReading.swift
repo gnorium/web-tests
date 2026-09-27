@@ -7,7 +7,7 @@ struct ScratchReading {
   let work: ScratchWork
   let path: String
   private let antiphonID: String
-  private let proposalID: String
+  let proposalID: String
 
   init(owner: TestAdmin, tei: String) throws {
     work = try ScratchWork(owner: owner)
