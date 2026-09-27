@@ -73,7 +73,7 @@ struct UtteranceReadingTests {
         let reader = attestation.locator(".utterance-view")
         try await expect(reader).toHaveCount(1)
         // The page and the pages either side, each opened by its label.
-        try await expect(reader.locator(".semblance-view")).toHaveCount(3)
+        try await expect(reader.locator(".tei-reading")).toHaveCount(3)
         try await expect(reader.locator(".tei-line-mark")).toHaveTexts(["2", "3", "4"])
         try await expect(reader).not.toContainText("Page 1,")
         try await expect(reader).not.toContainText("Page 5,")
@@ -83,6 +83,13 @@ struct UtteranceReadingTests {
         ])
         let headword = reader.locator("mark[data-highlight='headword']")
         try await expect(headword).toHaveText("scratchword")
+        // Stronger by color alone: its weight is the text's own.
+        let weights = try await reader.evaluate(
+          "box => [...box.querySelectorAll('mark')].map(m => getComputedStyle(m).fontWeight).join(' ')")
+        #expect(weights == .string("400 400 400 400"))
+        // The word boxed as the OED boxes it; the sentence unboxed.
+        try await expect(headword).toHaveCSS("border-top-style", "solid")
+        try await expect(reader.locator("mark[data-highlight='sentence']").first).toHaveCSS("border-top-style", "none")
         // No images.
         try await expect(reader.locator("img")).toHaveCount(0)
         try await expect(attestation.locator(".artifact-view")).toHaveCount(0)
