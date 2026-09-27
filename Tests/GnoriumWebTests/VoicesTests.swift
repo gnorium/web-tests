@@ -119,7 +119,7 @@ struct VoicesTests {
       let found = results.locator(".dropdown-option[data-value='\(work.recordID)']")
       try await expect(found.locator(".breadcrumb-label-context")).toHaveText("English")
       try await expect(found.locator(".breadcrumb-label-text")).toHaveText(work.title)
-      try await expect(found.locator(".dropdown-option-alt-text")).toHaveText("\(work.author) · Report")
+      try await expect(found.locator(".dropdown-option-alt-text")).toHaveText("\(work.author) · report")
       try await found.click()
       try await expect(original.locator("input[name='chain-original-record']")).toHaveValue(work.recordID)
       try await expect(original.locator("[name='chain-original-work[]']")).toHaveValue(work.title)

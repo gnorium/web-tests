@@ -110,7 +110,7 @@ struct RecordChoiceTests {
       try await expect(label.locator(".breadcrumb-label-context")).toHaveText("English")
       try await expect(label.locator(".breadcrumb-separator-view .next-icon-view")).toHaveCount(1)
       try await expect(label.locator(".breadcrumb-label-text")).toHaveText(work.title)
-      try await expect(option.locator(".dropdown-option-alt-text")).toHaveText("\(work.author) · Report")
+      try await expect(option.locator(".dropdown-option-alt-text")).toHaveText("\(work.author) · report")
       try await expect(option).not.toContainText(work.path)
       // One running line that wraps, as a breadcrumb does: the chevron on the
       // language's line, the page breadcrumb's icon at its size. (Its colour
@@ -186,7 +186,7 @@ struct RecordChoiceTests {
       let found = results.locator(".dropdown-option[data-value='\(work.recordID)']")
       try await expect(found.locator(".breadcrumb-label-context")).toHaveText("English")
       try await expect(found.locator(".breadcrumb-label-text")).toHaveText(work.title)
-      try await expect(found.locator(".dropdown-option-alt-text")).toHaveText("\(work.author) · Report")
+      try await expect(found.locator(".dropdown-option-alt-text")).toHaveText("\(work.author) · report")
       // Found by its title only, never its author's name.
       try await dropdown.locator(".dropdown-search-input").fill("Web Tests Author \(work.suffix)")
       try await expect(results.locator(".dropdown-option")).toHaveCount(0)
@@ -200,7 +200,7 @@ struct RecordChoiceTests {
       try await expect(form.locator("#work-language")).toHaveValue("eng")
       try await expect(form.locator("[data-dropdown-id='work-language'] .dropdown-selected-text")).toHaveText("English")
       try await expect(form.locator("#work-type")).toHaveValue("report")
-      try await expect(form.locator("[data-dropdown-id='work-type'] .dropdown-selected-text")).toHaveText("Report")
+      try await expect(form.locator("[data-dropdown-id='work-type'] .dropdown-selected-text")).toHaveText("report")
       try await expect(form.locator("input[name='title']")).toHaveValue(work.title)
       try await expect(author).toHaveValue(work.author)
       try await expect(field.locator(".record-placement-view")).toBeVisible()

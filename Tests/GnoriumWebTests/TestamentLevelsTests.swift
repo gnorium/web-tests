@@ -107,14 +107,14 @@ struct TestamentLevelsTests {
       try await expect(copy.locator(".section-legend").filter(hasText: "Shelf mark or call number")).toBeVisible()
       try await expect(production).toBeHidden()
       let type = form.locator(".dropdown-view:has(#work-type)").first
-      try await choose("book", "Book", in: type)
+      try await choose("book", "book", in: type)
       try await expect(form.locator("#testament-copy-label")).toBeVisible()
       try await expect(production).toBeHidden()
-      try await choose("manuscript", "Manuscript", in: type)
+      try await choose("manuscript", "manuscript", in: type)
       try await expect(production).toBeVisible()
       try await expect(copy.locator("input[name='as-production-place']")).toBeVisible()
       try await shoot(page, "manuscript", layout)
-      try await choose("book", "Book", in: type)
+      try await choose("book", "book", in: type)
       try await expect(production).toBeHidden()
       try await expect(form.locator("#testament-copy-label")).toBeVisible()
 
@@ -230,9 +230,9 @@ struct TestamentLevelsTests {
         try await expect(production).toBeHidden()
         // Set to Manuscript, the stored production shows; back to Book, it hides.
         let type = form.locator(".dropdown-view:has(#work-type)").first
-        try await choose("manuscript", "Manuscript", in: type)
+        try await choose("manuscript", "manuscript", in: type)
         try await expect(copy.locator("input[name='as-production-place']")).toHaveValue("Web tests scriptorium")
-        try await choose("book", "Book", in: type)
+        try await choose("book", "book", in: type)
         try await expect(production).toBeHidden()
         try await shoot(page, "modify-book", layout)
         try await label.fill("Web tests copy 10")

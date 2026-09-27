@@ -6,7 +6,7 @@ import WebTestsTesting
 /// A record's footer breadcrumbs walk its address (and its subpages' walk it
 /// too, then their own), and every crumb before the last is its prefix's
 /// page, the records list filtered to it: `Biblio-records › English ›
-/// {title} › Report`, and where works share those three, `… › Report ›
+/// {title} › report`, and where works share those three, `… › report ›
 /// {author}`, the three segments the list of them. From the record page a
 /// reader climbs crumb by crumb — the group's list, the title's, the
 /// language's, the whole list — each page listing the record and crumbed up
@@ -21,7 +21,7 @@ struct RecordBreadcrumbsTests {
     let work = try ScratchRecord()
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-        try await Self.climb(page, from: work.path, labels: ["English", work.title, "Report"])
+        try await Self.climb(page, from: work.path, labels: ["English", work.title, "report"])
       }
     } catch {
       work.remove()
@@ -36,7 +36,7 @@ struct RecordBreadcrumbsTests {
     let (work, namesake) = try ScratchRecord.pair()
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-        try await Self.climb(page, from: work.path, labels: ["English", work.title, "Report", work.author])
+        try await Self.climb(page, from: work.path, labels: ["English", work.title, "report", work.author])
         // The three segments are the list of the two.
         let group = work.path.split(separator: "/").prefix(4).joined(separator: "/")
         try await page.openHydrated("/\(group)")

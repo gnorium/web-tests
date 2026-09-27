@@ -5,10 +5,11 @@ import Foundation
 /// in the order the foreign keys allow.
 ///
 /// With `references`, its hallmark carries a concerto's attributions for
-/// the values the version still has, so its page marks them: the language
-/// and the title from one catalogue page (one entry, two letters), the
-/// edition from another, and the manifest's attribution statement from a
-/// third, which sits in the manifest's row, closed until opened.
+/// the values the version still has, so its page marks them: one catalogue
+/// page for the language, the title and the manifest's attribution statement
+/// (one entry, "^ a b c"; the last in the manifest's row, closed until
+/// opened), a second page for the title too (its label reads "[1][2]"), and
+/// a third for the edition.
 struct ScratchWork {
   let title: String
   let author: String
@@ -50,11 +51,13 @@ struct ScratchWork {
       {"edition-\(evidence)":{"parent":"work","position":0},"manifest-\(evidence)":{"parent":"edition-\(evidence)","position":0},"work":{"parent":null,"position":0}}
       """
     // Each value as the concerto wrote it, and as the version still has it
-    // (`ConcertoLabel.display`), with one reference.
-    func attribution(_ field: String, _ value: String, _ url: String) -> String {
-      let referencesJSON = """
-        [{"kind":"url","quote":"\(value)","retrievedAt":"2026-09-01T00:00:00Z","url":"\(url)","verified":true}]
-        """
+    // (`ConcertoLabel.display`), with its references.
+    func attribution(_ field: String, _ value: String, _ urls: String...) -> String {
+      let referencesJSON =
+        "["
+        + urls.map {
+          #"{"kind":"url","quote":"\#(value)","retrievedAt":"2026-09-01T00:00:00Z","url":"\#($0)","verified":true}"#
+        }.joined(separator: ",") + "]"
       return """
         INSERT INTO field_attributions (id, bibliographic_concerto_id, bibliographic_hallmark_id, field, value, reasoning, references_json, created_at)
           VALUES ('\(UUID().uuidString.lowercased())', '\(ids["concerto"]!)', '\(ids["hallmark"]!)', '\(field)', '\(value)', 'Read there.', '\(referencesJSON)', now());
@@ -64,9 +67,10 @@ struct ScratchWork {
       references
       ? [
         attribution("language", "English", "https://catalogue.example.org/web-tests"),
-        attribution("title", title, "https://catalogue.example.org/web-tests"),
+        attribution(
+          "title", title, "https://catalogue.example.org/web-tests", "https://titles.example.org/web-tests"),
         attribution("edition", "First edition", "https://editions.example.org/web-tests"),
-        attribution("attribution", "Courtesy of the web tests", "https://manifests.example.org/web-tests"),
+        attribution("attribution", "Courtesy of the web tests", "https://catalogue.example.org/web-tests"),
       ].joined(separator: "\n") : ""
     _ = try TestAdmin.query(
       """
