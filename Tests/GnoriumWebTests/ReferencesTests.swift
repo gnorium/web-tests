@@ -4,7 +4,8 @@ import WebTests
 import WebTestsTesting
 
 /// A record page's references: a mark beside a field's label jumps to its
-/// entry at the page's end, and the entry's back-link returns to the mark,
+/// entry at the page's end, the same reference is the same mark wherever it
+/// is cited, and the entry's one back-link returns to its first mark,
 /// opening the closed accordions on the way (a row, its Metadata); a page
 /// opened at a mark opens its way to it; nothing scrolls sideways. A
 /// throwaway admin owns a scratch work whose hallmark carries attributions,
@@ -35,38 +36,52 @@ struct ReferencesTests {
       // Numbered in the page's order: the catalogue page the language and
       // the title cite, the edition's, the manifest's.
       try await expect(references.locator(".references-view-entry")).toHaveCount(3)
-      try await expect(references.locator("#reference-1 .references-view-back-link")).toHaveCount(2)
-      try await expect(references.locator("#reference-3 .references-view-back-link")).toHaveText("↑")
+      // Each entry once: one back-link, no letters, no claims under it.
+      try await expect(references.locator(".references-view-back-link")).toHaveCount(3)
+      try await expect(references.locator("#reference-1 .references-view-back-link")).toHaveText("↑")
+      try await expect(references.locator("#reference-1 .references-view-back-link"))
+        .toHaveAttribute("href", "#reference-1-mark")
+      // The catalogue page is quoted two ways, so it is just its place; the
+      // edition's page is quoted once.
+      try await expect(references.locator("#reference-1 .references-view-quote")).toHaveCount(0)
+      try await expect(references.locator("#reference-2 .references-view-quote")).toHaveCount(1)
 
       // The work's mark, in its Metadata: opened, the mark goes to its entry.
       try await page.locator("#record-metadata > .accordion-summary").click()
       // Opened all the way: an accordion still growing moves what is below it.
       try await expect(page.locator("#record-metadata")).toHaveAttribute("data-open-finished", "true")
-      let mark = page.locator("#reference-1-a")
+      // The language and the title cite the same page: both are [1].
+      try await expect(page.locator("#record-metadata .reference-mark[href='#reference-1']")).toHaveCount(2)
+      let mark = page.locator("#reference-1-mark")
       try await expect(mark).toBeVisible()
       try await expect(mark).toHaveText("[1]")
       try await mark.click()
       try await expect(page).toHaveURL("#reference-1", where: { $0.fragment == "reference-1" })
       try await inViewport(page.locator("#reference-1"))
+      // No highlight of its own on the entry followed to.
+      let background = try await page.locator("#reference-1").evaluate(
+        "(el) => getComputedStyle(el).backgroundColor"
+      ).string
+      #expect(background == "rgba(0, 0, 0, 0)")
 
       // The manifest's entry leads back into its closed row and its closed
       // Metadata, both opened on the way.
-      let manifestMark = page.locator("#reference-3-a")
+      let manifestMark = page.locator("#reference-3-mark")
       try await expect(manifestMark).toBeHidden()
       try await references.locator("#reference-3 .references-view-back-link").click()
       try await expect(manifestMark).toBeVisible()
       try await inViewport(manifestMark)
       try await expect(manifestMark).toBeFocused()
-      try await expect(page).toHaveURL("#reference-3-a", where: { $0.fragment == "reference-3-a" })
+      try await expect(page).toHaveURL("#reference-3-mark", where: { $0.fragment == "reference-3-mark" })
 
       try await page.expectNoHorizontalOverflow()
       try await page.expectNoErrors()
 
       // Opened at the mark, from elsewhere: the way to it opens by itself.
       try await page.openHydrated("/biblio-records")
-      try await page.openHydrated(work.path + "#reference-3-a")
-      try await expect(page.locator("#reference-3-a")).toBeVisible()
-      try await inViewport(page.locator("#reference-3-a"))
+      try await page.openHydrated(work.path + "#reference-3-mark")
+      try await expect(page.locator("#reference-3-mark")).toBeVisible()
+      try await inViewport(page.locator("#reference-3-mark"))
     }
   }
 
@@ -84,7 +99,7 @@ struct ReferencesTests {
         try await page.openHydrated(word.path)
         let row = page.locator("#record-row-s-1-1")
         try await expect(row).not.toHaveAttribute("open")
-        let mark = page.locator("#reference-2-a")
+        let mark = page.locator("#reference-2-mark")
         try await expect(mark).toBeVisible()
         try await mark.click()
         try await expect(page).toHaveURL("#reference-2", where: { $0.fragment == "reference-2" })
@@ -92,7 +107,7 @@ struct ReferencesTests {
         try await Task.sleep(for: .milliseconds(600))
         try await expect(row).not.toHaveAttribute("open")
 
-        let titleMark = page.locator("#reference-1-a")
+        let titleMark = page.locator("#reference-1-mark")
         try await expect(titleMark).toBeHidden()
         try await page.locator("#reference-1 .references-view-back-link").click()
         try await expect(titleMark).toBeVisible()
