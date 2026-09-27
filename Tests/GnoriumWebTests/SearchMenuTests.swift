@@ -5,9 +5,13 @@ import WebTestsTesting
 
 /// The site's search offers a record as every record field does, in two rows:
 /// its language › its title, a breadcrumb with BreadcrumbView's own
-/// chevron, the name in link blue; then its voices and its type, "—"
+/// chevron, the name in the link's color; then its voices and its type, "—"
 /// each when unknown, and no language. The navbar's
-/// search menu on both tabs.
+/// search menu on both tabs. A row is a link, never a dropdown option: a
+/// link's hover under the pointer, nothing left when it goes; the arrow
+/// keys make it the active row (aria-selected, the input's
+/// aria-activedescendant) in LinkView's keyboard focus ring, never filled;
+/// Enter follows it, Esc closes the menu.
 ///
 /// The records pages' sidebar search offers nothing under its bar: it filters
 /// the page's table as it is typed.
@@ -44,26 +48,54 @@ struct SearchMenuTests {
         try await expect(rows.first).toBeVisible()
         try await Self.expectOffered(
           rows.first, label: ".search-menu-result-label", detail: ".search-menu-result-detail", expected)
-        let blue = try await rows.first.locator(".breadcrumb-label-text").evaluate(
-          "(el) => getComputedStyle(el).color === getComputedStyle(el.closest('.search-menu-result-label')).color")
-        #expect(blue.bool == true, "the name lost the row's link colour")
-        // The chevron is the page breadcrumb's, in its colour.
-        let chevron = try await rows.first.locator(".breadcrumb-separator-view").evaluate(
+        let row = rows.first
+        let title = row.locator(".breadcrumb-label-text")
+        let input = page.locator(".search-menu-typeahead input")
+        // The title in the link's color, as LinkView's.
+        try await Self.expectColor(title, "--color-link", "the title is not in the link's color")
+        // The chevron is the page breadcrumb's, in its color.
+        let chevron = try await row.locator(".breadcrumb-separator-view").evaluate(
           """
           (el) => {
             const trail = document.querySelector('.breadcrumb-view .breadcrumb-separator-view');
             return trail ? getComputedStyle(el).color === getComputedStyle(trail).color : true;
           }
           """)
-        #expect(chevron.bool == true, "the chevron is not the breadcrumb's colour")
-        // Reached with the arrow keys: solid blue, every part inverted.
-        try await page.locator(".search-menu-typeahead input").press("ArrowDown")
-        try await expect(rows.first).toHaveAttribute("aria-selected", "true")
-        let lit = try await rows.first.evaluate(Self.solidBlue)
-        #expect(lit.bool == true, "the highlighted row is not solid blue with inverted text")
+        #expect(chevron.bool == true, "the chevron is not the breadcrumb's color")
+        // Hovered: a link's hover, no fill, not the active row; the pointer
+        // gone, nothing stays.
+        try await row.hover()
+        try await Self.expectColor(title, "--color-link-hover", "the hovered title is not the link's hover color")
+        try await Self.expectUnfilled(row)
+        try await expect(row).not.toHaveAttribute("aria-selected", "true")
+        try await input.hover()
+        try await Self.expectColor(title, "--color-link", "the title kept its hover color after the pointer left")
+        try await Self.expectUnfilled(row)
+        // Reached with the arrow keys: the active row, named by the input,
+        // in LinkView's keyboard focus ring, still unfilled; it stays so
+        // after the pointer crosses it and leaves.
+        try await input.press("ArrowDown")
+        try await expect(row).toHaveAttribute("aria-selected", "true")
+        let rowID = try await row.getAttribute("id") ?? ""
+        #expect(!rowID.isEmpty, "the active row has no id")
+        try await expect(input).toHaveAttribute("aria-activedescendant", rowID)
+        try await Self.expectFocusRing(row)
+        try await Self.expectUnfilled(row)
+        try await row.hover()
+        try await input.hover()
+        try await expect(row).toHaveAttribute("aria-selected", "true")
+        try await Self.expectFocusRing(row)
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
-
+        // Enter follows the active row.
+        try await input.press("Enter")
+        try await expect(page, timeout: .seconds(10)).toHaveURL(expected.path) { $0.path == expected.path }
+        // Esc closes the menu.
+        try await page.openHydrated(index)
+        try await page.locator("[data-search-trigger='true']").first.click()
+        try await expect(page.locator(".search-menu-view")).toHaveAttribute("data-state", "open")
+        try await page.keyboard.press("Escape")
+        try await expect(page.locator(".search-menu-view")).toHaveAttribute("data-state", "closed")
       }
     }
   }
@@ -219,23 +251,77 @@ struct SearchMenuTests {
     String(data: (try? JSONEncoder().encode(text)) ?? Data(), encoding: .utf8) ?? "\"\""
   }
 
-  /// Whether a row is drawn as DropdownView's highlighted option: the blue
-  /// background token, and every part of it (name, language, chevron,
-  /// second row) in the inverted text token.
-  static let solidBlue = """
-    (el) => {
-      const probe = document.createElement('div');
-      probe.style.background = 'var(--background-color-blue)';
-      probe.style.color = 'var(--color-inverted-fixed)';
-      document.body.appendChild(probe);
-      const blue = getComputedStyle(probe).backgroundColor, white = getComputedStyle(probe).color;
-      probe.remove();
-      const parts = [...el.querySelectorAll('.breadcrumb-label-context, .breadcrumb-separator-view, .breadcrumb-label-text')];
-      const second = el.querySelector('.search-menu-result-detail, .search-bar-suggestion-detail');
-      return getComputedStyle(el).backgroundColor === blue && parts.length === 3
-        && [...parts, second].every((p) => getComputedStyle(p).color === white);
-    }
+  /// A JavaScript function that checks `check` until it holds, for up to
+  /// two seconds: the rows ease between states.
+  private static let settled = """
+    (async (check) => {
+      for (let i = 0; i < 40; i++) {
+        if (check()) return true;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      return check();
+    })
     """
+
+  /// `locator`'s text color is the color token `token` (a custom property).
+  private static func expectColor(_ locator: Locator, _ token: String, _ message: String) async throws {
+    let same = try await locator.evaluate(
+      """
+      async (el) => {
+        const probe = document.createElement('span');
+        probe.style.color = 'var(\(token))';
+        document.body.appendChild(probe);
+        const want = getComputedStyle(probe).color;
+        probe.remove();
+        return \(settled)(() => getComputedStyle(el).color === want);
+      }
+      """)
+    #expect(same.bool == true, "\(message)")
+  }
+
+  /// A search menu row is a link, never a dropdown option: no fill, and
+  /// every part of it in its own color, none inverted.
+  private static func expectUnfilled(_ row: Locator) async throws {
+    let unfilled = try await row.evaluate(
+      """
+      async (el) => {
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--color-inverted-fixed)';
+        document.body.appendChild(probe);
+        const inverted = getComputedStyle(probe).color;
+        probe.remove();
+        const parts = [...el.querySelectorAll('.breadcrumb-label-context, .breadcrumb-label-text, .search-menu-result-detail')];
+        return \(settled)(() => {
+          const bg = getComputedStyle(el).backgroundColor;
+          return (bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') && parts.length === 3
+            && parts.every((p) => getComputedStyle(p).color !== inverted);
+        });
+      }
+      """)
+    #expect(unfilled.bool == true, "the row is filled or its text inverted, as a dropdown option")
+  }
+
+  /// LinkView's keyboard focus ring: a thick solid outline in the blue
+  /// border token, 2px inside.
+  private static func expectFocusRing(_ row: Locator) async throws {
+    let ring = try await row.evaluate(
+      """
+      async (el) => {
+        const probe = document.createElement('span');
+        probe.style.outline = 'var(--border-width-thick) solid var(--border-color-blue)';
+        document.body.appendChild(probe);
+        const want = getComputedStyle(probe);
+        const color = want.outlineColor, width = want.outlineWidth;
+        probe.remove();
+        return \(settled)(() => {
+          const s = getComputedStyle(el);
+          return s.outlineStyle === 'solid' && s.outlineColor === color && s.outlineWidth === width
+            && s.outlineOffset === '-2px';
+        });
+      }
+      """)
+    #expect(ring.bool == true, "the active row does not wear LinkView's focus ring")
+  }
 
   /// What the search answers first for `name`: its language, its
   /// voices, its type and its path, as the JSON gives them.
