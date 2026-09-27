@@ -91,6 +91,9 @@ struct WatchtowerFigureLinksTests {
           .filter(e => e.getAttribute('data-selected') !== 'true').length
         """, as: Int.self)
       #expect(placeholders == 0, "\(placeholders) filter rows show a placeholder")
+      // A run its worker lost is failed, not a status of its own.
+      let stalled = try await page.evaluate("document.body.innerHTML.includes('Stalled')", as: Bool.self)
+      #expect(!stalled, "the runs list offers a Stalled status")
       if count == 0 {
         try await expect(page.locator(".mission-control-core-empty")).toBeVisible()
       } else {
