@@ -109,6 +109,33 @@ struct TestamentLevelsTests {
         """
       ).array?.compactMap(\.string) ?? []
       #expect(surfaces.count == 3 && surfaces[0] != surfaces[1] && surfaces[1] != surfaces[2], "\(surfaces)")
+      // Surfaces layer by depth, however they nest: the Publication card
+      // grey, its box white, the citations' fieldset grey, a citation row in
+      // it white — each as the background tokens compute.
+      let layers = try await form.evaluate(
+        """
+        (form) => {
+          const token = (name) => {
+            const probe = document.createElement('div');
+            probe.style.backgroundColor = `var(${name})`;
+            document.body.appendChild(probe);
+            const value = getComputedStyle(probe).backgroundColor;
+            probe.remove();
+            return value;
+          };
+          const grey = token('--background-color-neutral-subtle'), white = token('--background-color-base');
+          const card = form.querySelector(".framed-accordion-view:has(> .accordion-view > #as-accordion-publication)");
+          const box = card.querySelector('.framed-accordion-content');
+          const fieldset = box.querySelector('.section-fieldset');
+          const row = fieldset.querySelector('.form-item-view');
+          const color = (el) => el ? getComputedStyle(el).backgroundColor : 'missing';
+          const got = [color(card), color(box), color(fieldset), color(row)];
+          const want = [grey, white, grey, white];
+          return got.every((c, i) => c === want[i]) ? 'ok' : JSON.stringify({ got, want });
+        }
+        """
+      ).string
+      #expect(layers == "ok", "\(layers ?? "")")
       try await expect(form.locator("[data-as-namespace='creation']")).toHaveCount(0)
       for (kind, heading) in [("publication", "Publication"), ("digitization", "Digitization")] {
         try await expect(form.locator("#as-accordion-\(kind) .accordion-title").first).toContainText(heading)
