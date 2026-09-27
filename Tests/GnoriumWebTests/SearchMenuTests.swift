@@ -7,9 +7,11 @@ import WebTestsTesting
 /// its language › its title or lemma, a breadcrumb with BreadcrumbView's own
 /// chevron, the name in link blue; then its progenitors and its category or
 /// part of speech, "—" each when unknown, and no language. The navbar's
-/// search menu on both tabs, and (on a desktop, where the sidebar shows) the
-/// lexico-records sidebar's search bar. Each record is found the way a reader
-/// would: the first its index lists.
+/// search menu on both tabs. Each record is found the way a reader would: the
+/// first its index lists.
+///
+/// The records pages' sidebar search offers nothing under its bar: it filters
+/// the page's table as it is typed.
 @Suite("Search menu")
 struct SearchMenuTests {
   @Test(arguments: gnorium.engines, Layout.allCases)
@@ -50,27 +52,81 @@ struct SearchMenuTests {
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
 
-        // The sidebar's search bar, where it shows: the same two rows.
-        if layout == .desktop && tab == "lexico-records" {
-          try await page.openHydrated(index)
-          let bar = page.locator(".search-bar-view.in-sidebar").filter(visible: true).first
-          try await bar.locator("input").fill(name)
-          let suggestion = bar.locator(".search-bar-suggestion-item").first
-          try await expect(suggestion).toBeVisible()
-          try await Self.expectOffered(
-            suggestion, label: ".search-bar-suggestion-text", detail: ".search-bar-suggestion-detail", expected)
-          // It leads to the record's own page.
-          let href = try await suggestion.locator("a").getAttribute("href") ?? ""
-          #expect(href == expected.path, "\(href)")
-          // Reached with the arrow keys: solid blue, every part inverted.
-          try await bar.locator("input").press("ArrowDown")
-          let link = suggestion.locator("a.active")
-          try await expect(link).toHaveCount(1)
-          let lit = try await link.evaluate(Self.solidBlue)
-          #expect(lit.bool == true, "the highlighted suggestion is not solid blue with inverted text")
+      }
+    }
+  }
+
+  /// The sidebar's search on the records pages, the whole list and a
+  /// prefix's (the first record's language): no menu under the bar; typing
+  /// swaps the table, its count and the address (the page's own path, what
+  /// is typed, the field); an empty box is the whole list again. On a phone
+  /// the sidebar is the slide menu's copy.
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func sidebarSearchFiltersTheTable(engine: BrowserEngine, layout: Layout) async throws {
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      for (index, parameter, field, noun) in [
+        ("/biblio-records", "q", "title", "biblio-records"),
+        ("/lexico-records", "lemma", "lemma", "lexico-records"),
+      ] {
+        let name = try await Self.firstName(page, in: index)
+        let href = try await page.locator("a[href^='\(index)/']").first.getAttribute("href") ?? ""
+        let language = "/" + href.split(separator: "/").prefix(2).joined(separator: "/")
+        for list in [index, language] {
+          try await page.openHydrated(list)
+          let count = page.locator(".records-count-view")
+          let whole = try await count.textContent().trimmingCharacters(in: .whitespacesAndNewlines)
+          if layout == .phone {
+            try await page.locator(".sidebar-menu-btn").click()
+          }
+          let form = page.locator("[data-records-search='true']").filter(visible: true).first
+          let input = form.locator(".search-bar-input")
+          try await expect(input).toBeVisible()
+          try await expect(form.locator(".search-bar-dropdown")).toHaveCount(0)
+
+          // Nothing matches: the empty table, counted.
+          try await input.fill("zzqxj")
+          try await expect(count).toHaveText("0 \(noun)")
+          try await expect(page.locator(".records-results-view tbody a[href^='\(index)/']")).toHaveCount(0)
+          try await Self.expectAddress(page, list, [parameter: "zzqxj", "field": field])
+          try await expect(page.locator(".search-bar-suggestion-item")).toHaveCount(0)
+
+          // The first record's name: its rows, every one of that name.
+          try await input.fill(name)
+          try await Self.expectAddress(page, list, [parameter: name, "field": field])
+          let rows = page.locator(".records-results-view tbody a[href^='\(index)/']")
+          try await expect(rows.first).toBeVisible()
+          let named = try await page.evaluate(
+            """
+            [...document.querySelectorAll(".records-results-view tbody a[href^='\(index)/']")]
+              .every((a) => a.textContent.trim().toLowerCase().includes(\(Self.quoted(name.lowercased()))))
+            """)
+          #expect(named.bool == true, "\(list): a row does not hold \(name)")
+          try await expect(page.locator(".search-bar-suggestion-item")).toHaveCount(0)
+
+          // Cleared: the whole list, at its own address.
+          try await input.fill("")
+          try await expect(count).toHaveText(whole)
+          try await expect(page).toHaveURL(list)
+          try await page.expectNoHorizontalOverflow()
+          try await page.expectNoErrors()
         }
       }
     }
+  }
+
+  /// The address the search left: the list's own path, and exactly
+  /// `query` (in any order).
+  private static func expectAddress(_ page: Page, _ path: String, _ query: [String: String]) async throws {
+    try await expect(page).toHaveURL("\(path)?\(query)") { url in
+      let parts = URLComponents(url: url, resolvingAgainstBaseURL: false)
+      var found: [String: String] = [:]
+      for item in parts?.queryItems ?? [] { found[item.name] = item.value ?? "" }
+      return parts?.percentEncodedPath.removingPercentEncoding == path && found == query
+    }
+  }
+
+  private static func quoted(_ text: String) -> String {
+    String(data: (try? JSONEncoder().encode(text)) ?? Data(), encoding: .utf8) ?? "\"\""
   }
 
   /// Whether a row is drawn as DropdownView's highlighted option: the blue
