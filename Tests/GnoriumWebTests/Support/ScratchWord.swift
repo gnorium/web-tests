@@ -2,11 +2,12 @@ import Foundation
 
 /// A lexico-record with one attributed version whose snapshot holds a
 /// branch sentiment and a leaf under it, owned by the test's account: the
-/// record's own reference (beside its lemma, in its closed Metadata) and the
+/// record's own reference (beside its title, in its closed Metadata) and the
 /// leaf's (beside its definition, in its row's heading). Every row by its own
 /// id, removed in the order the foreign keys allow.
 struct ScratchWord {
-  let lemma: String
+  /// The scratch record's title.
+  let title: String
   let path: String
   private let ids: [String: String]
 
@@ -17,10 +18,10 @@ struct ScratchWord {
       ids[name] = UUID().uuidString.lowercased()
     }
     self.ids = ids
-    lemma = "webtestsword\(ids["record"]!.prefix(8))"
-    path = "/lexico-records/eng/\(lemma)/%E2%80%94/noun"
+    title = "webtestsword\(ids["record"]!.prefix(8))"
+    path = "/lexico-records/eng/\(title)/%E2%80%94/noun"
     let snapshot = """
-      {"lemmaForm":{"headword":"\(lemma)","inflections":[],"languageCode":"eng","origin":{"citations":[],"derivation":"","etymons":[]},\
+      {"lemmaForm":{"headword":"\(title)","inflections":[],"languageCode":"eng","origin":{"citations":[],"derivation":"","etymons":[]},\
       "partOfSpeech":"noun","sources":[{"locator":"s.v.","title":"Web tests dictionary","url":"https://dictionary.example.org/web-tests"}],\
       "spellings":[]},"quotations":[],"selectionRunIDs":["run"],"senses":[\
       {"definition":"A branch sense.","id":"s-1","isLeaf":false,"labels":{"domain":[],"grammar":[],"region":[],"register":[]},\
@@ -35,12 +36,12 @@ struct ScratchWord {
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(ids["submission"]!)', '\(user)');
       INSERT INTO lemmas (id, citation_form, ascii_form, searchable_form, language_id, homograph_number, created_at, updated_at)
-        VALUES ('\(ids["lemma"]!)', '\(lemma)', '\(lemma)', '\(lemma)', (SELECT id FROM languages WHERE iso639_3 = 'eng'), 1, now(), now());
-      INSERT INTO lexico_records (id, lemma_id, citation_form, language_code, version, part_of_speech)
-        VALUES ('\(ids["record"]!)', '\(ids["lemma"]!)', '\(lemma)', 'eng', 1, 'noun');
-      INSERT INTO lexicographic_evidences (id, batch_id, language, lemma_form_json, anchors_json)
+        VALUES ('\(ids["lemma"]!)', '\(title)', '\(title)', '\(title)', (SELECT id FROM languages WHERE iso639_3 = 'eng'), 1, now(), now());
+      INSERT INTO lexico_records (id, lemma_id, title, language_code, version, type)
+        VALUES ('\(ids["record"]!)', '\(ids["lemma"]!)', '\(title)', 'eng', 1, 'noun');
+      INSERT INTO lexicographic_evidences (id, batch_id, language, title_form_json, anchors_json)
         VALUES ('\(ids["evidence"]!)', '\(ids["submission"]!)', 'eng', '{}', '[]');
-      INSERT INTO lexicographic_overtures (id, lexicographic_evidence_id, lemma_form_json, anchors_json)
+      INSERT INTO lexicographic_overtures (id, lexicographic_evidence_id, title_form_json, anchors_json)
         VALUES ('\(ids["overture"]!)', '\(ids["evidence"]!)', '{}', '[]');
       INSERT INTO lexicographic_hallmarks (id, thread_id, lexicographic_overture_id, lexicographic_concerto_id, lexico_record_id, record_json, processing_status, permitted_by_user_id, permitted_at)
         VALUES ('\(ids["hallmark"]!)', '\(ids["hallmark"]!)', '\(ids["overture"]!)', '\(ids["concerto"]!)', '\(ids["record"]!)', '\(snapshot)', 'permitted', '\(user)', now());

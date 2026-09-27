@@ -92,11 +92,11 @@ struct ReferencesTests {
         try await Task.sleep(for: .milliseconds(600))
         try await expect(row).not.toHaveAttribute("open")
 
-        let lemmaMark = page.locator("#reference-1-a")
-        try await expect(lemmaMark).toBeHidden()
+        let titleMark = page.locator("#reference-1-a")
+        try await expect(titleMark).toBeHidden()
         try await page.locator("#reference-1 .references-view-back-link").click()
-        try await expect(lemmaMark).toBeVisible()
-        try await inViewport(lemmaMark)
+        try await expect(titleMark).toBeVisible()
+        try await inViewport(titleMark)
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }

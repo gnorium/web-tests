@@ -72,17 +72,17 @@ struct ScratchWork {
       """
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(ids["submission"]!)', '\(user)');
-      INSERT INTO bibliographic_evidences (id, batch_id, source_url, language, processing_status, title, category, edition, year)
+      INSERT INTO bibliographic_evidences (id, batch_id, source_url, language, processing_status, title, type, edition, year)
         VALUES ('\(ids["evidence"]!)', '\(ids["submission"]!)', 'https://example.org/web-tests', 'eng', 'pending', '\(title)', 'report', 'First edition', 1958);
       INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_evidence_id, source_url, language, processing_status)
         VALUES ('\(ids["overture"]!)', '\(ids["submission"]!)', '\(ids["evidence"]!)', 'https://example.org/web-tests', 'eng', 'pending');
       INSERT INTO bibliographic_concertos (id, bibliographic_overture_id, requested_by_user_id, processing_status)
         VALUES ('\(ids["concerto"]!)', '\(ids["overture"]!)', '\(user)', 'submitted');
-      INSERT INTO biblio_records (id, corpus_id, title, title_slug, authors, category, language, genres, year, date_display)
+      INSERT INTO biblio_records (id, corpus_id, title, title_slug, authors, type, language, genres, year, date_display)
         VALUES ('\(ids["record"]!)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)', '\(authorSlug)',
           'report', 'eng', '[]', 1958, 'AD 1958');
       INSERT INTO persons (id, display_name, slug) VALUES ('\(ids["person"]!)', '\(author)', '\(authorSlug)');
-      INSERT INTO biblio_record_authors (id, biblio_record_id, person_id, progenitor_type, position)
+      INSERT INTO biblio_record_authors (id, biblio_record_id, person_id, progenitor_role, position)
         VALUES ('\(ids["authorship"]!)', '\(ids["record"]!)', '\(ids["person"]!)', 'author', 0);
       INSERT INTO bibliographic_hallmarks (id, thread_id, bibliographic_overture_id, bibliographic_concerto_id, biblio_record_id, metadata_json, processing_status, permitted_by_user_id, permitted_at)
         VALUES ('\(ids["hallmark"]!)', '\(ids["hallmark"]!)', '\(ids["overture"]!)', '\(ids["concerto"]!)', '\(ids["record"]!)', '\(metadata)', 'permitted', '\(user)', now());

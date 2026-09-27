@@ -177,11 +177,11 @@ private struct ScratchRecord {
     _ = try TestAdmin.query(
       """
       BEGIN;
-      INSERT INTO biblio_records (id, corpus_id, title, title_slug, authors, category, language, genres, year, date_display)
+      INSERT INTO biblio_records (id, corpus_id, title, title_slug, authors, type, language, genres, year, date_display)
         VALUES ('\(recordID)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)', '\(authorSlug)',
           'report', 'eng', '[]', 1958, 'AD 1958');
       INSERT INTO persons (id, display_name, slug) VALUES ('\(personID)', '\(author)', '\(authorSlug)');
-      INSERT INTO biblio_record_authors (id, biblio_record_id, person_id, progenitor_type, position)
+      INSERT INTO biblio_record_authors (id, biblio_record_id, person_id, progenitor_role, position)
         VALUES ('\(authorshipID)', '\(recordID)', '\(personID)', 'author', 0);
       COMMIT;
       """)
