@@ -10,6 +10,9 @@ import Foundation
 /// testament's record, version and page, and the utterance's passage and
 /// word there), the leaf is attested by an utterance in that testament.
 struct ScratchWord {
+  /// Its hallmark's and its version's ids, as the server writes them.
+  let hallmarkID: String
+  let versionID: String
   /// The scratch record's title.
   let title: String
   let path: String
@@ -35,6 +38,8 @@ struct ScratchWord {
     for name in ["submission", "evidence", "overture", "concerto", "lemma", "record", "hallmark", "version"] {
       ids[name] = UUID().uuidString.lowercased()
     }
+    hallmarkID = ids["hallmark"]!.uppercased()
+    versionID = ids["version"]!.uppercased()
     self.ids = ids
     title = "webtestsword\(ids["record"]!.prefix(8))"
     path = "/lexico-records/eng/\(title)/noun"

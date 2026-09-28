@@ -5,11 +5,10 @@ import Foundation
 /// in the order the foreign keys allow.
 ///
 /// With `references`, its hallmark carries a concerto's attributions for
-/// the values the version still has, so its page marks them: one catalog
-/// page for the language, the title and the manifest's attribution statement
-/// (one entry, "^ a b c"; the last in the manifest's row, closed until
-/// opened), a second page for the title too (its label reads "[1][2]"), and
-/// a third for the edition.
+/// the values the version still has, which the hallmark's page lists under
+/// each field (the record's page lists none): one catalog page for the
+/// language, the title and the manifest's attribution statement, a second
+/// page for the title too, and a third for the edition.
 struct ScratchWork {
   let title: String
   let author: String
@@ -17,6 +16,8 @@ struct ScratchWork {
   let suffix: String
   let recordID: String
   let versionID: String
+  /// Its hallmark's id, as the server writes it: upper case.
+  let hallmarkID: String
   let path: String
   private let ids: [String: String]
 
@@ -38,6 +39,7 @@ struct ScratchWork {
     // As the server writes them: upper case.
     recordID = ids["record"]!.uppercased()
     versionID = ids["version"]!.uppercased()
+    hallmarkID = ids["hallmark"]!.uppercased()
     self.ids = ids
     let evidence = ids["evidence"]!.uppercased()
     let statement = references ? #""attribution":"Courtesy of the web tests","# : ""
