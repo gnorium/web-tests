@@ -4,10 +4,11 @@ import WebTests
 import WebTestsTesting
 
 /// A testament's CARRIER and CONTAINER (user, 2026-09-28). On Submit
-/// Testament the Carrier comes first under the work and shows the event it
-/// calls for: a manuscript (typescript, inscription) its copy's Production
-/// and no Publication; a printed testament its Publication and no
-/// Production; a recording or a born-digital text both. The Publication card
+/// Testament the Carrier is required, comes first under the work and shows
+/// the one event it calls for (user, 2026-09-28): none before it is chosen;
+/// a manuscript (typescript, inscription) its copy's Production; a printed
+/// testament, a recording or a born-digital text its Publication. The
+/// Origin row's actions sit one field gap below its fields. The Publication card
 /// holds the Container: its record field (asked of the server, as an
 /// origin's is), the host as typed while no record is chosen, and the
 /// locator. A record contained in another says so in prose ("Contained in
@@ -54,9 +55,11 @@ struct CarrierTests {
       let publication = form.locator(".activity-statement-view[data-as-namespace='publication']")
       let production = form.locator(".activity-statement-view[data-as-namespace='production']")
       try await expect(form).toContainText("Carrier")
-      // Before a carrier is chosen, both cards.
-      try await expect(publication).toBeVisible()
-      try await expect(production).toBeVisible()
+      // Required: no "(optional)" beside its label.
+      try await expect(carrier).not.toContainText("optional")
+      // Before a carrier is chosen, neither card.
+      try await expect(publication).toBeHidden()
+      try await expect(production).toBeHidden()
       try await expect(carrier.locator(".dropdown-option .dropdown-option-display-text")).toHaveTexts([
         "Manuscript", "Typescript", "Inscription", "Printed", "Audio Recording", "Video Recording", "Digital",
       ])
@@ -65,18 +68,46 @@ struct CarrierTests {
         try await carrier.locator(".dropdown-trigger").click()
         try await carrier.locator(".dropdown-option[data-value='\(value)']").click()
       }
-      // A manuscript: its Production, no Publication.
-      try await choose("manuscript")
-      try await expect(publication).toBeHidden()
-      try await expect(production).toBeVisible()
-      // Printed: its Publication, no Production.
+      // Each carrier shows exactly its card, and switching swaps them: a
+      // manuscript, a typescript or an inscription its Production; a
+      // printed testament, a recording or a born-digital text its
+      // Publication.
+      for (value, madeByProduction) in [
+        ("manuscript", true), ("printed", false), ("typescript", true), ("audio_recording", false),
+        ("inscription", true), ("video_recording", false), ("digital", false),
+      ] {
+        try await choose(value)
+        if madeByProduction {
+          try await expect(production).toBeVisible()
+          try await expect(publication).toBeHidden()
+        } else {
+          try await expect(publication).toBeVisible()
+          try await expect(production).toBeHidden()
+        }
+      }
       try await choose("printed")
-      try await expect(publication).toBeVisible()
-      try await expect(production).toBeHidden()
-      // A recording: both, as an unissued one has a Production.
-      try await choose("audio_recording")
-      try await expect(publication).toBeVisible()
-      try await expect(production).toBeVisible()
+
+      // The Origin row's actions sit one field gap below its last field,
+      // as its fields are spaced.
+      let gaps = try await page.evaluate(
+        """
+        (() => {
+          const row = document.querySelector('.origin-field-view-row');
+          const shown = [...row.children].filter((c) => c.getBoundingClientRect().height > 0);
+          const actions = row.querySelector(':scope > .origin-field-view-actions');
+          const before = shown[shown.indexOf(actions) - 1];
+          const [a, b] = shown;
+          const typed = row.querySelector(':scope > .origin-field-view-typed');
+          const last = [...typed.children].filter((c) => getComputedStyle(c).display !== 'none').pop();
+          return {
+            field: Math.round(b.getBoundingClientRect().top - a.getBoundingClientRect().bottom),
+            actions: Math.round(actions.getBoundingClientRect().top - last.getBoundingClientRect().bottom),
+            typedEnd: Math.round(typed.getBoundingClientRect().bottom - last.getBoundingClientRect().bottom),
+          };
+        })()
+        """)
+      #expect(gaps["typedEnd"].int == 0, "No empty slot at the end of the typed fields.")
+      #expect(gaps["actions"].int == gaps["field"].int, "The actions sit one field gap below the fields.")
 
       // The Container, in the Publication card: its record field asked for
       // on the page, the typed host while none is chosen, the locator.

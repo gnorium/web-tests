@@ -4,10 +4,10 @@ import WebTests
 import WebTestsTesting
 
 /// A work's ORIGIN: on Submit Testament an Origin block in the work (no
-/// "This is a translation" box), "+ Add origin" rows, each a relation, a
+/// "This is a translation" box), "+ Add origin step" rows, each a relation, a
 /// record field (searched, two rows an option) and, once a record is picked,
 /// its testaments to name one by; with no record, the work as typed and
-/// "+ Add origin" under it for its own origin. The form posts the rows as
+/// "+ Add origin step" under it for its own origin. The form posts the rows as
 /// one JSON list (the submit event is dispatched by hand, which runs the
 /// form's script but never posts). On a record page, the Origin section
 /// after the Metadata is a paragraph of prose ("A translation of the Old
@@ -70,12 +70,12 @@ struct OriginTests {
       try await expect(rows).toHaveCount(1)
 
       // The row: its relation (a plain noun), its record field, its typed
-      // fields while no record is picked, its own "+ Add origin" beside
-      // "× Remove origin".
+      // fields while no record is picked, its own "+ Add origin step" beside
+      // "× Remove origin step".
       let first = rows.first
       try await expect(first.locator(".origin-record-field-view")).toHaveCount(1)
       let actions = first.locator(":scope > .origin-field-view-actions")
-      try await expect(actions.locator("button")).toHaveTexts(["+ Add origin", "× Remove origin"])
+      try await expect(actions.locator("button")).toHaveTexts(["+ Add origin step", "× Remove origin step"])
       let sideBySide = try await actions.evaluate(
         "(a) => { const [x, y] = a.querySelectorAll('button'); return Math.abs(x.getBoundingClientRect().top - y.getBoundingClientRect().top) < 4 }"
       ).bool
@@ -127,7 +127,7 @@ struct OriginTests {
       try await expect(found.locator(".breadcrumb-label-text")).toHaveText(original.title)
       try await found.click()
       try await expect(typedFields).toBeHidden()
-      // A record's origin is its own: no "+ Add origin" under a picked record.
+      // A record's origin is its own: no "+ Add origin step" under a picked record.
       try await expect(actions.locator(".origin-add-own-btn")).toBeHidden()
       let node = first.locator(".origin-record-field-view .dropdown-view").nth(1)
       try await expect(first.locator(".origin-record-field-view")).toContainText("Origin testament")
@@ -136,7 +136,7 @@ struct OriginTests {
       try await node.locator(".dropdown-trigger").click()
       try await edition.click()
 
-      // A second row, typed: its own "+ Add origin" gives it an origin of
+      // A second row, typed: its own "+ Add origin step" gives it an origin of
       // its own.
       try await top.locator(":scope > div > .origin-add-btn").click()
       try await expect(rows).toHaveCount(2)
