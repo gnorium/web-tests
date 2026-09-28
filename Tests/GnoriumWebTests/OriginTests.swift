@@ -238,7 +238,7 @@ struct OriginTests {
       // answers "Contained in".
       try await page.openHydrated(original.path)
       try await expect(page.locator(".record-sidebar-view a[href='\(translation.path)']").first).toBeAttached()
-      try await expect(page.locator(".record-sidebar-view")).toContainText("Translated into")
+      try await expect(page.locator(".record-sidebar-view").first).toContainText("Translated into")
 
       // A word's origin may name nothing: an Imitation or a Coinage hides
       // the row's record field and typed fields; another relation brings
