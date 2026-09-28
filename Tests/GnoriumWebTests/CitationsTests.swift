@@ -55,7 +55,8 @@ struct CitationsTests {
         // The reference, resolved by its title and its author: the cited work.
         let reference = rows.nth(0)
         try await expect(reference).toContainText("Reference")
-        try await expect(reference).toContainText("p. 1, l. 1, w. 4–11")
+        // Named by its words, never by where it is.
+        try await expect(reference).not.toContainText("l. 1, w.")
         try await expect(reference).toContainText("the report")
         try await expect(reference.locator("a[href='\(cited.path)']")).toHaveCount(1)
         try await expect(reference.locator("a[href='/users/gnorium']")).toHaveCount(1)
@@ -74,10 +75,14 @@ struct CitationsTests {
         let submit = reference.locator("button[type='submit']")
         _ = try await submit.evaluate("(b) => b.scrollIntoView({block: 'center'})")
         try await expect(submit).toBeVisible()
-        try await submit.click()
+        // Once its record field is settled on the resolver's record.
+        try await expect(reference.locator("input[name='citation-record-0']")).toHaveValue(cited.recordID)
+        // Pressed on the element itself: a coordinate click could land on
+        // the record field's popover as it settles.
+        _ = try await submit.evaluate("(b) => b.click()")
         // Back on the proposal, its thread says so.
         let thread = page.locator(".intervention-thread-view")
-        try await expect(thread).toContainText("the citation at p. 1, l. 1, w. 4–11")
+        try await expect(thread).toContainText("the citation “Web … \(cited.suffix)”")
         try await page.waitForLoadState()
         // Accepted, the link is a person's.
         let modification = try TestAdmin.query(
