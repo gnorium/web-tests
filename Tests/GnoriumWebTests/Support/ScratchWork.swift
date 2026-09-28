@@ -5,7 +5,7 @@ import Foundation
 /// in the order the foreign keys allow.
 ///
 /// With `references`, its hallmark carries a concerto's attributions for
-/// the values the version still has, so its page marks them: one catalogue
+/// the values the version still has, so its page marks them: one catalog
 /// page for the language, the title and the manifest's attribution statement
 /// (one entry, "^ a b c"; the last in the manifest's row, closed until
 /// opened), a second page for the title too (its label reads "[1][2]"), and

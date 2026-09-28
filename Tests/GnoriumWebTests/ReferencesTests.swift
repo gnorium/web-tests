@@ -29,7 +29,7 @@ struct ReferencesTests {
         try await page.locator("#record-references > .accordion-summary").click()
         try await expect(accordion).toHaveAttribute("data-open-finished", "true")
 
-        // In the page's order: the catalogue page (the language, the title
+        // In the page's order: the catalog page (the language, the title
         // and the copy's credit line), the title's second page, the
         // edition's.
         let entries = page.locator("#references .references-view-entry")

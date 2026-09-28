@@ -154,7 +154,7 @@ public final class Page: @unchecked Sendable {
     Locator(page: self, steps: [.text(text, exact: exact)])
   }
 
-  /// Form controls labelled `text`: by a `<label>`, `aria-labelledby` or
+  /// Form controls labeled `text`: by a `<label>`, `aria-labelledby` or
   /// `aria-label`.
   public func getByLabel(_ text: String, exact: Bool = false) -> Locator {
     Locator(page: self, steps: [.label(text, exact: exact)])

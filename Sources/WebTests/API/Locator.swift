@@ -158,7 +158,7 @@ public struct Locator: Sendable, CustomStringConvertible {
     return (result["x"].double ?? 0, result["y"].double ?? 0)
   }
 
-  /// Clicks the element's centre with the mouse, once it is actionable.
+  /// Clicks the element's center with the mouse, once it is actionable.
   ///
   /// - Parameter force: Skip the checks that the element is enabled and not
   ///   covered (it must still be visible and stable).
@@ -179,7 +179,7 @@ public struct Locator: Sendable, CustomStringConvertible {
     try await click(clickCount: 2, timeout: timeout, fileID: fileID, filePath: filePath, line: line, column: column)
   }
 
-  /// Taps the element's centre with a touch, where the engine emulates touch.
+  /// Taps the element's center with a touch, where the engine emulates touch.
   public func tap(
     timeout: Duration? = nil,
     fileID: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column
@@ -189,7 +189,7 @@ public struct Locator: Sendable, CustomStringConvertible {
     try await page.driver.tap(x: point.x, y: point.y)
   }
 
-  /// Moves the mouse over the element's centre.
+  /// Moves the mouse over the element's center.
   public func hover(
     timeout: Duration? = nil,
     fileID: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column

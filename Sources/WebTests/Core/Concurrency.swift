@@ -58,7 +58,7 @@ struct Backoff {
 }
 
 /// Runs `operation`, failing with `error()` if it has not finished within
-/// `timeout`. The operation is cancelled on timeout.
+/// `timeout`. The operation is canceled on timeout.
 func withTimeout<T: Sendable>(
   _ timeout: Duration,
   error: @escaping @Sendable () -> any Error,

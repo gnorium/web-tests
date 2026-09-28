@@ -32,7 +32,7 @@ struct SignOutTests {
         try await page.locator("[data-navbar-ellipsis]").filter(visible: true).first.click()
         try await expect(button).toBeVisible()
 
-        // It looks like its neighbours: the same width and height as Delete Account.
+        // It looks like its neighbors: the same width and height as Delete Account.
         let neighbour = page.locator("a.ellipsis-menu-link[href='/account/delete'] .button-view")
         let own = try #require(try await button.boundingBox())
         let other = try #require(try await neighbour.boundingBox())

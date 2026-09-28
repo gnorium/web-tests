@@ -3,8 +3,8 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// Every sidebar-less, centred-card page sits in `AccountCoreView`: one card,
-/// the same width, padding and title on every page, centred both ways
+/// Every sidebar-less, centered-card page sits in `AccountCoreView`: one card,
+/// the same width, padding and title on every page, centered both ways
 /// between the site header and the footer, and never wider than the screen.
 /// Nothing is submitted; the tokens below are fake.
 @Suite("Account core")
@@ -72,7 +72,7 @@ struct AccountCoreTests {
 
   static func check(_ frames: [(String, Frame)]) {
     for (path, frame) in frames {
-      #expect(abs(frame.top - frame.bottom) <= 1, "\(path): the card is off centre: \(frame)")
+      #expect(abs(frame.top - frame.bottom) <= 1, "\(path): the card is off center: \(frame)")
       #expect(frame.overflow <= 0, "\(path): the page scrolls sideways: \(frame)")
       // 40 in at full width; 24 on a phone, where the card is narrower
       // than its 480 and "Continue with Google" must keep to one line.
@@ -80,7 +80,7 @@ struct AccountCoreTests {
       #expect(frame.titleSize == "28px", "\(path): \(frame)")
       #expect(frame.titleWeight == "400", "\(path): \(frame)")
       #expect(frame.titleAlign == "center", "\(path): \(frame)")
-      #expect(abs(frame.left - frame.right) <= 1, "\(path): the card is off centre sideways: \(frame)")
+      #expect(abs(frame.left - frame.right) <= 1, "\(path): the card is off center sideways: \(frame)")
       #expect(frame.width <= 480.5, "\(path): the card is wider than 480: \(frame)")
       // The same width on every page.
       #expect(abs(frame.width - frames[0].1.width) <= 1, "\(path): \(frame.width) wide, \(frames[0].0) is \(frames[0].1.width)")

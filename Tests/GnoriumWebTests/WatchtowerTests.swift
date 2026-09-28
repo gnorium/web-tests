@@ -29,7 +29,7 @@ struct WatchtowerTests {
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
 
         // The filter row whose field is the treatment filter, however it is
-        // labelled today.
+        // labeled today.
         let row = try await Self.treatmentRow(page)
         try await expect(row.locator(".filter-bar-value-select .dropdown-selected-text")).toHaveText(phrase)
       }
@@ -47,6 +47,6 @@ struct WatchtowerTests {
       if treatmentLabels.contains(label) { return row }
       labels.append(label)
     }
-    throw WebTestError("No filter row is labelled \(treatmentLabels.joined(separator: " or ")); the rows are \(labels).")
+    throw WebTestError("No filter row is labeled \(treatmentLabels.joined(separator: " or ")); the rows are \(labels).")
   }
 }

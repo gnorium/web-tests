@@ -125,7 +125,7 @@ public struct Viewport: Sendable, Hashable, CustomStringConvertible {
   public var height: Int
   public var deviceScaleFactor: Double
   /// Touch events, `pointer: coarse`, a mobile user agent and the meta
-  /// viewport honoured, as on a phone.
+  /// viewport honored, as on a phone.
   public var touch: Bool
 
   public init(width: Int, height: Int, deviceScaleFactor: Double = 1, touch: Bool = false) {

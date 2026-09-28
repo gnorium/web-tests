@@ -34,7 +34,7 @@ struct FieldValidationTests {
       let redBorder = try await password.evaluate(
         """
         async (el) => {
-          // Past the border's colour transition.
+          // Past the border's color transition.
           await new Promise((resolve) => setTimeout(resolve, 500));
           const probe = document.createElement('div');
           probe.style.color = 'var(--border-color-red)';
@@ -117,8 +117,8 @@ struct FieldValidationTests {
         """)
       #expect(outcome["submits"].int == 1)
       #expect((outcome["nested"].int ?? 0) >= 1, "the focus change ran no callback inside the submit handler")
-      #expect(outcome["cancelledBeforeFocus"].bool == false, "the handler cancelled before it moved the focus")
-      #expect(outcome["prevented"].bool == true, "the submit was not cancelled")
+      #expect(outcome["cancelledBeforeFocus"].bool == false, "the handler canceled before it moved the focus")
+      #expect(outcome["prevented"].bool == true, "the submit was not canceled")
       #expect(outcome["escaped"].bool == false, "the submit went on to the page's own handler")
       try await expect(page.locator(".sign-in-alerts .alert-view")).toHaveCount(0)
       try await expect(page).toHaveURL("the sign-in page") { $0.path == "/auth/sign-in" }

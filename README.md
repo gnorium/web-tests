@@ -89,7 +89,7 @@ await browser.close()
 | `page.locator("nav a")` | CSS |
 | `page.getByRole(.button, name: "Save")` | explicit or implicit ARIA role; accessible name contains "Save" (case-insensitive), or equals it with `exact: true`; hidden elements left out |
 | `page.getByText("Attributed")` | the smallest elements whose text contains it |
-| `page.getByLabel("Email")` | controls labelled by `<label>`, `aria-labelledby` or `aria-label` |
+| `page.getByLabel("Email")` | controls labeled by `<label>`, `aria-labelledby` or `aria-label` |
 | `.locator(…)`, `.getByRole(…)` on a locator | within its matches |
 | `.nth(2)`, `.first`, `.last`, `.filter(hasText:)`, `.filter(visible:)` | narrowing |
 
@@ -105,7 +105,7 @@ An action waits, retrying every 100 ms up to the page's `defaultTimeout` (5 s), 
 4. **enabled**: not `disabled`, not inside `aria-disabled="true"` (`click`, `check`); **editable** as well for `fill`;
 5. **the target**: `elementFromPoint` at the click point is the element or inside it, not an overlay.
 
-Then it dispatches real input at the element's centre. A timeout names the check that never held:
+Then it dispatches real input at the element's center. A timeout names the check that never held:
 
 ```
 click on getByRole(.button, name: "Done") timed out after 5s:
@@ -162,7 +162,7 @@ Until then, Safari tests are skipped with these steps as the reason.
 - **Footer**: the links sit in one wrapping flex row, with no "|" separators in text or CSS.
 - **Date picker**: on Mission Control's contributors page, "Active since date" opens Gnorium's popover (not a native picker, and by tap on a touch phone), as wide as its field; ArrowRight, Enter, Reset, Done and Esc work.
 - **Field validation**: account forms carry `novalidate`, so an empty sign-in shows Gnorium's inline messages (with `aria-invalid` and `aria-describedby`) instead of the browser's bubbles and sends nothing; register names each broken rule.
-- **Account core**: every centred-card page (sign in, register, choose your username, forgot and reset password, the admin console sign-in, verify email, and change password and delete account signed in) draws one card: centred both ways between the header and the footer, the same width, 40px padding and a 28px normal-weight centred title, never scrolling sideways; the admin console's refusal (`?error=invalid`) is drawn in it, and text that isn't an error code never is. Nothing is submitted; the tokens are fake.
+- **Account core**: every centered-card page (sign in, register, choose your username, forgot and reset password, the admin console sign-in, verify email, and change password and delete account signed in) draws one card: centered both ways between the header and the footer, the same width, 40px padding and a 28px normal-weight centered title, never scrolling sideways; the admin console's refusal (`?error=invalid`) is drawn in it, and text that isn't an error code never is. Nothing is submitted; the tokens are fake.
 - **Delete account**: a throwaway account reaches Delete Account from its menu; a wrong password and an unticked box delete nothing; then it deletes itself, and its row keeps only the username (email, password hash and names erased).
 - **Sign out**: the account menu's Sign Out is a POST form (no sign-out link anywhere), drawn like Delete Account beside it; submitting it signs the browser out and deletes that session on the server.
 - **Form item rows**: on the Submit Amendment form, removing a middle author renumbers the rows after it and the form serializes both remaining rows. Nothing is submitted.

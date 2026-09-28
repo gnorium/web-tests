@@ -113,7 +113,7 @@ struct RecordChoiceTests {
       try await expect(option.locator(".dropdown-option-alt-text")).toHaveText("\(work.author) · Report")
       try await expect(option).not.toContainText(work.path)
       // One running line that wraps, as a breadcrumb does: the chevron on the
-      // language's line, the page breadcrumb's icon at its size. (Its colour
+      // language's line, the page breadcrumb's icon at its size. (Its color
       // is the Search menu suite's: this option, chosen, is drawn inverted.)
       // Measured with its menu shown for the moment, and hidden again, with
       // no click: the field's state is not touched.
