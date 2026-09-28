@@ -50,8 +50,8 @@ struct WatchtowerFigureLinksTests {
     try await withPage(engine, gnorium) { page in
       try await page.openHydrated("/")
       let figures = try await Self.figures(page)
-      try #require(figures.count >= 76, "the Watchtower shows \(figures.count) figure links")
-      try #require(figures.filter { $0.href.contains("show=runs") }.count == 36, "every stage has three run links")
+      try #require(figures.count >= 70, "the Watchtower shows \(figures.count) figure links")
+      try #require(figures.filter { $0.href.contains("show=runs") }.count == 30, "every stage has three run links")
       for figure in figures {
         let count = try #require(Int(figure.text.prefix { $0.isNumber }))
         let listed = try await Self.listed(page, figure.href)
@@ -72,7 +72,7 @@ struct WatchtowerFigureLinksTests {
   /// the figure.
   @Test(arguments: enginesAndLayouts)
   func aStageFigureOpensItsRuns(engine: BrowserEngine, layout: Layout) async throws {
-    let href = "/mission-control/lifecycles?tab=bibliographic&status=failed&stage=sight&since=1w&show=runs"
+    let href = "/mission-control/lifecycles?tab=bibliographic&status=failed&stage=recognition&since=1w&show=runs"
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/")
       let link = page.locator(".watchtower-stage-figures a[href='\(href)']").first
@@ -84,7 +84,7 @@ struct WatchtowerFigureLinksTests {
       let fields = try await page.locator(".filter-bar-field-picker .dropdown-selected-text").allTextContents()
       #expect(fields.contains("Stage") && fields.contains("Status") && fields.contains("Show"), "fields: \(fields)")
       let values = try await page.locator(".filter-bar-value-select .dropdown-selected-text").allTextContents()
-      #expect(values.contains("Sight") && values.contains("Failed") && values.contains("Runs"), "values: \(values)")
+      #expect(values.contains("Recognition") && values.contains("Failed") && values.contains("Runs"), "values: \(values)")
       let placeholders = try await page.evaluate(
         """
         [...document.querySelectorAll('.filter-bar-value-select .dropdown-selected-text')]
