@@ -36,7 +36,7 @@ struct CarrierTests {
             '"edition":"First edition","carrier":"printed","container":{"record":"\(host.recordID)","title":"\(host.title)","volume":"1","pages":"3-5"}')
           WHERE id = '\(article.versionID.lowercased())';
         """)
-      try await run(engine: engine, viewport: layout.viewport(for: engine), admin: admin, host: host, article: article)
+      try await run(engine: engine, layout: layout, admin: admin, host: host, article: article)
     } catch {
       article.remove()
       host.remove()
@@ -49,9 +49,9 @@ struct CarrierTests {
   }
 
   private func run(
-    engine: BrowserEngine, viewport: Viewport, admin: TestAdmin, host: ScratchWork, article: ScratchWork
+    engine: BrowserEngine, layout: Layout, admin: TestAdmin, host: ScratchWork, article: ScratchWork
   ) async throws {
-    try await withPage(engine, gnorium, viewport: viewport, cookies: [admin.cookie]) { page in
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
       try await page.openHydrated(Self.form)
       let form = page.locator(".submit-testament-form")
       let carrier = form.locator(".dropdown-view:has(#testament-carrier)")
@@ -114,16 +114,22 @@ struct CarrierTests {
 
       // "Other" opens a required field right below it to name the value,
       // and choosing anything else hides it: the container's type, a genre.
+      // Chosen as a reader chooses in a long list: its name typed into the
+      // menu's search, the match clicked.
       func pick(_ dropdown: Locator, _ value: String) async throws {
         try await dropdown.locator(".dropdown-trigger").click()
-        try await dropdown.locator(".dropdown-option[data-value='\(value)']").click()
+        let option = dropdown.locator(".dropdown-option[data-value='\(value)']")
+        let name = try await option.getAttribute("data-display") ?? value
+        try await dropdown.locator(".dropdown-search-input").fill(name)
+        try await option.filter(visible: true).first.click()
       }
       for (control, other, value) in [
         ("#container-type", "container-type-other", "journal"),
         ("#work-genre-item1-text-input", "work-genre-item1-other", "tragedy"),
       ] {
-        let dropdown = form.locator(".dropdown-view:has(\(control))")
-        let named = form.locator("input[name='\(other)']")
+        // The first: a row list's hidden template carries the same ids.
+        let dropdown = form.locator(".dropdown-view:has(\(control))").first
+        let named = form.locator("input[name='\(other)']").first
         try await expect(named).toBeHidden()
         try await pick(dropdown, "other")
         try await expect(named).toBeVisible()
@@ -148,7 +154,7 @@ struct CarrierTests {
       // The Domain list, grouped by main class, the UDC Summary's captions
       // whole: an open option wraps to show all of it; the closed control
       // keeps one line and fades its end.
-      let domain = form.locator(".dropdown-view:has(#work-domain-item1-text-input)")
+      let domain = form.locator(".dropdown-view:has(#work-domain-item1-text-input)").first
       let caption =
         "Science and knowledge. Organization. Computer science. Information. Documentation. Librarianship. Institutions. Publications"
       try await domain.locator(".dropdown-trigger").click()
@@ -156,19 +162,21 @@ struct CarrierTests {
       try await expect(head).toHaveAttribute("data-depth", "0")
       try await expect(domain.locator(".dropdown-option[data-value='computing']")).toHaveAttribute("data-depth", "1")
       let open = try await head.locator(".dropdown-option-display-text").evaluate(
-        "(e) => ({ text: e.textContent.trim(), lines: Math.round(e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).lineHeight)), cut: e.scrollWidth > e.clientWidth, mask: getComputedStyle(e).webkitMaskImage || getComputedStyle(e).maskImage || '' })")
+        "(e) => ({ text: e.textContent.trim(), lines: Math.round(e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).lineHeight)), wraps: getComputedStyle(e).whiteSpace === 'normal', cut: e.scrollWidth > e.clientWidth, mask: getComputedStyle(e).webkitMaskImage || getComputedStyle(e).maskImage || '' })")
       #expect(open["text"].string == caption)
-      #expect((open["lines"].int ?? 0) > 1, "The open option wraps.")
+      #expect(open["wraps"].bool == true, "The open option wraps.")
+      if layout == .phone { #expect((open["lines"].int ?? 0) > 1, "At phone width it takes more than one line.") }
       #expect(open["cut"].bool == false, "Nothing of it is cut.")
       #expect(!(open["mask"].string ?? "").contains("gradient"), "No fade in the open list.")
       try await head.click()
       let closed = domain.locator(".dropdown-selected-text")
       try await expect(closed).toHaveText(caption)
-      try await expect(closed).toHaveAttribute("data-overflowing", "true")
+      // At phone width the caption runs past the control; wider, it may fit.
+      if layout == .phone { try await expect(closed).toHaveAttribute("data-overflowing", "true") }
       let shut = try await closed.evaluate(
-        "(e) => ({ nowrap: getComputedStyle(e).whiteSpace === 'nowrap', mask: getComputedStyle(e).webkitMaskImage || getComputedStyle(e).maskImage || '', expand: e.getAttribute('data-edge-fade') })")
+        "(e) => ({ nowrap: getComputedStyle(e).whiteSpace === 'nowrap', over: e.scrollWidth > e.clientWidth, mask: getComputedStyle(e).webkitMaskImage || getComputedStyle(e).maskImage || '', expand: e.getAttribute('data-edge-fade') })")
       #expect(shut["nowrap"].bool == true, "The closed control keeps one line.")
-      #expect((shut["mask"].string ?? "").contains("gradient"), "Its end fades.")
+      #expect((shut["mask"].string ?? "").contains("gradient") == (shut["over"].bool ?? false), "Its end fades exactly when it runs past.")
       #expect(shut["expand"].string != "expand", "No tap-to-expand.")
 
       // The Container, in the Publication card: its record field asked for

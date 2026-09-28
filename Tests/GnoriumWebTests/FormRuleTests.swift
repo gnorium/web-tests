@@ -55,6 +55,13 @@ struct FormRuleTests {
     #expect(placed["onRule"].bool == true, "the switch is not on the rule")
     // Pressed, every card opens; pressed again, the closed ones close.
     let control = box.locator(".record-rule-view .verbose-toggle-button-control")
+    // On a testament's form the Carrier shows its card: printed, its
+    // Publication.
+    let carrier = box.locator(".dropdown-view:has(#testament-carrier)")
+    if try await carrier.count() > 0 {
+      try await carrier.locator(".dropdown-trigger").click()
+      try await carrier.locator(".dropdown-option[data-value='printed']").click()
+    }
     try await box.locator(".framed-accordion-view .accordion-summary").first.click()
     try await expect(control).toHaveAttribute("aria-pressed", "false")
     try await control.click()

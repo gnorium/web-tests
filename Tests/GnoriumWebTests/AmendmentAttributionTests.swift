@@ -177,6 +177,24 @@ struct AmendmentAttributionTests {
         try await expect(statementField(key)).toHaveCount(1)
       }
       let place = statementField("publication.place").locator(".text-input-input")
+      // The Carrier shows the card it calls for: a scratch work's testament
+      // has none, so printed is chosen (its node opened first).
+      let carrier = edition.locator(".dropdown-view:has(input[name='carrier'])").first
+      if !(try await carrier.isVisible()) {
+        _ = try await edition.evaluate(
+          """
+          (el) => {
+            const chain = [];
+            for (let d = el.closest('details'); d; d = d.parentElement.closest('details')) chain.unshift(d);
+            for (const d of chain) if (!d.open) d.querySelector(':scope > summary').click();
+            return chain.length;
+          }
+          """)
+      }
+      if (try await carrier.locator("input[name='carrier']").inputValue()).isEmpty {
+        try await carrier.locator(".dropdown-trigger").click()
+        try await carrier.locator(".dropdown-option[data-value='printed']").click()
+      }
       if !(try await place.isVisible()) {
         // Its node's Metadata, and every accordion round it, opened.
         _ = try await edition.evaluate(

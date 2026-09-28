@@ -75,6 +75,9 @@ struct VoicesTests {
       let posted = try await list.evaluate(
         """
         (group) => {
+          // The page's own check would stop an unfinished form's submit
+          // before its script writes the JSON: this reads the script alone.
+          group.closest('form').removeAttribute('novalidate');
           group.closest('form').dispatchEvent(new Event('submit', { cancelable: true }));
           return group.querySelector('.work-voice-json').value;
         }

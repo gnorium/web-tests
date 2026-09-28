@@ -172,6 +172,9 @@ struct OriginTests {
       let posted = try await form.evaluate(
         """
         (form) => {
+          // The page's own check would stop an unfinished form's submit
+          // before its script writes the JSON: this reads the script alone.
+          form.removeAttribute('novalidate');
           form.dispatchEvent(new Event('submit', { cancelable: true }));
           return form.querySelector('.origin-field-view-json').value;
         }

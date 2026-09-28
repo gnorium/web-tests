@@ -36,6 +36,10 @@ struct TestamentFormsTests {
         #expect(where_.publication, "the Form rows are not in the Publication card")
         #expect(!where_.work, "the Form rows are in the work")
 
+        // The Carrier shows its card: printed, its Publication.
+        let carrier = form.locator(".dropdown-view:has(#testament-carrier)")
+        try await carrier.locator(".dropdown-trigger").click()
+        try await carrier.locator(".dropdown-option[data-value='printed']").click()
         let rows = forms.locator("[data-item-section='true']:not([data-item-template] *)")
         try await expect(rows.first.locator(".text-input-input")).toHaveAttribute("placeholder", "Form")
         try await expect(forms.locator("[data-item-add-btn='true'] button")).toContainText("+ Add form")

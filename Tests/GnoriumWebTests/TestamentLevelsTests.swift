@@ -62,8 +62,8 @@ struct TestamentLevelsTests {
         (form) => {
           const at = (selector) => form.querySelector(selector);
           const chain = [
-            '#work-language', '#work-title', "[data-item-list='work-voice']", "[name='year']", '#work-place',
-            '#work-type', "[data-item-list='work-genre']",
+            '#work-language', '#work-title', '#work-type', '#work-place', "[data-item-list='work-voice']",
+            "[name='year']", "[data-item-list='work-genre']",
             ".activity-statement-view[data-as-namespace='publication']", "[data-item-list='title-form']",
             '#work-edition', "[name='as-publication-place']",
             ".activity-statement-view[data-as-namespace='production']", '#testament-copy-label',
@@ -90,7 +90,12 @@ struct TestamentLevelsTests {
       // Each level a framed card, open on a new testament, parted from the
       // next by the form's gap: no rule anywhere between them.
       try await expect(form.locator(".bibliographic-level-divider, .accordion-divider")).toHaveCount(0)
-      for kind in ["publication", "production", "digitization"] {
+      // The carrier shows the one card it calls for: printed its
+      // Publication, a manuscript its Production.
+      let carrier = form.locator(".dropdown-view:has(#testament-carrier)")
+      // (Chosen once each: choosing the chosen value again clears it.)
+      for (kind, made) in [("production", "manuscript"), ("publication", "printed"), ("digitization", nil)] {
+        if let made { try await choose(made, made.capitalized, in: carrier) }
         let card = form.locator(".framed-accordion-view:has(> .accordion-view > #as-accordion-\(kind))")
         try await expect(card).toHaveCount(1)
         try await expect(card.locator(":scope > .accordion-view")).toHaveAttribute("data-separation", "outline")
@@ -126,7 +131,7 @@ struct TestamentLevelsTests {
           const grey = token('--background-color-neutral-subtle'), white = token('--background-color-base');
           const card = form.querySelector(".framed-accordion-view:has(> .accordion-view > #as-accordion-publication)");
           const box = card.querySelector('.framed-accordion-content');
-          const fieldset = box.querySelector('.section-fieldset');
+          const fieldset = box.querySelector('.section-fieldset:has(.form-item-view)');
           const row = fieldset.querySelector('.form-item-view');
           const color = (el) => el ? getComputedStyle(el).backgroundColor : 'missing';
           const got = [color(card), color(box), color(fieldset), color(row)];
@@ -195,6 +200,9 @@ struct TestamentLevelsTests {
       let posted = try await form.evaluate(
         """
         (form) => {
+          // The page's own check would stop an unfinished form's submit
+          // before its script writes the JSON: this reads the script alone.
+          form.removeAttribute('novalidate');
           form.dispatchEvent(new Event('submit', { cancelable: true }));
           return form.querySelector('.activity-statements-json').value;
         }
@@ -243,10 +251,10 @@ struct TestamentLevelsTests {
           VALUES ('\(evidence)', '\(submission)', 'https://example.org/web-tests/levels', 'eng', 'pending',
             'Web tests levels \(overture.prefix(8))', 'manuscript', 1623);
         INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_evidence_id, source_url, language, processing_status, title, type,
-          year_qualifier, era, year, provider, holding_institution, copy_label, shelf_mark_json, activity_statements_json)
+          year_qualifier, era, year, provider, holding_institution, copy_label, shelf_mark_json, activity_statements_json, carrier)
           VALUES ('\(overture)', '\(submission)', '\(evidence)', 'https://example.org/web-tests/levels', 'eng', 'pending',
             'Web tests levels \(overture.prefix(8))', 'manuscript', 'exact', 'anno_domini', 1623, 'folger_shakespeare_library',
-            'folger_shakespeare_library', 'Web tests copy 9', '{"scheme":"stc","value":"22273"}', '\(statements)');
+            'folger_shakespeare_library', 'Web tests copy 9', '{"scheme":"stc","value":"22273"}', '\(statements)', 'manuscript');
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
