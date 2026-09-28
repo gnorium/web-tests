@@ -3,12 +3,13 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// The testament form is the testament tree's levels (user, 2026-09-28):
-/// the work first, then cards named for events, each on the node the event
-/// happened to — an edition's Publication, a copy's Production and its
-/// Acquisition (holding institution, shelf mark, copy label), a
-/// Digitization — each event as an imprint gives it (place, agents, date);
-/// no level named, no Creation, no type check. A level dated before the
+/// The testament form is the record page in edit mode (user, 2026-09-28):
+/// the work first, then the tree's one new node, its Carrier first, then its
+/// levels' fields, each group headed by its event as a group of fields is —
+/// an edition's Publication, a copy's Production and its Acquisition
+/// (holding institution, shelf mark, copy label), a Digitization — each
+/// event as an imprint gives it (place, agents, date); no card, no level
+/// named on the node, no Creation, no type check. A level dated before the
 /// work is warned of as it is
 /// typed, never refused. On Submit Testament nothing is submitted (the
 /// submit event is dispatched by hand, which runs the form's script but
@@ -63,7 +64,7 @@ struct TestamentLevelsTests {
           const at = (selector) => form.querySelector(selector);
           const chain = [
             '#work-language', '#work-title', '#work-type', '#work-place', "[data-item-list='work-voice']",
-            "[name='year']", "[data-item-list='work-genre']",
+            "[name='year']", "[data-item-list='work-genre']", '#testament-carrier',
             ".activity-statement-view[data-as-namespace='publication']", "[data-item-list='title-form']",
             '#work-edition', "[name='as-publication-place']",
             ".activity-statement-view[data-as-namespace='production']", '#testament-copy-label',
@@ -87,74 +88,31 @@ struct TestamentLevelsTests {
         """
       ).string
       #expect(order == "ok", "\(order ?? "")")
-      // Each level a framed card, open on a new testament, parted from the
-      // next by the form's gap: no rule anywhere between them.
-      try await expect(form.locator(".bibliographic-level-divider, .accordion-divider")).toHaveCount(0)
-      // The carrier shows the one card it calls for: printed its
-      // Publication, a manuscript its Production.
+      // No card, no rule: the levels' groups are fields of the one node.
+      try await expect(form.locator(".framed-accordion-view, .bibliographic-level-divider, .accordion-divider"))
+        .toHaveCount(0)
+      let draft = form.locator("[data-submission-draft='true']")
+      // The carrier shows the one event it calls for: printed its
+      // Publication, a manuscript its Production; a Digitization always.
       let carrier = form.locator(".dropdown-view:has(#testament-carrier)")
+      let block = { (kind: String) in draft.locator(".activity-statement-view[data-as-namespace='\(kind)']") }
       // (Chosen once each: choosing the chosen value again clears it.)
-      for (kind, made) in [("production", "manuscript"), ("publication", "printed"), ("digitization", nil)] {
-        if let made { try await choose(made, made.capitalized, in: carrier) }
-        let card = form.locator(".framed-accordion-view:has(> .accordion-view > #as-accordion-\(kind))")
-        try await expect(card).toHaveCount(1)
-        try await expect(card.locator(":scope > .accordion-view")).toHaveAttribute("data-separation", "outline")
-        try await expect(form.locator("#as-accordion-\(kind)")).toHaveAttribute("data-expanded", "true")
-        try await expect(card.locator(".framed-accordion-content").first).toBeVisible()
-      }
-      let surfaces = try await form.evaluate(
-        """
-        (form) => {
-          const card = form.querySelector('.framed-accordion-view');
-          const box = card.querySelector('.framed-accordion-content');
-          const row = box.querySelector('.item-section');
-          const color = (el) => getComputedStyle(el).backgroundColor;
-          return [color(card), color(box), row ? color(row) : ''];
-        }
-        """
-      ).array?.compactMap(\.string) ?? []
-      #expect(surfaces.count == 3 && surfaces[0] != surfaces[1] && surfaces[1] != surfaces[2], "\(surfaces)")
-      // Surfaces layer by depth, however they nest: the Publication card
-      // grey, its box white, the citations' fieldset grey, a citation row in
-      // it white — each as the background tokens compute.
-      let layers = try await form.evaluate(
-        """
-        (form) => {
-          const token = (name) => {
-            const probe = document.createElement('div');
-            probe.style.backgroundColor = `var(${name})`;
-            document.body.appendChild(probe);
-            const value = getComputedStyle(probe).backgroundColor;
-            probe.remove();
-            return value;
-          };
-          const grey = token('--background-color-neutral-subtle'), white = token('--background-color-base');
-          const card = form.querySelector(".framed-accordion-view:has(> .accordion-view > #as-accordion-publication)");
-          const box = card.querySelector('.framed-accordion-content');
-          const fieldset = box.querySelector('.section-fieldset:has(.form-item-view)');
-          const row = fieldset.querySelector('.form-item-view');
-          const color = (el) => el ? getComputedStyle(el).backgroundColor : 'missing';
-          const got = [color(card), color(box), color(fieldset), color(row)];
-          const want = [grey, white, grey, white];
-          return got.every((c, i) => c === want[i]) ? 'ok' : JSON.stringify({ got, want });
-        }
-        """
-      ).string
-      #expect(layers == "ok", "\(layers ?? "")")
-      try await expect(form.locator("[data-as-namespace='creation']")).toHaveCount(0)
+      try await choose("manuscript", "Manuscript", in: carrier)
+      try await expect(block("production")).toBeVisible()
+      try await expect(block("publication")).toBeHidden()
+      try await choose("printed", "Printed", in: carrier)
+      try await expect(block("publication")).toBeVisible()
+      try await expect(block("production")).toBeHidden()
+      try await expect(block("digitization")).toBeVisible()
       for (kind, heading) in [("publication", "Publication"), ("digitization", "Digitization")] {
-        try await expect(form.locator("#as-accordion-\(kind) .accordion-title").first).toContainText(heading)
+        try await expect(block(kind).locator(".metadata-group-title").first).toHaveText(heading)
       }
+      try await expect(form.locator("[data-as-namespace='creation']")).toHaveCount(0)
       try await expect(form.locator(".section-legend").filter(hasText: "Provision")).toHaveCount(0)
 
-      // The copy's Production, then its Acquisition, whatever the type.
-      try await expect(form.locator("#as-accordion-production .accordion-title").first).toContainText("Production")
-      let acquisition = form.locator("#acquisition-accordion")
-      try await expect(acquisition.locator(".accordion-title").first).toContainText("Acquisition")
-      try await expect(acquisition).toContainText("Who holds this copy and where, with its shelf mark and copy label.")
-      if !(try await form.locator("#testament-copy-label").isVisible()) {
-        try await acquisition.locator(".accordion-summary").first.click()
-      }
+      // The copy's Acquisition, whatever the carrier.
+      let acquisition = draft.locator(".testament-metadata-view-acquisition")
+      try await expect(acquisition.locator(".metadata-group-title").first).toHaveText("Acquisition")
       try await expect(form.locator("#testament-copy-label")).toBeVisible()
       try await expect(acquisition.locator("input[name='holding-institution-dropdown']")).toHaveCount(1)
       try await expect(acquisition.locator(".section-legend").filter(hasText: "Shelf mark or call number")).toBeVisible()
@@ -174,11 +132,7 @@ struct TestamentLevelsTests {
         }
         """)
       try await form.locator("input[name='year']").fill("1600")
-      let publication = form.locator("#as-accordion-publication")
       let publicationYear = form.locator("input[name='as-publication-year']")
-      if !(try await publicationYear.isVisible()) {
-        try await publication.locator(".accordion-summary").first.click()
-      }
       try await expect(publicationYear).toBeVisible()
       try await publicationYear.fill("1590")
       let warning = form.locator(
@@ -189,7 +143,6 @@ struct TestamentLevelsTests {
       let yearBox = try await publicationYear.boundingBox()
       let warningBox = try await warning.boundingBox()
       #expect((yearBox?.maxY ?? .infinity) <= (warningBox?.minY ?? 0), "the warning is not under the date")
-      try await expect(publication).toHaveAttribute("data-open-finished", "true")
       _ = try await warning.evaluate("(el) => { el.scrollIntoView({ block: 'center' }); return true; }")
       try await shoot(page, "warning", layout)
       try await publicationYear.fill("1610")
@@ -204,7 +157,7 @@ struct TestamentLevelsTests {
           // before its script writes the JSON: this reads the script alone.
           form.removeAttribute('novalidate');
           form.dispatchEvent(new Event('submit', { cancelable: true }));
-          return form.querySelector('.activity-statements-json').value;
+          return form.querySelector(".testament-metadata-view[data-editable='true'] .activity-statements-json").value;
         }
         """
       ).string ?? ""

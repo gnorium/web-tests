@@ -3,10 +3,10 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A submission form's switches sit on a rule under its header, as a record
-/// page's do (`RecordRuleView`), never in the header: Submit Testament and
-/// Submit Sentiment. Pressed, Verbose opens every card; it sits inside the
-/// form's card at every width.
+/// A submission form is the record page in edit mode: its switches sit on
+/// the record page's rule under its header (`RecordRuleView`), never in the
+/// header: Submit Testament and Submit Sentiment. Pressed, Verbose opens
+/// every accordion; it sits inside the record's column at every width.
 @Suite("Form rule", .serialized)
 struct FormRuleTests {
   @Test(arguments: gnorium.engines, Layout.allCases)
@@ -16,8 +16,8 @@ struct FormRuleTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         for (path, card) in [
-          ("/mission-control/submit/bibliographic/evidence-testament", ".submit-testament-card"),
-          ("/mission-control/submit/lexicographic/evidence-sentiment", ".submit-sentiment-card"),
+          ("/mission-control/submit/bibliographic/evidence-testament", ".submit-testament-form .record-view"),
+          ("/mission-control/submit/lexicographic/evidence-sentiment", ".submit-sentiment-form .record-view"),
         ] {
           try await page.openHydrated(path)
           try await check(page, card: card)
@@ -33,14 +33,15 @@ struct FormRuleTests {
   private func check(_ page: Page, card: String) async throws {
     let box = page.locator(card)
     try await expect(box.locator(".form-header-view .verbose-toggle-button-view")).toHaveCount(0)
-    try await expect(box.locator(":scope > .record-rule-view")).toHaveCount(1)
-    try await expect(box.locator(":scope > .record-rule-view .verbose-toggle-button-view")).toHaveCount(1)
+    try await expect(box.locator(":scope > .record-identity > .record-rule-view")).toHaveCount(1)
+    try await expect(box.locator(":scope > .record-identity > .record-rule-view .verbose-toggle-button-view"))
+      .toHaveCount(1)
     // The rule straight under the header, the switch within the card.
     let placed = try await box.evaluate(
       """
       (card) => {
-        const header = card.querySelector(':scope > .form-header-view');
-        const rule = card.querySelector(':scope > .record-rule-view');
+        const header = card.querySelector(':scope > .record-identity > .form-header-view');
+        const rule = card.querySelector(':scope > .record-identity > .record-rule-view');
         const toggle = rule.querySelector('.verbose-toggle-button-control').getBoundingClientRect();
         const outer = card.getBoundingClientRect();
         return {
@@ -51,18 +52,13 @@ struct FormRuleTests {
       }
       """)
     #expect(placed["next"].bool == true, "the rule is not straight under the header")
-    #expect(placed["inside"].bool == true, "the switch leaves the card")
+    #expect(placed["inside"].bool == true, "the switch leaves the record's column")
     #expect(placed["onRule"].bool == true, "the switch is not on the rule")
-    // Pressed, every card opens; pressed again, the closed ones close.
+    // Pressed, every accordion opens: the new node's, closed by hand first.
     let control = box.locator(".record-rule-view .verbose-toggle-button-control")
-    // On a testament's form the Carrier shows its card: printed, its
-    // Publication.
-    let carrier = box.locator(".dropdown-view:has(#testament-carrier)")
-    if try await carrier.count() > 0 {
-      try await carrier.locator(".dropdown-trigger").click()
-      try await carrier.locator(".dropdown-option[data-value='printed']").click()
-    }
-    try await box.locator(".framed-accordion-view .accordion-summary").first.click()
+    try await box.locator("[data-submission-draft='true'] .record-row > .accordion-details > .accordion-summary")
+      .first.click()
+    try await expect(box.locator(".accordion-details[data-expanded='false']").first).toBeAttached()
     try await expect(control).toHaveAttribute("aria-pressed", "false")
     try await control.click()
     try await expect(control).toHaveAttribute("aria-pressed", "true")

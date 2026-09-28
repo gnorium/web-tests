@@ -4,8 +4,8 @@ import WebTests
 import WebTestsTesting
 
 /// A title's forms belong to the nodes of a record's tree (user,
-/// 2026-09-27): on Submit Testament, the edition's, in its Publication card,
-/// never the work's; the same rows as Submit Sentiment's ("Form", "+ Add
+/// 2026-09-27): on Submit Testament, the new testament's edition's, in its
+/// Publication, never the work's; the same rows as Submit Sentiment's ("Form", "+ Add
 /// form"), serialized in order for the record field, which matches them.
 /// Nothing is submitted.
 @Suite("Testament forms")
@@ -22,21 +22,21 @@ struct TestamentFormsTests {
         let form = page.locator(".submit-testament-form")
         let forms = form.locator("[data-item-list='title-form']")
         try await expect(forms).toHaveCount(1)
-        // In the Publication card, not the work.
+        // In the new testament's Publication, not the work.
         let placed = try await forms.evaluate(
           """
           (group) => JSON.stringify({
-            publication: !!group.closest("[data-as-namespace='publication'] .framed-accordion-view"),
+            publication: !!group.closest("[data-submission-draft='true'] [data-as-namespace='publication']"),
             work: !!group.closest('.biblio-record-metadata-view'),
           })
           """
         ).string ?? "{}"
         struct Placed: Decodable { let publication: Bool; let work: Bool }
         let where_ = try JSONDecoder().decode(Placed.self, from: Data(placed.utf8))
-        #expect(where_.publication, "the Form rows are not in the Publication card")
+        #expect(where_.publication, "the Form rows are not in the new testament's Publication")
         #expect(!where_.work, "the Form rows are in the work")
 
-        // The Carrier shows its card: printed, its Publication.
+        // The Carrier shows its event: printed, its Publication.
         let carrier = form.locator(".dropdown-view:has(#testament-carrier)")
         try await carrier.locator(".dropdown-trigger").click()
         try await carrier.locator(".dropdown-option[data-value='printed']").click()

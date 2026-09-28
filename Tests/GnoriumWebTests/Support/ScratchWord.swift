@@ -16,6 +16,8 @@ struct ScratchWord {
   /// The scratch record's title.
   let title: String
   let path: String
+  /// Its record's id, as the server writes it: upper case.
+  let recordID: String
   private let ids: [String: String]
 
   /// Where an utterance is in a testament: its record, version and page
@@ -41,6 +43,7 @@ struct ScratchWord {
     hallmarkID = ids["hallmark"]!.uppercased()
     versionID = ids["version"]!.uppercased()
     self.ids = ids
+    recordID = ids["record"]!.uppercased()
     title = "webtestsword\(ids["record"]!.prefix(8))"
     path = "/lexico-records/eng/\(title)/noun"
     let note = distinction.map {

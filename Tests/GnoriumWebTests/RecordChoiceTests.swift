@@ -4,17 +4,16 @@ import WebTests
 import WebTestsTesting
 
 /// The Biblio-record field of Submit Testament: a searchable dropdown of
-/// every record from the start, each in two rows (its language › its title,
-/// a breadcrumb with BreadcrumbView's own chevron; its voices and
-/// type), a note ending a list cut at 50; the closed dropdown names the
-/// chosen record so too. Once the
-/// work's language, title, author and type are filled, the match is
-/// chosen; choosing it again unselects it, back to "—", no choice. A record
-/// found by typing and picked fills those fields in from it. The chosen
-/// record's chronicle tree follows with the new testament in it, the only
-/// node that moves. Nothing is submitted. A throwaway admin owns a
-/// scratch work — its author, evidence, overture, concerto, hallmark, record
-/// and attributed version, made by SQL — removed after.
+/// every record from the start, "New record" until one is chosen, each in
+/// two rows (its language › its title, a breadcrumb with BreadcrumbView's
+/// own chevron; its voices and type), a note ending a list cut at 50; the
+/// closed dropdown names the chosen record so too. Once the work's
+/// language, title, author and type are filled, the match is offered
+/// first and never chosen for the submitter. A record found by typing (by
+/// its title, never its author) and picked stands with its own fields,
+/// frozen. Nothing is submitted (`SubmissionTests` submits). A throwaway
+/// admin owns a scratch work — its author, evidence, overture, concerto,
+/// hallmark, record and attributed version, made by SQL — removed after.
 @Suite("Record choice", .serialized)
 struct RecordChoiceTests {
   static let form = "/mission-control/submit/bibliographic/evidence-testament"
@@ -48,9 +47,9 @@ struct RecordChoiceTests {
         "[data-item-list='work-voice'] [data-item-section='true']:not([data-item-template] *) .text-input-input"
       ).first
       try await expect(field.locator("legend")).toContainText("Biblio-record")
-      // A dropdown of every record from the start, none chosen: "—".
+      // A dropdown of every record from the start, none chosen: a new record.
       let dropdown = field.locator(".dropdown-view")
-      try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("—")
+      try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("New record")
       try await expect(dropdown.locator(".dropdown-option[data-value='\(work.recordID)']")).toHaveCount(1)
       // Cut at 50 records, the list says so after its last option, and
       // only then; the note is no option. (Unasked if the count crossed 50
@@ -77,19 +76,17 @@ struct RecordChoiceTests {
       try await form.locator("input[name='title']").fill(work.title)
       try await author.fill(work.author)
 
-      // The scratch work is the match, chosen, first; no "New title". The
-      // closed dropdown names it as its option does: English › its title.
-      // (Asked after a 500ms pause; with every suite running, the answer can
-      // take longer than the usual 5s.)
-      try await expect(dropdown.locator(".dropdown-selected-text .breadcrumb-label-context"), timeout: .seconds(15))
-        .toHaveText("English")
-      try await expect(dropdown.locator(".dropdown-selected-text .breadcrumb-label-text")).toHaveText(work.title)
-      try await expect(dropdown.locator(".dropdown-option").first).toHaveAttribute("data-value", work.recordID)
+      // The scratch work is the match, offered first and never chosen for
+      // the submitter; no "New title". (Asked after a 500ms pause; with
+      // every suite running, the answer can take longer than the usual 5s.)
+      try await expect(dropdown.locator(".dropdown-option").first, timeout: .seconds(15))
+        .toHaveAttribute("data-value", work.recordID)
+      try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("New record")
       try await expect(dropdown.locator(".dropdown-option[data-value='new']")).toHaveCount(0)
-      // Settled: a later answer to the key fields' asks redraws the field, and
-      // it could land after the move below, undoing it. Each field typed asks
-      // again after a 500ms pause, and with every suite running an answer
-      // can take seconds: wait until the field has not been redrawn for 1.5s.
+      // Settled: a later answer to the key fields' asks redraws the field.
+      // Each field typed asks again after a 500ms pause, and with every
+      // suite running an answer can take seconds: wait until the field has
+      // not been redrawn for 1.5s.
       _ = try await field.evaluate(
         """
         (el) => new Promise((resolve) => {
@@ -102,6 +99,7 @@ struct RecordChoiceTests {
           setTimeout(() => { observer.disconnect(); resolve(false); }, 15000);
         })
         """, timeout: .seconds(20))
+      try await expect(field.locator("input[name='biblio-record']")).toHaveValue("")
       // Two rows: its language › its title; its voices and type.
       // No path, and no language in the second row.
       let option = dropdown.locator(".dropdown-option[data-value='\(work.recordID)']")
@@ -142,39 +140,7 @@ struct RecordChoiceTests {
       #expect(row["size"].double == 8)
       if let trail = row["trail"].double { #expect(row["size"].double == trail) }
 
-      // Its tree: the edition it has, fixed, and the new testament after it.
-      let tree = field.locator(".record-placement-view")
-      try await expect(tree).toBeVisible()
-      let fixed = tree.locator(
-        ".outliner-item:not([data-outliner-id='edition-new']) > .outliner-row > .record-placement-node > .record-placement-row")
-      try await expect(fixed.first.locator(".record-placement-label")).toContainText("First edition")
-      try await expect(fixed.first.locator(".outliner-handle")).toBeDisabled()
-      let new = tree.locator(".outliner-item[data-outliner-id='edition-new']")
-      try await expect(new.locator(".record-placement-number").first).toHaveText("2")
-      try await expect(field.locator("input[name='placement-version']")).toHaveValue(work.versionID)
-
-      // Moved up, it takes the first place; the arrangement posts it.
-      try await new.locator(".outliner-handle").first.click()
-      try await page.locator(".outliner-toolbar [data-outliner-action='up']").click()
-      try await page.locator(".outliner-toolbar [data-outliner-action='done']").click()
-      try await expect(new.locator(".record-placement-number").first).toHaveText("1")
-      let placement = try await field.locator("input[name='placement']").inputValue()
-      #expect(placement.contains(#""edition-new":{"parent":"work","position":0}"#), "\(placement)")
-
-      // Chosen again, it is unselected: "—", no record, no tree, and
-      // nothing cleared; it stays so (the best match is not chosen again).
-      try await dropdown.locator(".dropdown-trigger").click()
-      try await option.click()
-      try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("—")
-      try await expect(field.locator(".record-placement-view")).toHaveCount(0)
-      try await expect(field.locator("input[name='placement-version']")).toHaveCount(0)
-      try await expect(field.locator("input[name='biblio-record']")).toHaveValue("")
-      try await expect(form.locator("input[name='title']")).toHaveValue(work.title)
-      try await expect(author).toHaveValue(work.author)
-      try await Task.sleep(for: .milliseconds(800))
-      try await expect(field.locator("input[name='biblio-record']")).toHaveValue("")
-
-      // Afresh: found by typing, picked, and the key fields are its.
+      // Afresh: found by typing, picked, and its fields stand frozen.
       try await page.openHydrated(Self.form)
       try await expect(dropdown.locator(".dropdown-option[data-value='\(work.recordID)']")).toHaveCount(1)
       try await dropdown.locator(".dropdown-trigger").click()
@@ -197,15 +163,13 @@ struct RecordChoiceTests {
       try await expect(field.locator("input[name='biblio-record']")).toHaveValue(work.recordID)
       try await expect(dropdown.locator(".dropdown-selected-text .breadcrumb-label-text"), timeout: .seconds(15))
         .toHaveText(work.title)
-      try await expect(form.locator("#work-language")).toHaveValue("eng")
-      try await expect(form.locator("[data-dropdown-id='work-language'] .dropdown-selected-text")).toHaveText("English")
-      try await expect(form.locator("#work-type")).toHaveValue("report")
-      try await expect(form.locator("[data-dropdown-id='work-type'] .dropdown-selected-text")).toHaveText("Report")
-      try await expect(form.locator("input[name='title']")).toHaveValue(work.title)
-      try await expect(author).toHaveValue(work.author)
-      try await expect(field.locator(".record-placement-view")).toBeVisible()
-      try await expect(field.locator("input[name='placement-version']")).toHaveValue(work.versionID)
-      // Filled in, not asked about: the choice stands.
+      try await expect(dropdown.locator(".dropdown-selected-text .breadcrumb-label-context")).toHaveText("English")
+      // Its own fields stand, frozen, in place of the editable ones.
+      let frozen = form.locator(".submit-testament-apparatus .record-choice-apparatus")
+      try await expect(frozen.locator("input[name='title']")).toHaveValue(work.title)
+      try await expect(frozen.locator("input[name='title']")).toBeDisabled()
+      try await expect(frozen.locator("[data-dropdown-id$='work-type'] .dropdown-selected-text").first).toHaveText("Report")
+      // Chosen, not asked about again: the choice stands.
       try await Task.sleep(for: .milliseconds(800))
       try await expect(field.locator("input[name='biblio-record']")).toHaveValue(work.recordID)
     }

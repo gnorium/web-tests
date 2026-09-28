@@ -3,15 +3,17 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// Submit Sentiment, the parallel of Submit Testament, standalone: the
-/// record first (Lexico-record, Language, Script, Title, Type), then the
-/// Sentiment card (its Form rows, Definition, the Grammar, Register, Domain,
-/// Region and Currency labels, Placement), open and framed. No utterance is
-/// cited, nothing is derived and no passage coins the word: the pipeline
+/// Submit Sentiment, the parallel of Submit Testament, the record page in
+/// edit mode: the record first (Lexico-record, Language, Script, Title,
+/// Type), then the tree with the new sentiment alone, open, its fields in
+/// its Metadata (its Form rows, Definition, the Grammar, Register, Domain,
+/// Region and Currency labels). No card, no placement widget. No utterance
+/// is cited, nothing is derived and no passage coins the word: the pipeline
 /// finds the utterances by the title and the forms. A region is offered
-/// under its language. A picked lexico-record's tree goes in the Sentiment
-/// card; unset, the pick's untouched values go and an edited one stays.
-/// Nothing is submitted.
+/// under its language. A picked lexico-record stands with its own fields,
+/// its tree in the tree section, and stays chosen; unset, the typed fields
+/// come back as they were left. Nothing is submitted (`SubmissionTests`
+/// submits).
 @Suite("Sentiment form", .serialized)
 struct SentimentFormTests {
   static let path = "/mission-control/submit/lexicographic/evidence-sentiment"
@@ -38,14 +40,14 @@ struct SentimentFormTests {
       let form = page.locator(".submit-sentiment-form")
       try await shoot(page, "top", layout)
 
-      // The record, then the Sentiment card, in order.
+      // The record, then the new sentiment in the tree, in order.
       let order = try await form.evaluate(
         """
         (form) => {
           const chain = [
-            '.record-choice-field-view', '#language', '#script', '#title', '#type', '#sentiment-accordion',
-            "[data-item-list='title-form']", '#definition', '#label-grammar', '#label-register', '#label-domain',
-            '#label-region', '#label-currency', '#sentiment-placement',
+            '.record-choice-field-view', '#language', '#script', '#title', '#type', '.submit-sentiment-tree',
+            "[data-submission-draft='true']", "[data-item-list='title-form']", '#definition', '#label-grammar',
+            '#label-register', '#label-domain', '#label-region', '#label-currency',
           ];
           for (let i = 1; i < chain.length; i++) {
             const a = form.querySelector(chain[i - 1]), b = form.querySelector(chain[i]);
@@ -61,9 +63,8 @@ struct SentimentFormTests {
       for gone in ["[id^='utterance-accordion']", "input[name='coins[]']", "[data-derived-scope]", "input[name='anchors']"] {
         try await expect(form.locator(gone)).toHaveCount(0)
       }
-      try await expect(form.locator("#sentiment-accordion")).toHaveAttribute("data-expanded", "true")
-      try await expect(form.locator(".framed-accordion-view:has(> .accordion-view > #sentiment-accordion)"))
-        .toHaveCount(1)
+      try await expect(form.locator(".framed-accordion-view, #sentiment-accordion, #sentiment-placement"))
+        .toHaveCount(0)
       // Language a dropdown, English; placeholders their labels.
       try await expect(form.locator("#language")).toHaveValue("eng")
       try await expect(form.locator("[data-dropdown-id='language'] .dropdown-selected-text")).toHaveText("English")
@@ -94,35 +95,40 @@ struct SentimentFormTests {
       try await expect(british.locator(".breadcrumb-label-context")).toHaveText("English")
       try await expect(page.locator(".dropdown-option[data-value='received_pronunciation']")).toHaveCount(0)
 
-      // Picked, the record fills in its title and type; its tree goes in
-      // the Sentiment card, where the new sentiment is placed.
+      // Typed, then a record picked: its own fields stand in place of the
+      // typed ones and its tree in the tree section, and it stays chosen.
+      try await form.locator("input[name='title']").fill("\(word.title)s")
       let field = form.locator(".record-choice-field-view")
       let dropdown = field.locator(".dropdown-view")
       try await dropdown.locator(".dropdown-trigger").click()
       try await dropdown.locator(".dropdown-search-input").fill(word.title)
       let found = dropdown.locator(
-        ".dropdown-options-list[data-dropdown-results='true'] .dropdown-option[data-value]").first
+        ".dropdown-options-list[data-dropdown-results='true'] .dropdown-option[data-value='\(word.recordID)']")
       try await found.click()
-      try await expect(form.locator("input[name='title']"), timeout: .seconds(15)).toHaveValue(word.title)
-      try await expect(form.locator("#type")).toHaveValue("noun")
-      try await expect(form.locator("#sentiment-placement .record-placement-view")).toBeVisible()
-      try await expect(field.locator(".record-placement-view")).toHaveCount(0)
-      try await expect(form.locator("#sentiment-placement input[name='placement-version']")).toHaveCount(1)
+      try await expect(field.locator("input[name='lexico-record']")).toHaveValue(word.recordID)
+      let tree = form.locator(".submit-sentiment-tree")
+      try await expect(tree.locator(".outliner-view"), timeout: .seconds(15)).toHaveCount(1)
+      let frozen = form.locator(".submit-sentiment-apparatus .record-choice-apparatus")
+      try await expect(frozen).toContainText(word.title)
+      try await expect(form.locator("input[name='title']")).toHaveCount(0)
+      try await expect(field.locator(".submission-tree-view")).toHaveCount(0)
+      try await expect(form.locator("input[name='placement-version']")).toHaveCount(1)
       try await shoot(page, "picked", layout)
-
-      // Edited, the title stays when the pick is unset; the type it
-      // filled in, untouched, goes; the tree goes.
-      try await form.locator("input[name='title']").fill("\(word.title)s")
       try await Task.sleep(for: .milliseconds(900))
+      try await expect(field.locator("input[name='lexico-record']")).toHaveValue(word.recordID)
+      try await expect(tree.locator(".outliner-view")).toHaveCount(1)
+
+      // Unset: the typed fields back as they were left, the tree a new
+      // record's.
       try await dropdown.locator(".dropdown-trigger").click()
       try await dropdown.locator(".dropdown-option.is-selected").first.click()
-      try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("—")
+      try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("New record")
       try await expect(form.locator("input[name='title']")).toHaveValue("\(word.title)s")
-      try await expect(form.locator("#type")).toHaveValue("")
-      try await expect(form.locator("[data-dropdown-id='type'] .dropdown-selected-text")).toHaveText("Type")
       try await expect(form.locator("#language")).toHaveValue("eng")
-      try await expect(form.locator("#sentiment-placement .record-placement-view")).toHaveCount(0)
-      try await expect(form.locator("#sentiment-placement")).toContainText("—")
+      try await expect(frozen).toHaveCount(0)
+      try await expect(tree.locator(".outliner-view"), timeout: .seconds(15)).toHaveCount(0)
+      try await expect(tree.locator("[data-submission-draft='true']")).toHaveCount(1)
+      try await expect(form.locator("input[name='placement-version']")).toHaveCount(0)
     }
   }
 
