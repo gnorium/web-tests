@@ -15,7 +15,7 @@ import WebTestsTesting
 struct UtteranceTests {
   /// Five pages; the utterance on the third, its sentence ending on the
   /// fourth. On the third page the word is the third of its third line
-  /// (after two `<lb/>`s: "Here the scratchword begins"), p. 3, l. 3, w. 3.
+  /// (after two `<lb/>`s: "Here the scratchword begins"): page 3, line 3, word 3.
   static let tei: String = {
     func page(_ number: Int, _ body: String) -> String {
       #"<pb n="\#(number)" facs="https://example.org/iiif/webtests-p\#(number)/full/1300,/0/default.jpg"/>"# + body
@@ -67,9 +67,10 @@ struct UtteranceTests {
 
         try await page.locator("#record-row-s-1-1 > .accordion-summary").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
-        // Its testament, named, dated and cited by page, line and word, linked to the testament at its page.
+        // Its testament, named and dated, linked to the testament at its page; its
+        // page, line and word are data, never shown.
         try await expect(attestation.locator(".attestation-view-testament")).toHaveText(
-          "Web tests testament · AD 1901 · p. 3, l. 3, w. 3")
+          "Web tests testament · AD 1901")
         let utterance = attestation.locator(".utterance-view")
         try await expect(utterance).toHaveCount(1)
         // The page and the pages either side, each opened by its label.
