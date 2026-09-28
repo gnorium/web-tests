@@ -8,7 +8,10 @@ import WebTestsTesting
 /// the one event it calls for (user, 2026-09-28): none before it is chosen;
 /// a manuscript (typescript, inscription) its copy's Production; a printed
 /// testament, a recording or a born-digital text its Publication. The
-/// Origin row's actions sit one field gap below its fields. The Publication card
+/// Origin row's actions sit one field gap below its fields. "Other" in a
+/// dropdown opens a required field to name the value. The Domain list is
+/// grouped by main class in the UDC Summary's own captions, an open option
+/// wrapping, the closed control fading its end. The Publication card
 /// holds the Container: its record field (asked of the server, as an
 /// origin's is), the host as typed while no record is chosen, and the
 /// locator. A record contained in another says so in prose ("Contained in
@@ -109,11 +112,60 @@ struct CarrierTests {
       #expect(gaps["typedEnd"].int == 0, "No empty slot at the end of the typed fields.")
       #expect(gaps["actions"].int == gaps["field"].int, "The actions sit one field gap below the fields.")
 
+      // "Other" opens a required field right below it to name the value,
+      // and choosing anything else hides it: the container's type, a genre.
+      func pick(_ dropdown: Locator, _ value: String) async throws {
+        try await dropdown.locator(".dropdown-trigger").click()
+        try await dropdown.locator(".dropdown-option[data-value='\(value)']").click()
+      }
+      for (control, other, value) in [
+        ("#container-type", "container-type-other", "journal"),
+        ("#work-genre-item1-text-input", "work-genre-item1-other", "tragedy"),
+      ] {
+        let dropdown = form.locator(".dropdown-view:has(\(control))")
+        let named = form.locator("input[name='\(other)']")
+        try await expect(named).toBeHidden()
+        try await pick(dropdown, "other")
+        try await expect(named).toBeVisible()
+        let required = try await named.evaluate("(e) => e.required").bool
+        #expect(required == true, "\(other) is required while shown.")
+        try await pick(dropdown, value)
+        try await expect(named).toBeHidden()
+        let stillRequired = try await named.evaluate("(e) => e.required").bool
+        #expect(stillRequired == false, "\(other) is not required while hidden.")
+      }
+
+      // The Domain list, grouped by main class, the UDC Summary's captions
+      // whole: an open option wraps to show all of it; the closed control
+      // keeps one line and fades its end.
+      let domain = form.locator(".dropdown-view:has(#work-domain-item1-text-input)")
+      let caption =
+        "Science and knowledge. Organization. Computer science. Information. Documentation. Librarianship. Institutions. Publications"
+      try await domain.locator(".dropdown-trigger").click()
+      let head = domain.locator(".dropdown-option[data-value='knowledge']")
+      try await expect(head).toHaveAttribute("data-depth", "0")
+      try await expect(domain.locator(".dropdown-option[data-value='computing']")).toHaveAttribute("data-depth", "1")
+      let open = try await head.locator(".dropdown-option-display-text").evaluate(
+        "(e) => ({ text: e.textContent.trim(), lines: Math.round(e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).lineHeight)), cut: e.scrollWidth > e.clientWidth, mask: getComputedStyle(e).webkitMaskImage || getComputedStyle(e).maskImage || '' })")
+      #expect(open["text"].string == caption)
+      #expect((open["lines"].int ?? 0) > 1, "The open option wraps.")
+      #expect(open["cut"].bool == false, "Nothing of it is cut.")
+      #expect(!(open["mask"].string ?? "").contains("gradient"), "No fade in the open list.")
+      try await head.click()
+      let closed = domain.locator(".dropdown-selected-text")
+      try await expect(closed).toHaveText(caption)
+      try await expect(closed).toHaveAttribute("data-overflowing", "true")
+      let shut = try await closed.evaluate(
+        "(e) => ({ nowrap: getComputedStyle(e).whiteSpace === 'nowrap', mask: getComputedStyle(e).webkitMaskImage || getComputedStyle(e).maskImage || '', expand: e.getAttribute('data-edge-fade') })")
+      #expect(shut["nowrap"].bool == true, "The closed control keeps one line.")
+      #expect((shut["mask"].string ?? "").contains("gradient"), "Its end fades.")
+      #expect(shut["expand"].string != "expand", "No tap-to-expand.")
+
       // The Container, in the Publication card: its record field asked for
       // on the page, the typed host while none is chosen, the locator.
       let container = publication.locator(".container-field-view")
       try await expect(container.locator("legend").first).toHaveText("Container")
-      try await expect(container.locator(".origin-record-field-view legend")).toContainText("Container record")
+      try await expect(container.locator(".origin-record-field-view legend")).toContainText("Record")
       try await expect(container.locator(".container-field-view-typed")).toBeVisible()
       for name in ["container-volume", "container-issue", "container-pages"] {
         try await expect(container.locator("input[name='\(name)']")).toHaveCount(1)
@@ -125,7 +177,7 @@ struct CarrierTests {
         ".dropdown-options-list[data-dropdown-results='true'] .dropdown-option[data-value='\(host.recordID)']")
       try await found.click()
       // A host chosen: its testaments to name one by, no typed host.
-      try await expect(container.locator(".origin-record-field-view")).toContainText("Container testament")
+      try await expect(container.locator(".origin-record-field-view")).toContainText("Testament")
       try await expect(container.locator(".container-field-view-typed")).toBeHidden()
 
       // The work's Domains, a row each, as its Genres: the UDC Summary's

@@ -81,7 +81,7 @@ struct OriginTests {
       ).bool
       // One row where there is room; a narrow phone wraps them.
       if viewport.width >= 768 { #expect(sideBySide == true, "the row's actions are one row") }
-      try await expect(first).toContainText("Origin relation")
+      try await expect(first).toContainText("Relation")
       let relation = first.locator(".dropdown-view").first
       // Its tooltip, as the bubble says it when shown.
       let tooltip = { () async throws -> String in
@@ -113,7 +113,7 @@ struct OriginTests {
       try await certainty.locator(".dropdown-option[data-value='probable']").click()
       try await expect(certainty.locator(".dropdown-selected-text")).toHaveText("Probable")
       let record = first.locator(":scope > .origin-field-view-record .origin-record-field-view")
-      try await expect(record.locator("legend")).toContainText("Origin record")
+      try await expect(record.locator("legend")).toContainText("Record")
       let typedFields = first.locator(":scope > .origin-field-view-typed")
       try await expect(typedFields).toBeVisible()
 
@@ -130,7 +130,7 @@ struct OriginTests {
       // A record's origin is its own: no "+ Add origin step" under a picked record.
       try await expect(actions.locator(".origin-add-own-btn")).toBeHidden()
       let node = first.locator(".origin-record-field-view .dropdown-view").nth(1)
-      try await expect(first.locator(".origin-record-field-view")).toContainText("Origin testament")
+      try await expect(first.locator(".origin-record-field-view")).toContainText("Testament")
       let edition = node.locator(".dropdown-option[data-value^='edition-']")
       try await expect(edition).toHaveCount(1)
       try await node.locator(".dropdown-trigger").click()
@@ -201,7 +201,7 @@ struct OriginTests {
       let chosen = picker.locator(".dropdown-option[data-value='\(original.recordID)']").first
       try await expect(chosen).toBeVisible()
       try await chosen.click()
-      try await expect(first.locator(".origin-record-field-view")).not.toContainText("Origin testament")
+      try await expect(first.locator(".origin-record-field-view")).not.toContainText("Testament")
       try await expect(typedFields).toBeVisible()
       // A row removed.
       try await second.locator(":scope > .origin-field-view-actions .origin-remove-btn").click()
