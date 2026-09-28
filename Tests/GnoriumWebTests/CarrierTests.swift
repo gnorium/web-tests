@@ -10,7 +10,7 @@ import WebTestsTesting
 /// testament, a recording or a born-digital text its Publication. The
 /// Origin row's actions sit one field gap below its fields. "Other" in a
 /// dropdown opens a required field to name the value. The Domain list is
-/// grouped by main class in the UDC Summary's own captions, an open option
+/// grouped by main class in the LCC outline's own captions, an open option
 /// wrapping, the closed control fading its end. The Publication card
 /// holds the Container: its record field (asked of the server, as an
 /// origin's is), the host as typed while no record is chosen, and the
@@ -124,8 +124,7 @@ struct CarrierTests {
         try await option.filter(visible: true).first.click()
       }
       for (control, other, value) in [
-        ("#container-type", "container-type-other", "journal"),
-        ("#work-genre-item1-text-input", "work-genre-item1-other", "tragedy"),
+        ("#work-genre-item1-text-input", "work-genre-item1-other", "tragedy")
       ] {
         // The first: a row list's hidden template carries the same ids.
         let dropdown = form.locator(".dropdown-view:has(\(control))").first
@@ -141,6 +140,14 @@ struct CarrierTests {
         #expect(stillRequired == false, "\(other) is not required while hidden.")
       }
 
+      // A type is identity: the work's Type and the container's are closed
+      // lists, with no "Other".
+      for control in ["#work-type", "#container-type"] {
+        let dropdown = form.locator(".dropdown-view:has(\(control))").first
+        try await expect(dropdown.locator(".dropdown-option[data-value='other']")).toHaveCount(0)
+      }
+      try await expect(form.locator("input[name='container-type-other']")).toHaveCount(0)
+
       // The Container shows for a work that can be published in another
       // (a play: Hamlet in the First Folio) and hides for one that is itself
       // a container kind (a journal), live as the Type changes.
@@ -151,16 +158,19 @@ struct CarrierTests {
       try await pick(workType, "play")
       try await expect(containerGroup).toBeVisible()
 
-      // The Domain list, grouped by main class, the UDC Summary's captions
-      // whole: an open option wraps to show all of it; the closed control
-      // keeps one line and fades its end.
+      // The Domain list, grouped by main class, the Library of Congress
+      // Classification outline's captions whole, each after its notation:
+      // an open option wraps to show all of it; the closed control keeps
+      // one line and fades its end.
       let domain = form.locator(".dropdown-view:has(#work-domain-item1-text-input)").first
-      let caption =
-        "Science and knowledge. Organization. Computer science. Information. Documentation. Librarianship. Institutions. Publications"
+      let caption = "D World history and history of Europe, Asia, Africa, Australia, New Zealand, etc."
       try await domain.locator(".dropdown-trigger").click()
-      let head = domain.locator(".dropdown-option[data-value='knowledge']")
+      let head = domain.locator(".dropdown-option[data-value='classD']")
       try await expect(head).toHaveAttribute("data-depth", "0")
-      try await expect(domain.locator(".dropdown-option[data-value='computing']")).toHaveAttribute("data-depth", "1")
+      let mathematics = domain.locator(".dropdown-option[data-value='QA']")
+      try await expect(mathematics).toHaveAttribute("data-depth", "1")
+      try await expect(mathematics.locator(".dropdown-option-display-text")).toHaveText("QA Mathematics")
+      try await expect(domain.locator(".dropdown-option[data-value='law']")).toHaveCount(0)
       let open = try await head.locator(".dropdown-option-display-text").evaluate(
         "(e) => ({ text: e.textContent.trim(), lines: Math.round(e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).lineHeight)), wraps: getComputedStyle(e).whiteSpace === 'normal', cut: e.scrollWidth > e.clientWidth, mask: getComputedStyle(e).webkitMaskImage || getComputedStyle(e).maskImage || '' })")
       #expect(open["text"].string == caption)
@@ -198,11 +208,11 @@ struct CarrierTests {
       try await expect(container.locator(".origin-record-field-view")).toContainText("Testament")
       try await expect(container.locator(".container-field-view-typed")).toBeHidden()
 
-      // The work's Domains, a row each, as its Genres: the UDC Summary's
-      // classes.
+      // The work's Domains, a row each, as its Genres: the Library of
+      // Congress Classification's classes.
       let domains = form.locator("[data-item-list='work-domain']")
       try await expect(domains).toHaveCount(1)
-      try await expect(domains.locator(".dropdown-option[data-value='law']").first).toBeAttached()
+      try await expect(domains.locator(".dropdown-option[data-value='classK']").first).toBeAttached()
       try await expect(form).toContainText("+ Add domain")
 
       // Nothing scrolls sideways.

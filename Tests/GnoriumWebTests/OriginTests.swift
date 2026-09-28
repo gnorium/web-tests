@@ -32,7 +32,7 @@ struct OriginTests {
         """
         INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, relation, target_record_id, typed_json, created_at)
           VALUES ('\(step)', '\(translation.recordID.lowercased())', NULL, 0, 'translation_of', NULL,
-            '{"language":"ang","title":"\(typed)"}', now());
+            '{"language":"ang","title":"\(typed)","type":"treatise","date":{"era":"anno_domini","year":890,"yearQualifier":"circa"}}', now());
         INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, relation, target_record_id, typed_json, created_at)
           VALUES ('\(UUID().uuidString.lowercased())', '\(translation.recordID.lowercased())', '\(step)', 0,
             'translation_of', '\(original.recordID.lowercased())', NULL, now());
@@ -148,6 +148,25 @@ struct OriginTests {
       try await secondRelation.locator(".dropdown-trigger").click()
       try await secondRelation.locator(".dropdown-option[data-value='adaptation_of']").click()
       try await second.locator("input[name$='-title']").first.fill("Web tests typed work")
+      // Its type, from the work's closed list (no "Other"), and its date as
+      // every date of ours: a range shows its end once chosen, in a row
+      // added after the page loaded too.
+      let secondKey = try await second.getAttribute("data-origin-key") ?? ""
+      let secondType = second.locator(".dropdown-view:has(#\(secondKey)-type)")
+      try await expect(secondType.locator(".dropdown-option[data-value='other']")).toHaveCount(0)
+      try await secondType.locator(".dropdown-trigger").click()
+      try await secondType.locator(".dropdown-search-input").fill("Treatise")
+      try await secondType.locator(".dropdown-option[data-value='treatise']").filter(visible: true).first.click()
+      let secondDate = second.locator(":scope > .origin-field-view-typed > .form-date-view")
+      try await expect(secondDate).toHaveCount(1)
+      let yearEnd = secondDate.locator("input[name='\(secondKey)-year-end']")
+      try await expect(yearEnd).toBeHidden()
+      let qualifier = secondDate.locator(".dropdown-view:has(#\(secondKey)-year-qualifier)")
+      try await qualifier.locator(".dropdown-trigger").click()
+      try await qualifier.locator(".dropdown-option[data-value='range']").click()
+      try await expect(yearEnd).toBeVisible()
+      try await secondDate.locator("input[name='\(secondKey)-year']").fill("1560")
+      try await yearEnd.fill("1565")
       // Its voices a row each, as the work's own: a role and a name.
       let voiceList = second.locator(":scope > .origin-field-view-typed > .form-items-view")
       let voiceRows = voiceList.locator("[data-item-section='true']:not([data-item-template] *)")
@@ -190,6 +209,13 @@ struct OriginTests {
       #expect(secondPosted["relation"] as? String == "adaptation_of")
       let secondTyped = secondPosted["typed"] as? [String: Any] ?? [:]
       #expect(secondTyped["title"] as? String == "Web tests typed work")
+      #expect(secondTyped["type"] as? String == "treatise", "\(posted)")
+      let date = secondTyped["date"] as? [String: Any] ?? [:]
+      #expect(date["yearQualifier"] as? String == "range", "\(posted)")
+      #expect(date["era"] as? String == "anno_domini")
+      #expect(date["year"] as? Int == 1560)
+      #expect(date["yearEnd"] as? Int == 1565)
+      #expect(date["eraEnd"] as? String == "anno_domini")
       let voices = (secondTyped["voices"] as? [[String: Any]] ?? []).map {
         "\($0["role"] as? String ?? ""):\($0["name"] as? String ?? "")"
       }
@@ -233,7 +259,7 @@ struct OriginTests {
       ).bool
       #expect(order == true, "Origin is not after Metadata")
       try await expect(prose).toHaveText(
-        "Translated from the Old English \(typed), which was translated from the English report \(original.title), "
+        "Translated from the Old English treatise \(typed) (c. AD 890), which was translated from the English report \(original.title), "
           + "authored by \(original.author).")
       try await expect(prose.locator("a[href='\(original.path)']")).toHaveCount(1)
 
@@ -258,6 +284,13 @@ struct OriginTests {
       try await wordRelation.locator(".dropdown-option[data-value='eponym_of']").click()
       try await expect(wordRow.locator(":scope > .origin-field-view-record")).toBeVisible()
       try await expect(wordRow.locator(":scope > .origin-field-view-typed")).toBeVisible()
+      // A word's typed step: its word class from the closed list, and its
+      // date as every date of ours.
+      let wordKey = try await wordRow.getAttribute("data-origin-key") ?? ""
+      let wordType = wordRow.locator(".dropdown-view:has(#\(wordKey)-type)")
+      try await expect(wordType.locator(".dropdown-option[data-value='verb']")).toHaveCount(1)
+      try await expect(wordType.locator(".dropdown-option[data-value='other']")).toHaveCount(0)
+      try await expect(wordRow.locator(":scope > .origin-field-view-typed > .form-date-view")).toHaveCount(1)
     }
   }
 }
