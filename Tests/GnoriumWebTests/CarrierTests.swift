@@ -135,6 +135,16 @@ struct CarrierTests {
         #expect(stillRequired == false, "\(other) is not required while hidden.")
       }
 
+      // The Container shows for a work that can be published in another
+      // (a play: Hamlet in the First Folio) and hides for one that is itself
+      // a container kind (a journal), live as the Type changes.
+      let workType = form.locator(".dropdown-view:has(#work-type)")
+      let containerGroup = form.locator(".container-field-view")
+      try await pick(workType, "journal")
+      try await expect(containerGroup).toBeHidden()
+      try await pick(workType, "play")
+      try await expect(containerGroup).toBeVisible()
+
       // The Domain list, grouped by main class, the UDC Summary's captions
       // whole: an open option wraps to show all of it; the closed control
       // keeps one line and fades its end.
