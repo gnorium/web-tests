@@ -270,9 +270,27 @@ struct GraphTests {
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         let sentence = page.locator("form.graph-view-query")
         try await expect(sentence.locator("input[name='record']")).toHaveValue(translation.path)
-        try await expectTexts(sentence.locator(".graph-view-word"), ["is"])
-        try await expect(sentence.locator(".graph-relation .dropdown-selected-text")).toHaveText("translation of")
-        try await expect(sentence.locator(".graph-relation [data-display='adaptation of']")).toHaveCount(1)
+        // "[record] is / [translation] of" (user, 2026-09-30): "of" beside
+        // the dropdown, as "is" beside the record, never in its options.
+        try await expectTexts(sentence.locator(".graph-view-word"), ["is", "of"])
+        try await expect(sentence.locator(".graph-relation .dropdown-selected-text")).toHaveText("translation")
+        try await expect(sentence.locator(".graph-relation [data-display='adaptation']")).toHaveCount(1)
+        try await expect(sentence.locator(".graph-relation [data-display$=' of']")).toHaveCount(0)
+        let worded = try await page.evaluate(
+          """
+          (() => {
+            const q = document.querySelector('form.graph-view-query');
+            const [is, of] = [...q.querySelectorAll('.graph-view-word')].map(e => e.getBoundingClientRect());
+            const record = q.querySelector('.graph-record').getBoundingClientRect();
+            const relation = q.querySelector('.graph-relation').getBoundingClientRect();
+            const middle = b => (b.top + b.bottom) / 2;
+            return Math.abs(middle(is) - middle(record)) < 2 && is.left > record.right
+              && Math.abs(middle(of) - middle(relation)) < 2 && of.left > relation.right
+              && relation.top >= record.bottom && Math.abs(relation.left - record.left) < 1
+              && Math.abs(of.left - is.left) < 1;
+          })()
+          """)
+        #expect(worded == .bool(true), "Each word on its control's line, in one column (\(layout)).")
         try await expect(page.locator(".records-count-view")).toContainText("1 record")
         let translated = page.locator(".graph-view-table tbody tr")
         try await expect(translated).toHaveCount(1)
@@ -294,6 +312,14 @@ struct GraphTests {
         try await expectTexts(page.locator("form.graph-view-query .graph-view-word"), ["of"])
         try await expect(page.locator("form.graph-view-query input[name='record']")).toHaveValue(translation.path)
         try await expect(page.locator(".graph-view-empty-message")).toHaveText("No translations.")
+
+        // Chained, each hop's row "[noun] of".
+        try await page.openHydrated(
+          Self.query(["translation-of", "citation-of"], record: translation.path, extra: "&form=sentence"))
+        try await expectTexts(page.locator("form.graph-view-query .graph-view-word"), ["is", "of", "of"])
+        try await expectTexts(
+          page.locator("form.graph-view-query .graph-relation .dropdown-selected-text"), ["translation", "citation"])
+        try await expectTexts(page.locator(".relation-graph-view .relation-graph-label"), ["translation of", "citation of"])
 
         // "Citations of [the cited work]", as its Citations open it.
         try await page.openHydrated(cited.path)
