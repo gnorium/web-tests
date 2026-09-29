@@ -265,4 +265,45 @@ struct EntryLinksTests {
     }
     try await cleanUp()
   }
+
+  /// A permitted version's entries are unknown until the concordance has
+  /// read them (user, 2026-09-30): "—", never "0 entries"; once read (its
+  /// `entry_extractions` row), the count, 0 as surely as many.
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func aPermittedVersionsEntriesAreUnknownUntilRead(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let target = try ScratchWork(owner: admin)
+    let scratch = try ScratchTestament(owner: admin, tei: Self.tei(listing: target))
+    func cleanUp() async throws {
+      scratch.remove()
+      target.remove()
+      try await admin.remove()
+    }
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated(scratch.reading.path)
+        let entries = page.locator(".proposal-entries-view")
+        try await expect(entries.locator(".proposal-entries-view-count")).toHaveText("—")
+        try await expect(entries.locator(".proposal-entries-view-body")).toContainText("Not read yet")
+        try await expect(entries.locator(".proposal-entries-view-note")).toHaveCount(0)
+        // Read, with none.
+        _ = try TestAdmin.query(
+          """
+          INSERT INTO entry_extractions (id, biblio_record_version_id, count, extracted_at)
+            VALUES ('\(UUID().uuidString.lowercased())', '\(scratch.versionID)', 0, now());
+          """)
+        try await page.openHydrated(scratch.reading.path)
+        try await expect(entries.locator(".proposal-entries-view-count")).toHaveText("0 entries")
+        try await page.expectNoHorizontalOverflow()
+      }
+    } catch {
+      do { try await cleanUp() } catch let removal {
+        throw WebTestError("\(error)\n…and cleaning up failed too: \(removal)")
+      }
+      throw error
+    }
+    try await cleanUp()
+  }
 }
