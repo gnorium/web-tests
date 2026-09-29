@@ -69,6 +69,16 @@ struct SemblanceCanvasTests {
         let toggle = viewer.locator(".artifact-canvas-toggle button")
         let object = viewer.locator(".artifact-object")
 
+        // The header is one row: the find bar, closed, takes no room.
+        try await expect(viewer.locator(".artifact-header-bar")).toBeHidden()
+        let header = try #require(try await viewer.locator(".artifact-header").boundingBox())
+        let pager = try #require(try await viewer.locator(".artifact-page-nav").boundingBox())
+        #expect(header.height < pager.height + 20, "the header holds more than its one row")
+        // Find is the search icon alone.
+        let find = viewer.locator(".testament-find-button")
+        try await expect(find).toHaveAccessibleName("Find in this testament")
+        try await expect(find).toHaveText("")
+
         // Off: the transcript alone, the whole width, and no image asked for.
         try await expect(toggle).toHaveAccessibleName("Page images")
         try await expect(toggle).toHaveAttribute("aria-pressed", "false")
