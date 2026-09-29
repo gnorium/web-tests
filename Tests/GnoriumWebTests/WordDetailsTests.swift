@@ -118,17 +118,20 @@ struct WordDetailsTests {
         #expect(shell.height >= screen.height - 2 * 16 - 1)
         try await page.expectNoHorizontalOverflow()
 
-        // Esc closes it; the word has the focus again, the reader under it
-        // where it was.
-        try await page.keyboard.press("Escape")
+        // Closed by a click, the word has the focus again, with no focus
+        // ring; the reader under it where it was.
+        try await dialog.locator(".dialog-close-button").first.click()
         try await expect(dialog).toBeHidden()
         try await expect(linked).toBeFocused()
+        try await expect(linked).toHaveCSS("outline-style", "none")
 
         // From the keyboard: the arrow keys move between the page's words,
         // Enter opens one. A word with no link is its own data alone.
         try await linked.press("ArrowRight")
         let stood = reader.locator(".tei-word[data-line='1'][data-word='3']")
         try await expect(stood).toBeFocused()
+        // From the keyboard, the focus ring every control has.
+        try await expect(stood).toHaveCSS("outline-style", "solid")
         try await expect(stood).toHaveAttribute("tabindex", "0")
         try await page.keyboard.press("Enter")
         try await expect(dialog).toBeVisible()
@@ -143,9 +146,11 @@ struct WordDetailsTests {
         let inside = try await page.evaluate(
           "!!document.activeElement.closest('.word-details-dialog')")
         #expect(inside == .bool(true))
-        try await dialog.locator(".dialog-close-button").first.click()
+        // Esc closes it; from the keyboard, the word's focus ring shows.
+        try await page.keyboard.press("Escape")
         try await expect(dialog).toBeHidden()
         try await expect(stood).toBeFocused()
+        try await expect(stood).toHaveCSS("outline-style", "solid")
         // The scratch work's manifest (example.org) is never reachable.
         try await page.expectNoErrors(ignoring: ["Failed to fetch"])
 
