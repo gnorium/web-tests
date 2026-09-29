@@ -8,8 +8,7 @@ import WebTestsTesting
 /// labels in the record's language, filed in the same amendment. The
 /// amendment's page shows the definition in German with its label,
 /// confidence and reason; permitted, the record is Translated and its row carries the
-/// German definition under the English one, marked as German, and the
-/// label's translation beside it. An Arabic definition reads right to left.
+/// record-level English toggle, selected initially, switching definitions and labels. An Arabic definition reads right to left.
 /// Phone and desktop, nothing scrolling sideways.
 @Suite("Lexico translation: the definition in the record's language", .serialized)
 struct LexicoTranslationDefinitionTests {
@@ -21,7 +20,7 @@ struct LexicoTranslationDefinitionTests {
   static let arabic = "معنى ورقي لا يقول شيئًا آخر."
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aGermanRecordsDefinitionIsProposedPermittedAndShownBesideTheEnglish(engine: BrowserEngine, layout: Layout)
+  func aGermanRecordsDefinitionIsProposedPermittedAndSwitchedFromEnglish(engine: BrowserEngine, layout: Layout)
     async throws
   {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -38,7 +37,7 @@ struct LexicoTranslationDefinitionTests {
         UPDATE lexico_record_versions SET record_json = jsonb_set(record_json::jsonb, '{senses,1,labels,grammar}',
             '["in seafaring use"]')::text
           WHERE id = '\(word.versionID.lowercased())';
-        UPDATE lexico_record_versions SET record_json = jsonb_set(record_json::jsonb, '{senses,1,definitionTranslation}',
+        UPDATE lexico_record_versions SET treatment = 3, record_json = jsonb_set(record_json::jsonb, '{senses,1,definitionTranslation}',
             '{"languageCode":"ara","definition":"\(Self.arabic)","labels":{"domain":[],"grammar":[],"region":[],"register":[]}}')::text
           WHERE id = '\(arabic.versionID.lowercased())';
         INSERT INTO sentiment_amendments (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition, target,
@@ -61,25 +60,28 @@ struct LexicoTranslationDefinitionTests {
         try await page.locator("button[form='sentiment-amendment-permit']").click()
         try await expect(page.locator(".disputorium-core-header-status-chip")).toHaveText("Permitted")
 
-        // The German record: the German definition under the English one, and the label's translation.
+        // One record-level English toggle, selected initially.
         try await page.openHydrated(word.path)
         let row = page.locator("#record-row-s-1-1")
-        let own = row.locator(".sentiment-view-translation").first
-        try await expect(own).toHaveText(Self.german)
-        try await expect(own).toHaveAttribute("lang", "de")
-        try await expect(own).toBeVisible()
+        let english = page.locator(".record-rule-language-toggle")
+        try await expect(english).toHaveAttribute("aria-pressed", "true")
         try await expect(row.locator(".record-row-title").first).toHaveText("A leaf sense.")
-        // Attributed → Explicated → Translated: the permitted amendment's version is translated.
+        try await english.click()
+        try await expect(row.locator(".record-row-title").first).toHaveText(Self.german)
+        try await expect(row.locator(".record-row-title").first).toHaveAttribute("lang", "de")
         try await expect(page.locator(".record-sidebar-treatment").first).toContainText("translated")
-        try await expect(row.locator(".sentiment-metadata-view span[lang='de']").first).toHaveText("in der Seefahrt")
+        try await expect(row.locator(".sentiment-metadata-view span[data-reading-english='in seafaring use']").first).toHaveText("in der Seefahrt")
+        try await english.click()
+        try await expect(row.locator(".record-row-title").first).toHaveText("A leaf sense.")
         #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
 
         // Arabic reads right to left.
         try await page.openHydrated(arabic.path)
-        let rtl = page.locator("#record-row-s-1-1 .sentiment-view-translation").first
+        try await page.locator(".record-rule-language-toggle").click()
+        let rtl = page.locator("#record-row-s-1-1 .record-row-title").first
         try await expect(rtl).toHaveAttribute("lang", "ar")
         let direction = try await page.evaluate(
-          "(() => ({ direction: getComputedStyle(document.querySelector('#record-row-s-1-1 .sentiment-view-translation')).direction }))()",
+          "(() => ({ direction: getComputedStyle(document.querySelector('#record-row-s-1-1 .record-row-title')).direction }))()",
           as: Direction.self)
         #expect(direction.direction == "rtl")
         #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
