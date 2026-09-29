@@ -65,10 +65,18 @@ struct VoicesTests {
       try await expect(second.locator(".dropdown-selected-text")).toHaveText("Translator")
       try await second.locator(".text-input-input").fill("Alexander Pope")
 
-      // A third row, taken away again.
+      // A third row, taken away again by its own icon-only −, which sits on
+      // the row beside its name (as a filter bar row's − does).
       try await list.locator("[data-item-add-btn='true'] button").click()
       try await expect(rows).toHaveCount(3)
-      try await rows.nth(2).locator(".item-remove-btn").click()
+      let remove = rows.nth(2).locator(".item-remove-btn")
+      try await expect(remove).toHaveText("−")
+      try await expect(remove).toHaveAttribute("aria-label", "Remove voice")
+      let besideName = try await rows.nth(2).evaluate(
+        "(r) => { const b = r.querySelector(':scope > .item-remove-btn').getBoundingClientRect(); const n = r.querySelector('[id$=\\'-text-input\\']').closest('.combobox-view, .text-input-view').getBoundingClientRect(); return Math.abs(b.bottom - n.bottom) < 4 && b.left >= n.right }"
+      ).bool
+      #expect(besideName == true, "the row's − should sit beside its name field")
+      try await remove.click()
       try await expect(rows).toHaveCount(2)
 
       // What the form posts: each row's role and name, in order.

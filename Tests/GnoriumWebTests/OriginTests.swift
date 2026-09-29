@@ -70,11 +70,12 @@ struct OriginTests {
 
       // The row: its relation (a plain noun), its record field, its typed
       // fields while no record is picked, its own "+ Add origin step" beside
-      // "× Remove origin step".
+      // the step's icon-only − (named "Remove origin step").
       let first = rows.first
       try await expect(first.locator(".origin-record-field-view")).toHaveCount(1)
       let actions = first.locator(":scope > .origin-field-view-actions")
-      try await expect(actions.locator("button")).toHaveTexts(["+ Add origin step", "× Remove origin step"])
+      try await expect(actions.locator("button")).toHaveTexts(["+ Add origin step", "−"])
+      try await expect(actions.locator(".origin-remove-btn")).toHaveAttribute("aria-label", "Remove origin step")
       let sideBySide = try await actions.evaluate(
         "(a) => { const [x, y] = a.querySelectorAll('button'); return Math.abs(x.getBoundingClientRect().top - y.getBoundingClientRect().top) < 4 }"
       ).bool
