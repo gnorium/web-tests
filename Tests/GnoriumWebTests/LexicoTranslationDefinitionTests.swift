@@ -29,6 +29,7 @@ struct LexicoTranslationDefinitionTests {
     let word = try ScratchWord(owner: admin, language: "deu")
     let arabic = try ScratchWord(owner: admin, language: "ara")
     let amendment = UUID().uuidString.lowercased()
+    let arabicAmendment = UUID().uuidString.lowercased()
     let definition = #"{"confidence":"clear","definition":"\#(Self.german)","labels":[{"label":"in seafaring use","translation":"in der Seefahrt"}],"language_code":"deu","reason":"The English says it plainly."}"#
     do {
       _ = try TestAdmin.query(
@@ -37,9 +38,20 @@ struct LexicoTranslationDefinitionTests {
         UPDATE lexico_record_versions SET record_json = jsonb_set(record_json::jsonb, '{senses,1,labels,grammar}',
             '["in seafaring use"]')::text
           WHERE id = '\(word.versionID.lowercased())';
-        UPDATE lexico_record_versions SET treatment = 3, record_json = jsonb_set(record_json::jsonb, '{senses,1,definitionTranslation}',
-            '{"languageCode":"ara","definition":"\(Self.arabic)","labels":{"domain":[],"grammar":[],"region":[],"register":[]}}')::text
-          WHERE id = '\(arabic.versionID.lowercased())';
+        -- The Arabic record translated: a version (treatment 3) permitted
+        -- from a sentiment amendment, as the antecedent check requires.
+        INSERT INTO sentiment_amendments (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition, target,
+            status, submitted_by_user_id, summary, definition_translation_json, evaluated_at, evaluated_by_user_id)
+          VALUES ('\(arabicAmendment)', '\(arabic.recordID.lowercased())', '\(arabic.versionID.lowercased())', 's-1-1',
+            'A leaf sense.', 'translations', 'permitted', (SELECT id FROM users WHERE username = 'gnorium'),
+            'Wrote the Arabic definition.', '{"language_code":"ara","definition":"\(Self.arabic)"}', now(),
+            (SELECT id FROM users WHERE username = 'gnorium'));
+        INSERT INTO lexico_record_versions (id, lexico_record_id, sentiment_amendment_id, treatment, record_json, created_at)
+          SELECT gen_random_uuid(), lexico_record_id, '\(arabicAmendment)', 3,
+              jsonb_set(record_json::jsonb, '{senses,1,definitionTranslation}',
+                '{"languageCode":"ara","definition":"\(Self.arabic)","labels":{"domain":[],"grammar":[],"region":[],"register":[]}}')::text,
+              now() + interval '1 second'
+            FROM lexico_record_versions WHERE id = '\(arabic.versionID.lowercased())';
         INSERT INTO sentiment_amendments (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition, target,
             status, submitted_by_user_id, summary, definition_translation_json)
           VALUES ('\(amendment)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', 's-1-1',
