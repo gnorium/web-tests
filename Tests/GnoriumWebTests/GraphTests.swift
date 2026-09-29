@@ -253,7 +253,7 @@ struct GraphTests {
         try await expect(page.locator("form.graph-view-query .graph-view-hop")).toHaveCount(1)
         try await expect(page.locator(".graph-view-empty-message")).toHaveText("No translations.")
 
-        // A work's Origin opens the record-first form: "[this work] is a
+        // A work's Origin opens the record-first form: "[this work] is
         // translation of" → what it translates, the arrow from it.
         try await page.openHydrated(translation.path)
         let fromOrigin = page.locator("#origin a.origin-section-graph")
@@ -263,8 +263,8 @@ struct GraphTests {
         let sentence = page.locator("form.graph-view-query")
         try await expect(sentence.locator("input[name='record']")).toHaveValue(translation.path)
         try await expectTexts(sentence.locator(".graph-view-word"), ["is"])
-        try await expect(sentence.locator(".graph-relation .dropdown-selected-text")).toHaveText("a translation of")
-        try await expect(sentence.locator(".graph-relation [data-display='an adaptation of']")).toHaveCount(1)
+        try await expect(sentence.locator(".graph-relation .dropdown-selected-text")).toHaveText("translation of")
+        try await expect(sentence.locator(".graph-relation [data-display='adaptation of']")).toHaveCount(1)
         try await expect(page.locator(".records-count-view")).toContainText("1 record")
         let translated = page.locator(".graph-view-table tbody tr")
         try await expect(translated).toHaveCount(1)
