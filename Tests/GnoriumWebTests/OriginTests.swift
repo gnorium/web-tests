@@ -7,7 +7,7 @@ import WebTestsTesting
 /// "This is a translation" box), a tree of steps (the site's one tree,
 /// `OutlinerView`), each a card: a relation, a record field (searched, two
 /// rows an option) and, once a record is picked, its testaments to name one
-/// by; with no record, the work as typed and its own "+ Add origin step",
+/// by; with no record, the work as typed and its own icon-only +,
 /// which puts a step under it, indented. Deep steps keep their width and
 /// the tree scrolls sideways, never the page; a menu opened in a deep step
 /// stands over the page by its field. Removing a step with steps under it
@@ -82,14 +82,17 @@ struct OriginTests {
       try await expect(rows).toHaveCount(1)
 
       // The row: its relation (a plain noun), its record field, its typed
-      // fields while no record is picked, its own "+ Add origin step" then
-      // the step's "− Remove origin step" (add first: a press of the first
-      // button never removes), each the Codex icon and its words.
+      // fields while no record is picked, its own + ("Add origin step") then
+      // the step's − ("Remove origin step"): add first, a press of the first
+      // button never removes; icon-only, as the filter bar's row controls
+      // (user, 2026-09-30), named for assistive technology.
       let first = rows.first
       try await expect(first.locator(".origin-record-field-view")).toHaveCount(1)
       let actions = first.locator(":scope > .origin-field-view-actions")
-      try await expect(actions.locator(".origin-add-own-btn")).toHaveText("Add origin step")
+      try await expect(actions.locator(".origin-add-own-btn")).toHaveAttribute("aria-label", "Add origin step")
+      try await expect(actions.locator(".origin-add-own-btn")).toHaveText("")
       try await expect(actions.locator(".origin-add-own-btn svg.add-icon-view")).toHaveCount(1)
+      try await expect(actions.locator(".origin-remove-btn")).toHaveAttribute("aria-label", "Remove origin step")
       try await expect(actions.locator(".origin-remove-btn svg.subtract-icon-view")).toHaveCount(1)
       // The form keeps one step at least (user, 2026-09-29): a lone step
       // has no "− Remove origin step", so the box can never go.
@@ -169,16 +172,23 @@ struct OriginTests {
       // Its record field is asked for once it is on the page: settled, the
       // row stops moving what is under it.
       try await expect(second.locator(".origin-record-field-view")).toHaveCount(1)
-      // Two steps: each has its "− Remove origin step"; the typed one's own
-      // "+ Add origin step" first, then it, side by side where there is room.
+      // Two steps: each has its −; the typed one's own + first, then it, side
+      // by side and content-width on every screen (a phone too: compact
+      // icon buttons, never stretched or stacked). The form's own list-end
+      // "+ Add origin step" keeps its words.
       try await expect(first.locator(":scope > .origin-field-view-actions .origin-remove-btn")).toBeVisible()
       let secondActions = second.locator(":scope > .origin-field-view-actions")
-      try await expect(secondActions.locator(".origin-remove-btn")).toHaveText("Remove origin step")
-      try await expect(secondActions.locator("button")).toHaveTexts(["Add origin step", "Remove origin step"])
-      let sideBySide = try await secondActions.evaluate(
-        "(a) => { const [x, y] = a.querySelectorAll('button'); return Math.abs(x.getBoundingClientRect().top - y.getBoundingClientRect().top) < 4 && x.getBoundingClientRect().right <= y.getBoundingClientRect().left }"
+      try await expect(secondActions.locator(".origin-remove-btn")).toHaveText("")
+      try await expect(secondActions.locator(".origin-remove-btn svg.subtract-icon-view")).toHaveCount(1)
+      let named = try await secondActions.evaluate(
+        "(a) => [...a.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')).join('|')"
+      ).string
+      #expect(named == "Add origin step|Remove origin step", "add first, then remove: \(named ?? "")")
+      try await expect(block.locator(":scope > .origin-field-view-add .origin-add-btn")).toHaveText("Add origin step")
+      let compact = try await secondActions.evaluate(
+        "(a) => { const [x, y] = a.querySelectorAll('button'); const r = (b) => b.getBoundingClientRect(); return Math.abs(r(x).top - r(y).top) < 4 && r(x).right <= r(y).left && r(x).width < 64 && r(y).width < 64 && r(x).left - a.getBoundingClientRect().left < 2 }"
       ).bool
-      if viewport.width >= 768 { #expect(sideBySide == true, "the row's actions are one row, add first") }
+      #expect(compact == true, "the step's + and − are compact, one row, start-aligned, add first")
       // A record one step names is not offered to another (user,
       // 2026-09-29): the original, picked in the first, is withheld from the
       // second's record field, searched for by name too.
