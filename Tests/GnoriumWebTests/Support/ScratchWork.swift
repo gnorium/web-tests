@@ -9,6 +9,10 @@ import Foundation
 /// each field (the record's page lists none): one catalog page for the
 /// language, the title and the manifest's attribution statement, a second
 /// page for the title too, and a third for the edition.
+///
+/// Its author is a typed name; `linked`, the sentiment of an English
+/// proper-noun lexico-record of the name instead (`referentPath`,
+/// `sentimentID`), with one provisional version holding it.
 struct ScratchWork {
   let title: String
   let author: String
@@ -21,13 +25,18 @@ struct ScratchWork {
   /// The concerto its hallmark answers (submitted), lower case.
   var concertoID: String { ids["concerto"]! }
   let path: String
+  /// The author's proper-noun record and sentiment, when linked.
+  let referentPath: String
+  let sentimentID: String
+  let linked: Bool
   private let ids: [String: String]
 
-  init(owner: TestAdmin, references: Bool = false) throws {
+  init(owner: TestAdmin, references: Bool = false, linked: Bool = false) throws {
     let user = try owner.column("id")
     var ids: [String: String] = [:]
     for name in [
-      "submission", "evidence", "overture", "concerto", "record", "hallmark", "version", "person", "authorship",
+      "submission", "evidence", "overture", "concerto", "record", "hallmark", "version", "authorship", "lemma",
+      "referent", "referent-version",
     ] {
       ids[name] = UUID().uuidString.lowercased()
     }
@@ -36,7 +45,9 @@ struct ScratchWork {
     title = "Web tests placement \(suffix)"
     let slug = "web-tests-placement-\(suffix)"
     author = "Web Tests Author \(suffix)"
-    let authorSlug = "web-tests-author-\(suffix)"
+    self.linked = linked
+    referentPath = "/lexico-records/eng/\(author)/proper-noun"
+    sentimentID = "web-tests-author-\(suffix)-propn-1"
     path = "/biblio-records/eng/\(slug)/report"
     // As the server writes them: upper case.
     recordID = ids["record"]!.uppercased()
@@ -76,6 +87,30 @@ struct ScratchWork {
         attribution("edition", "First edition", "https://editions.example.org/web-tests"),
         attribution("attribution", "Courtesy of the web tests", "https://catalogue.example.org/web-tests"),
       ].joined(separator: "\n") : ""
+    let referentJSON = """
+      {"lemmaForm":{"headword":"\(author)","languageCode":"eng","partOfSpeech":"proper_noun","spellings":[],\
+      "inflections":[],"origin":{"etymons":[],"derivation":"","citations":[]}},"senses":[{"id":"\(sentimentID)",\
+      "position":0,"rank":0,"isLeaf":true,"definition":"A person (AD 1901 – AD 1971).","labels":{"register":[],\
+      "domain":[],"region":[],"grammar":[]},"relations":[],"quotationIDs":[],"selectionRunID":""}],"quotations":[],\
+      "selectionRunIDs":[]}
+      """
+    let voice =
+      linked
+      ? """
+        INSERT INTO lemmas (id, citation_form, ascii_form, searchable_form, language_id, homograph_number, created_at, updated_at)
+          VALUES ('\(ids["lemma"]!)', '\(author)', '\(author)', '\(author.lowercased())',
+            (SELECT id FROM languages WHERE iso639_3 = 'eng'), 1, now(), now());
+        INSERT INTO lexico_records (id, lemma_id, title, language_code, version, created_at, updated_at, type)
+          VALUES ('\(ids["referent"]!)', '\(ids["lemma"]!)', '\(author)', 'eng', 1, now(), now(), 'proper_noun');
+        INSERT INTO lexico_record_versions (id, lexico_record_id, created_at, record_json, treatment, provisional)
+          VALUES ('\(ids["referent-version"]!)', '\(ids["referent"]!)', now(), '\(referentJSON)', 1, TRUE);
+        INSERT INTO biblio_record_voices (id, biblio_record_id, lexico_record_id, sentiment_id, role, position)
+          VALUES ('\(ids["authorship"]!)', '\(ids["record"]!)', '\(ids["referent"]!)', '\(sentimentID)', 'author', 0);
+        """
+      : """
+        INSERT INTO biblio_record_voices (id, biblio_record_id, name, role, position)
+          VALUES ('\(ids["authorship"]!)', '\(ids["record"]!)', '\(author)', 'author', 0);
+        """
     _ = try TestAdmin.query(
       """
       BEGIN;
@@ -89,9 +124,7 @@ struct ScratchWork {
       INSERT INTO biblio_records (id, corpus_id, title, title_slug, type, language, genres, year, date_display)
         VALUES ('\(ids["record"]!)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)',
           'report', 'eng', '[]', 1958, 'AD 1958');
-      INSERT INTO persons (id, display_name, slug) VALUES ('\(ids["person"]!)', '\(author)', '\(authorSlug)');
-      INSERT INTO biblio_record_voices (id, biblio_record_id, person_id, role, position)
-        VALUES ('\(ids["authorship"]!)', '\(ids["record"]!)', '\(ids["person"]!)', 'author', 0);
+      \(voice)
       INSERT INTO bibliographic_hallmarks (id, thread_id, bibliographic_overture_id, bibliographic_concerto_id, biblio_record_id, metadata_json, processing_status, permitted_by_user_id, permitted_at)
         VALUES ('\(ids["hallmark"]!)', '\(ids["hallmark"]!)', '\(ids["overture"]!)', '\(ids["concerto"]!)', '\(ids["record"]!)', '\(metadata)', 'permitted', '\(user)', now());
       \(attributions)
@@ -112,8 +145,10 @@ struct ScratchWork {
       DELETE FROM url_histories WHERE entity_id = '\(ids["record"]!)';
       DELETE FROM biblio_record_voices WHERE id = '\(ids["authorship"]!)';
       DELETE FROM biblio_records WHERE id = '\(ids["record"]!)';
-      DELETE FROM url_histories WHERE entity_id = '\(ids["person"]!)';
-      DELETE FROM persons WHERE id = '\(ids["person"]!)';
+      DELETE FROM lexico_record_versions WHERE id = '\(ids["referent-version"]!)';
+      DELETE FROM url_histories WHERE entity_id = '\(ids["referent"]!)';
+      DELETE FROM lexico_records WHERE id = '\(ids["referent"]!)';
+      DELETE FROM lemmas WHERE id = '\(ids["lemma"]!)';
       DELETE FROM bibliographic_overtures WHERE id = '\(ids["overture"]!)';
       DELETE FROM bibliographic_evidences WHERE id = '\(ids["evidence"]!)';
       DELETE FROM submissions WHERE id = '\(ids["submission"]!)';

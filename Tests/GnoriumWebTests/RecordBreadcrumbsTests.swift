@@ -187,12 +187,10 @@ struct ScratchRecord {
   let author: String
   let path: String
   private let recordID: String
-  private let personID: String
   private let authorshipID: String
 
   init(title shared: (title: String, slug: String)? = nil, qualified: Bool = false) throws {
     recordID = UUID().uuidString.lowercased()
-    personID = UUID().uuidString.lowercased()
     authorshipID = UUID().uuidString.lowercased()
     let suffix = String(recordID.prefix(8))
     title = shared?.title ?? "Web tests crumbs \(suffix)"
@@ -207,9 +205,8 @@ struct ScratchRecord {
       INSERT INTO biblio_records (id, corpus_id, title, title_slug, type, qualifier, language, genres, year, date_display)
         VALUES ('\(recordID)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)',
           'report', \(qualifier), 'eng', '[]', 1958, 'AD 1958');
-      INSERT INTO persons (id, display_name, slug) VALUES ('\(personID)', '\(author)', '\(authorSlug)');
-      INSERT INTO biblio_record_voices (id, biblio_record_id, person_id, role, position)
-        VALUES ('\(authorshipID)', '\(recordID)', '\(personID)', 'author', 0);
+      INSERT INTO biblio_record_voices (id, biblio_record_id, name, role, position)
+        VALUES ('\(authorshipID)', '\(recordID)', '\(author)', 'author', 0);
       COMMIT;
       """)
   }
@@ -231,10 +228,9 @@ struct ScratchRecord {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      DELETE FROM url_histories WHERE entity_id IN ('\(recordID)', '\(personID)');
+      DELETE FROM url_histories WHERE entity_id = '\(recordID)';
       DELETE FROM biblio_record_voices WHERE id = '\(authorshipID)';
       DELETE FROM biblio_records WHERE id = '\(recordID)';
-      DELETE FROM persons WHERE id = '\(personID)';
       COMMIT;
       """)
   }
