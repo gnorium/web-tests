@@ -3,17 +3,17 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A record's Entries and its Cited by (user, 2026-09-29). A canon is a
+/// A record's Entries and its Citations (user, 2026-09-29). A canon is a
 /// reference work — a biblio-record whose type is a reference type — and a
 /// record's entries in canons are its "Entries" (each referred to as a record
 /// is: language, title, type; the heading as printed; the page); the works
-/// citing it in running text are its "Cited by", one row per work with how
+/// citing it in running text are its "Citations", one row per work with how
 /// many, the count opening every citation between the two, a page at a time.
 /// The biblio-records sidebar's "Canons" is the list filtered to the
 /// reference types. A reader's Find bar searches its whole transcript. Phone
 /// and desktop, Chrome headless.
-@Suite("Entries and Cited by", .serialized)
-struct EntriesAndCitedByTests {
+@Suite("Entries and Citations", .serialized)
+struct EntriesAndCitationsTests {
   /// A scratch work retyped (a catalog, a dictionary…): its address moves
   /// with its type.
   static func retype(_ work: ScratchWork, _ type: String) throws -> String {
@@ -71,7 +71,7 @@ struct EntriesAndCitedByTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aWorksEntriesAndCitedByAndTheirPairsPage(engine: BrowserEngine, layout: Layout) async throws {
+  func aWorksEntriesAndCitationsAndTheirPairsPage(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -106,30 +106,30 @@ struct EntriesAndCitedByTests {
         try await expect(row.locator("a[href='\(catalogPath)/versions/\(catalog.versionID)?semblance=2']")).toHaveCount(1)
         try await expect(row).not.toContainText("Canon")
         // The works citing it in running text, one row each with how many.
-        let citedBy = page.locator("#record-cited-by")
-        try await citedBy.locator(".accordion-summary").first.click()
-        let rows = citedBy.locator(".cited-by-view-work")
+        let citations = page.locator("#record-citations")
+        try await citations.locator(".accordion-summary").first.click()
+        let rows = citations.locator(".citations-view-work")
         try await expect(rows).toHaveCount(2)
-        try await expect(citedBy.locator(".filter-bar-view")).toHaveCount(1)
+        try await expect(citations.locator(".filter-bar-view")).toHaveCount(1)
         let lettersRow = rows.filter(hasText: letters.title)
-        try await expect(lettersRow.locator(".cited-by-view-count")).toHaveText("3 citations")
-        try await expect(rows.filter(hasText: catalog.title).locator(".cited-by-view-count")).toHaveText("1 citation")
+        try await expect(lettersRow.locator(".citations-view-count")).toHaveText("3 citations")
+        try await expect(rows.filter(hasText: catalog.title).locator(".citations-view-count")).toHaveText("1 citation")
         // Its Metadata counts them.
         let metadata = page.locator("#record-metadata")
         try await metadata.locator(".accordion-summary").first.click()
-        try await expect(metadata.locator(".datum-view").filter(hasText: "Cited by").locator(".datum-value"))
+        try await expect(metadata.locator(".datum-view").filter(hasText: "Citations").locator(".datum-value"))
           .toHaveText("2 works")
         try await page.expectNoHorizontalOverflow()
 
         // Filtered by type: the catalog alone.
-        try await page.openHydrated("\(cited.path)?type=catalog#record-cited-by")
-        try await expect(page.locator("#record-cited-by .cited-by-view-work")).toHaveCount(1)
-        try await expect(page.locator("#record-cited-by .cited-by-view-work")).toContainText(catalog.title)
+        try await page.openHydrated("\(cited.path)?type=catalog#record-citations")
+        try await expect(page.locator("#record-citations .citations-view-work")).toHaveCount(1)
+        try await expect(page.locator("#record-citations .citations-view-work")).toContainText(catalog.title)
 
         // The pair's page: every citation between the two, the catalog's in the entry it stands in.
         try await page.openHydrated(
-          "\(cited.path)/citations?work=\(catalog.recordID.lowercased())&direction=cited-by")
-        try await expect(page.locator("h1")).toHaveText("Cited by \(catalog.title)")
+          "\(cited.path)/citations?work=\(catalog.recordID.lowercased())&direction=citations")
+        try await expect(page.locator("h1")).toHaveText("Citations in \(catalog.title)")
         let table = page.locator(".record-citations-view-table")
         try await expect(table).toContainText("ANOTHER HEADING")
         try await expect(table).toContainText("Cited 1")
@@ -176,10 +176,10 @@ struct EntriesAndCitedByTests {
         try await expect(row.locator("a[href='\(dictionaryPath)']")).toHaveCount(1)
         try await expect(row).toContainText("Dictionary")
         try await expect(row).toContainText(word.title.uppercased())
-        let citedBy = page.locator("#record-cited-by")
-        try await citedBy.locator(".accordion-summary").first.click()
-        try await expect(citedBy.locator(".cited-by-view-work")).toHaveCount(1)
-        try await expect(citedBy.locator(".cited-by-view-count")).toHaveText("2 citations")
+        let citations = page.locator("#record-citations")
+        try await citations.locator(".accordion-summary").first.click()
+        try await expect(citations.locator(".citations-view-work")).toHaveCount(1)
+        try await expect(citations.locator(".citations-view-count")).toHaveText("2 citations")
         try await page.expectNoHorizontalOverflow()
 
         // The biblio-records sidebar's Canons: the list filtered to the reference types.

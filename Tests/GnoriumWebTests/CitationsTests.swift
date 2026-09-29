@@ -8,7 +8,7 @@ import WebTestsTesting
 /// word, where each is and what it links to, as the resolver found it; a
 /// signed-in reader suggests another link as a modification, which an admin
 /// accepts, and the link is then a person's. A cited work's page says how
-/// many works cite it and lists them in its "Cited by". Phone and desktop,
+/// many works cite it and lists them in its "Citations". Phone and desktop,
 /// Chrome headless.
 @Suite("Citations", .serialized)
 struct CitationsTests {
@@ -138,22 +138,22 @@ struct CitationsTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(cited.path)
-        // Its Cited by: the citing work, with how many.
-        let citedBy = page.locator("#record-cited-by")
-        try await citedBy.locator(".accordion-summary").first.click()
-        let row = citedBy.locator(".cited-by-view-work")
+        // Its Citations: the citing work, with how many.
+        let citations = page.locator("#record-citations")
+        try await citations.locator(".accordion-summary").first.click()
+        let row = citations.locator(".citations-view-work")
         try await expect(row.locator("a[href='\(citing.path)']")).toHaveCount(1)
-        try await expect(row.locator(".cited-by-view-count")).toHaveText("1 citation")
+        try await expect(row.locator(".citations-view-count")).toHaveText("1 citation")
         let metadata = page.locator("#record-metadata")
         try await metadata.locator(".accordion-summary").first.click()
-        let datum = metadata.locator(".datum-view").filter(hasText: "Cited by")
+        let datum = metadata.locator(".datum-view").filter(hasText: "Citations")
         try await expect(datum.locator(".datum-value")).toHaveText("1 work")
         try await page.expectNoHorizontalOverflow()
         // The citing work cites; nothing cites it.
         try await page.openHydrated(citing.path)
         let own = page.locator("#record-metadata")
         try await own.locator(".accordion-summary").first.click()
-        try await expect(own.locator(".datum-view").filter(hasText: "Cited by").locator(".datum-value")).toHaveText("0 works")
+        try await expect(own.locator(".datum-view").filter(hasText: "Citations").locator(".datum-value")).toHaveText("0 works")
       }
     } catch {
       await cleanUp()
