@@ -162,6 +162,9 @@ struct GraphTests {
         let pair = page.locator(".graph-view-table tbody tr").filter(hasText: translation.title)
         try await expect(pair).toHaveCount(1)
         try await expect(pair.locator("a[href='\(citing.path)']")).toHaveCount(1)
+        // Each end's column named after the relation: subjects by the
+        // plural, objects by the noun.
+        try await expectHeaders(page, listed: "Translations", last: "Translation of")
 
         // "+" adds a hop: "Translations of citations of [the cited work]".
         try await page.openHydrated(Self.query(["translation-of"], record: cited.path))
@@ -179,6 +182,7 @@ struct GraphTests {
         try await expect(chained).toHaveCount(1)
         try await expect(chained.locator("a[href='\(translation.path)']")).toHaveCount(1)
         try await expect(chained.locator(".graph-view-via a[href='\(citing.path)']")).toHaveCount(1)
+        try await expectHeaders(page, listed: "Translations", last: nil)
         try await expectTexts(
           page.locator(".relation-graph-view .relation-graph-title"), [cited.title, citing.title, translation.title])
         try await expectTexts(page.locator(".relation-graph-view .relation-graph-label"), ["citation of", "translation of"])
@@ -207,14 +211,19 @@ struct GraphTests {
         try await expect(translated).toHaveCount(1)
         try await expect(translated.locator("a[href='\(citing.path)']")).toHaveCount(1)
         try await expect(translated.locator("a.graph-view-count")).toHaveAttribute("href", "\(translation.path)#origin")
+        // The objects listed, named by the noun: "Translation of".
+        try await expectHeaders(page, listed: "Translation of", last: nil)
         try await expectTexts(page.locator(".relation-graph-title"), [translation.title, citing.title])
         try await expectTexts(page.locator(".relation-graph-label"), ["translation of"])
         // The arrow runs subject to object: it starts at the root (the translation).
         let edge = try await page.locator(".relation-graph-edge").getAttribute("d") ?? ""
         #expect(edge.hasPrefix("M 8"), "The edge leaves the root: \(edge)")
         await shoot(page, "record-first", layout)
-        // The swap control turns it round, the relation and the record kept.
-        try await sentence.locator("button[aria-label='Put the relation first']").click()
+        // The swap control (⇄, not reload) turns it round, the relation and
+        // the record kept.
+        let swap = sentence.locator("button[aria-label='Put the relation first']")
+        try await expect(swap.locator("svg.swap-icon-view")).toHaveCount(1)
+        try await swap.click()
         try await expect(page.locator("form.graph-view-query .graph-view-of")).toHaveText("of")
         try await expect(page.locator("form.graph-view-query input[name='record']")).toHaveValue(translation.path)
         try await expect(page.locator(".graph-view-empty-message")).toHaveText("No translations.")
@@ -245,6 +254,17 @@ struct GraphTests {
     } catch {
       await cleanUp()
       throw error
+    }
+  }
+
+  /// The listed column's header, and the other end's (nil: no such column).
+  private func expectHeaders(_ page: Page, listed: String, last: String?) async throws {
+    try await expect(page.locator(".graph-view-table th#col-listed .table-header-label")).toHaveText(listed)
+    let lastHeader = page.locator(".graph-view-table th#col-last .table-header-label")
+    if let last {
+      try await expect(lastHeader).toHaveText(last)
+    } else {
+      try await expect(lastHeader).toHaveCount(0)
     }
   }
 
