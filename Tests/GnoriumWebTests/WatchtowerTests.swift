@@ -38,13 +38,13 @@ struct WatchtowerTests {
 
   /// Each stage card carries its pipeline's place in the flow (user,
   /// 2026-09-29): attribution 1, recognition and explication 2 — the two
-  /// sides of Level 2 — translation 3; explication shows one card.
+  /// sides of Level 2 — translation 3; explication and translation show one card each.
   @Test(arguments: gnorium.engines)
   func stageCardsCarryTheirPipelinesNumber(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium) { page in
       try await page.openHydrated("/")
       for (pipeline, numbers) in [
-        ("Attribution", ["1"]), ("Recognition", ["2"]), ("Explication", ["2"]), ("Translation", ["3", "3", "3"]),
+        ("Attribution", ["1"]), ("Recognition", ["2"]), ("Explication", ["2"]), ("Translation", ["3"]),
       ] {
         let card = page.locator(".watchtower-pipeline-view").filter(hasText: pipeline).first
         try await expect(card.locator(".watchtower-stage-number")).toHaveTexts(numbers)

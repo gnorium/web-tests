@@ -50,8 +50,8 @@ struct WatchtowerFigureLinksTests {
     try await withPage(engine, gnorium) { page in
       try await page.openHydrated("/")
       let figures = try await Self.figures(page)
-      try #require(figures.count >= 64, "the Watchtower shows \(figures.count) figure links")
-      try #require(figures.filter { $0.href.contains("show=runs") }.count == 18, "every stage has three run links")
+      try #require(figures.count >= 58, "the Watchtower shows \(figures.count) figure links")
+      try #require(figures.filter { $0.href.contains("show=runs") }.count == 12, "every stage has three run links")
       for figure in figures {
         let count = try #require(Int(figure.text.prefix { $0.isNumber }))
         let listed = try await Self.listed(page, figure.href)
