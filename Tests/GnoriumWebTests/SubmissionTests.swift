@@ -318,6 +318,28 @@ struct SubmissionTests {
           (word.path, "Submit Sentiment", ".submit-sentiment-form", "lexico-record", word.recordID, ".submit-sentiment-tree"),
         ] {
           try await page.openHydrated(path)
+          // Its actions (a work's Submit Testament then Submit Amendment):
+          // on a phone each full width, one column, stacked in order, as the
+          // filter bar's buttons; wider, content-width side by side (user,
+          // 2026-09-30).
+          let shape = try await page.locator(".record-actions .sign-in-gate-actions").evaluate(
+            """
+            (g) => {
+              const w = g.closest('.record-actions').getBoundingClientRect().width;
+              const rs = [...g.querySelectorAll(':scope > * .button-view')].map((b) => b.getBoundingClientRect());
+              const full = rs.every((r) => Math.abs(r.width - w) < 2);
+              const stacked = rs.every((r, i) => i === 0 || rs[i - 1].bottom <= r.top);
+              const row = rs.every((r, i) => i === 0 || Math.abs(rs[i - 1].top - r.top) < 2) && rs.every((r) => r.width < w / 2);
+              return rs.length + (full && stacked ? ':stacked' : row ? ':row' : ':mixed');
+            }
+            """
+          ).string ?? ""
+          let count = path == work.path ? 2 : 1
+          if layout == .phone {
+            #expect(shape == "\(count):stacked", "\(label)'s page: its actions full width and stacked on a phone, not \(shape)")
+          } else {
+            #expect(shape == "\(count):row", "\(label)'s page: its actions content-width side by side, not \(shape)")
+          }
           try await page.locator(".record-actions a").filter(hasText: label).click()
           try await expect(page, timeout: .seconds(15)).toHaveURL("the form, the record chosen") {
             $0.query?.contains("record=\(id)") == true

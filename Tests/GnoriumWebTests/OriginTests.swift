@@ -172,10 +172,11 @@ struct OriginTests {
       // Its record field is asked for once it is on the page: settled, the
       // row stops moving what is under it.
       try await expect(second.locator(".origin-record-field-view")).toHaveCount(1)
-      // Two steps: each has its −; the typed one's own + first, then it, side
-      // by side and content-width on every screen (a phone too: compact
-      // icon buttons, never stretched or stacked). The form's own list-end
-      // "+ Add origin step" keeps its words.
+      // Two steps: each has its −; the typed one's own + first, then it:
+      // side by side and content-width on wider screens, full width and
+      // stacked (+ above −) on a phone, as the filter bar's (user,
+      // 2026-09-30). The form's own list-end "+ Add origin step" keeps its
+      // words.
       try await expect(first.locator(":scope > .origin-field-view-actions .origin-remove-btn")).toBeVisible()
       let secondActions = second.locator(":scope > .origin-field-view-actions")
       try await expect(secondActions.locator(".origin-remove-btn")).toHaveText("")
@@ -185,10 +186,17 @@ struct OriginTests {
       ).string
       #expect(named == "Add origin step|Remove origin step", "add first, then remove: \(named ?? "")")
       try await expect(block.locator(":scope > .origin-field-view-add .origin-add-btn")).toHaveText("Add origin step")
-      let compact = try await secondActions.evaluate(
-        "(a) => { const [x, y] = a.querySelectorAll('button'); const r = (b) => b.getBoundingClientRect(); return Math.abs(r(x).top - r(y).top) < 4 && r(x).right <= r(y).left && r(x).width < 64 && r(y).width < 64 && r(x).left - a.getBoundingClientRect().left < 2 }"
-      ).bool
-      #expect(compact == true, "the step's + and − are compact, one row, start-aligned, add first")
+      if viewport.width < 768 {
+        let stacked = try await secondActions.evaluate(
+          "(a) => { const [x, y] = a.querySelectorAll('button'); const r = (b) => b.getBoundingClientRect(); const w = a.getBoundingClientRect().width; return r(x).bottom <= r(y).top && Math.abs(r(x).width - w) < 2 && Math.abs(r(y).width - w) < 2 }"
+        ).bool
+        #expect(stacked == true, "on a phone the step's + and − are full width, stacked, add first")
+      } else {
+        let compact = try await secondActions.evaluate(
+          "(a) => { const [x, y] = a.querySelectorAll('button'); const r = (b) => b.getBoundingClientRect(); return Math.abs(r(x).top - r(y).top) < 4 && r(x).right <= r(y).left && r(x).width < 64 && r(y).width < 64 && r(x).left - a.getBoundingClientRect().left < 2 }"
+        ).bool
+        #expect(compact == true, "the step's + and − are compact, one row, start-aligned, add first")
+      }
       // A record one step names is not offered to another (user,
       // 2026-09-29): the original, picked in the first, is withheld from the
       // second's record field, searched for by name too.

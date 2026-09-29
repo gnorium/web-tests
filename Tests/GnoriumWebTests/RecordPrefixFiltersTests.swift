@@ -35,6 +35,9 @@ struct RecordPrefixFiltersTests {
     // The list's own look: no heading, its tab selected.
     try await expect(page.locator(".page-heading")).toHaveCount(0)
     try await expect(page.locator(".records-tabs #tab-biblio-records")).toHaveAttribute("aria-selected", "true")
+    // The Language column names the language ("English"), never its code
+    // ("eng"), on a phone too (user, 2026-09-30).
+    try await expect(page.locator("main tr:has(a[href='\(work.path)']) > td:nth-child(2)")).toHaveText("English")
     let filter = page.locator(".filter-bar-view")
     let fields = filter.locator(".filter-bar-field-picker .dropdown-selected-text")
     let values = filter.locator(".filter-bar-value-select .dropdown-selected-text")
@@ -83,5 +86,27 @@ struct RecordPrefixFiltersTests {
     try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
     try await page.expectNoErrors()
     try await expect(page.locator(".filter-bar-value-select input[name='language']")).toHaveCount(0)
+    try await Self.expectLanguageNames(page)
+
+    // The lexico-records list names its languages as well.
+    try await page.openHydrated("/lexico-records")
+    try await page.expectNoErrors()
+    try await Self.expectLanguageNames(page)
+  }
+
+  /// Every row's Language cell shows the language's name — its whole title
+  /// (the name), never a short code in its place.
+  static func expectLanguageNames(_ page: Page) async throws {
+    let cells = try await page.evaluate(
+      """
+      [...document.querySelectorAll('main .table-view tbody tr > td:nth-child(2)')]
+        .map((c) => c.innerText.trim() + '|' + c.getAttribute('title')).join('\\n')
+      """
+    ).string ?? ""
+    #expect(!cells.isEmpty, "the list has rows")
+    for cell in cells.split(separator: "\n") {
+      let parts = cell.split(separator: "|", omittingEmptySubsequences: false)
+      #expect(parts.count == 2 && parts[0] == parts[1], "a Language cell shows its name: \(cell)")
+    }
   }
 }
