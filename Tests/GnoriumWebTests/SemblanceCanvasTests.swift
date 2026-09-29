@@ -11,7 +11,7 @@ import WebTestsTesting
 ///
 /// The page images are off until the reader asks for them (user,
 /// 2026-09-29): the transcript takes the whole width and no image is
-/// fetched; the header's page-images switch shows them, and the choice holds
+/// fetched; the header's Semblance switch (a left chevron) shows them, and the choice holds
 /// across the reader's pages and the site's navigation for the browser
 /// session (sessionStorage), and is off again in a new one.
 @Suite("Semblance canvas", .serialized)
@@ -80,7 +80,10 @@ struct SemblanceCanvasTests {
         try await expect(find).toHaveText("")
 
         // Off: the transcript alone, the whole width, and no image asked for.
-        try await expect(toggle).toHaveAccessibleName("Page images")
+        // The switch is the left chevron alone, named "Semblance".
+        try await expect(toggle).toHaveAccessibleName("Semblance")
+        try await expect(viewer.locator(".artifact-canvas-toggle .toggle-button-label")).toHaveCount(0)
+        try await expect(toggle.locator("svg.previous-icon-view")).toHaveCount(1)
         try await expect(toggle).toHaveAttribute("aria-pressed", "false")
         try await expect(viewer).toHaveAttribute("data-canvas-shown", "false")
         try await expect(object).toBeHidden()
