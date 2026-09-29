@@ -7,7 +7,7 @@ import WebTestsTesting
 /// English, the sentiment's session also writes its definition and free-text
 /// labels in the record's language, filed in the same amendment. The
 /// amendment's page shows the definition in German with its label,
-/// confidence and reason; permitted, the German record's row carries the
+/// confidence and reason; permitted, the record is Translated and its row carries the
 /// German definition under the English one, marked as German, and the
 /// label's translation beside it. An Arabic definition reads right to left.
 /// Phone and desktop, nothing scrolling sideways.
@@ -69,6 +69,8 @@ struct LexicoTranslationDefinitionTests {
         try await expect(own).toHaveAttribute("lang", "de")
         try await expect(own).toBeVisible()
         try await expect(row.locator(".record-row-title").first).toHaveText("A leaf sense.")
+        // Attributed → Explicated → Translated: the permitted amendment's version is translated.
+        try await expect(page.locator(".record-sidebar-treatment").first).toContainText("translated")
         try await expect(row.locator(".sentiment-metadata-view span[lang='de']").first).toHaveText("in der Seefahrt")
         #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
 
