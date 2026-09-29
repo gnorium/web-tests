@@ -314,8 +314,8 @@ struct SubmissionTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         for (path, label, form, field, id, tree) in [
-          (work.path, "+ Submit Testament", ".submit-testament-form", "biblio-record", work.recordID, ".submit-testament-tree"),
-          (word.path, "+ Submit Sentiment", ".submit-sentiment-form", "lexico-record", word.recordID, ".submit-sentiment-tree"),
+          (work.path, "Submit Testament", ".submit-testament-form", "biblio-record", work.recordID, ".submit-testament-tree"),
+          (word.path, "Submit Sentiment", ".submit-sentiment-form", "lexico-record", word.recordID, ".submit-sentiment-tree"),
         ] {
           try await page.openHydrated(path)
           try await page.locator(".record-actions a").filter(hasText: label).click()
@@ -333,7 +333,7 @@ struct SubmissionTests {
       }
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(work.path)
-        try await page.locator(".record-actions a").filter(hasText: "+ Submit Testament").click()
+        try await page.locator(".record-actions a").filter(hasText: "Submit Testament").click()
         try await expect(page.locator(".record-actions .alert-content")).toHaveText("Sign in to submit a testament.")
         #expect(URL(string: try await page.url())?.path == work.path)
         try await page.openHydrated(Self.sentimentForm)

@@ -213,8 +213,12 @@ struct GraphTests {
         // and Search last; a desktop ends the first hop's line with + and
         // the actions and the second's with −.
         try await expectTexts(page.locator("form.graph-view-query .graph-view-word"), ["of", "of"])
-        try await expect(page.locator("form.graph-view-query .graph-view-add")).toHaveText("+")
-        try await expect(page.locator("form.graph-view-query .graph-view-remove")).toHaveText("−")
+        // Icon-only: the Codex add and subtract icons, no "+"/"−" character.
+        try await expect(page.locator("form.graph-view-query .graph-view-add")).toHaveText("")
+        try await expect(page.locator("form.graph-view-query .graph-view-add svg.add-icon-view")).toHaveCount(1)
+        try await expect(page.locator("form.graph-view-query .graph-view-add")).toHaveAttribute("aria-label", "Add a relation")
+        try await expect(page.locator("form.graph-view-query .graph-view-remove")).toHaveText("")
+        try await expect(page.locator("form.graph-view-query .graph-view-remove svg.subtract-icon-view")).toHaveCount(1)
         let laidOut = try await page.evaluate(
           """
           (() => {

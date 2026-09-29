@@ -195,7 +195,7 @@ struct CarrierTests {
       let domains = form.locator("[data-item-list='work-domain']")
       try await expect(domains).toHaveCount(1)
       try await expect(domains.locator(".dropdown-option[data-value='classK']").first).toBeAttached()
-      try await expect(form).toContainText("+ Add domain")
+      try await expect(form).toContainText("Add domain")
 
       // Nothing scrolls sideways.
       let overflow = try await page.evaluate("document.documentElement.scrollWidth > window.innerWidth").bool

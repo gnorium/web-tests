@@ -69,18 +69,24 @@ struct OriginTests {
       try await expect(rows).toHaveCount(1)
 
       // The row: its relation (a plain noun), its record field, its typed
-      // fields while no record is picked, its own "+ Add origin step" beside
-      // the step's icon-only − (named "Remove origin step").
+      // fields while no record is picked, its own "+ Add origin step" then
+      // the step's "− Remove origin step" (add first: a press of the first
+      // button never removes), each the Codex icon and its words.
       let first = rows.first
       try await expect(first.locator(".origin-record-field-view")).toHaveCount(1)
       let actions = first.locator(":scope > .origin-field-view-actions")
-      try await expect(actions.locator("button")).toHaveTexts(["+ Add origin step", "−"])
-      try await expect(actions.locator(".origin-remove-btn")).toHaveAttribute("aria-label", "Remove origin step")
-      let sideBySide = try await actions.evaluate(
-        "(a) => { const [x, y] = a.querySelectorAll('button'); return Math.abs(x.getBoundingClientRect().top - y.getBoundingClientRect().top) < 4 }"
-      ).bool
-      // One row where there is room; a narrow phone wraps them.
-      if viewport.width >= 768 { #expect(sideBySide == true, "the row's actions are one row") }
+      try await expect(actions.locator(".origin-add-own-btn")).toHaveText("Add origin step")
+      try await expect(actions.locator(".origin-add-own-btn svg.add-icon-view")).toHaveCount(1)
+      try await expect(actions.locator(".origin-remove-btn svg.subtract-icon-view")).toHaveCount(1)
+      // The form keeps one step at least (user, 2026-09-29): a lone step
+      // has no "− Remove origin step", so the box can never go.
+      try await expect(actions.locator(".origin-remove-btn")).toBeHidden()
+      // The Biblio-record field and the Metadata under it, a field's gap
+      // apart (spacing16), never touching.
+      let apart = try await form.evaluate(
+        "(f) => { const b = f.querySelector('#metadata > .record-section-body'); const [x, y] = b.children; return Math.round(y.getBoundingClientRect().top - x.getBoundingClientRect().bottom) }"
+      ).int
+      #expect(apart == 16, "the Biblio-record field and the Metadata should be 16px apart, not \(String(describing: apart))")
       try await expect(first).toContainText("Relation")
       let relation = first.locator(".dropdown-view").first
       // Its tooltip, as the bubble says it when shown.
@@ -144,6 +150,28 @@ struct OriginTests {
       // Its record field is asked for once it is on the page: settled, the
       // row stops moving what is under it.
       try await expect(second.locator(".origin-record-field-view")).toHaveCount(1)
+      // Two steps: each has its "− Remove origin step"; the typed one's own
+      // "+ Add origin step" first, then it, side by side where there is room.
+      try await expect(first.locator(":scope > .origin-field-view-actions .origin-remove-btn")).toBeVisible()
+      let secondActions = second.locator(":scope > .origin-field-view-actions")
+      try await expect(secondActions.locator(".origin-remove-btn")).toHaveText("Remove origin step")
+      try await expect(secondActions.locator("button")).toHaveTexts(["Add origin step", "Remove origin step"])
+      let sideBySide = try await secondActions.evaluate(
+        "(a) => { const [x, y] = a.querySelectorAll('button'); return Math.abs(x.getBoundingClientRect().top - y.getBoundingClientRect().top) < 4 && x.getBoundingClientRect().right <= y.getBoundingClientRect().left }"
+      ).bool
+      if viewport.width >= 768 { #expect(sideBySide == true, "the row's actions are one row, add first") }
+      // A record one step names is not offered to another (user,
+      // 2026-09-29): the original, picked in the first, is withheld from the
+      // second's record field, searched for by name too.
+      let secondPicker = second.locator(".origin-record-field-view .dropdown-view").first
+      try await expect(secondPicker).toHaveAttribute("data-excluded-values", original.recordID)
+      try await secondPicker.locator(".dropdown-trigger").click()
+      try await secondPicker.locator(".dropdown-search-input").fill(original.suffix)
+      let withheld = secondPicker.locator(
+        ".dropdown-options-list[data-dropdown-results='true'] .dropdown-option[data-value='\(original.recordID)']")
+      try await expect(withheld).toHaveAttribute("data-excluded", "true")
+      try await expect(withheld).toBeHidden()
+      try await page.keyboard.press("Escape")
       let secondRelation = second.locator(".dropdown-view").first
       try await secondRelation.locator(".dropdown-trigger").click()
       try await secondRelation.locator(".dropdown-option[data-value='adaptation_of']").click()
@@ -235,6 +263,8 @@ struct OriginTests {
       // A row removed.
       try await second.locator(":scope > .origin-field-view-actions .origin-remove-btn").click()
       try await expect(rows).toHaveCount(1)
+      // The last step stays: its "− Remove origin step" is gone again.
+      try await expect(first.locator(":scope > .origin-field-view-actions .origin-remove-btn")).toBeHidden()
 
       // Nothing scrolls sideways.
       let overflow = try await page.evaluate("document.documentElement.scrollWidth > window.innerWidth").bool
