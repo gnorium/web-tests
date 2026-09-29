@@ -46,12 +46,12 @@ struct GraphTests {
     let citing = try ScratchWork(owner: admin)
     let translation = try ScratchWork(owner: admin)
     let works = [cited, citing, translation]
-    func cleanUp() async throws {
+    func cleanUp() async {
       _ = try? TestAdmin.query(
         EntriesAndCitationsTests.clean(works)
           + "\nDELETE FROM biblio_record_origins WHERE biblio_record_id = '\(translation.recordID.lowercased())';")
       for work in works { work.remove() }
-      try await admin.remove()
+      await admin.remove()
     }
     do {
       // The citing work cites the cited one three times; the translation
@@ -308,11 +308,9 @@ struct GraphTests {
           try await expect(page.locator("meta[name='robots']")).toHaveAttribute("content", "noindex, follow")
         }
       }
-      try await cleanUp()
+      await cleanUp()
     } catch {
-      do { try await cleanUp() } catch let removal {
-        throw WebTestError("\(error)\n…and cleaning up failed too: \(removal)")
-      }
+      await cleanUp()
       throw error
     }
   }
