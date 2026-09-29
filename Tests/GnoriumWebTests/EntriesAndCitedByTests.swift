@@ -51,7 +51,7 @@ struct EntriesAndCitedByTests {
   /// `canon`'s entry for a work or a word, headed `heading`, on page 3.
   static func entry(in canon: ScratchWork, heading: String, work: String? = nil, word: String? = nil) -> String {
     """
-    INSERT INTO record_entries (id, biblio_record_version_id, work_record_id, testament_id, permitted_at, canvas_id, page,
+    INSERT INTO entries (id, biblio_record_version_id, work_record_id, testament_id, permitted_at, canvas_id, page,
       start_line, start_word, start_surface, end_line, end_word, end_surface, kind, heading, parts_json, language_code,
       status, decided_by, lexico_record_id, biblio_record_id, resolver_version, resolved_at, created_at)
       VALUES (gen_random_uuid(), '\(canon.versionID.lowercased())', '\(canon.recordID.lowercased())',
@@ -64,7 +64,7 @@ struct EntriesAndCitedByTests {
   static func clean(_ works: [ScratchWork]) -> String {
     let versions = works.map { "'\($0.versionID.lowercased())'" }.joined(separator: ",")
     return """
-      DELETE FROM record_entries WHERE biblio_record_version_id IN (\(versions));
+      DELETE FROM entries WHERE biblio_record_version_id IN (\(versions));
       DELETE FROM citations WHERE biblio_record_version_id IN (\(versions));
       DELETE FROM citation_extractions WHERE biblio_record_version_id IN (\(versions));
       """

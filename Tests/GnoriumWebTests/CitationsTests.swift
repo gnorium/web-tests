@@ -183,7 +183,7 @@ struct EntryLinksTests {
     func cleanUp() async {
       _ = try? TestAdmin.query(
         """
-        DELETE FROM record_entries WHERE biblio_record_version_id = '\(reading.work.versionID.lowercased())';
+        DELETE FROM entries WHERE biblio_record_version_id = '\(reading.work.versionID.lowercased())';
         DELETE FROM modifications WHERE modifiable_id = '\(reading.proposalID)';
         """)
       reading.remove()
@@ -194,7 +194,7 @@ struct EntryLinksTests {
       // The testament's permitted version holds one entry for a work: the target, as the resolver linked it.
       _ = try TestAdmin.query(
         """
-        INSERT INTO record_entries (id, biblio_record_version_id, work_record_id, testament_id, permitted_at, canvas_id, page,
+        INSERT INTO entries (id, biblio_record_version_id, work_record_id, testament_id, permitted_at, canvas_id, page,
           start_line, start_word, start_surface, end_line, end_word, end_surface, kind, heading, parts_json, language_code,
           status, decided_by, biblio_record_id, confidence, basis, resolver_version, resolved_at, created_at)
           VALUES (gen_random_uuid(), '\(reading.work.versionID.lowercased())', '\(reading.work.recordID.lowercased())',
