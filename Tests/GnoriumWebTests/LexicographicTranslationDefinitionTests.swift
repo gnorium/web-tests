@@ -3,15 +3,15 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// Lexico translation is one pipeline (user, 2026-09-29): for a record not in
+/// Lexicographic translation is one pipeline (user, 2026-09-29): for a record not in
 /// English, the sentiment's session also writes its definition and free-text
 /// labels in the record's language, filed in the same amendment. The
 /// amendment's page shows the definition in German with its label,
 /// confidence and reason; permitted, the record is Translated and its row carries the
 /// record-level English toggle, selected initially, switching definitions and labels. An Arabic definition reads right to left.
 /// Phone and desktop, nothing scrolling sideways.
-@Suite("Lexico translation: the definition in the record's language", .serialized)
-struct LexicoTranslationDefinitionTests {
+@Suite("Lexicographic translation: the definition in the record's language", .serialized)
+struct LexicographicTranslationDefinitionTests {
   struct Width: Decodable { let overflow: Double }
   struct Direction: Decodable { let direction: String }
   static let overflow = "({ overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth })"

@@ -3,7 +3,7 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// Lexico translation (user, 2026-09-29): a sentiment's equivalents in other
+/// Lexicographic translation (user, 2026-09-29): a sentiment's equivalents in other
 /// languages, found by one session per sentiment and filed as gnorium's
 /// amendment of it. The amendment's page shows the sentiment, the
 /// Translations proposed and each equivalent's relation, confidence, reason
@@ -13,8 +13,8 @@ import WebTestsTesting
 /// read from its side ("narrower sense"). The translation's page lists its
 /// session per sentiment, and the Madrigals register's Lexicographic tab
 /// lists the translation. Phone and desktop, nothing scrolling sideways.
-@Suite("Lexico translation", .serialized)
-struct LexicoTranslationTests {
+@Suite("Lexicographic translation", .serialized)
+struct LexicographicTranslationTests {
   struct Width: Decodable { let overflow: Double }
   static let overflow = "({ overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth })"
 
