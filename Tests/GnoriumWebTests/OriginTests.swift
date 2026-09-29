@@ -98,7 +98,7 @@ struct OriginTests {
       // A work's relations in FRBR's order: Transformation (another type of
       // work) after Adaptation (the same type).
       try await expect(relation.locator(".dropdown-option .dropdown-option-display-text")).toHaveTexts([
-        "Translation", "Adaptation", "Transformation", "Abridgment", "Continuation", "Commentary", "Derivation",
+        "Translation", "Adaptation", "Transformation", "Abridgment", "Continuation", "Exposition", "Derivation",
         "Compilation", "Conflation",
       ])
       try await relation.locator(".dropdown-trigger").click()

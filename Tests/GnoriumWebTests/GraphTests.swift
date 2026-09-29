@@ -8,8 +8,8 @@ import WebTestsTesting
 /// citation of Hamlet" — each slot a record (a combobox of both halves'
 /// records) or left empty to find the records that stand there, the
 /// relation a dropdown of the relations stored between records, each named
-/// once by a noun ("citation of", "translation of", "part of", "equivalent
-/// of"). The query is the address; its answer the pairs as the records
+/// once by a noun ending in "of" ("citation of", "translation of",
+/// "container of", "equivalent of"). The query is the address; its answer the pairs as the records
 /// lists list records, each count linking to where the pair is shown, over
 /// a drawing of them. The home page links it between the two records lists;
 /// both records sidebars link it first, above their own sections; a
@@ -63,9 +63,17 @@ struct GraphTests {
         try await expect(query.getByRole(.combobox, name: "Object")).toHaveCount(1)
         let relations = query.locator(".graph-relation [data-dropdown-option='true']")
         try await expect(relations.first).toHaveAttribute("data-display", "citation of")
-        for noun in ["translation of", "derivative of", "borrowing of", "part of", "equivalent of"] {
+        for noun in [
+          "translation of", "exposition of", "derivative of", "borrowing of", "affix of", "back-formation of",
+          "eponym of", "container of", "equivalent of",
+        ] {
           try await expect(query.locator(".graph-relation [data-display='\(noun)']")).toHaveCount(1)
         }
+        // Every noun ends in "of" (user, 2026-09-29).
+        let odd = try await page.evaluate(
+          "[...document.querySelectorAll(\"form.graph-view-query .graph-relation [data-dropdown-option='true']\")]"
+            + ".map(o => o.dataset.display).filter(noun => !noun.endsWith(' of'))")
+        #expect(odd == .array([]), "Nouns not ending in of: \(odd)")
         try await expect(page.locator(".relation-graph-view")).toHaveCount(0)
         await shoot(page, "empty", layout)
 
@@ -97,6 +105,17 @@ struct GraphTests {
         let fits = try await drawing.evaluate("svg => svg.getBoundingClientRect().right <= window.innerWidth + 1")
         #expect(fits == .bool(true), "The drawing fits the page's width.")
         await shoot(page, "citation-of", layout)
+        // No pairs: said in words, no drawing.
+        try await page.goto(
+          "/graph?subject=&relation=container-of&object=\(cited.path.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "")"
+        )
+        try await expect(page.locator(".records-count-view")).toContainText("0 pairs")
+        try await expect(page.locator(".graph-view-empty-message")).toHaveText("No pairs.")
+        try await expect(page.locator(".relation-graph-view")).toHaveCount(0)
+        await shoot(page, "no-pairs", layout)
+        try await page.goto(
+          "/graph?subject=&relation=citation-of&object=\(cited.path.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "")"
+        )
         try await count.click()
         try await expect(page.locator(".record-citations-view-citation")).toHaveCount(3)
 
