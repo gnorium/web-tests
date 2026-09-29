@@ -4,15 +4,20 @@ import WebTests
 import WebTestsTesting
 
 /// A work's ORIGIN: on Submit Testament an Origin block in the work (no
-/// "This is a translation" box), "+ Add origin step" rows, each a relation, a
-/// record field (searched, two rows an option) and, once a record is picked,
-/// its testaments to name one by; with no record, the work as typed and
-/// "+ Add origin step" under it for its own origin. The form posts the rows as
-/// one JSON list (the submit event is dispatched by hand, which runs the
-/// form's script but never posts). On a record page, the Origin section
-/// after the Metadata is a paragraph of prose ("A translation of the Old
-/// English …, which is a translation of the English report …, authored by
-/// …."), and the source record lists its translations. A throwaway admin owns two scratch works, removed after.
+/// "This is a translation" box), a tree of steps (the site's one tree,
+/// `OutlinerView`), each a card: a relation, a record field (searched, two
+/// rows an option) and, once a record is picked, its testaments to name one
+/// by; with no record, the work as typed and its own "+ Add origin step",
+/// which puts a step under it, indented. Deep steps keep their width and
+/// the tree scrolls sideways, never the page; a menu opened in a deep step
+/// stands over the page by its field. Removing a step with steps under it
+/// asks first. The form posts the tree as one JSON list (the submit event is
+/// dispatched by hand, which runs the form's script but never posts). On a
+/// record page, the Origin section after the Metadata is the same tree, each
+/// step its relations, what it came from (Language › Title, linked where it
+/// is a record; its type), date, certainty and voices, "—" where unknown;
+/// and the source record lists its translations. A throwaway admin owns two
+/// scratch works, removed after.
 @Suite("Origin", .serialized)
 struct OriginTests {
   static let form = "/mission-control/submit/bibliographic/evidence-testament"
@@ -70,8 +75,10 @@ struct OriginTests {
       try await expect(block).toHaveCount(1)
       // No heading; one row to start, as the voices have.
       try await expect(block.locator(".origin-field-view-heading")).toHaveCount(0)
-      let top = block.locator(":scope > [data-origin-list='true']")
-      let rows = top.locator(":scope > [data-origin-row='true']")
+      // A step's card in a list of the tree: the top level's, or a step's own.
+      let cards = ":scope > .outliner-item > .outliner-row > .outliner-node > [data-origin-row='true']"
+      let top = block.locator(":scope > .outliner-view > .outliner-scroll > .outliner-list")
+      let rows = top.locator(cards)
       try await expect(rows).toHaveCount(1)
 
       // The row: its relation (a plain noun), its record field, its typed
@@ -156,7 +163,7 @@ struct OriginTests {
 
       // A second row, typed: its own "+ Add origin step" gives it an origin of
       // its own.
-      try await top.locator(":scope > div > .origin-add-btn").click()
+      try await block.locator(":scope > .origin-field-view-add .origin-add-btn").click()
       try await expect(rows).toHaveCount(2)
       let second = rows.nth(1)
       // Its record field is asked for once it is on the page: settled, the
@@ -218,10 +225,15 @@ struct OriginTests {
       try await voiceRows.nth(1).locator(".dropdown-trigger").click()
       try await voiceRows.nth(1).locator(".dropdown-option[data-value='translator']").click()
       try await voiceRows.nth(1).locator(".text-input-input").fill("Bea Author")
-      let nestedList = second.locator(":scope > .origin-field-view-typed > [data-origin-list='true']")
+      // Its own step goes under it in the tree, indented.
+      let secondItem = block.locator(".outliner-item[data-origin-step='\(secondKey)']")
       try await second.locator(":scope > .origin-field-view-actions .origin-add-own-btn").click()
-      let nested = nestedList.locator(":scope > [data-origin-row='true']")
+      let nested = secondItem.locator(":scope > .outliner-list").locator(cards)
       try await expect(nested).toHaveCount(1)
+      let indent = try await secondItem.evaluate(
+        "(item) => { const own = item.querySelector(':scope > .outliner-row > .outliner-node'); const under = item.querySelector(':scope > .outliner-list .outliner-node'); return Math.round(under.getBoundingClientRect().left - own.getBoundingClientRect().left) }"
+      ).int
+      #expect(indent == 24, "a step under a step stands one level (24px) in, not \(String(describing: indent))")
       try await expect(nested.first.locator(".origin-record-field-view")).toHaveCount(1)
       let nestedRelation = nested.first.locator(".dropdown-view").first
       try await nestedRelation.locator(".dropdown-trigger").click()
@@ -274,9 +286,19 @@ struct OriginTests {
       try await chosen.click()
       try await expect(first.locator(".origin-record-field-view")).not.toContainText("Testament")
       try await expect(typedFields).toBeVisible()
-      // A row removed.
+      // A step with a step under it asks before it goes: Cancel keeps both.
+      let removeDialog = block.locator(".origin-field-view-remove-dialog")
       try await second.locator(":scope > .origin-field-view-actions .origin-remove-btn").click()
+      try await expect(removeDialog).toHaveAttribute("data-open", "true")
+      try await removeDialog.locator(".dialog-default-button button").click()
+      try await expect(removeDialog).toHaveAttribute("data-open", "false")
+      try await expect(rows).toHaveCount(2)
+      try await expect(nested).toHaveCount(1)
+      // Remove confirms it: the step goes with the one under it.
+      try await second.locator(":scope > .origin-field-view-actions .origin-remove-btn").click()
+      try await removeDialog.locator(".dialog-primary-button button").click()
       try await expect(rows).toHaveCount(1)
+      try await expect(block.locator("[data-origin-row='true']")).toHaveCount(1)
       // The last step stays: its "− Remove origin step" is gone again.
       try await expect(first.locator(":scope > .origin-field-view-actions .origin-remove-btn")).toBeHidden()
 
@@ -284,12 +306,62 @@ struct OriginTests {
       let overflow = try await page.evaluate("document.documentElement.scrollWidth > window.innerWidth").bool
       #expect(overflow == false)
 
-      // The translation's page: an Origin section after the Metadata, a
-      // paragraph of prose as a dictionary's etymology, the typed step plain
-      // and the original linked.
+      // A deep origin, six steps each under the last (user, 2026-09-30):
+      // every step keeps the tree's least node width (14rem), the tree's
+      // scrollport scrolls sideways on a phone, and the page never does.
+      for depth in 1..<6 {
+        let deepest = block.locator("[data-origin-row='true']").last
+        try await deepest.locator(":scope > .origin-field-view-actions .origin-add-own-btn").click()
+        try await expect(block.locator("[data-origin-row='true']")).toHaveCount(depth + 1)
+        try await expect(block.locator("[data-origin-row='true']").last.locator(".origin-record-field-view"))
+          .toHaveCount(1)
+      }
+      let deep = try await block.evaluate(
+        """
+        (block) => {
+          const scroll = block.querySelector('.outliner-scroll');
+          const widths = [...block.querySelectorAll('.outliner-node')].map((n) => n.getBoundingClientRect().width);
+          const least = parseFloat(getComputedStyle(document.documentElement).fontSize) * 14;
+          return {
+            narrowest: Math.round(Math.min(...widths)), least: Math.round(least),
+            scrolls: scroll.scrollWidth > scroll.clientWidth,
+            page: document.documentElement.scrollWidth > window.innerWidth,
+          };
+        }
+        """)
+      #expect((deep["narrowest"].int ?? 0) >= (deep["least"].int ?? 0), "a deep step keeps the least node width: \(deep)")
+      #expect(deep["page"].bool == false, "the page never scrolls sideways")
+      if viewport.width < 768 { #expect(deep["scrolls"].bool == true, "the tree scrolls sideways on a phone") }
+      // A menu opened in the deepest step stands over the page by its
+      // field, not cut off at the scrollport's edge.
+      let deepest = block.locator("[data-origin-row='true']").last
+      _ = try await deepest.evaluate("(row) => row.scrollIntoView({ block: 'center' })")
+      let deepRelation = deepest.locator(".dropdown-view").first
+      try await deepRelation.locator(".dropdown-trigger").click()
+      let placed = try await deepRelation.evaluate(
+        """
+        (view) => {
+          const menu = view.querySelector('.dropdown-menu');
+          const field = view.querySelector('.dropdown-container').getBoundingClientRect();
+          const box = menu.getBoundingClientRect();
+          return {
+            fixed: getComputedStyle(menu).position === 'fixed',
+            start: Math.abs(Math.round(box.left - field.left)) <= 1,
+            under: Math.abs(Math.round(box.top - field.bottom)) <= 6,
+            inside: box.right <= window.innerWidth + 1,
+          };
+        }
+        """)
+      #expect(placed["fixed"].bool == true && placed["start"].bool == true && placed["under"].bool == true, "\(placed)")
+      #expect(placed["inside"].bool == true, "the deep step's menu stays on the screen: \(placed)")
+      try await deepRelation.locator(".dropdown-trigger").click()
+
+      // The translation's page: an Origin section after the Metadata, the
+      // tree of its steps — the typed step, and under it, indented, the
+      // original's record, linked.
       try await page.openHydrated(translation.path)
-      let prose = page.locator("#origin .origin-view")
-      try await expect(prose).toHaveCount(1)
+      let tree = page.locator("#origin .origin-view")
+      try await expect(tree).toHaveCount(1)
       try await expect(page.locator("#origin .record-section-title")).toHaveText("Origin")
       try await expect(page.locator("#record-origin")).toHaveCount(0)
       let order = try await page.evaluate(
@@ -302,10 +374,27 @@ struct OriginTests {
         """
       ).bool
       #expect(order == true, "Origin is not after Metadata")
-      try await expect(prose).toHaveText(
-        "Translated and abridged from the Old English treatise \(typed) (c. AD 890), which was translated from the English report \(original.title), "
-          + "authored by \(original.author).")
-      try await expect(prose.locator("a[href='\(original.path)']")).toHaveCount(1)
+      let steps = tree.locator(".origin-step-view")
+      try await expect(steps).toHaveCount(2)
+      let typedStep = steps.first
+      try await expect(typedStep.locator(".datum-label")).toHaveTexts(["Relation", "Date", "Certainty", "Voices"])
+      try await expect(typedStep.locator(".datum-value")).toHaveTexts([
+        "Translation, Abridgment", "c. AD 890", "Certain", "—",
+      ])
+      try await expect(typedStep.locator(".breadcrumb-label-context")).toHaveText("Old English")
+      try await expect(typedStep.locator(".breadcrumb-label-text")).toHaveText(typed)
+      try await expect(typedStep.locator(".record-type-view")).toHaveText("treatise")
+      try await expect(typedStep.locator("a")).toHaveCount(0)
+      // The original, a step under the typed one: its record linked, its
+      // voices its own.
+      let recordStep = tree.locator(
+        ".outliner-scroll > .outliner-list > .outliner-item > .outliner-list > .outliner-item .origin-step-view")
+      try await expect(recordStep).toHaveCount(1)
+      try await expect(recordStep.locator("a[href='\(original.path)'] .breadcrumb-label-text")).toHaveText(original.title)
+      try await expect(recordStep.locator(".record-type-view")).toHaveText("report")
+      try await expect(recordStep.locator(".datum-value")).toHaveTexts([
+        "Translation", "—", "Certain", "\(original.author) (Author)",
+      ])
 
       // The original lists it under "Translated into", as "Contains"
       // answers "Contained in".

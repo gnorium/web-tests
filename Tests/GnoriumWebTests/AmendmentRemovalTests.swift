@@ -36,7 +36,7 @@ struct AmendmentRemovalTests {
         let manifest = page.locator(".outliner-item[data-outliner-id^='manifest-']")
         let dialog = page.locator(".testament-outliner-remove-dialog")
         func own(_ item: Locator, _ selector: String) -> Locator {
-          item.locator(":scope > .outliner-row > .testament-outliner-node > .record-row-view \(selector)").first
+          item.locator(":scope > .outliner-row > .outliner-node > .testament-outliner-node > .record-row-view \(selector)").first
         }
         /// Opens every accordion round a node's removal controls.
         func reveal(_ item: Locator) async throws {
@@ -49,6 +49,12 @@ struct AmendmentRemovalTests {
               return chain.length;
             }
             """)
+          // Its row settled open before its controls are aimed at: they
+          // move while it grows.
+          try await expect(
+            item.locator(":scope > .outliner-row > .outliner-node > .testament-outliner-node > .record-row-view > .accordion-view > .accordion-details")
+              .first
+          ).toHaveAttribute("data-open-finished", "true")
         }
         func shape() async throws -> String {
           try await page.locator("input[name='shape']").first.inputValue()
