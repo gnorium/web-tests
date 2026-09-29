@@ -94,6 +94,11 @@ struct EntriesAndCitationsTests {
           + "\nCOMMIT;")
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(cited.path)
+        // Entries always come above Citations (user, 2026-09-30).
+        let order = try await page.evaluate(
+          "(() => { const e = document.querySelector('#record-entries'), c = document.querySelector('#record-citations'); return e && c && (e.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) ? 'above' : 'not above'; })()"
+        ).string
+        #expect(order == "above")
         // Its entries in canons: the catalog's, referred to as a record is.
         let entries = page.locator("#record-entries")
         try await entries.locator(".accordion-summary").first.click()
@@ -171,6 +176,10 @@ struct EntriesAndCitationsTests {
           + Self.cite(2, by: letters, word: wordID) + "\nCOMMIT;")
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(word.path)
+        let order = try await page.evaluate(
+          "(() => { const e = document.querySelector('#record-entries'), c = document.querySelector('#record-citations'); return e && c && (e.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) ? 'above' : 'not above'; })()"
+        ).string
+        #expect(order == "above", "Entries always come above Citations.")
         let entries = page.locator("#record-entries")
         try await entries.locator(".accordion-summary").first.click()
         let row = entries.locator(".entries-view-entry")

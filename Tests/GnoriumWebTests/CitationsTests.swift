@@ -50,6 +50,8 @@ struct CitationsTests {
         let citations = page.locator(".proposal-citations-view")
         try await expect(citations.locator(".proposal-citations-view-count")).toHaveText("2 citations")
         try await citations.locator(".accordion-summary").first.click()
+        // Pending: read from its transcript, held at Permit, as its Entries.
+        try await expect(citations.locator(".proposal-citations-view-note")).toContainText("held once it is permitted")
         let rows = citations.locator(".proposal-citation")
         try await expect(rows).toHaveCount(2)
         // The reference, resolved by its title and its author: the cited work.
@@ -169,7 +171,8 @@ struct CitationsTests {
 
 /// A proposal's Entries (user, 2026-09-29): a pending proposal's headed
 /// entries, previewed from its own transcript (the concordance's
-/// `/entries/preview`, nothing stored) and marked "Pending", each with the
+/// `/entries/preview`, nothing stored; its body says so, no header chip —
+/// user, 2026-09-30) and listed above Citations, each with the
 /// record it is the entry for as the resolver linked it; a signed-in reader
 /// suggests another record (or none) as a modification, which an admin
 /// accepts, and the entry's link is then a person's, fixed. Phone and
@@ -207,7 +210,12 @@ struct EntryLinksTests {
         try await page.openHydrated(reading.path)
         let entries = page.locator(".proposal-entries-view")
         try await expect(entries.locator(".proposal-entries-view-count")).toHaveText("1 entry")
-        try await expect(entries.locator(".proposal-entries-view-heading")).toContainText("Pending")
+        try await expect(entries.locator(".proposal-entries-view-heading .info-chip-view")).toHaveCount(0)
+        // Entries always come above Citations.
+        let order = try await page.evaluate(
+          "(() => { const e = document.querySelector('.proposal-entries-view'), c = document.querySelector('.proposal-citations-view'); return e && c && (e.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) ? 'above' : 'not above'; })()"
+        ).string
+        #expect(order == "above")
         try await entries.locator(".accordion-summary").first.click()
         try await expect(entries.locator(".proposal-entries-view-note")).toContainText("held once it is permitted")
         let row = entries.locator(".proposal-entry")
