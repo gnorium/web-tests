@@ -84,13 +84,16 @@ struct TEILayoutTests {
   }
 
   /// A decorated initial is the first letter of its word, never a figure
-  /// (user, 2026-09-29): `<w><hi rend="initial" bbox>W</hi>hen</w>`. Where
-  /// its box survives, the decoration is cut from the facsimile as a figure's
-  /// is, and the letter is drawn over it transparent: still the word's text.
+  /// (user, 2026-09-29): `<w><hi rend="initial" facs="#…">W</hi>hen</w>`,
+  /// its box a zone of the document's facsimile (FIGURES.md §1.1). The
+  /// decoration is cut from the facsimile as a figure's is, and the letter is
+  /// drawn over it transparent: still the word's text.
   static let initialTEI = #"""
-    <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
+    <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader>
+    <facsimile><surface n="1" ulx="0" uly="0" lrx="1000" lry="1000"><graphic url="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/><zone xml:id="p1-z1" ulx="40" uly="60" lrx="160" lry="210"/></surface></facsimile>
+    <text><body>
     <pb n="1" facs="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/>
-    <p><w lemma="when" type="adverb"><hi rend="initial" bbox="40 60 120 150">W</hi>hen</w> <w lemma="in" type="preposition">in</w> <w lemma="the" type="article">the</w> <w lemma="course" type="noun">course</w></p>
+    <p><w lemma="when" type="adverb"><hi rend="initial" facs="#p1-z1">W</hi>hen</w> <w lemma="in" type="preposition">in</w> <w lemma="the" type="article">the</w> <w lemma="course" type="noun">course</w></p>
     </body></text></TEI>
     """#
 
@@ -122,6 +125,51 @@ struct TEILayoutTests {
         try await expect(initial).toHaveCSS("position", "relative")
         // Read as the line's text, the letter joins its word.
         try await expect(text.locator(".tei-line").first).toHaveText("When in the course")
+        try await page.expectNoHorizontalOverflow()
+      }
+    } catch {
+      reading.remove()
+      await admin.remove()
+      throw error
+    }
+    reading.remove()
+    await admin.remove()
+  }
+
+  /// A figure keeps its box through submission (user, 2026-09-29; FIGURES.md
+  /// phase 2): a zone of the document's facsimile, named by the figure's
+  /// facs, cut from the page's IIIF image as a crop in the proposal's
+  /// transcript, its description as its alternative text and caption.
+  static let figureTEI = #"""
+    <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader>
+    <facsimile><surface n="1" ulx="0" uly="0" lrx="1000" lry="1000"><graphic url="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/><zone xml:id="p1-z1" ulx="100" uly="200" lrx="400" lry="600"/></surface></facsimile>
+    <text><body>
+    <pb n="1" facs="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/>
+    <p><w lemma="a" type="article">A</w> <w lemma="woodcut" type="noun">woodcut</w><lb/></p>
+    <figure type="illustration" facs="#p1-z1"><head><w lemma="figure" type="noun">Fig.</w> <num value="1">1</num></head><figDesc>Woodcut of the bones of a hand.</figDesc></figure>
+    </body></text></TEI>
+    """#
+
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func aFigureIsCutFromItsZone(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let reading = try ScratchReading(owner: admin, tei: Self.figureTEI)
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+        try await page.openHydrated(reading.path)
+        let text = page.locator(".tei-page-text").first
+        let figure = text.locator("figure.tei-figure")
+        try await expect(figure).toHaveCount(1)
+        try await expect(figure).toHaveAttribute("data-figure-type", "illustration")
+        let image = figure.locator("img.tei-figure-image")
+        try await expect(image).toHaveAttribute(
+          "src", "https://example.org/iiif/web-tests/pct:10,20,30,40/!600,600/0/default.jpg")
+        try await expect(image).toHaveAttribute("alt", "Woodcut of the bones of a hand.")
+        try await expect(figure.locator(".tei-figure-caption")).toHaveText("Woodcut of the bones of a hand.")
+        // The printed caption stays text, after the crop.
+        try await expect(text.locator(".tei-line-heading").last).toHaveText("Fig. 1")
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
