@@ -82,4 +82,54 @@ struct TEILayoutTests {
     reading.remove()
     await admin.remove()
   }
+
+  /// A decorated initial is the first letter of its word, never a figure
+  /// (user, 2026-09-29): `<w><hi rend="initial" bbox>W</hi>hen</w>`. Where
+  /// its box survives, the decoration is cut from the facsimile as a figure's
+  /// is, and the letter is drawn over it transparent: still the word's text.
+  static let initialTEI = #"""
+    <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
+    <pb n="1" facs="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/>
+    <p><w lemma="when" type="adverb"><hi rend="initial" bbox="40 60 120 150">W</hi>hen</w> <w lemma="in" type="preposition">in</w> <w lemma="the" type="article">the</w> <w lemma="course" type="noun">course</w></p>
+    </body></text></TEI>
+    """#
+
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func aDecoratedInitialIsTheFirstLetterOfItsWord(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let reading = try ScratchReading(owner: admin, tei: Self.initialTEI)
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+        try await page.openHydrated(reading.path)
+        let text = page.locator(".tei-page-text").first
+        try await expect(text.locator(".tei-figure")).toHaveCount(0)
+        let initial = text.locator(".tei-initial")
+        try await expect(initial).toHaveCount(1)
+        try await expect(initial).toHaveAttribute("data-rend", "initial")
+        let image = initial.locator("img.tei-initial-image")
+        try await expect(image).toHaveAttribute(
+          "src", "https://example.org/iiif/web-tests/pct:4,6,12,15/!600,600/0/default.jpg")
+        try await expect(image).toHaveAttribute("alt", "")
+        try await expect(image).toHaveCSS("max-width", "96px")
+        try await expect(image).toHaveCSS("max-height", "96px")
+        // The letter is still the word's text, drawn transparent over the crop.
+        let letter = initial.locator(".tei-initial-letter")
+        try await expect(letter).toHaveText("W")
+        try await expect(letter).toHaveCSS("position", "absolute")
+        try await expect(letter).toHaveCSS("color", "rgba(0, 0, 0, 0)")
+        try await expect(initial).toHaveCSS("position", "relative")
+        // Read as the line's text, the letter joins its word.
+        try await expect(text.locator(".tei-line").first).toHaveText("When in the course")
+        try await page.expectNoHorizontalOverflow()
+      }
+    } catch {
+      reading.remove()
+      await admin.remove()
+      throw error
+    }
+    reading.remove()
+    await admin.remove()
+  }
 }
