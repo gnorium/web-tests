@@ -88,7 +88,7 @@ struct ScratchWork {
         attribution("attribution", "Courtesy of the web tests", "https://catalogue.example.org/web-tests"),
       ].joined(separator: "\n") : ""
     let referentJSON = """
-      {"lemmaForm":{"headword":"\(author)","languageCode":"eng","partOfSpeech":"proper_noun","spellings":[],\
+      {"lemmaForm":{"title":"\(author)","languageCode":"eng","partOfSpeech":"proper_noun","spellings":[],\
       "inflections":[],"origin":{"etymons":[],"derivation":"","citations":[]}},"senses":[{"id":"\(sentimentID)",\
       "position":0,"rank":0,"isLeaf":true,"definition":"A person (AD 1901 – AD 1971).","labels":{"register":[],\
       "domain":[],"region":[],"grammar":[]},"relations":[],"quotationIDs":[],"selectionRunID":""}],"quotations":[],\

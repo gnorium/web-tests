@@ -58,7 +58,7 @@ struct ScratchWord {
         #","chronology":[{"testamentTitle":"Web tests testament","text":"The scratch word stood in a sentence.","utteranceID":"u-1","year":1901,"yearEnd":1901}]"#)
     } ?? ("[]", "[]", "")
     let snapshot = """
-      {"lemmaForm":{"headword":"\(title)","inflections":[],"languageCode":"\(language)","origin":{"citations":[],"derivation":"","etymons":[]},\
+      {"lemmaForm":{"title":"\(title)","inflections":[],"languageCode":"\(language)","origin":{"citations":[],"derivation":"","etymons":[]},\
       "partOfSpeech":"noun","sources":[{"locator":"s.v.","title":"Web tests dictionary","url":"https://dictionary.example.org/web-tests"}],\
       "spellings":[]},"quotations":\(utterances.0),"selectionRunIDs":["run"]\(utterances.2),"senses":[\
       {"definition":"A branch sense.","id":"s-1","isLeaf":false,"labels":{"domain":[],"grammar":[],"region":[],"register":[]},\

@@ -419,7 +419,7 @@ struct SubmissionTests {
     }
     let row = try TestAdmin.query(
       """
-      SELECT (e.title_form_json::json ->> 'headword') || '|' || coalesce(e.chosen_lexico_record_id::text, '') || '|'
+      SELECT (e.title_form_json::json ->> 'title') || '|' || coalesce(e.chosen_lexico_record_id::text, '') || '|'
         || count(o.id)
         FROM lexicographic_evidences e LEFT JOIN lexicographic_overtures o ON o.lexicographic_evidence_id = e.id
         WHERE e.sentiment_json LIKE '%\(definition)%' GROUP BY e.id;
@@ -473,7 +473,7 @@ struct SubmissionTests {
     }
     let row = try TestAdmin.query(
       """
-      SELECT (e.title_form_json::json ->> 'headword') || '|' || e.chosen_lexico_record_id::text || '|'
+      SELECT (e.title_form_json::json ->> 'title') || '|' || e.chosen_lexico_record_id::text || '|'
         || o.chosen_lexico_record_id::text || '|' || e.placement_json
         FROM lexicographic_evidences e JOIN lexicographic_overtures o ON o.lexicographic_evidence_id = e.id
         WHERE e.sentiment_json LIKE '%\(definition), placed%';
