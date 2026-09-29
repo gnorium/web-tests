@@ -120,7 +120,7 @@ struct UtteranceTests {
         try await page.expectNoErrors()
 
         // Read again, the testament changed the word: the utterance is read where
-        // it was anchored, still marked, and says it awaits Gloss again.
+        // it was anchored, still marked, and says it awaits explication again.
         _ = try TestAdmin.query(
           """
           INSERT INTO word_reanchorings (id, from_version_id, to_version_id, anchor_json, status, reason, utterance_id, created_at)
@@ -132,7 +132,7 @@ struct UtteranceTests {
         try await expect(row).toHaveAttribute("data-open-finished", "true")
         let notice = attestation.locator(".reading-changed-view")
         try await expect(notice).toHaveText(
-          "A later reading of this testament changed this word (Its reading changed in the later version: scratchword). It awaits Gloss again.")
+          "A later reading of this testament changed this word (Its reading changed in the later version: scratchword). It awaits explication again.")
         try await expect(attestation.locator(".utterance-view mark[data-highlight='headword']")).toHaveText("scratchword")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
