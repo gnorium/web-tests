@@ -113,7 +113,7 @@ struct TEILayoutTests {
         try await expect(initial).toHaveAttribute("data-rend", "initial")
         let image = initial.locator("img.tei-initial-image")
         try await expect(image).toHaveAttribute(
-          "src", "https://example.org/iiif/web-tests/pct:4,6,12,15/!600,600/0/default.jpg")
+          "src", "https://example.org/iiif/web-tests/pct:4,6,12,15/!192,192/0/default.jpg")
         try await expect(image).toHaveAttribute("alt", "")
         try await expect(image).toHaveCSS("max-width", "96px")
         try await expect(image).toHaveCSS("max-height", "96px")
