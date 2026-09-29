@@ -201,18 +201,31 @@ struct EntriesAndCitedByTests {
     await cleanUp()
   }
 
-  /// Two pages of text: "scratchfind" once on the first, twice on the second.
+  /// Two pages of text: "scratchfind" once on the first, twice on the
+  /// second — the second time broken over two lines inside the word, with a
+  /// hyphen (`<lb break="no"/>`).
   static let tei = """
     <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
     <pb n="1" facs="https://example.org/iiif/web-tests-find-1/full/1300,/0/default.jpg"/>
     <p>The scratchfind stood here.<lb/>Nothing else.<lb/></p>
     <pb n="2" facs="https://example.org/iiif/web-tests-find-2/full/1300,/0/default.jpg"/>
-    <p>A Scratchfind again.<lb/>And scratchfind once more.<lb/></p>
+    <p>A Scratchfind again. And scratch-<lb break="no"/>find once more.<lb/></p>
     </body></text></TEI>
     """
 
+  /// The text of each range a CSS highlight holds, in order; empty when
+  /// none is registered under `name`.
+  static func highlighted(_ name: String, on page: Page) async throws -> [String] {
+    let value = try await page.evaluate(
+      """
+      (() => { const h = CSS.highlights.get('\(name)'); return h ? [...h].map(r => r.toString()) : []; })()
+      """)
+    guard case .array(let items) = value else { return [] }
+    return items.compactMap(\.string)
+  }
+
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aReadersFindBarSearchesEveryPageAndMarksTheMatchUntilClosed(engine: BrowserEngine, layout: Layout)
+  func aReadersFindBarMarksTheExactCharactersOfEveryMatchAcrossLines(engine: BrowserEngine, layout: Layout)
     async throws
   {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -238,27 +251,38 @@ struct EntriesAndCitedByTests {
         try await expect(bar).toBeVisible()
         try await bar.locator("input").fill("scratchfind")
         let count = bar.locator(".testament-find-count")
+        // The word broken over two lines is found whole.
         try await expect(count).toHaveText("1 of 3")
-        let marked = viewer.locator(".tei-line[data-find-current='true']")
-        try await expect(marked).toHaveCount(1)
-        try await expect(marked).toContainText("The scratchfind stood here.")
+        // Every match's characters and no more, the current one apart;
+        // nothing is written into the transcript.
+        #expect(try await Self.highlighted("find-all", on: page) == ["scratchfind", "Scratchfind", "scratch-find"])
+        #expect(try await Self.highlighted("find-current", on: page) == ["scratchfind"])
+        try await expect(viewer.locator("[data-find-current]")).toHaveCount(0)
         // Enter: the next match, on the next page, which the reader turns to.
         try await bar.locator("input").press("Enter")
         try await expect(count).toHaveText("2 of 3")
-        try await expect(marked).toContainText("A Scratchfind again.")
-        try await expect(marked).toBeVisible()
+        #expect(try await Self.highlighted("find-current", on: page) == ["Scratchfind"])
+        try await expect(viewer.locator(".tei-transcript[data-active='true']")).toContainText("A Scratchfind again.")
         try await bar.locator("input").press("Enter")
         try await expect(count).toHaveText("3 of 3")
+        // The hyphenated word: its range runs from the first line into the
+        // next, over the hyphen.
+        #expect(try await Self.highlighted("find-current", on: page) == ["scratch-find"])
         // Shift+Enter and the previous button go back.
         try await bar.locator("input").press("Shift+Enter")
         try await expect(count).toHaveText("2 of 3")
         try await bar.locator(".testament-find-previous").click()
         try await expect(count).toHaveText("1 of 3")
+        // A line break reads as a space: a phrase across two lines.
+        try await bar.locator("input").fill("HERE.  nothing")
+        try await expect(count).toHaveText("1 of 1")
+        #expect(try await Self.highlighted("find-current", on: page) == ["here. Nothing"])
         try await page.expectNoHorizontalOverflow()
-        // Esc closes the bar and clears the mark.
+        // Esc closes the bar and clears the marks.
         try await bar.locator("input").press("Escape")
         try await expect(bar).toBeHidden()
-        try await expect(viewer.locator(".tei-line[data-find-current='true']")).toHaveCount(0)
+        #expect(try await Self.highlighted("find-all", on: page).isEmpty)
+        #expect(try await Self.highlighted("find-current", on: page).isEmpty)
       }
     } catch {
       await cleanUp()
