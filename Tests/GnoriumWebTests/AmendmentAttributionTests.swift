@@ -60,8 +60,8 @@ struct AmendmentAttributionTests {
           """
           (el) => {
             const box = el.querySelector('.selectable-field-view-checkbox').getBoundingClientRect();
-            const row = el.querySelector('.text-input-label-row').getBoundingClientRect();
-            const text = el.querySelector('.text-input-label').getBoundingClientRect();
+            const row = el.querySelector('.text-input-label-row, .combobox-label').getBoundingClientRect();
+            const text = el.querySelector('.text-input-label, .combobox-label-text').getBoundingClientRect();
             const input = el.querySelector('.text-input-input').getBoundingClientRect();
             const inRow = box.top >= row.top - 1 && box.bottom <= row.bottom + 1;
             const before = box.right <= text.left;

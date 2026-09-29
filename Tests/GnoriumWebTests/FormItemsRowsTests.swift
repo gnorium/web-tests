@@ -33,7 +33,11 @@ struct FormItemsRowsTests {
     (group) => {
       const rows = [...group.querySelectorAll('[data-item-section="true"]')].filter((r) => !r.closest('[data-item-template]'));
       return JSON.stringify(rows.map((row) => {
-        const input = row.querySelector('.text-input-input');
+        // A voice's name is a combobox (user, 2026-09-29): its value input
+        // is the row's field, named and numbered; what it shows, the name.
+        const combobox = row.querySelector('.combobox-view');
+        const input = combobox ? combobox.querySelector('input[type="hidden"]') : row.querySelector('.text-input-input');
+        const shown = combobox ? combobox.querySelector('.text-input-input') : input;
         // Every id a row's elements name — a label's, a dropdown's, a
         // tooltip's — is one of the row's own.
         const dangling = [];
@@ -49,10 +53,10 @@ struct FormItemsRowsTests {
         const box = field && field.querySelector('.selectable-field-view-checkbox .checkbox-input');
         return {
           index: row.getAttribute('data-item-index'),
-          id: input.id, name: input.name, value: input.value, dangling,
+          id: input.id, name: input.name, value: shown.value, dangling,
           key: field ? field.getAttribute('data-selectable-key') : null,
           boxValue: box ? box.value : null, ticked: box ? box.checked : null,
-          diff: input.getAttribute('data-diff-state'),
+          diff: shown.getAttribute('data-diff-state'),
           original: input.getAttribute('data-form-item-original')
         };
       }));

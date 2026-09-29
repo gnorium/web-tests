@@ -207,4 +207,109 @@ struct ComboboxTests {
     ).trimmingCharacters(in: .whitespacesAndNewlines)
     #expect(row == "\(typedProvider)|\(typedHolding)|[\"\(typedGenre)\"]", "\(row)")
   }
+
+  /// A voice's name suggests, as it is typed, the voices already on works
+  /// (the server's, fetched as typed): chosen, a proper-noun sentiment's
+  /// suggestion links the voice — its name shown, the link posted with it —;
+  /// a name typed and not chosen is stored unlinked, and so is a chosen one
+  /// edited after. Chrome, phone and desktop; a scratch work voiced by a
+  /// linked author, removed after.
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func aVoiceNameSuggestsTheVoicesOnWorks(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let work = try ScratchWork(owner: admin, linked: true)
+    let source = "https://example.org/web-tests-combobox-voice-\(work.suffix)"
+    func clean() {
+      _ = try? TestAdmin.query(
+        """
+        BEGIN;
+        DELETE FROM bibliographic_overtures WHERE bibliographic_evidence_id IN
+          (SELECT id FROM bibliographic_evidences WHERE source_url = '\(source)');
+        DELETE FROM submissions WHERE id IN
+          (SELECT batch_id FROM bibliographic_evidences WHERE source_url = '\(source)');
+        DELETE FROM bibliographic_evidences WHERE source_url = '\(source)';
+        COMMIT;
+        """)
+    }
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated(Self.form)
+        let form = page.locator(".submit-testament-form")
+        let rows = "[data-item-list='work-voice'] [data-item-section='true']:not([data-item-template] *)"
+        let voice = form.locator("\(rows) .combobox-view").first
+        let field = voice.getByRole(.combobox, name: "Voice name")
+        let value = voice.locator("input[type='hidden']")
+        try await expect(field).toHaveCount(1)
+
+        // Typed, the server's suggestions: the linked author among them, by
+        // its record's language and name.
+        try await field.type(work.suffix)
+        let option = voice.locator(".combobox-option[data-value$='#\(work.sentimentID)']")
+        try await expect(option, timeout: .seconds(10)).toBeVisible()
+        try await expect(option).toHaveAttribute("role", "option")
+        try await expect(option).toHaveAttribute("data-display", work.author)
+        try await expect(option).toContainText("English")
+        // Not chosen, the text is the name as typed.
+        try await expect(value).toHaveValue(work.suffix)
+        // Chosen by the keys: the name shown, the link held.
+        while try await option.getAttribute("aria-selected") != "true" {
+          try await page.keyboard.press("ArrowDown")
+        }
+        try await page.keyboard.press("Enter")
+        try await expect(field).toHaveValue(work.author)
+        let link = try await value.inputValue()
+        #expect(link.hasSuffix("#\(work.sentimentID)"), "\(link)")
+        try await page.expectNoHorizontalOverflow()
+
+        // Submitted, the voice is linked: its record and sentiment posted
+        // with its name.
+        _ = try await page.evaluate(
+          """
+          (() => {
+            for (const [id, value] of [['work-language', 'eng'], ['work-type', 'report']]) {
+              const input = document.getElementById(id);
+              input.value = value;
+              input.dispatchEvent(new Event('change'));
+            }
+          })()
+          """)
+        let carrier = form.locator(".dropdown-view:has(#testament-carrier)")
+        try await carrier.locator(".dropdown-trigger").click()
+        try await carrier.locator(".dropdown-option[data-value='printed']").click()
+        try await form.locator(".submit-testament-apparatus input[name='title']").fill("Web tests voice \(work.suffix)")
+        try await form.locator(".combobox-view:has(input[name='provider-dropdown']) .text-input-input").fill("Gallica")
+        try await form.locator("input[name='source-url']").fill(source)
+        try await form.locator(".record-actions button[type='submit']").click()
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the Mission Control page") {
+          $0.path == "/mission-control"
+        }
+        let stored = try TestAdmin.query(
+          "SELECT voices_json FROM bibliographic_evidences WHERE source_url = '\(source)';"
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+        #expect(stored.contains(work.sentimentID), "\(stored)")
+        #expect(stored.contains(work.author), "\(stored)")
+
+        // Chosen, then edited: typed again, unlinked.
+        try await page.openHydrated(Self.form)
+        let again = page.locator(".submit-testament-form \(rows) .combobox-view").first
+        let againField = again.getByRole(.combobox, name: "Voice name")
+        try await againField.type(work.suffix)
+        let againOption = again.locator(".combobox-option[data-value$='#\(work.sentimentID)']")
+        try await againOption.click()
+        try await expect(again.locator("input[type='hidden']")).toHaveValue(link)
+        try await againField.type(" Jr.")
+        try await expect(again.locator("input[type='hidden']")).toHaveValue("\(work.author) Jr.")
+        try await page.expectNoErrors()
+      }
+    } catch {
+      clean()
+      work.remove()
+      await admin.remove()
+      throw error
+    }
+    clean()
+    work.remove()
+    await admin.remove()
+  }
 }
