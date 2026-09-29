@@ -48,9 +48,8 @@ struct DeleteAccountTests {
       #expect(try admin.column("first_name") == "")
       #expect(try admin.column("deleted_at") != "")
     } catch {
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
-    await admin.remove()
+    try await admin.remove()
   }
 }

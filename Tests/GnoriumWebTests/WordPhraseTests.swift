@@ -28,13 +28,13 @@ struct WordPhraseTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     var testament: ScratchTestament?
     var idiom: ScratchWord?
-    func clean() async {
+    func clean() async throws {
       if let testament {
         _ = try? TestAdmin.query("DELETE FROM word_lemma_refs WHERE version_id = '\(testament.versionID)';")
       }
       idiom?.remove()
       testament?.remove()
-      await admin.remove()
+      try await admin.remove()
     }
     do {
       let scratch = try ScratchTestament(owner: admin, tei: Self.idiomTEI)
@@ -80,9 +80,11 @@ struct WordPhraseTests {
         try await page.expectNoErrors(ignoring: ["Failed to fetch"])
       }
     } catch {
-      await clean()
+      do { try await clean() } catch let removal {
+        throw WebTestError("\(error)\n…and cleaning up failed too: \(removal)")
+      }
       throw error
     }
-    await clean()
+    try await clean()
   }
 }

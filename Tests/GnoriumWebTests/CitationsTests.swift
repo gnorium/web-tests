@@ -38,11 +38,11 @@ struct CitationsTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let cited = try ScratchWork(owner: admin)
     let reading = try ScratchReading(owner: admin, tei: Self.tei(citing: cited))
-    func cleanUp() async {
+    func cleanUp() async throws {
       _ = try? TestAdmin.query("DELETE FROM modifications WHERE modifiable_id = '\(reading.proposalID)';")
       reading.remove()
       cited.remove()
-      await admin.remove()
+      try await admin.remove()
     }
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -98,10 +98,12 @@ struct CitationsTests {
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
-      await cleanUp()
+      do { try await cleanUp() } catch let removal {
+        throw WebTestError("\(error)\n…and cleaning up failed too: \(removal)")
+      }
       throw error
     }
-    await cleanUp()
+    try await cleanUp()
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
@@ -128,12 +130,12 @@ struct CitationsTests {
         VALUES ('\(extraction)', '\(citing.versionID.lowercased())', '\(citing.recordID.lowercased())', now(), 'tei-bibl-ref-mentioned-v3', 1, now());
       COMMIT;
       """)
-    func cleanUp() async {
+    func cleanUp() async throws {
       _ = try? TestAdmin.query(
         "DELETE FROM citations WHERE id = '\(citation)'; DELETE FROM citation_extractions WHERE id = '\(extraction)';")
       citing.remove()
       cited.remove()
-      await admin.remove()
+      try await admin.remove()
     }
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
@@ -156,10 +158,12 @@ struct CitationsTests {
         try await expect(own.locator(".datum-view").filter(hasText: "Citations").locator(".datum-value")).toHaveText("0 works")
       }
     } catch {
-      await cleanUp()
+      do { try await cleanUp() } catch let removal {
+        throw WebTestError("\(error)\n…and cleaning up failed too: \(removal)")
+      }
       throw error
     }
-    await cleanUp()
+    try await cleanUp()
   }
 }
 
@@ -192,11 +196,11 @@ struct EntryLinksTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let target = try ScratchWork(owner: admin)
     let reading = try ScratchReading(owner: admin, tei: Self.tei(listing: target))
-    func cleanUp() async {
+    func cleanUp() async throws {
       _ = try? TestAdmin.query("DELETE FROM modifications WHERE modifiable_id = '\(reading.proposalID)';")
       reading.remove()
       target.remove()
-      await admin.remove()
+      try await admin.remove()
     }
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -246,9 +250,11 @@ struct EntryLinksTests {
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
-      await cleanUp()
+      do { try await cleanUp() } catch let removal {
+        throw WebTestError("\(error)\n…and cleaning up failed too: \(removal)")
+      }
       throw error
     }
-    await cleanUp()
+    try await cleanUp()
   }
 }

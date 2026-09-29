@@ -58,11 +58,10 @@ struct AttributionSessionTests {
       }
     } catch {
       remove(runIDs: [runID], work: work)
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     remove(runIDs: [runID], work: work)
-    await admin.remove()
+    try await admin.remove()
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
@@ -91,11 +90,10 @@ struct AttributionSessionTests {
       }
     } catch {
       remove(runIDs: runIDs, work: work)
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     remove(runIDs: runIDs, work: work)
-    await admin.remove()
+    try await admin.remove()
   }
 
   private func remove(runIDs: [String], work: ScratchWork) {

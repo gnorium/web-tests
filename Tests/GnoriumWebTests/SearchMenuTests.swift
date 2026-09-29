@@ -372,20 +372,18 @@ struct SearchMenuTests {
         throw error
       }
     } catch {
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     do {
       try await body(work, word)
     } catch {
       word.remove()
       work.remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     word.remove()
     work.remove()
-    await admin.remove()
+    try await admin.remove()
   }
 
   /// Cleared, the box shows the whole list at the list's own address: its

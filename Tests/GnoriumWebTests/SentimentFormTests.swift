@@ -27,11 +27,10 @@ struct SentimentFormTests {
       try await run(engine: engine, layout: layout, admin: admin, word: word)
     } catch {
       word.remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     word.remove()
-    await admin.remove()
+    try await admin.remove()
   }
 
   private func run(engine: BrowserEngine, layout: Layout, admin: TestAdmin, word: ScratchWord) async throws {

@@ -24,11 +24,10 @@ struct AmendmentAttributionTests {
       try await run(engine: engine, viewport: layout.viewport(for: engine), admin: admin, scratch: scratch)
     } catch {
       scratch.remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     scratch.remove()
-    await admin.remove()
+    try await admin.remove()
   }
 
   private func run(engine: BrowserEngine, viewport: Viewport, admin: TestAdmin, scratch: ScratchWork) async throws {

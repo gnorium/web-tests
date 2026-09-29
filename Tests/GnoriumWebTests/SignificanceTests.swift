@@ -24,13 +24,13 @@ struct SignificanceTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     var testament: ScratchTestament?
     var word: ScratchWord?
-    func clean() async {
+    func clean() async throws {
       if let word {
         _ = try? TestAdmin.query("DELETE FROM significance_selections WHERE title = '\(word.title)';")
       }
       word?.remove()
       testament?.remove()
-      await admin.remove()
+      try await admin.remove()
     }
     do {
       let scratch = try ScratchTestament(owner: admin, tei: UtteranceTests.tei)
@@ -92,9 +92,11 @@ struct SignificanceTests {
         #expect(overflowRecord == false)
       }
     } catch {
-      await clean()
+      do { try await clean() } catch let removal {
+        throw WebTestError("\(error)\n…and cleaning up failed too: \(removal)")
+      }
       throw error
     }
-    await clean()
+    try await clean()
   }
 }

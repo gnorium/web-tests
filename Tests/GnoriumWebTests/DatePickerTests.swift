@@ -17,10 +17,9 @@ struct DatePickerTests {
     do {
       try await run(engine: engine, viewport: viewport, admin: admin)
     } catch {
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
-    await admin.remove()
+    try await admin.remove()
   }
 
   private func run(engine: BrowserEngine, viewport: Viewport, admin: TestAdmin) async throws {

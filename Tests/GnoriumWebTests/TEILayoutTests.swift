@@ -76,11 +76,10 @@ struct TEILayoutTests {
       }
     } catch {
       reading.remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     reading.remove()
-    await admin.remove()
+    try await admin.remove()
   }
 
   /// A decorated initial is the first letter of its word, never a figure
@@ -129,11 +128,10 @@ struct TEILayoutTests {
       }
     } catch {
       reading.remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     reading.remove()
-    await admin.remove()
+    try await admin.remove()
   }
 
   /// A figure keeps its box through submission (user, 2026-09-29; FIGURES.md
@@ -174,10 +172,9 @@ struct TEILayoutTests {
       }
     } catch {
       reading.remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     reading.remove()
-    await admin.remove()
+    try await admin.remove()
   }
 }

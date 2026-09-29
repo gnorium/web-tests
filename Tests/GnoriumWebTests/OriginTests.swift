@@ -43,12 +43,11 @@ struct OriginTests {
     } catch {
       translation.remove()
       original.remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     translation.remove()
     original.remove()
-    await admin.remove()
+    try await admin.remove()
   }
 
   private func run(

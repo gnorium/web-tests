@@ -82,11 +82,10 @@ struct TranslationSessionsTests {
       }
     } catch {
       remove(antiphon: antiphon, proposal: proposal, madrigal: madrigal, work: work)
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     remove(antiphon: antiphon, proposal: proposal, madrigal: madrigal, work: work)
-    await admin.remove()
+    try await admin.remove()
   }
 
   private func remove(antiphon: String, proposal: String, madrigal: String, work: ScratchWork) {

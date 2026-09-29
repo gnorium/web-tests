@@ -23,7 +23,7 @@ struct UntreatedRecordsTests {
     let suffix = String(made.prefix(8))
     let title = "Web tests untreated \(suffix)"
     let path = "/biblio-records/eng/web-tests-untreated-\(suffix)/journal"
-    func cleanUp() async {
+    func cleanUp() async throws {
       _ = try? TestAdmin.query(
         EntriesAndCitationsTests.clean([citing])
           + """
@@ -32,7 +32,7 @@ struct UntreatedRecordsTests {
           DELETE FROM biblio_records WHERE id = '\(made)';
           """)
       citing.remove()
-      await admin.remove()
+      try await admin.remove()
     }
     do {
       _ = try TestAdmin.query(
@@ -75,9 +75,11 @@ struct UntreatedRecordsTests {
         try await expect(page.locator(".record-sidebar-view").first.locator(".record-provenance-view")).toHaveCount(0)
       }
     } catch {
-      await cleanUp()
+      do { try await cleanUp() } catch let removal {
+        throw WebTestError("\(error)\n…and cleaning up failed too: \(removal)")
+      }
       throw error
     }
-    await cleanUp()
+    try await cleanUp()
   }
 }

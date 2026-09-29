@@ -24,10 +24,9 @@ struct FormRuleTests {
         }
       }
     } catch {
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
-    await admin.remove()
+    try await admin.remove()
   }
 
   private func check(_ page: Page, card: String) async throws {

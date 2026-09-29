@@ -101,11 +101,10 @@ struct AmendmentRemovalTests {
     } catch {
       clean()
       work.remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     clean()
     work.remove()
-    await admin.remove()
+    try await admin.remove()
   }
 }

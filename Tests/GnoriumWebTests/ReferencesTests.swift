@@ -55,11 +55,10 @@ struct ReferencesTests {
       }
     } catch {
       work.remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     work.remove()
-    await admin.remove()
+    try await admin.remove()
   }
 
   /// A word: its record and version pages credit nothing; its hallmark's
@@ -107,10 +106,9 @@ struct ReferencesTests {
       }
     } catch {
       word.remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     word.remove()
-    await admin.remove()
+    try await admin.remove()
   }
 }

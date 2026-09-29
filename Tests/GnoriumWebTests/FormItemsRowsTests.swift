@@ -22,10 +22,9 @@ struct FormItemsRowsTests {
     do {
       try await run(engine: engine, viewport: layout.viewport(for: engine), admin: admin)
     } catch {
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
-    await admin.remove()
+    try await admin.remove()
   }
 
   /// Every row of the author list as the page holds it now.

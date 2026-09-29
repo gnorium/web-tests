@@ -41,10 +41,10 @@ struct UtteranceTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     var testament: ScratchTestament?
     var word: ScratchWord?
-    func clean() async {
+    func clean() async throws {
       word?.remove()
       testament?.remove()
-      await admin.remove()
+      try await admin.remove()
     }
     do {
       let scratch = try ScratchTestament(owner: admin, tei: Self.tei)
@@ -138,9 +138,11 @@ struct UtteranceTests {
         try await page.expectNoErrors()
       }
     } catch {
-      await clean()
+      do { try await clean() } catch let removal {
+        throw WebTestError("\(error)\n…and cleaning up failed too: \(removal)")
+      }
       throw error
     }
-    await clean()
+    try await clean()
   }
 }

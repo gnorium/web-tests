@@ -69,11 +69,10 @@ struct RecognitionSessionsTests {
       }
     } catch {
       remove(runID: runID, antiphonID: antiphonID, work: work)
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     remove(runID: runID, antiphonID: antiphonID, work: work)
-    await admin.remove()
+    try await admin.remove()
   }
 
   /// A zoom's card shows its detail (user, 2026-09-29): the region as the
@@ -151,11 +150,10 @@ struct RecognitionSessionsTests {
       }
     } catch {
       remove(runID: runID, antiphonID: antiphonID, work: work)
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     remove(runID: runID, antiphonID: antiphonID, work: work)
-    await admin.remove()
+    try await admin.remove()
   }
 
   private func remove(runID: String, antiphonID: String, work: ScratchWork) {

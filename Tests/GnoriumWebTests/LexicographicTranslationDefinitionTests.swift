@@ -100,11 +100,10 @@ struct LexicographicTranslationDefinitionTests {
       }
     } catch {
       remove(words: [word, arabic])
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     remove(words: [word, arabic])
-    await admin.remove()
+    try await admin.remove()
   }
 
   private func remove(words: [ScratchWord]) {

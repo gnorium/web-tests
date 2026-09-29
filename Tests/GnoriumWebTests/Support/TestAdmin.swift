@@ -7,10 +7,17 @@ import WebTests
 /// Nobody's password is typed or stored. The account is registered over
 /// HTTP with a random password generated here and held only in memory, so
 /// the server hashes it its own way; it is made an admin with one UPDATE in
-/// the dev database, and signed in over HTTP. `remove()` signs it out and
-/// deletes that one row (its sessions go with it by cascade); nothing else
-/// in the database is touched, bar the leftovers of killed runs (see
-/// `create`).
+/// the dev database, and signed in over HTTP.
+///
+/// `remove()` never touches the event log, which is history: its rows name
+/// their user, and `event_logs.user_id` is ON DELETE RESTRICT (server
+/// migration 0385). An account the log doesn't name is deleted outright (one
+/// DELETE of its row, as the dev database's owner; its sessions go by
+/// cascade). An account the log names is deleted the way its owner deletes
+/// it, through Delete account with its password (`AccountDeletion`: private
+/// data erased, the row kept for the username, as for every deleted
+/// account). Either way a failure throws; nothing is left behind silently.
+/// The leftovers of killed runs are swept in `create` by the same rule.
 ///
 /// `GNORIUM_DATABASE_URL` overrides the dev database; `GNORIUM_PSQL` the
 /// psql binary.
@@ -30,10 +37,11 @@ struct TestAdmin: Sendable {
 
   static func create(baseURL: URL) async throws -> TestAdmin {
     // A run killed mid-test leaves its account behind; sweep those (and only
-    // those: web_tests_ accounts on the reserved .test domain, an hour old).
-    // A deleted one has no email left.
-    try? runSQL(
-      "DELETE FROM users WHERE username LIKE 'web\\_tests\\_%' AND (email LIKE 'web\\_tests\\_%@gnorium.test' OR (email IS NULL AND deleted_at IS NOT NULL)) AND created_at < now() - interval '1 hour';"
+    // those: web_tests_ accounts on the reserved .test domain, an hour old,
+    // that the event log doesn't name; one it names is history, and without
+    // its password can't be deleted through the site, so it stays).
+    try runSQL(
+      "DELETE FROM users WHERE username LIKE 'web\\_tests\\_%' AND email LIKE 'web\\_tests\\_%@gnorium.test' AND created_at < now() - interval '1 hour' AND NOT EXISTS (SELECT 1 FROM event_logs WHERE event_logs.user_id = users.id);"
     )
     let suffix = randomHex(bytes: 5)
     // The username rule: 3–20 lowercase letters, digits and underscores.
@@ -57,7 +65,7 @@ struct TestAdmin: Sendable {
         withResponseHeaderFields: signedIn.allHeaderFields as? [String: String] ?? [:], for: baseURL
       ).first(where: { $0.name == "auth_token" })?.value
     else {
-      try? runSQL(deleteStatement(username))
+      try runSQL(deleteStatement(username))
       throw WebTestError("Signing the test admin in failed with HTTP \(signedIn.statusCode).")
     }
     return TestAdmin(
@@ -72,19 +80,45 @@ struct TestAdmin: Sendable {
     self.baseURL = baseURL
   }
 
-  /// Signs out and deletes this account's row, and only that.
-  func remove() async {
-    var request = URLRequest(url: baseURL.appendingPathComponent("auth/sign-out"))
-    request.httpMethod = "POST"
-    request.setValue("auth_token=\(cookie.value)", forHTTPHeaderField: "Cookie")
-    _ = try? await Self.session.data(for: request)
-    try? Self.runSQL(Self.deleteStatement(username))
+  /// Deletes this account and only this one (see the type's note): its row
+  /// when the event log doesn't name it, otherwise through Delete account.
+  /// An account a test already deleted through the site is left as it is.
+  /// Throws when the account isn't gone.
+  func remove() async throws {
+    let state = try Self.query(
+      "SELECT (deleted_at IS NOT NULL)::text || ' ' || EXISTS (SELECT 1 FROM event_logs WHERE event_logs.user_id = users.id)::text FROM users WHERE username = '\(username)';"
+    )
+    switch state {
+    case "":
+      return  // no row: already gone
+    case "false false":
+      try Self.runSQL(Self.deleteStatement(username))
+    case "false true":
+      let (deleted, _) = try await Self.post(
+        baseURL.appendingPathComponent("account/delete"), ["password": password, "confirm": "on"], cookie: cookie)
+      let now = try Self.query("SELECT (deleted_at IS NOT NULL AND email IS NULL)::text FROM users WHERE username = '\(username)';")
+      guard deleted.statusCode == 200, now == "true" else {
+        throw WebTestError("Deleting the test account \(username) through Delete account failed (HTTP \(deleted.statusCode)).")
+      }
+    default:
+      return  // "true …": a test deleted it through the site; the row stays, as for every deleted account
+    }
   }
 
-  /// The account's row, whether or not a test deleted the account through
-  /// the site (which keeps the row and erases its email).
+  /// For a test's error path: removes the account, then throws `error`; a
+  /// removal that fails too is added to it, not hidden.
+  func remove(after error: any Error) async throws -> Never {
+    do {
+      try await remove()
+    } catch let removal {
+      throw WebTestError("\(error)\n…and removing the test account failed too: \(removal)")
+    }
+    throw error
+  }
+
+  /// This throwaway account's own row, while it is live (it has its email).
   private static func deleteStatement(_ username: String) -> String {
-    "DELETE FROM users WHERE username = '\(username)' AND (email = '\(username)@gnorium.test' OR (email IS NULL AND deleted_at IS NOT NULL));"
+    "DELETE FROM users WHERE username = '\(username)' AND email = '\(username)@gnorium.test';"
   }
 
   /// How many sign-in sessions this account has on the server.
@@ -116,10 +150,11 @@ struct TestAdmin: Sendable {
     ) async -> URLRequest? { nil }
   }
 
-  private static func post(_ url: URL, _ form: [String: String]) async throws -> (HTTPURLResponse, Data) {
+  private static func post(_ url: URL, _ form: [String: String], cookie: Cookie? = nil) async throws -> (HTTPURLResponse, Data) {
     var request = URLRequest(url: url)
     request.httpMethod = "POST"
     request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+    if let cookie { request.setValue("\(cookie.name)=\(cookie.value)", forHTTPHeaderField: "Cookie") }
     var allowed = CharacterSet.alphanumerics
     allowed.insert(charactersIn: "-._~")
     request.httpBody = Data(

@@ -24,11 +24,10 @@ struct VoicesTests {
       try await run(engine: engine, viewport: layout.viewport(for: engine), admin: admin, work: work)
     } catch {
       work.remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     work.remove()
-    await admin.remove()
+    try await admin.remove()
   }
 
   private func run(engine: BrowserEngine, viewport: Viewport, admin: TestAdmin, work: ScratchWork) async throws {

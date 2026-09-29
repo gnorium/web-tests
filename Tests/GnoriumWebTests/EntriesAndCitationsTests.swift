@@ -79,10 +79,10 @@ struct EntriesAndCitationsTests {
     let catalog = try ScratchWork(owner: admin)
     let letters = try ScratchWork(owner: admin)
     let works = [cited, catalog, letters]
-    func cleanUp() async {
+    func cleanUp() async throws {
       _ = try? TestAdmin.query(Self.clean(works))
       for work in works { work.remove() }
-      await admin.remove()
+      try await admin.remove()
     }
     do {
       let catalogPath = try Self.retype(catalog, "catalog")
@@ -137,10 +137,12 @@ struct EntriesAndCitationsTests {
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
-      await cleanUp()
+      do { try await cleanUp() } catch let removal {
+        throw WebTestError("\(error)\n…and cleaning up failed too: \(removal)")
+      }
       throw error
     }
-    await cleanUp()
+    try await cleanUp()
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
@@ -153,12 +155,12 @@ struct EntriesAndCitationsTests {
     let dictionary = try ScratchWork(owner: admin)
     let letters = try ScratchWork(owner: admin)
     let word = try ScratchWord(owner: admin)
-    func cleanUp() async {
+    func cleanUp() async throws {
       _ = try? TestAdmin.query(Self.clean([dictionary, letters]))
       word.remove()
       dictionary.remove()
       letters.remove()
-      await admin.remove()
+      try await admin.remove()
     }
     do {
       let dictionaryPath = try Self.retype(dictionary, "dictionary")
@@ -195,10 +197,12 @@ struct EntriesAndCitationsTests {
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
-      await cleanUp()
+      do { try await cleanUp() } catch let removal {
+        throw WebTestError("\(error)\n…and cleaning up failed too: \(removal)")
+      }
       throw error
     }
-    await cleanUp()
+    try await cleanUp()
   }
 
   /// Two pages of text: "scratchfind" once on the first, twice on the
@@ -232,9 +236,9 @@ struct EntriesAndCitationsTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let scratch = try ScratchTestament(owner: admin, tei: Self.tei)
-    func cleanUp() async {
+    func cleanUp() async throws {
       scratch.remove()
-      await admin.remove()
+      try await admin.remove()
     }
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
@@ -285,9 +289,11 @@ struct EntriesAndCitationsTests {
         #expect(try await Self.highlighted("find-current", on: page).isEmpty)
       }
     } catch {
-      await cleanUp()
+      do { try await cleanUp() } catch let removal {
+        throw WebTestError("\(error)\n…and cleaning up failed too: \(removal)")
+      }
       throw error
     }
-    await cleanUp()
+    try await cleanUp()
   }
 }

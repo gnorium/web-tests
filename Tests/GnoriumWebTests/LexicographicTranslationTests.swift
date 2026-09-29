@@ -118,11 +118,10 @@ struct LexicographicTranslationTests {
       }
     } catch {
       remove(translation: translation, words: [english, german])
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     remove(translation: translation, words: [english, german])
-    await admin.remove()
+    try await admin.remove()
   }
 
   private func remove(translation: String, words: [ScratchWord]) {

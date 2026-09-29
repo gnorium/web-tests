@@ -41,12 +41,11 @@ struct CarrierTests {
     } catch {
       article.remove()
       host.remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     article.remove()
     host.remove()
-    await admin.remove()
+    try await admin.remove()
   }
 
   private func run(

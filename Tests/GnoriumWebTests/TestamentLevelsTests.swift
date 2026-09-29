@@ -29,10 +29,9 @@ struct TestamentLevelsTests {
     do {
       try await run(engine: engine, layout: layout, admin: admin)
     } catch {
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
-    await admin.remove()
+    try await admin.remove()
   }
 
   private func shoot(_ page: Page, _ name: String, _ layout: Layout) async throws {
@@ -251,10 +250,9 @@ struct TestamentLevelsTests {
       #expect(kept?["year"] as? Int == 1601)
     } catch {
       remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     remove()
-    await admin.remove()
+    try await admin.remove()
   }
 }

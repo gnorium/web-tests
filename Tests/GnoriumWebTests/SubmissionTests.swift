@@ -63,12 +63,11 @@ struct SubmissionTests {
     } catch {
       clean()
       work.remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     clean()
     work.remove()
-    await admin.remove()
+    try await admin.remove()
   }
 
   /// Sets a dropdown by its hidden input, as a pick does.
@@ -346,12 +345,11 @@ struct SubmissionTests {
     } catch {
       word.remove()
       work.remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     word.remove()
     work.remove()
-    await admin.remove()
+    try await admin.remove()
   }
 
   // MARK: - Submit Sentiment
@@ -385,12 +383,11 @@ struct SubmissionTests {
     } catch {
       clean()
       word.remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     clean()
     word.remove()
-    await admin.remove()
+    try await admin.remove()
   }
 
   /// A new record: its language, title and type typed, its tree the new

@@ -48,11 +48,10 @@ struct DistinctionTests {
     } catch {
       word.remove()
       testament.remove()
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     word.remove()
     testament.remove()
-    await admin.remove()
+    try await admin.remove()
   }
 }

@@ -86,11 +86,10 @@ struct ExplicationSessionsTests {
       }
     } catch {
       remove(antiphon: antiphon, word: word)
-      await admin.remove()
-      throw error
+      try await admin.remove(after: error)
     }
     remove(antiphon: antiphon, word: word)
-    await admin.remove()
+    try await admin.remove()
   }
 
   private func remove(antiphon: String, word: ScratchWord) {
