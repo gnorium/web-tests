@@ -8,7 +8,7 @@ import WebTestsTesting
 /// row a page — whose trace shows the tool calls it read and committed with.
 @Suite("Recognition sessions", .serialized)
 struct RecognitionSessionsTests {
-  static let page = #"<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><pb n="1"/><p><s><w lemma="sea" pos="NOUN">sea</w></s><lb/></p></body></text></TEI>"#
+  static let page = #"<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><pb n="1"/><p><s><w lemma="sea" type="noun">sea</w></s><lb/></p></body></text></TEI>"#
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aRecognitionShowsItsChunkSessionsAndNoStages(engine: BrowserEngine, layout: Layout) async throws {

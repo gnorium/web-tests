@@ -14,7 +14,7 @@ import WebTestsTesting
 struct CitationsTests {
   /// Every word of `text` a <w>, as the recognition tags it.
   static func words(_ text: String) -> String {
-    text.split(separator: " ").map { "<w lemma=\"\($0.lowercased())\" pos=\"PROPN\">\($0)</w>" }
+    text.split(separator: " ").map { "<w lemma=\"\($0.lowercased())\" type=\"proper_noun\">\($0)</w>" }
       .joined(separator: " ")
   }
 
@@ -24,7 +24,7 @@ struct CitationsTests {
     """
     <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
     <pb n="1" facs="https://example.org/iiif/web-tests-citations/full/1300,/0/default.jpg"/>
-    <p><s ana="#autonomy-0"><w lemma="as" pos="ADP">As</w> <cit><quote><w lemma="the" pos="DET">the</w> <w lemma="report" pos="NOUN">report</w></quote> <bibl><author>\(words(work.author))</author><pc>,</pc> <title>\(words(work.title))</title></bibl></cit> <w lemma="say" pos="VERB">says</w><pc>,</pc> <w lemma="the" pos="DET">the</w> <w lemma="word" pos="NOUN">word</w> <mentioned><w lemma="placement" pos="NOUN">placement</w></mentioned><pc>.</pc><lb/></s></p>
+    <p><s ana="#autonomy-0"><w lemma="as" type="preposition">As</w> <cit><quote><w lemma="the" type="article">the</w> <w lemma="report" type="noun">report</w></quote> <bibl><author>\(words(work.author))</author><pc>,</pc> <title>\(words(work.title))</title></bibl></cit> <w lemma="say" type="verb">says</w><pc>,</pc> <w lemma="the" type="article">the</w> <w lemma="word" type="noun">word</w> <mentioned><w lemma="placement" type="noun">placement</w></mentioned><pc>.</pc><lb/></s></p>
     </body></text></TEI>
     """
   }

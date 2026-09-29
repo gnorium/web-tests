@@ -17,7 +17,7 @@ struct TEILayoutTests {
     <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
     <pb n="10" facs="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/>
     <fw type="pageNum" rend="align(left)">10</fw> <fw type="header" rend="align(center)">On the Goodness</fw>
-    <lg><l rend="indent(1)"><s><w lemma="the" pos="DET">The</w> <w lemma="mighty" pos="ADJ">migh-<lb break="no"/>ty</w> <w lemma="power" pos="NOUN">Power</w><lb/><w lemma="that" pos="PRON">that</w> <w lemma="form" pos="VERB">form'd</w> <w lemma="the" pos="DET">the</w> <w lemma="world" pos="NOUN">world</w></s></l></lg>
+    <lg><l rend="indent(1)"><s><w lemma="the" type="article">The</w> <w lemma="mighty" type="adjective">migh-<lb break="no"/>ty</w> <w lemma="power" type="noun">Power</w><lb/><w lemma="that" type="pronoun">that</w> <w lemma="form" type="verb">form'd</w> <w lemma="the" type="article">the</w> <w lemma="world" type="noun">world</w></s></l></lg>
     <fw type="catch" rend="align(right)">Here,</fw>
     </body></text></TEI>
     """#
