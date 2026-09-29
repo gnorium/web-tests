@@ -144,7 +144,7 @@ struct SubmissionTests {
     try await expect(draft.locator(".activity-statement-view[data-as-namespace='production']")).toBeHidden()
     try await draft.locator("input[name='edition']").fill("Second edition")
     try await expect(title).toHaveText("Second edition")
-    try await choose(draft.locator(".dropdown-view:has(input[name='provider-dropdown'])"), "british_library")
+    try await draft.locator(".combobox-view:has(input[name='provider-dropdown']) .text-input-input").fill("British Library")
     try await draft.locator("input[name='source-url']").fill("\(source)/new")
 
     try await form.locator(".record-actions button[type='submit']").click()
@@ -268,7 +268,7 @@ struct SubmissionTests {
     try await move("indent")
     try await expect(number).toHaveText("1.2")
     try await expect(fields.locator("input[name='edition']")).toHaveValue("Kept aside")
-    try await choose(fields.locator(".dropdown-view:has(input[name='provider-dropdown'])"), "british_library")
+    try await fields.locator(".combobox-view:has(input[name='provider-dropdown']) .text-input-input").fill("British Library")
     try await fields.locator("input[name='source-url']").fill("\(source)/placed")
     try await form.locator(".record-actions button[type='submit']").click()
     try await expect(page, timeout: .seconds(15)).toHaveURL("the Mission Control page") {

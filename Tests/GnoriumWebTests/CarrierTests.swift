@@ -8,8 +8,9 @@ import WebTestsTesting
 /// the one event it calls for (user, 2026-09-28): none before it is chosen;
 /// a manuscript (typescript, inscription) its copy's Production; a printed
 /// testament, a recording or a born-digital text its Publication. The
-/// Origin row's actions sit one field gap below its fields. "Other" in a
-/// dropdown opens a required field to name the value. The Domain list is
+/// Origin row's actions sit one field gap below its fields. A type is a
+/// closed list, with no "Other" (a genre is a combobox: ComboboxTests). The
+/// Domain list is
 /// grouped by main class in the LCC outline's own captions, an open option
 /// wrapping, the closed control fading its end. The Publication card
 /// holds the Container: its record field (asked of the server, as an
@@ -112,8 +113,6 @@ struct CarrierTests {
       #expect(gaps["typedEnd"].int == 0, "No empty slot at the end of the typed fields.")
       #expect(gaps["actions"].int == gaps["field"].int, "The actions sit one field gap below the fields.")
 
-      // "Other" opens a required field right below it to name the value,
-      // and choosing anything else hides it: the container's type, a genre.
       // Chosen as a reader chooses in a long list: its name typed into the
       // menu's search, the match clicked.
       func pick(_ dropdown: Locator, _ value: String) async throws {
@@ -122,22 +121,6 @@ struct CarrierTests {
         let name = try await option.getAttribute("data-display") ?? value
         try await dropdown.locator(".dropdown-search-input").fill(name)
         try await option.filter(visible: true).first.click()
-      }
-      for (control, other, value) in [
-        ("#work-genre-item1-text-input", "work-genre-item1-other", "tragedy")
-      ] {
-        // The first: a row list's hidden template carries the same ids.
-        let dropdown = form.locator(".dropdown-view:has(\(control))").first
-        let named = form.locator("input[name='\(other)']").first
-        try await expect(named).toBeHidden()
-        try await pick(dropdown, "other")
-        try await expect(named).toBeVisible()
-        let required = try await named.evaluate("(e) => e.required").bool
-        #expect(required == true, "\(other) is required while shown.")
-        try await pick(dropdown, value)
-        try await expect(named).toBeHidden()
-        let stillRequired = try await named.evaluate("(e) => e.required").bool
-        #expect(stillRequired == false, "\(other) is not required while hidden.")
       }
 
       // A type is identity: the work's Type and the container's are closed
