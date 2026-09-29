@@ -8,7 +8,7 @@ import WebTestsTesting
 /// word, where each is and what it links to, as the resolver found it; a
 /// signed-in reader suggests another link as a modification, which an admin
 /// accepts, and the link is then a person's. A cited work's page says how
-/// many works cite it and lists them under "Cited by". Phone and desktop,
+/// many works cite it and lists them in its "Cited by". Phone and desktop,
 /// Chrome headless.
 @Suite("Citations", .serialized)
 struct CitationsTests {
@@ -125,7 +125,7 @@ struct CitationsTests {
           now(), 'c', 1, 1, 1, 'Report', 1, 1, 'Report', 'bibl', 'work', 'Report', '{}', 'eng', 'resolved', 'resolver',
           '\(cited.recordID.lowercased())', 0.7, 'title', 'citation-resolver-v1', now(), now());
       INSERT INTO citation_extractions (id, biblio_record_version_id, testament_id, permitted_at, citations_version, count, extracted_at)
-        VALUES ('\(extraction)', '\(citing.versionID.lowercased())', '\(citing.recordID.lowercased())', now(), 'tei-bibl-ref-mentioned-v1', 1, now());
+        VALUES ('\(extraction)', '\(citing.versionID.lowercased())', '\(citing.recordID.lowercased())', now(), 'tei-bibl-ref-mentioned-v3', 1, now());
       COMMIT;
       """)
     func cleanUp() async {
@@ -138,9 +138,12 @@ struct CitationsTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(cited.path)
-        let sidebar = page.locator(".record-sidebar-view, .sidebar-view").first
-        try await expect(sidebar).toContainText("Cited by")
-        try await expect(page.locator("a[href='\(citing.path)']").first).toHaveCount(1)
+        // Its Cited by: the citing work, with how many.
+        let citedBy = page.locator("#record-cited-by")
+        try await citedBy.locator(".accordion-summary").first.click()
+        let row = citedBy.locator(".cited-by-view-work")
+        try await expect(row.locator("a[href='\(citing.path)']")).toHaveCount(1)
+        try await expect(row.locator(".cited-by-view-count")).toHaveText("1 citation")
         let metadata = page.locator("#record-metadata")
         try await metadata.locator(".accordion-summary").first.click()
         let datum = metadata.locator(".datum-view").filter(hasText: "Cited by")
