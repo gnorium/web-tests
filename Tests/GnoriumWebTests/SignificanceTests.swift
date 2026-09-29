@@ -48,7 +48,7 @@ struct SignificanceTests {
       let plain = Self.anchor(
         versionID: scratch.versionID, recordID: scratch.reading.work.recordID,
         canvas: "https://example.org/iiif/webtests-p1", page: 1, line: 1, word: 1, surface: "Page")
-      let density = #"{"content_lemmas":["begin"],"contrast_markers":0,"density_version":"tei-sentence-density-v1","emphasis":0,"figurative":0,"headword_emphasized":false,"headword_frames":["term"],"lexical_density":0.5,"metalinguistic":{"gloss":0,"mentioned":0,"soCalled":0,"term":1},"nominalizations":0,"rarity_max":1.25,"rarity_mean":1.25,"sentence_type":"definition","subordination":0,"uncertain_lemmas":0}"#
+      let density = #"{"content_lemmas":["begin"],"contrast_markers":0,"density_version":"tei-sentence-density-v1","emphasis":0,"figurative":0,"title_emphasized":false,"title_frames":["term"],"lexical_density":0.5,"metalinguistic":{"gloss":0,"mentioned":0,"soCalled":0,"term":1},"nominalizations":0,"rarity_max":1.25,"rarity_mean":1.25,"sentence_type":"definition","subordination":0,"uncertain_lemmas":0}"#
       _ = try TestAdmin.query(
         """
         INSERT INTO significance_selections (id, language_code, title, type, forms_json, anchor_json, version_id, canvas_id,

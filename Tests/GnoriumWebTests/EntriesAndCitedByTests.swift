@@ -38,7 +38,7 @@ struct EntriesAndCitedByTests {
       INSERT INTO citations (id, biblio_record_version_id, biblio_record_id, testament_id, permitted_at, canvas_id, page,
         start_line, start_word, start_surface, end_line, end_word, end_surface, element, kind, surface, parts_json,
         language_code, status, decided_by, cited_biblio_record_id, cited_lexico_record_id, confidence, basis,
-        resolver_version, resolved_at, created_at, entry_headword, entry_head)
+        resolver_version, resolved_at, created_at, entry_heading, entry_head)
         VALUES (gen_random_uuid(), '\(citing.versionID.lowercased())', '\(citing.recordID.lowercased())',
           '\(citing.recordID.lowercased())', now(), 'c', 2, \(line), 1, 'Cited', \(line), 1, 'Cited',
           '\(word == nil ? "bibl" : "mentioned")', '\(word == nil ? "work" : "word")', 'Cited \(line)', '{}', 'eng',
@@ -144,7 +144,7 @@ struct EntriesAndCitedByTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aWordsEntriesAreItsHeadwordEntriesInCanonsAndTheCanonsLinkListsReferenceWorks(
+  func aWordsEntriesAreThoseOfItsLemmaInCanonsAndTheCanonsLinkListsReferenceWorks(
     engine: BrowserEngine, layout: Layout
   ) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }

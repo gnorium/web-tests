@@ -163,13 +163,26 @@ struct CitationsTests {
   }
 }
 
-/// A proposal's Entries (user, 2026-09-29): its testament's headed entries,
-/// each with the record it is the entry for as the resolver linked it; a
-/// signed-in reader suggests another record (or none) as a modification,
-/// which an admin accepts, and the entry's link is then a person's, fixed.
-/// Phone and desktop, Chrome headless.
+/// A proposal's Entries (user, 2026-09-29): a pending proposal's headed
+/// entries, previewed from its own transcript (the concordance's
+/// `/entries/preview`, nothing stored) and marked "Pending", each with the
+/// record it is the entry for as the resolver linked it; a signed-in reader
+/// suggests another record (or none) as a modification, which an admin
+/// accepts, and the entry's link is then a person's, fixed. Phone and
+/// desktop, Chrome headless.
 @Suite("Entry links", .serialized)
 struct EntryLinksTests {
+  /// A page whose bibliography lists `work` by its author and title: one
+  /// headed entry, for a work.
+  static func tei(listing work: ScratchWork) -> String {
+    """
+    <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
+    <pb n="1" facs="https://example.org/iiif/web-tests-entries/full/1300,/0/default.jpg"/>
+    <listBibl><bibl><author>\(CitationsTests.words(work.author))</author><pc>,</pc> <title>\(CitationsTests.words(work.title))</title></bibl><lb/></listBibl>
+    </body></text></TEI>
+    """
+  }
+
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aProposalListsItsEntriesAndAPersonsLinkIsSuggestedThenAccepted(engine: BrowserEngine, layout: Layout)
     async throws
@@ -178,44 +191,28 @@ struct EntryLinksTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let target = try ScratchWork(owner: admin)
-    let reading = try ScratchReading(owner: admin, tei: CitationsTests.tei(citing: target))
-    let heading = "WEB TESTS ENTRY \(target.suffix)"
+    let reading = try ScratchReading(owner: admin, tei: Self.tei(listing: target))
     func cleanUp() async {
-      _ = try? TestAdmin.query(
-        """
-        DELETE FROM entries WHERE biblio_record_version_id = '\(reading.work.versionID.lowercased())';
-        DELETE FROM modifications WHERE modifiable_id = '\(reading.proposalID)';
-        """)
+      _ = try? TestAdmin.query("DELETE FROM modifications WHERE modifiable_id = '\(reading.proposalID)';")
       reading.remove()
       target.remove()
       await admin.remove()
     }
     do {
-      // The testament's permitted version holds one entry for a work: the target, as the resolver linked it.
-      _ = try TestAdmin.query(
-        """
-        INSERT INTO entries (id, biblio_record_version_id, work_record_id, testament_id, permitted_at, canvas_id, page,
-          start_line, start_word, start_surface, end_line, end_word, end_surface, kind, heading, parts_json, language_code,
-          status, decided_by, biblio_record_id, confidence, basis, resolver_version, resolved_at, created_at)
-          VALUES (gen_random_uuid(), '\(reading.work.versionID.lowercased())', '\(reading.work.recordID.lowercased())',
-            (SELECT o.bibliographic_evidence_id FROM bibliographic_hallmarks h
-              JOIN bibliographic_overtures o ON o.id = h.bibliographic_overture_id
-              WHERE h.id = '\(reading.work.hallmarkID.lowercased())'),
-            now(), 'c', 1, 1, 1, 'WEB', 1, 2, 'ENTRY', 'bibliographic', '\(heading)', '{}', 'eng', 'resolved', 'resolver',
-            '\(target.recordID.lowercased())', 0.7, 'title', 'citation-resolver-v3', now(), now());
-        """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(reading.path)
         let entries = page.locator(".proposal-entries-view")
         try await expect(entries.locator(".proposal-entries-view-count")).toHaveText("1 entry")
+        try await expect(entries.locator(".proposal-entries-view-heading")).toContainText("Pending")
         try await entries.locator(".accordion-summary").first.click()
+        try await expect(entries.locator(".proposal-entries-view-note")).toContainText("held once it is permitted")
         let row = entries.locator(".proposal-entry")
         try await expect(row).toHaveCount(1)
         try await expect(row).toContainText("Heading")
-        try await expect(row).toContainText(heading)
+        try await expect(row).toContainText(target.title)
         try await expect(row.locator("a[href='\(target.path)']")).toHaveCount(1)
         try await expect(row.locator("a[href='/users/gnorium']")).toHaveCount(1)
-        try await expect(row).toContainText("title")
+        try await expect(row).toContainText("title+voices")
         // Its record field is asked for once in view, the resolver's record chosen; no node.
         _ = try await row.evaluate("(el) => el.scrollIntoView({block: 'center'})")
         let field = row.locator(".proposal-entries-view-record .origin-record-field-view")
@@ -229,7 +226,7 @@ struct EntryLinksTests {
         let submit = row.locator("button[type='submit']")
         _ = try await submit.evaluate("(b) => { b.scrollIntoView({block: 'center'}); b.click() }")
         let thread = page.locator(".intervention-thread-view")
-        try await expect(thread).toContainText("the entry “WEB … ENTRY”")
+        try await expect(thread).toContainText("the entry “")
         try await page.waitForLoadState()
         let modification = try TestAdmin.query(
           "SELECT upper(id::text) FROM modifications WHERE modifiable_id = '\(reading.proposalID)' AND target = 'entry';"

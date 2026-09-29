@@ -82,14 +82,14 @@ struct UtteranceTests {
         try await expect(utterance.locator("mark[data-highlight='sentence']")).toHaveTexts([
           "Here the", "begins", "and ended on the next page.",
         ])
-        let headword = utterance.locator("mark[data-highlight='headword']")
-        try await expect(headword).toHaveText("scratchword")
+        let title = utterance.locator("mark[data-highlight='title']")
+        try await expect(title).toHaveText("scratchword")
         // Stronger by color alone: its weight is the text's own.
         let weights = try await utterance.evaluate(
           "box => [...box.querySelectorAll('mark')].map(m => getComputedStyle(m).fontWeight).join(' ')")
         #expect(weights == .string("400 400 400 400"))
         // The word boxed as the OED boxes it; the sentence unboxed.
-        try await expect(headword).toHaveCSS("border-top-style", "solid")
+        try await expect(title).toHaveCSS("border-top-style", "solid")
         try await expect(utterance.locator("mark[data-highlight='sentence']").first).toHaveCSS("border-top-style", "none")
         // No images.
         try await expect(utterance.locator("img")).toHaveCount(0)
@@ -97,7 +97,7 @@ struct UtteranceTests {
 
         // A bounded box, opened with the sentence in view.
         let box = try #require(try await utterance.boundingBox())
-        let mark = try #require(try await headword.boundingBox())
+        let mark = try #require(try await title.boundingBox())
         // Fourteen lines of 26px, its padding and border.
         let tallest: Double = 14 * 26 + 2 * 16 + 2 + 1
         #expect(box.height <= tallest)
@@ -133,7 +133,7 @@ struct UtteranceTests {
         let notice = attestation.locator(".reading-changed-view")
         try await expect(notice).toHaveText(
           "A later reading of this testament changed this word (Its reading changed in the later version: scratchword). It awaits explication again.")
-        try await expect(attestation.locator(".utterance-view mark[data-highlight='headword']")).toHaveText("scratchword")
+        try await expect(attestation.locator(".utterance-view mark[data-highlight='title']")).toHaveText("scratchword")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }
