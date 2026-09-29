@@ -162,3 +162,96 @@ struct CitationsTests {
     await cleanUp()
   }
 }
+
+/// A proposal's Entries (user, 2026-09-29): its testament's headed entries,
+/// each with the record it is the entry for as the resolver linked it; a
+/// signed-in reader suggests another record (or none) as a modification,
+/// which an admin accepts, and the entry's link is then a person's, fixed.
+/// Phone and desktop, Chrome headless.
+@Suite("Entry links", .serialized)
+struct EntryLinksTests {
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func aProposalListsItsEntriesAndAPersonsLinkIsSuggestedThenAccepted(engine: BrowserEngine, layout: Layout)
+    async throws
+  {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let target = try ScratchWork(owner: admin)
+    let reading = try ScratchReading(owner: admin, tei: CitationsTests.tei(citing: target))
+    let heading = "WEB TESTS ENTRY \(target.suffix)"
+    func cleanUp() async {
+      _ = try? TestAdmin.query(
+        """
+        DELETE FROM record_entries WHERE biblio_record_version_id = '\(reading.work.versionID.lowercased())';
+        DELETE FROM modifications WHERE modifiable_id = '\(reading.proposalID)';
+        """)
+      reading.remove()
+      target.remove()
+      await admin.remove()
+    }
+    do {
+      // The testament's permitted version holds one entry for a work: the target, as the resolver linked it.
+      _ = try TestAdmin.query(
+        """
+        INSERT INTO record_entries (id, biblio_record_version_id, work_record_id, testament_id, permitted_at, canvas_id, page,
+          start_line, start_word, start_surface, end_line, end_word, end_surface, kind, heading, parts_json, language_code,
+          status, decided_by, biblio_record_id, confidence, basis, resolver_version, resolved_at, created_at)
+          VALUES (gen_random_uuid(), '\(reading.work.versionID.lowercased())', '\(reading.work.recordID.lowercased())',
+            (SELECT o.bibliographic_evidence_id FROM bibliographic_hallmarks h
+              JOIN bibliographic_overtures o ON o.id = h.bibliographic_overture_id
+              WHERE h.id = '\(reading.work.hallmarkID.lowercased())'),
+            now(), 'c', 1, 1, 1, 'WEB', 1, 2, 'ENTRY', 'bibliographic', '\(heading)', '{}', 'eng', 'resolved', 'resolver',
+            '\(target.recordID.lowercased())', 0.7, 'title', 'citation-resolver-v3', now(), now());
+        """)
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated(reading.path)
+        let entries = page.locator(".proposal-entries-view")
+        try await expect(entries.locator(".proposal-entries-view-count")).toHaveText("1 entry")
+        try await entries.locator(".accordion-summary").first.click()
+        let row = entries.locator(".proposal-entry")
+        try await expect(row).toHaveCount(1)
+        try await expect(row).toContainText("Heading")
+        try await expect(row).toContainText(heading)
+        try await expect(row.locator("a[href='\(target.path)']")).toHaveCount(1)
+        try await expect(row.locator("a[href='/users/gnorium']")).toHaveCount(1)
+        try await expect(row).toContainText("title")
+        // Its record field is asked for once in view, the resolver's record chosen; no node.
+        _ = try await row.evaluate("(el) => el.scrollIntoView({block: 'center'})")
+        let field = row.locator(".proposal-entries-view-record .origin-record-field-view")
+        try await expect(field).toHaveCount(1)
+        try await expect(field).toContainText("Entry for")
+        try await expect(row.locator("input[name='entry-record-0']")).toHaveValue(target.recordID)
+        try await expect(row.locator("[name='entry-record-0-node']")).toHaveCount(0)
+        try await page.expectNoHorizontalOverflow()
+
+        // Suggested as it stands: a modification, pending an admin.
+        let submit = row.locator("button[type='submit']")
+        _ = try await submit.evaluate("(b) => { b.scrollIntoView({block: 'center'}); b.click() }")
+        let thread = page.locator(".intervention-thread-view")
+        try await expect(thread).toContainText("the entry “WEB … ENTRY”")
+        try await page.waitForLoadState()
+        let modification = try TestAdmin.query(
+          "SELECT upper(id::text) FROM modifications WHERE modifiable_id = '\(reading.proposalID)' AND target = 'entry';"
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+        #expect(!modification.isEmpty)
+        try await thread.locator("form[action$='/modifications/\(modification)/accept'] button").first.click()
+        try await expect(page.locator(".intervention-thread-view")).toContainText("accepted by")
+        try await page.waitForLoadState()
+        // Accepted: the proposal holds the person's link, fixed.
+        let accepted = page.locator(".proposal-entries-view")
+        try await accepted.locator(".accordion-summary").first.click()
+        try await expect(accepted.locator(".proposal-entry").nth(0)).toContainText("A person, by a modification accepted here")
+        let links = try TestAdmin.query(
+          "SELECT entry_links_json FROM bibliographic_proposals WHERE id = '\(reading.proposalID)';")
+        #expect(links.lowercased().contains(target.recordID.lowercased()))
+        #expect(links.lowercased().contains(modification.lowercased()))
+        try await page.expectNoHorizontalOverflow()
+      }
+    } catch {
+      await cleanUp()
+      throw error
+    }
+    await cleanUp()
+  }
+}
