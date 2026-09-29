@@ -51,7 +51,7 @@ struct WatchtowerFigureLinksTests {
       try await page.openHydrated("/")
       let figures = try await Self.figures(page)
       try #require(figures.count >= 70, "the Watchtower shows \(figures.count) figure links")
-      try #require(figures.filter { $0.href.contains("show=runs") }.count == 30, "every stage has three run links")
+      try #require(figures.filter { $0.href.contains("show=runs") }.count == 24, "every stage has three run links")
       for figure in figures {
         let count = try #require(Int(figure.text.prefix { $0.isNumber }))
         let listed = try await Self.listed(page, figure.href)

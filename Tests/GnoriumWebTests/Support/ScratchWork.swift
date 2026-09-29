@@ -18,6 +18,8 @@ struct ScratchWork {
   let versionID: String
   /// Its hallmark's id, as the server writes it: upper case.
   let hallmarkID: String
+  /// The concerto its hallmark answers (submitted), lower case.
+  var concertoID: String { ids["concerto"]! }
   let path: String
   private let ids: [String: String]
 
