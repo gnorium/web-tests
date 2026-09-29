@@ -27,8 +27,12 @@ struct GraphTests {
   /// A step of `work`'s origin: translated from `source`.
   static func translated(_ work: ScratchWork, from source: ScratchWork) -> String {
     """
-    INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, relation, target_record_id, typed_json, created_at)
-      VALUES (gen_random_uuid(), '\(work.recordID.lowercased())', NULL, 0, 'translation_of', '\(source.recordID.lowercased())', NULL, now());
+    WITH step AS (
+      INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
+        VALUES (gen_random_uuid(), '\(work.recordID.lowercased())', NULL, 0, '\(source.recordID.lowercased())', NULL, now())
+        RETURNING id)
+    INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
+      SELECT gen_random_uuid(), id, 0, 'translation_of' FROM step;
     """
   }
 

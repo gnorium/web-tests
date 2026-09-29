@@ -28,14 +28,20 @@ struct OriginTests {
       // The translation's origin, as a permit writes it: a typed Old
       // English step, which is a translation of the original's record.
       let step = UUID().uuidString.lowercased()
+      let deeper = UUID().uuidString.lowercased()
       _ = try TestAdmin.query(
         """
-        INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, relation, target_record_id, typed_json, created_at)
-          VALUES ('\(step)', '\(translation.recordID.lowercased())', NULL, 0, 'translation_of', NULL,
+        INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
+          VALUES ('\(step)', '\(translation.recordID.lowercased())', NULL, 0, NULL,
             '{"language":"ang","title":"\(typed)","type":"treatise","date":{"era":"anno_domini","year":890,"yearQualifier":"circa"}}', now());
-        INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, relation, target_record_id, typed_json, created_at)
-          VALUES ('\(UUID().uuidString.lowercased())', '\(translation.recordID.lowercased())', '\(step)', 0,
-            'translation_of', '\(original.recordID.lowercased())', NULL, now());
+        INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
+          VALUES ('\(UUID().uuidString.lowercased())', '\(step)', 0, 'translation_of'),
+            ('\(UUID().uuidString.lowercased())', '\(step)', 1, 'abridgment_of');
+        INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
+          VALUES ('\(deeper)', '\(translation.recordID.lowercased())', '\(step)', 0,
+            '\(original.recordID.lowercased())', NULL, now());
+        INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
+          VALUES ('\(UUID().uuidString.lowercased())', '\(deeper)', 0, 'translation_of');
         """)
       try await run(
         engine: engine, viewport: layout.viewport(for: engine), admin: admin, original: original,
@@ -107,11 +113,17 @@ struct OriginTests {
         "Translation", "Adaptation", "Transformation", "Abridgment", "Continuation", "Exposition", "Derivation",
         "Compilation", "Conflation",
       ])
+      // Several relations to one work (user, 2026-09-29): the menu stays
+      // open while they are chosen, the closed field names them in order.
       try await relation.locator(".dropdown-trigger").click()
       try await relation.locator(".dropdown-option[data-value='translation_of']").click()
-      try await expect(relation.locator(".dropdown-selected-text")).toHaveText("Translation")
-      // The tooltip now says what a translation is.
-      #expect(try await tooltip() == "A rendering of the work in another language.")
+      try await relation.locator(".dropdown-option[data-value='abridgment_of']").click()
+      try await expect(relation.locator(".dropdown-menu")).toHaveAttribute("data-open", "true")
+      try await expect(relation.locator(".dropdown-option.is-selected")).toHaveCount(2)
+      try await relation.locator(".dropdown-trigger").click()
+      try await expect(relation.locator(".dropdown-selected-text")).toHaveText("Translation, Abridgment")
+      // The tooltip now says what each means.
+      #expect(try await tooltip() == "A rendering of the work in another language. A shortened version of the work.")
       // How sure it is: optional, certain unless said.
       let certainty = first.locator(".dropdown-view").nth(1)
       try await expect(first).toContainText("Certainty")
@@ -175,6 +187,7 @@ struct OriginTests {
       let secondRelation = second.locator(".dropdown-view").first
       try await secondRelation.locator(".dropdown-trigger").click()
       try await secondRelation.locator(".dropdown-option[data-value='adaptation_of']").click()
+      try await secondRelation.locator(".dropdown-trigger").click()
       try await second.locator("input[name$='-title']").first.fill("Web tests typed work")
       // Its type, from the work's closed list (no "Other"), and its date as
       // every date of ours: a range shows its end once chosen, in a row
@@ -213,6 +226,7 @@ struct OriginTests {
       let nestedRelation = nested.first.locator(".dropdown-view").first
       try await nestedRelation.locator(".dropdown-trigger").click()
       try await nestedRelation.locator(".dropdown-option[data-value='translation_of']").click()
+      try await nestedRelation.locator(".dropdown-trigger").click()
       try await nested.first.locator("input[name$='-title']").first.fill("Web tests deeper work")
 
       // What the form posts: the rows in order, the typed row's own under it.
@@ -229,12 +243,12 @@ struct OriginTests {
       ).string ?? ""
       let json = try JSONSerialization.jsonObject(with: Data(posted.utf8)) as? [[String: Any]] ?? []
       #expect(json.count == 2, "\(posted)")
-      #expect(json.first?["relation"] as? String == "translation_of")
+      #expect(json.first?["relations"] as? [String] == ["translation_of", "abridgment_of"], "\(posted)")
       #expect(json.first?["certainty"] as? String == "probable")
       #expect(json.first?["record"] as? String == original.recordID)
       #expect((json.first?["node"] as? String)?.hasPrefix("edition-") == true, "\(posted)")
       let secondPosted = json.count > 1 ? json[1] : [:]
-      #expect(secondPosted["relation"] as? String == "adaptation_of")
+      #expect(secondPosted["relations"] as? [String] == ["adaptation_of"])
       let secondTyped = secondPosted["typed"] as? [String: Any] ?? [:]
       #expect(secondTyped["title"] as? String == "Web tests typed work")
       #expect(secondTyped["type"] as? String == "treatise", "\(posted)")
@@ -289,7 +303,7 @@ struct OriginTests {
       ).bool
       #expect(order == true, "Origin is not after Metadata")
       try await expect(prose).toHaveText(
-        "Translated from the Old English treatise \(typed) (c. AD 890), which was translated from the English report \(original.title), "
+        "Translated and abridged from the Old English treatise \(typed) (c. AD 890), which was translated from the English report \(original.title), "
           + "authored by \(original.author).")
       try await expect(prose.locator("a[href='\(original.path)']")).toHaveCount(1)
 
@@ -306,12 +320,17 @@ struct OriginTests {
       let wordRow = page.locator(".origin-field-view [data-origin-row='true']").first
       try await expect(wordRow.locator(".origin-record-field-view")).toHaveCount(1)
       let wordRelation = wordRow.locator(".dropdown-view").first
+      // A word may be a calque (a loan translation), with a borrowing too.
+      try await expect(wordRelation.locator(".dropdown-option[data-value='calque_of']")).toHaveAttribute(
+        "data-display", "Calque")
       try await wordRelation.locator(".dropdown-trigger").click()
       try await wordRelation.locator(".dropdown-option[data-value='coinage']").click()
       try await expect(wordRow.locator(":scope > .origin-field-view-record")).toBeHidden()
       try await expect(wordRow.locator(":scope > .origin-field-view-typed")).toBeHidden()
-      try await wordRelation.locator(".dropdown-trigger").click()
+      // Unchosen, and another chosen: the fields come back.
+      try await wordRelation.locator(".dropdown-option[data-value='coinage']").click()
       try await wordRelation.locator(".dropdown-option[data-value='eponym_of']").click()
+      try await wordRelation.locator(".dropdown-trigger").click()
       try await expect(wordRow.locator(":scope > .origin-field-view-record")).toBeVisible()
       try await expect(wordRow.locator(":scope > .origin-field-view-typed")).toBeVisible()
       // A word's typed step: its word class from the closed list, and its
