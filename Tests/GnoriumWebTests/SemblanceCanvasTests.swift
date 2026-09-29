@@ -11,7 +11,8 @@ import WebTestsTesting
 ///
 /// The page images are off until the reader asks for them (user,
 /// 2026-09-29): the transcript takes the whole width and no image is
-/// fetched; the header's Semblance switch (a left chevron) shows them, and the choice holds
+/// fetched; the header's Semblance switch (a chevron: left beside the text,
+/// up on a phone, where the panes stack) shows them, and the choice holds
 /// across the reader's pages and the site's navigation for the browser
 /// session (sessionStorage), and is off again in a new one.
 @Suite("Semblance canvas", .serialized)
@@ -69,15 +70,39 @@ struct SemblanceCanvasTests {
         let toggle = viewer.locator(".artifact-canvas-toggle button")
         let object = viewer.locator(".artifact-object")
 
-        // The header is one row: the find bar, closed, takes no room.
+        // The header is one row, never wrapped (user, 2026-09-30): the find
+        // bar, closed, takes no room, and a row too narrow for its controls
+        // scrolls sideways, never the page.
         try await expect(viewer.locator(".artifact-header-bar")).toBeHidden()
         let header = try #require(try await viewer.locator(".artifact-header").boundingBox())
         let pager = try #require(try await viewer.locator(".artifact-page-nav").boundingBox())
         #expect(header.height < pager.height + 20, "the header holds more than its one row")
+        let row = try #require(try await viewer.locator(".artifact-header-row").boundingBox())
+        #expect(abs(row.y - pager.y) < pager.height, "the pager left the header's row")
+        try await page.expectNoHorizontalOverflow()
         // Find is the search icon alone.
         let find = viewer.locator(".testament-find-button")
         try await expect(find).toHaveAccessibleName("Find in this testament")
         try await expect(find).toHaveText("")
+        // Find and the semblance switch are the pager's mini chevrons' size,
+        // their icons the chevrons' size: one row of mini controls.
+        let chevron = try #require(try await viewer.locator(".pagination-prev").first.boundingBox())
+        let chevronIcon = try #require(try await viewer.locator(".pagination-prev svg").first.boundingBox())
+        for (name, control, icon) in [
+          ("Find", find, find.locator("svg")),
+          ("Semblance", toggle, toggle.locator("svg")),
+        ] {
+          let box = try #require(try await control.boundingBox())
+          let iconBox = try #require(try await icon.boundingBox())
+          #expect(abs(box.width - chevron.width) < 1 && abs(box.height - chevron.height) < 1, "\(name) is not the pager's size")
+          #expect(abs(iconBox.width - chevronIcon.width) < 1, "\(name)'s icon is not the chevrons' size")
+        }
+        // The switch's chevron points where the semblance opens: to the end
+        // side beside the text, up where the panes stack on a phone.
+        let turn = try await page.evaluate(
+          "getComputedStyle(document.querySelector('.artifact-canvas-toggle .button-icon')).transform"
+        ).string
+        #expect(turn == (layout == .phone ? "matrix(0, 1, -1, 0, 0, 0)" : "none"), "the chevron's turn: \(turn ?? "—")")
 
         // Off: the transcript alone, the whole width, and no image asked for.
         // The switch is the left chevron alone, named "Semblance".
