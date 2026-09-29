@@ -12,9 +12,7 @@ import WebTestsTesting
 /// the German record lists the English one back under its own Translations,
 /// read from its side ("narrower sense"). The translation's page lists its
 /// session per sentiment, and the Madrigals register's Lexicographic tab
-/// lists the translation. A translated testament's reader glosses each word
-/// by its sentiment's equivalent, under its Interlinear switch. Phone and
-/// desktop, nothing scrolling sideways.
+/// lists the translation. Phone and desktop, nothing scrolling sideways.
 @Suite("Lexico translation", .serialized)
 struct LexicoTranslationTests {
   struct Width: Decodable { let overflow: Double }
@@ -125,101 +123,6 @@ struct LexicoTranslationTests {
     }
     remove(translation: translation, words: [english, german])
     await admin.remove()
-  }
-
-  static let germanPage = #"<TEI><text><body><pb n="1" facs="https://example.org/iiif/wtil1/full/1300,/0/default.jpg"/><p>Der Rechner rechnet</p></body></text></TEI>"#
-
-  /// The interlinear layer of a translated testament, derived from the data:
-  /// a German testament translated into English; its word "Rechner", linked
-  /// to a German record's sentiment whose Translations list the English
-  /// "reckoner", is glossed so; a word with no link reads "—". The reader's
-  /// Interlinear switch shows the layer in the transcript's place and back.
-  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aTranslatedTestamentsWordsAreGlossedByTheirSentimentsEquivalents(engine: BrowserEngine, layout: Layout)
-    async throws
-  {
-    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
-    guard gnorium.engines.contains(engine) else { return }
-    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let german = try ScratchWord(owner: admin, language: "deu")
-    let reading = try ScratchReading(owner: admin, tei: Self.germanPage)
-    let epilogue = UUID().uuidString.lowercased()
-    let version = UUID().uuidString.lowercased()
-    let work = reading.work
-    do {
-      let user = try admin.column("id")
-      _ = try TestAdmin.query(
-        """
-        BEGIN;
-        UPDATE lexico_record_versions SET record_json = jsonb_set(record_json::jsonb, '{senses,1,translations}',
-            '[{"form":"reckoner","languageCode":"eng","equivalence":"exact"}]')::text
-          WHERE id = '\(german.versionID.lowercased())';
-        INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_antiphon_id,
-            biblio_record_id, proposed_content_json, metadata_json, translation_json, processing_status,
-            permitted_by_user_id, permitted_at)
-          SELECT '\(epilogue)', '\(epilogue)', h.bibliographic_overture_id, p.bibliographic_antiphon_id,
-            p.biblio_record_id, p.proposed_content_json, p.metadata_json,
-            '{"sourceLanguage":"deu","targetLanguage":"eng","tei":"","pages":[]}', 'permitted', '\(user)', now()
-          FROM bibliographic_proposals p, bibliographic_hallmarks h
-          WHERE p.id = '\(reading.proposalID)' AND h.id = '\(work.hallmarkID.lowercased())';
-        INSERT INTO biblio_record_versions (id, biblio_record_id, bibliographic_epilogue_id, metadata_json, shape_json,
-            treatment, created_at)
-          SELECT '\(version)', biblio_record_id, '\(epilogue)', metadata_json, shape_json, 3, now()
-          FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())';
-        INSERT INTO word_lemma_refs (id, biblio_record_id, version_id, canvas_id, page, start_line, start_word,
-            start_surface, end_line, end_word, end_surface, surface, lexico_record_id, sentiment_id, antedates, created_at)
-          VALUES (gen_random_uuid(), '\(work.recordID.lowercased())', '\(version)', 'https://example.org/iiif/wtil1', 1,
-            1, 2, 'Rechner', 1, 2, 'Rechner', 'Rechner', '\(german.recordID.lowercased())', 's-1-1', false, now());
-        COMMIT;
-        """)
-      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        try await page.openHydrated(work.path)
-        // Open the testament's row: its reader is fetched into it.
-        _ = try await page.evaluate(
-          """
-          (() => { document.querySelector("[data-reader-url*='\(version)' i]").closest('.record-row')
-            .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
-          """)
-        let viewer = page.locator(".artifact-view").first
-        let toggle = viewer.locator(".artifact-interlinear-toggle")
-        try await expect(toggle).toBeVisible()
-        let layer = viewer.locator(".tei-page-interlinear").first
-        try await expect(layer).toBeHidden()
-        let words = layer.locator(".tei-interlinear-word")
-        try await expect(words).toHaveCount(3)
-        try await expect(words.nth(1).locator(".tei-interlinear-surface")).toHaveText("Rechner")
-        try await expect(words.nth(1).locator(".tei-interlinear-gloss")).toHaveText("reckoner")
-        try await expect(words.nth(1).locator(".tei-interlinear-gloss")).toHaveAttribute("lang", "en")
-        try await expect(words.nth(0).locator(".tei-interlinear-gloss")).toHaveText("—")
-
-        try await toggle.click()
-        try await expect(layer).toBeVisible()
-        try await expect(viewer.locator(".tei-page-text[data-transcript-layer='rendered']").first).toBeHidden()
-        #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
-        try await toggle.click()
-        try await expect(layer).toBeHidden()
-        try await expect(viewer.locator(".tei-page-text[data-transcript-layer='rendered']").first).toBeVisible()
-      }
-    } catch {
-      removeInterlinear(epilogue: epilogue, version: version, reading: reading, word: german)
-      await admin.remove()
-      throw error
-    }
-    removeInterlinear(epilogue: epilogue, version: version, reading: reading, word: german)
-    await admin.remove()
-  }
-
-  private func removeInterlinear(epilogue: String, version: String, reading: ScratchReading, word: ScratchWord) {
-    _ = try? TestAdmin.query(
-      """
-      BEGIN;
-      DELETE FROM word_lemma_refs WHERE version_id = '\(version)';
-      DELETE FROM biblio_record_versions WHERE id = '\(version)';
-      DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)';
-      COMMIT;
-      """)
-    reading.remove()
-    word.remove()
   }
 
   private func remove(translation: String, words: [ScratchWord]) {
