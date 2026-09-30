@@ -123,12 +123,16 @@ struct AccountTests {
         #expect(placement.margin == "0px", "spaced by its parent's gap, not a margin")
         let resend = banner.getByRole(.button, name: "Resend Email")
         try await expect(resend).toBeVisible()
-        try await expect(resend).toHaveAttribute("data-weight", "quiet")
+        try await expect(resend).toHaveAttribute("data-weight", "plain")
         try await page.expectNoHorizontalOverflow()
 
         try await resend.click()
-        try await expect(page.locator(".alert-view.alert-green")).toContainText("We sent a new link")
-        try await expect(banner.locator(".button-label")).toHaveText("Email Sent")
+        // The outcome is its own green alert just above the banner; the
+        // button keeps its label and is usable again.
+        try await expect(page.locator(".email-verification-banner-notices .alert-view.alert-green"))
+          .toContainText("We sent a new verification link")
+        try await expect(banner.locator(".button-label")).toHaveText("Resend Email")
+        try await expect(resend).toBeEnabled()
 
         try await banner.locator(".alert-dismiss").click()
         try await expect(banner).toBeHidden()
