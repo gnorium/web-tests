@@ -10,8 +10,9 @@ import WebTestsTesting
 /// fields as they are typed ("—" until then; no level name). A new
 /// testament is drawn as the nodes it will become (user, 2026-10-01): a
 /// printed one edition › copy › digitization, the copy removable with its
-/// icon-only − (the digitization then under the edition) and put back with
-/// the edition's +; a manuscript copy › digitization. A copy node left empty
+/// "− Testament" (the digitization then under the edition) and put back
+/// with the edition's "+ Testament", each node's controls its last row; a
+/// manuscript copy › digitization. A copy node left empty
 /// blocks submit ("Fill in Copy, Holding institution or Classification identifier, or remove the copy."). Submit Testament makes
 /// records: a chosen biblio-record is one the testament already has, its
 /// Submit waits, disabled, and the record's "Submit Amendment" carries what
@@ -104,6 +105,12 @@ struct SubmissionTests {
     node(scope, level).locator(":scope > .outliner-row")
   }
 
+  /// A new testament's node's own controls: its last row, after the nodes
+  /// under it (user, 2026-10-01).
+  private func controls(_ scope: Locator, _ level: String) -> Locator {
+    node(scope, level).locator(":scope > .outliner-footer")
+  }
+
   /// A new record: its fields to fill in, its tree the new testament's
   /// nodes, each named as its fields are typed; the copy removed and put
   /// back, left empty refused; submitted without it, an evidence and its
@@ -147,7 +154,7 @@ struct SubmissionTests {
     try await expect(node(tree, "edition")).toHaveAttribute("data-outliner-removed", "true")
     try await expect(row(tree, "copy").locator(".record-row-number").first).toHaveText("1")
     try await expect(row(tree, "copy").locator("#testament-carrier")).toHaveCount(1)
-    try await expect(row(tree, "copy").locator(".testament-draft-remove-copy")).toBeHidden()
+    try await expect(controls(tree, "copy").locator(".testament-draft-remove-copy")).toBeHidden()
     try await expect(
       row(tree, "copy").locator(".testament-metadata-view-acquisition [data-citations-slot='production'] \(citations)")
     ).toBeVisible()
@@ -178,16 +185,22 @@ struct SubmissionTests {
     try await expect(page).toHaveURL("the form") { $0.path == Self.testamentForm }
     // Removed: the digitization under the edition; the edition's + puts it
     // back, and takes it out again.
-    try await row(tree, "copy").locator(".testament-draft-remove-copy").click()
+    try await controls(tree, "copy").locator(".testament-draft-remove-copy").click()
     try await expect(node(tree, "copy")).toHaveAttribute("data-outliner-removed", "true")
     try await expect(manifest.locator(".record-row-number").first).toHaveText("1.1")
-    let add = edition.locator(".testament-draft-add-copy")
+    let add = controls(tree, "edition").locator(".testament-draft-add-copy")
     try await expect(add).toBeVisible()
+    // Every node is a testament: the icon and the noun, the words for
+    // assistive technology.
+    try await expect(add).toHaveText("Testament")
+    try await expect(add).toHaveAttribute("aria-label", "Add Testament")
+    try await expect(controls(tree, "edition").locator(".testament-draft-add-copy")).toHaveCount(1)
+    try await expect(row(tree, "edition").locator(".testament-draft-add-copy")).toHaveCount(0)
     try await add.click()
     try await expect(node(tree, "copy")).toHaveAttribute("data-outliner-removed", "false")
     try await expect(manifest.locator(".record-row-number").first).toHaveText("1.1.1")
     try await expect(add).toBeHidden()
-    try await row(tree, "copy").locator(".testament-draft-remove-copy").click()
+    try await controls(tree, "copy").locator(".testament-draft-remove-copy").click()
 
     try await submit.click()
     try await expect(page, timeout: .seconds(15)).toHaveURL("the Mission Control page") {
@@ -254,9 +267,9 @@ struct SubmissionTests {
     // a copy and its digitization, the edition's carrier taken, its own
     // edition node out.
     let recordEdition = tree.locator(".outliner-item[data-outliner-id^='edition-']:not([data-testament-draft])").first
-    let addUnder = recordEdition.locator(":scope > .outliner-row button[aria-label='Add Testament']")
+    let addUnder = recordEdition.locator(":scope > .outliner-footer button[aria-label='Add Testament']")
     try await expect(addUnder).toBeHidden()
-    try await edition.locator(".testament-draft-remove").click()
+    try await controls(tree, "edition").locator(".testament-draft-remove").click()
     try await expect(node(tree, "edition")).toHaveAttribute("data-outliner-removed", "true")
     try await addUnder.click()
     try await expect(node(tree, "edition")).toHaveAttribute("data-outliner-removed", "true")
@@ -270,7 +283,7 @@ struct SubmissionTests {
     try await expect(tree.locator("#new-testament-carrier")).toBeDisabled()
     // The copy removed: the digitization under the edition; the edition's +
     // puts it back.
-    try await copy.locator(".testament-draft-remove-copy").click()
+    try await controls(tree, "copy").locator(".testament-draft-remove-copy").click()
     try await expect(node(tree, "copy")).toHaveAttribute("data-outliner-removed", "true")
     try await expect(row(tree, "manifest").locator(".record-row-number").first).toHaveText("1.2")
     try await expect(addUnder).toBeVisible()

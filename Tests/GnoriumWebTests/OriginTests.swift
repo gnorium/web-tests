@@ -7,8 +7,8 @@ import WebTestsTesting
 /// "This is a translation" box), a tree of steps (the site's one tree,
 /// `OutlinerView`), each a card: a relation, a record field (searched, two
 /// rows an option) and, once a record is picked, its testaments to name one
-/// by; with no record, the work as typed and its own icon-only +,
-/// which puts a step under it, indented. Deep steps keep their width and
+/// by; with no record, the work as typed and, as the card's last row, its
+/// own "+ Origin", which puts a step under it, inside its card. Deep steps keep their width and
 /// the tree scrolls sideways, never the page; a menu opened in a deep step
 /// stands over the page by its field. Removing a step with steps under it
 /// asks first. The form posts the tree as one JSON list (the submit event is
@@ -77,25 +77,32 @@ struct OriginTests {
       try await expect(block.locator(".origin-field-view-heading")).toHaveCount(0)
       // A step's card in a list of the tree: the top level's, or a step's own.
       let cards = ":scope > .outliner-item > .outliner-row > .outliner-node > [data-origin-row='true']"
-      let top = block.locator(":scope > .outliner-view > .outliner-scroll > .outliner-list")
+      let top = block.locator(".origin-field-view-steps > .outliner-scroll > .outliner-list")
       let rows = top.locator(cards)
       try await expect(rows).toHaveCount(1)
+      // A step's own "+ Origin" / "− Origin": its node's last row, after
+      // the steps under it (user, 2026-10-01).
+      let items = top.locator(":scope > .outliner-item")
+      func controls(_ item: Locator) -> Locator {
+        item.locator(":scope > .outliner-footer > .origin-field-view-actions")
+      }
 
       // The row: its relation (a plain noun), its record field, its typed
-      // fields while no record is picked, its own + ("Add Origin Step") then
-      // the step's − ("Remove Origin Step"): add first, a press of the first
-      // button never removes; icon-only, as the filter bar's row controls
-      // (user, 2026-09-30), named for assistive technology.
+      // fields while no record is picked, then at its foot its own
+      // "+ Origin" ("Add Origin") and "− Origin" ("Remove Origin"): add
+      // first, a press of the first button never removes; the icon and the
+      // noun, the words for assistive technology (user, 2026-10-01).
       let first = rows.first
       try await expect(first.locator(".origin-record-field-view")).toHaveCount(1)
-      let actions = first.locator(".origin-field-view-actions")
-      try await expect(actions.locator(".origin-add-own-btn")).toHaveAttribute("aria-label", "Add Origin Step")
-      try await expect(actions.locator(".origin-add-own-btn")).toHaveText("")
+      try await expect(first.locator(".origin-field-view-actions")).toHaveCount(0)
+      let actions = controls(items.first)
+      try await expect(actions.locator(".origin-add-own-btn")).toHaveAttribute("aria-label", "Add Origin")
+      try await expect(actions.locator(".origin-add-own-btn")).toHaveText("Origin")
       try await expect(actions.locator(".origin-add-own-btn svg.add-icon-view")).toHaveCount(1)
-      try await expect(actions.locator(".origin-remove-btn")).toHaveAttribute("aria-label", "Remove Origin Step")
+      try await expect(actions.locator(".origin-remove-btn")).toHaveAttribute("aria-label", "Remove Origin")
       try await expect(actions.locator(".origin-remove-btn svg.subtract-icon-view")).toHaveCount(1)
       // The form keeps one step at least (user, 2026-09-29): a lone step
-      // has no "− Remove Origin Step", so the box can never go.
+      // has no "− Origin", so the box can never go.
       try await expect(actions.locator(".origin-remove-btn")).toBeHidden()
       // The Biblio-record field and the Metadata under it, a field's gap
       // apart (spacing16), never touching.
@@ -155,7 +162,7 @@ struct OriginTests {
       try await expect(found.locator(".breadcrumb-label-text")).toHaveText(original.title)
       try await found.click()
       try await expect(typedFields).toBeHidden()
-      // A record's origin is its own: no "+ Add Origin Step" under a picked record.
+      // A record's origin is its own: no "+ Origin" under a picked record.
       try await expect(actions.locator(".origin-add-own-btn")).toBeHidden()
       let node = first.locator(".origin-record-field-view .dropdown-view").nth(1)
       try await expect(first.locator(".origin-record-field-view")).toContainText("Testament")
@@ -164,9 +171,9 @@ struct OriginTests {
       try await node.locator(".dropdown-trigger").click()
       try await edition.click()
 
-      // A second row, typed: its own "+ Add Origin Step" gives it an origin of
-      // its own.
-      try await block.locator(":scope > .origin-field-view-add .origin-add-btn").click()
+      // A second row, typed: its own "+ Origin" gives it an origin of its
+      // own.
+      try await block.locator(".origin-field-view-add .origin-add-btn").click()
       try await expect(rows).toHaveCount(2)
       let second = rows.nth(1)
       // Its record field is asked for once it is on the page: settled, the
@@ -175,27 +182,26 @@ struct OriginTests {
       // Two steps: each has its −; the typed one's own + first, then it:
       // side by side and content-width on wider screens, full width and
       // stacked (+ above −) on a phone, as the filter bar's (user,
-      // 2026-09-30). The form's own list-end "+ Add Origin Step" keeps its
-      // words.
-      try await expect(first.locator(".origin-field-view-actions .origin-remove-btn")).toBeVisible()
-      let secondActions = second.locator(".origin-field-view-actions")
-      try await expect(secondActions.locator(".origin-remove-btn")).toHaveText("")
+      // 2026-09-30). The form's own list-end "+ Origin" too.
+      try await expect(actions.locator(".origin-remove-btn")).toBeVisible()
+      let secondActions = controls(items.nth(1))
+      try await expect(secondActions.locator(".origin-remove-btn")).toHaveText("Origin")
       try await expect(secondActions.locator(".origin-remove-btn svg.subtract-icon-view")).toHaveCount(1)
       let named = try await secondActions.evaluate(
         "(a) => [...a.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')).join('|')"
       ).string
-      #expect(named == "Add Origin Step|Remove Origin Step", "add first, then remove: \(named ?? "")")
+      #expect(named == "Add Origin|Remove Origin", "add first, then remove: \(named ?? "")")
       try await expect(block.locator(".origin-field-view-add .origin-add-btn")).toHaveText("Origin")
       if viewport.width < 768 {
         let stacked = try await secondActions.evaluate(
-          "(a) => { const [x, y] = a.querySelectorAll('button'); const r = (b) => b.getBoundingClientRect(); const w = a.getBoundingClientRect().width; return r(x).bottom <= r(y).top && Math.abs(r(x).width - w) < 2 && Math.abs(r(y).width - w) < 2 }"
+          "(a) => { const [x, y] = a.querySelectorAll('button'); const r = (b) => b.getBoundingClientRect(); const cs = getComputedStyle(a); const w = a.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight); return r(x).bottom <= r(y).top && Math.abs(r(x).width - w) < 2 && Math.abs(r(y).width - w) < 2 }"
         ).bool
         #expect(stacked == true, "on a phone the step's + and − are full width, stacked, add first")
       } else {
         let compact = try await secondActions.evaluate(
-          "(a) => { const [x, y] = a.querySelectorAll('button'); const r = (b) => b.getBoundingClientRect(); return Math.abs(r(x).top - r(y).top) < 4 && r(x).right <= r(y).left && r(x).width < 64 && r(y).width < 64 && r(x).left - a.getBoundingClientRect().left < 2 }"
+          "(a) => { const [x, y] = a.querySelectorAll('button'); const r = (b) => b.getBoundingClientRect(); return Math.abs(r(x).top - r(y).top) < 4 && r(x).right <= r(y).left && r(x).width < 160 && r(y).width < 160 && r(x).left - a.getBoundingClientRect().left - parseFloat(getComputedStyle(a).paddingLeft) < 2 }"
         ).bool
-        #expect(compact == true, "the step's + and − are compact, one row, start-aligned, add first")
+        #expect(compact == true, "the step's + and − are content-width, one row, start-aligned, add first")
       }
       // A record one step names is not offered to another (user,
       // 2026-09-29): the original, picked in the first, is withheld from the
@@ -245,9 +251,14 @@ struct OriginTests {
       try await voiceRows.nth(1).locator(".text-input-input").fill("Bea Author")
       // Its own step goes under it in the tree, inside its card.
       let secondItem = block.locator(".outliner-item[data-origin-step='\(secondKey)']")
-      try await second.locator(".origin-field-view-actions .origin-add-own-btn").click()
+      try await controls(secondItem).locator(".origin-add-own-btn").click()
       let nested = secondItem.locator(":scope > .outliner-list").locator(cards)
       try await expect(nested).toHaveCount(1)
+      // Its controls stay its card's last row, after the step under it.
+      let last = try await secondItem.evaluate(
+        "(item) => item.lastElementChild.classList.contains('outliner-footer') && item.querySelector(':scope > .outliner-footer').getBoundingClientRect().top >= item.querySelector(':scope > .outliner-list').getBoundingClientRect().bottom"
+      ).bool
+      #expect(last == true, "a step's + and − come after the steps under it")
       let indent = try await secondItem.evaluate(
         "(item) => { const own = item.querySelector(':scope > .outliner-row > .outliner-node'); const under = item.querySelector(':scope > .outliner-list .outliner-node'); return Math.round(under.getBoundingClientRect().left - own.getBoundingClientRect().left) }"
       ).int
@@ -307,19 +318,19 @@ struct OriginTests {
       try await expect(typedFields).toBeVisible()
       // A step with a step under it asks before it goes: Cancel keeps both.
       let removeDialog = block.locator(".origin-field-view-remove-dialog")
-      try await second.locator(".origin-field-view-actions .origin-remove-btn").click()
+      try await controls(secondItem).locator(".origin-remove-btn").click()
       try await expect(removeDialog).toHaveAttribute("data-open", "true")
       try await removeDialog.locator(".dialog-default-button button").click()
       try await expect(removeDialog).toHaveAttribute("data-open", "false")
       try await expect(rows).toHaveCount(2)
       try await expect(nested).toHaveCount(1)
       // Remove confirms it: the step goes with the one under it.
-      try await second.locator(".origin-field-view-actions .origin-remove-btn").click()
+      try await controls(secondItem).locator(".origin-remove-btn").click()
       try await removeDialog.locator(".dialog-primary-button button").click()
       try await expect(rows).toHaveCount(1)
       try await expect(block.locator("[data-origin-row='true']")).toHaveCount(1)
-      // The last step stays: its "− Remove Origin Step" is gone again.
-      try await expect(first.locator(".origin-field-view-actions .origin-remove-btn")).toBeHidden()
+      // The last step stays: its "− Origin" is gone again.
+      try await expect(actions.locator(".origin-remove-btn")).toBeHidden()
 
       // Nothing scrolls sideways.
       let overflow = try await page.evaluate("document.documentElement.scrollWidth > window.innerWidth").bool
@@ -329,8 +340,9 @@ struct OriginTests {
       // every step keeps the tree's least node width (14rem), the tree's
       // scrollport scrolls sideways on a phone, and the page never does.
       for depth in 1..<6 {
-        let deepest = block.locator("[data-origin-row='true']").last
-        try await deepest.locator(".origin-field-view-actions .origin-add-own-btn").click()
+        // The deepest step's node is the last in the page's order.
+        try await controls(block.locator(".outliner-item[data-origin-step]").last)
+          .locator(".origin-add-own-btn").click()
         try await expect(block.locator("[data-origin-row='true']")).toHaveCount(depth + 1)
         try await expect(block.locator("[data-origin-row='true']").last.locator(".origin-record-field-view"))
           .toHaveCount(1)

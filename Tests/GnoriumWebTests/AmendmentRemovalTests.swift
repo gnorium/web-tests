@@ -35,22 +35,22 @@ struct AmendmentRemovalTests {
         let edition = page.locator(".outliner-item[data-outliner-id^='edition-']:not([data-testament-draft])")
         let manifest = page.locator(".outliner-item[data-outliner-id^='manifest-']:not([data-testament-draft])")
         let dialog = page.locator(".testament-outliner-remove-dialog")
+        /// A testament's own control: its node's last row, after the
+        /// testaments under it (user, 2026-10-01).
         func own(_ item: Locator, _ selector: String) -> Locator {
-          item.locator(":scope > .outliner-row > .outliner-node > .testament-outliner-node > .record-row-view \(selector)").first
+          item.locator(":scope > .outliner-footer \(selector)").first
         }
-        /// Opens every accordion round a node's removal controls.
+        /// Opens a node's row, and settles it, before its controls are aimed
+        /// at: they move while it grows.
         func reveal(_ item: Locator) async throws {
-          _ = try await own(item, ".testament-outliner-removal").evaluate(
+          _ = try await item.evaluate(
             """
-            (el) => {
-              const chain = [];
-              for (let d = el.closest('details'); d; d = d.parentElement.closest('details')) chain.unshift(d);
-              for (const d of chain) if (!d.open) d.querySelector(':scope > summary').click();
-              return chain.length;
+            (item) => {
+              const d = item.querySelector(':scope > .outliner-row details');
+              if (!d.open) d.querySelector(':scope > summary').click();
+              return d.open;
             }
             """)
-          // Its row settled open before its controls are aimed at: they
-          // move while it grows.
           try await expect(
             item.locator(":scope > .outliner-row > .outliner-node > .testament-outliner-node > .record-row-view > .accordion-view > .accordion-details")
               .first
@@ -60,8 +60,15 @@ struct AmendmentRemovalTests {
           try await page.locator("input[name='shape']").first.inputValue()
         }
 
-        // Cancelled: nothing removed.
+        // Cancelled: nothing removed. Its "− Testament" is its card's last
+        // row, after the testaments under it, never in its header.
         try await reveal(manifest)
+        try await expect(own(manifest, ".testament-outliner-remove")).toHaveText("Testament")
+        try await expect(edition.locator(".accordion-summary .testament-outliner-remove")).toHaveCount(0)
+        let last = try await edition.evaluate(
+          "(item) => item.lastElementChild.classList.contains('outliner-footer') && item.querySelector(':scope > .outliner-footer').getBoundingClientRect().top >= item.querySelector(':scope > .outliner-list').getBoundingClientRect().bottom"
+        ).bool
+        #expect(last == true, "an edition's controls come after the testaments under it")
         try await own(manifest, ".testament-outliner-remove").click()
         try await expect(dialog).toHaveAttribute("data-open", "true")
         try await dialog.locator(".dialog-default-button button").click()
@@ -87,6 +94,11 @@ struct AmendmentRemovalTests {
         #expect(!posted.contains("edition-") && !posted.contains("manifest-"), "\(posted)")
         try await expect(own(edition, ".testament-outliner-restore")).toBeVisible()
         try await expect(own(edition, ".testament-outliner-remove")).toBeHidden()
+        // The icon and the noun: "+ Testament" restores it, the words for
+        // assistive technology.
+        try await expect(own(edition, ".testament-outliner-restore")).toHaveText("Testament")
+        try await expect(own(edition, ".testament-outliner-restore")).toHaveAttribute("aria-label", "Restore Testament")
+        try await expect(own(edition, ".testament-outliner-remove")).toHaveAttribute("aria-label", "Remove Testament")
 
         try await page.locator("#amendment-rationale").fill("Web tests: this testament is not the work's.")
         try await page.locator(".record-actions button[type='submit']").click()
