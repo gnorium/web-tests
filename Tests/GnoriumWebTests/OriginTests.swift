@@ -82,20 +82,20 @@ struct OriginTests {
       try await expect(rows).toHaveCount(1)
 
       // The row: its relation (a plain noun), its record field, its typed
-      // fields while no record is picked, its own + ("Add origin step") then
-      // the step's − ("Remove origin step"): add first, a press of the first
+      // fields while no record is picked, its own + ("Add Origin Step") then
+      // the step's − ("Remove Origin Step"): add first, a press of the first
       // button never removes; icon-only, as the filter bar's row controls
       // (user, 2026-09-30), named for assistive technology.
       let first = rows.first
       try await expect(first.locator(".origin-record-field-view")).toHaveCount(1)
-      let actions = first.locator(":scope > .origin-field-view-actions")
-      try await expect(actions.locator(".origin-add-own-btn")).toHaveAttribute("aria-label", "Add origin step")
+      let actions = first.locator(".origin-field-view-actions")
+      try await expect(actions.locator(".origin-add-own-btn")).toHaveAttribute("aria-label", "Add Origin Step")
       try await expect(actions.locator(".origin-add-own-btn")).toHaveText("")
       try await expect(actions.locator(".origin-add-own-btn svg.add-icon-view")).toHaveCount(1)
-      try await expect(actions.locator(".origin-remove-btn")).toHaveAttribute("aria-label", "Remove origin step")
+      try await expect(actions.locator(".origin-remove-btn")).toHaveAttribute("aria-label", "Remove Origin Step")
       try await expect(actions.locator(".origin-remove-btn svg.subtract-icon-view")).toHaveCount(1)
       // The form keeps one step at least (user, 2026-09-29): a lone step
-      // has no "− Remove origin step", so the box can never go.
+      // has no "− Remove Origin Step", so the box can never go.
       try await expect(actions.locator(".origin-remove-btn")).toBeHidden()
       // The Biblio-record field and the Metadata under it, a field's gap
       // apart (spacing16), never touching.
@@ -140,9 +140,9 @@ struct OriginTests {
       try await certainty.locator(".dropdown-trigger").click()
       try await certainty.locator(".dropdown-option[data-value='probable']").click()
       try await expect(certainty.locator(".dropdown-selected-text")).toHaveText("Probable")
-      let record = first.locator(":scope > .origin-field-view-record .origin-record-field-view")
+      let record = first.locator(".origin-field-view-record .origin-record-field-view")
       try await expect(record.locator("legend")).toContainText("Record")
-      let typedFields = first.locator(":scope > .origin-field-view-typed")
+      let typedFields = first.locator(".origin-field-view-typed")
       try await expect(typedFields).toBeVisible()
 
       // Pick the original's record: the typed fields go; its testaments
@@ -155,7 +155,7 @@ struct OriginTests {
       try await expect(found.locator(".breadcrumb-label-text")).toHaveText(original.title)
       try await found.click()
       try await expect(typedFields).toBeHidden()
-      // A record's origin is its own: no "+ Add origin step" under a picked record.
+      // A record's origin is its own: no "+ Add Origin Step" under a picked record.
       try await expect(actions.locator(".origin-add-own-btn")).toBeHidden()
       let node = first.locator(".origin-record-field-view .dropdown-view").nth(1)
       try await expect(first.locator(".origin-record-field-view")).toContainText("Testament")
@@ -164,7 +164,7 @@ struct OriginTests {
       try await node.locator(".dropdown-trigger").click()
       try await edition.click()
 
-      // A second row, typed: its own "+ Add origin step" gives it an origin of
+      // A second row, typed: its own "+ Add Origin Step" gives it an origin of
       // its own.
       try await block.locator(":scope > .origin-field-view-add .origin-add-btn").click()
       try await expect(rows).toHaveCount(2)
@@ -175,17 +175,17 @@ struct OriginTests {
       // Two steps: each has its −; the typed one's own + first, then it:
       // side by side and content-width on wider screens, full width and
       // stacked (+ above −) on a phone, as the filter bar's (user,
-      // 2026-09-30). The form's own list-end "+ Add origin step" keeps its
+      // 2026-09-30). The form's own list-end "+ Add Origin Step" keeps its
       // words.
-      try await expect(first.locator(":scope > .origin-field-view-actions .origin-remove-btn")).toBeVisible()
-      let secondActions = second.locator(":scope > .origin-field-view-actions")
+      try await expect(first.locator(".origin-field-view-actions .origin-remove-btn")).toBeVisible()
+      let secondActions = second.locator(".origin-field-view-actions")
       try await expect(secondActions.locator(".origin-remove-btn")).toHaveText("")
       try await expect(secondActions.locator(".origin-remove-btn svg.subtract-icon-view")).toHaveCount(1)
       let named = try await secondActions.evaluate(
         "(a) => [...a.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')).join('|')"
       ).string
-      #expect(named == "Add origin step|Remove origin step", "add first, then remove: \(named ?? "")")
-      try await expect(block.locator(":scope > .origin-field-view-add .origin-add-btn")).toHaveText("Add origin step")
+      #expect(named == "Add Origin Step|Remove Origin Step", "add first, then remove: \(named ?? "")")
+      try await expect(block.locator(":scope > .origin-field-view-add .origin-add-btn")).toHaveText("Add Origin Step")
       if viewport.width < 768 {
         let stacked = try await secondActions.evaluate(
           "(a) => { const [x, y] = a.querySelectorAll('button'); const r = (b) => b.getBoundingClientRect(); const w = a.getBoundingClientRect().width; return r(x).bottom <= r(y).top && Math.abs(r(x).width - w) < 2 && Math.abs(r(y).width - w) < 2 }"
@@ -223,7 +223,7 @@ struct OriginTests {
       try await secondType.locator(".dropdown-trigger").click()
       try await secondType.locator(".dropdown-search-input").fill("Treatise")
       try await secondType.locator(".dropdown-option[data-value='treatise']").filter(visible: true).first.click()
-      let secondDate = second.locator(":scope > .origin-field-view-typed > .form-date-view")
+      let secondDate = second.locator(".origin-field-view-typed > .form-date-view")
       try await expect(secondDate).toHaveCount(1)
       let yearEnd = secondDate.locator("input[name='\(secondKey)-year-end']")
       try await expect(yearEnd).toBeHidden()
@@ -234,7 +234,7 @@ struct OriginTests {
       try await secondDate.locator("input[name='\(secondKey)-year']").fill("1560")
       try await yearEnd.fill("1565")
       // Its voices a row each, as the work's own: a role and a name.
-      let voiceList = second.locator(":scope > .origin-field-view-typed > .form-items-view")
+      let voiceList = second.locator(".origin-field-view-typed > .form-items-view")
       let voiceRows = voiceList.locator("[data-item-section='true']:not([data-item-template] *)")
       try await expect(voiceRows).toHaveCount(1)
       try await voiceRows.first.locator(".text-input-input").fill("Ann Author")
@@ -245,7 +245,7 @@ struct OriginTests {
       try await voiceRows.nth(1).locator(".text-input-input").fill("Bea Author")
       // Its own step goes under it in the tree, indented.
       let secondItem = block.locator(".outliner-item[data-origin-step='\(secondKey)']")
-      try await second.locator(":scope > .origin-field-view-actions .origin-add-own-btn").click()
+      try await second.locator(".origin-field-view-actions .origin-add-own-btn").click()
       let nested = secondItem.locator(":scope > .outliner-list").locator(cards)
       try await expect(nested).toHaveCount(1)
       let indent = try await secondItem.evaluate(
@@ -306,19 +306,19 @@ struct OriginTests {
       try await expect(typedFields).toBeVisible()
       // A step with a step under it asks before it goes: Cancel keeps both.
       let removeDialog = block.locator(".origin-field-view-remove-dialog")
-      try await second.locator(":scope > .origin-field-view-actions .origin-remove-btn").click()
+      try await second.locator(".origin-field-view-actions .origin-remove-btn").click()
       try await expect(removeDialog).toHaveAttribute("data-open", "true")
       try await removeDialog.locator(".dialog-default-button button").click()
       try await expect(removeDialog).toHaveAttribute("data-open", "false")
       try await expect(rows).toHaveCount(2)
       try await expect(nested).toHaveCount(1)
       // Remove confirms it: the step goes with the one under it.
-      try await second.locator(":scope > .origin-field-view-actions .origin-remove-btn").click()
+      try await second.locator(".origin-field-view-actions .origin-remove-btn").click()
       try await removeDialog.locator(".dialog-primary-button button").click()
       try await expect(rows).toHaveCount(1)
       try await expect(block.locator("[data-origin-row='true']")).toHaveCount(1)
-      // The last step stays: its "− Remove origin step" is gone again.
-      try await expect(first.locator(":scope > .origin-field-view-actions .origin-remove-btn")).toBeHidden()
+      // The last step stays: its "− Remove Origin Step" is gone again.
+      try await expect(first.locator(".origin-field-view-actions .origin-remove-btn")).toBeHidden()
 
       // Nothing scrolls sideways.
       let overflow = try await page.evaluate("document.documentElement.scrollWidth > window.innerWidth").bool
@@ -329,7 +329,7 @@ struct OriginTests {
       // scrollport scrolls sideways on a phone, and the page never does.
       for depth in 1..<6 {
         let deepest = block.locator("[data-origin-row='true']").last
-        try await deepest.locator(":scope > .origin-field-view-actions .origin-add-own-btn").click()
+        try await deepest.locator(".origin-field-view-actions .origin-add-own-btn").click()
         try await expect(block.locator("[data-origin-row='true']")).toHaveCount(depth + 1)
         try await expect(block.locator("[data-origin-row='true']").last.locator(".origin-record-field-view"))
           .toHaveCount(1)
@@ -432,21 +432,21 @@ struct OriginTests {
         "data-display", "Calque")
       try await wordRelation.locator(".dropdown-trigger").click()
       try await wordRelation.locator(".dropdown-option[data-value='coinage']").click()
-      try await expect(wordRow.locator(":scope > .origin-field-view-record")).toBeHidden()
-      try await expect(wordRow.locator(":scope > .origin-field-view-typed")).toBeHidden()
+      try await expect(wordRow.locator(".origin-field-view-record")).toBeHidden()
+      try await expect(wordRow.locator(".origin-field-view-typed")).toBeHidden()
       // Unchosen, and another chosen: the fields come back.
       try await wordRelation.locator(".dropdown-option[data-value='coinage']").click()
       try await wordRelation.locator(".dropdown-option[data-value='eponym_of']").click()
       try await wordRelation.locator(".dropdown-trigger").click()
-      try await expect(wordRow.locator(":scope > .origin-field-view-record")).toBeVisible()
-      try await expect(wordRow.locator(":scope > .origin-field-view-typed")).toBeVisible()
+      try await expect(wordRow.locator(".origin-field-view-record")).toBeVisible()
+      try await expect(wordRow.locator(".origin-field-view-typed")).toBeVisible()
       // A word's typed step: its word class from the closed list, and its
       // date as every date of ours.
       let wordKey = try await wordRow.getAttribute("data-origin-key") ?? ""
       let wordType = wordRow.locator(".dropdown-view:has(#\(wordKey)-type)")
       try await expect(wordType.locator(".dropdown-option[data-value='verb']")).toHaveCount(1)
       try await expect(wordType.locator(".dropdown-option[data-value='other']")).toHaveCount(0)
-      try await expect(wordRow.locator(":scope > .origin-field-view-typed > .form-date-view")).toHaveCount(1)
+      try await expect(wordRow.locator(".origin-field-view-typed > .form-date-view")).toHaveCount(1)
     }
   }
 }
