@@ -10,8 +10,8 @@ import WebTestsTesting
 /// closed dropdown names the chosen record so too. Once the work's
 /// language, title, author and type are filled, the match is offered
 /// first and never chosen for the submitter. A record found by typing (by
-/// its title, never its author) and picked stands with its own fields,
-/// frozen. Nothing is submitted (`SubmissionTests` submits). A throwaway
+/// its title, never its author) and picked offers its amendment, the
+/// form's Submit waiting. Nothing is submitted (`SubmissionTests` submits). A throwaway
 /// admin owns a scratch work — its author, evidence, overture, concerto,
 /// hallmark, record and attributed version, made by SQL — removed after.
 @Suite("Record choice", .serialized)
@@ -139,7 +139,7 @@ struct RecordChoiceTests {
       #expect(row["size"].double == 8)
       if let trail = row["trail"].double { #expect(row["size"].double == trail) }
 
-      // Afresh: found by typing, picked, and its fields stand frozen.
+      // Afresh: found by typing, picked, and its amendment offered.
       try await page.openHydrated(Self.form)
       try await expect(dropdown.locator(".dropdown-option[data-value='\(work.recordID)']")).toHaveCount(1)
       try await dropdown.locator(".dropdown-trigger").click()
@@ -163,11 +163,11 @@ struct RecordChoiceTests {
       try await expect(dropdown.locator(".dropdown-selected-text .breadcrumb-label-text"), timeout: .seconds(15))
         .toHaveText(work.title)
       try await expect(dropdown.locator(".dropdown-selected-text .breadcrumb-label-context")).toHaveText("English")
-      // Its own fields stand, frozen, in place of the editable ones.
-      let frozen = form.locator(".submit-testament-apparatus .record-choice-apparatus")
-      try await expect(frozen.locator("input[name='title']")).toHaveValue(work.title)
-      try await expect(frozen.locator("input[name='title']")).toBeDisabled()
-      try await expect(frozen.locator("[data-dropdown-id$='work-type'] .dropdown-selected-text").first).toHaveText("Report")
+      // Submit Testament makes records: chosen, its Submit waits and the
+      // record's amendment is offered in its place.
+      try await expect(field.locator("[data-record-choice-amendment] .record-choice-amendment-button"), timeout: .seconds(15))
+        .toBeVisible()
+      try await expect(form.locator(".record-actions button[type='submit']")).toBeDisabled()
       // Chosen, not asked about again: the choice stands.
       try await Task.sleep(for: .milliseconds(800))
       try await expect(field.locator("input[name='biblio-record']")).toHaveValue(work.recordID)

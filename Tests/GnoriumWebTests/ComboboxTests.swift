@@ -188,7 +188,7 @@ struct ComboboxTests {
         }
       })()
       """)
-    let apparatus = form.locator(".submit-testament-apparatus")
+    let apparatus = form.locator("#metadata")
     try await apparatus.locator("input[name='title']").fill("Web tests combobox \(suffix)")
     try await apparatus.locator(
       "[data-item-list='work-voice'] [data-item-section='true']\(live) .text-input-input"
@@ -276,7 +276,9 @@ struct ComboboxTests {
         let carrier = form.locator(".dropdown-view:has(#testament-carrier)")
         try await carrier.locator(".dropdown-trigger").click()
         try await carrier.locator(".dropdown-option[data-value='printed']").click()
-        try await form.locator(".submit-testament-apparatus input[name='title']").fill("Web tests voice \(work.suffix)")
+        try await form.locator("#metadata input[name='title']").fill("Web tests voice \(work.suffix)")
+        // No copy to say: its node removed, as an empty one is refused.
+        try await form.locator(".testament-draft-remove-copy").click()
         try await form.locator(".combobox-view:has(input[name='provider-dropdown']) .text-input-input").fill("Gallica")
         try await form.locator("input[name='source-url']").fill(source)
         try await form.locator(".record-actions button[type='submit']").click()

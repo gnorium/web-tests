@@ -90,27 +90,19 @@ struct CarrierTests {
       }
       try await choose("printed")
 
-      // The Origin row's actions sit one field gap below its last field,
-      // as its fields are spaced.
+      // The Origin step's fields, in its row's Metadata, end with its last
+      // typed field: no empty slot after it.
       let gaps = try await page.evaluate(
         """
         (() => {
-          const row = document.querySelector('.origin-field-view-row');
-          const shown = [...row.children].filter((c) => c.getBoundingClientRect().height > 0);
-          const actions = row.querySelector(':scope > .origin-field-view-actions');
-          const before = shown[shown.indexOf(actions) - 1];
-          const [a, b] = shown;
-          const typed = row.querySelector(':scope > .origin-field-view-typed');
+          const typed = document.querySelector('.origin-field-view-row .origin-field-view-typed');
           const last = [...typed.children].filter((c) => getComputedStyle(c).display !== 'none').pop();
           return {
-            field: Math.round(b.getBoundingClientRect().top - a.getBoundingClientRect().bottom),
-            actions: Math.round(actions.getBoundingClientRect().top - last.getBoundingClientRect().bottom),
             typedEnd: Math.round(typed.getBoundingClientRect().bottom - last.getBoundingClientRect().bottom),
           };
         })()
         """)
       #expect(gaps["typedEnd"].int == 0, "No empty slot at the end of the typed fields.")
-      #expect(gaps["actions"].int == gaps["field"].int, "The actions sit one field gap below the fields.")
 
       // Chosen as a reader chooses in a long list: its name typed into the
       // menu's search, the match clicked.
