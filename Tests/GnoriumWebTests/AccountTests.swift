@@ -128,11 +128,11 @@ struct AccountTests {
 
         try await resend.click()
         // The outcome is its own green alert just above the banner; the
-        // button keeps its label and is usable again.
+        // button then waits a minute, counting down.
         try await expect(page.locator(".email-verification-banner-notices .alert-view.alert-green"))
           .toContainText("We sent a new verification link")
-        try await expect(banner.locator(".button-label")).toHaveText("Resend Email")
-        try await expect(resend).toBeEnabled()
+        try await expect(banner.locator(".button-label")).toContainText("Resend in ")
+        try await expect(banner.locator("button.email-verification-banner-resend")).toBeDisabled()
 
         try await banner.locator(".alert-dismiss").click()
         try await expect(banner).toBeHidden()
