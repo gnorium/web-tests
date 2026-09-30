@@ -22,7 +22,7 @@ struct ScratchWord {
 
   /// Where an utterance is in a testament: its record, version and page
   /// (image service, and its place among the version's pages), and its word
-  /// by line and place in the line, with its surface, as the concordance
+  /// by line and place in the line, with its surface, as the utterances service
   /// counts the page.
   struct Anchor {
     let recordID: String

@@ -170,7 +170,7 @@ struct CitationsTests {
 }
 
 /// A proposal's Entries (user, 2026-09-29): a pending proposal's headed
-/// entries, previewed from its own transcript (the concordance's
+/// entries, previewed from its own transcript (the utterances service's
 /// `/entries/preview`, nothing stored; its body says so, no header chip —
 /// user, 2026-09-30) and listed above Citations, each with the
 /// record it is the entry for as the resolver linked it; a signed-in reader
@@ -266,7 +266,7 @@ struct EntryLinksTests {
     try await cleanUp()
   }
 
-  /// A permitted version's entries are unknown until the concordance has
+  /// A permitted version's entries are unknown until the utterances service has
   /// read them (user, 2026-09-30): "—", never "0 entries"; once read (its
   /// `entry_extractions` row), the count, 0 as surely as many.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
