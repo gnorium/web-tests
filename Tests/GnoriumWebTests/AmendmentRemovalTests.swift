@@ -32,8 +32,8 @@ struct AmendmentRemovalTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("\(work.path)/amendments/new")
-        let edition = page.locator(".outliner-item[data-outliner-id^='edition-']")
-        let manifest = page.locator(".outliner-item[data-outliner-id^='manifest-']")
+        let edition = page.locator(".outliner-item[data-outliner-id^='edition-']:not([data-testament-draft])")
+        let manifest = page.locator(".outliner-item[data-outliner-id^='manifest-']:not([data-testament-draft])")
         let dialog = page.locator(".testament-outliner-remove-dialog")
         func own(_ item: Locator, _ selector: String) -> Locator {
           item.locator(":scope > .outliner-row > .outliner-node > .testament-outliner-node > .record-row-view \(selector)").first
@@ -79,7 +79,10 @@ struct AmendmentRemovalTests {
 
         // The edition removed, its digitization with it.
         try await reveal(edition)
+        try await expect(own(edition, ".metadata-accordion-view > .accordion-view > .accordion-details"))
+          .toHaveAttribute("data-open-finished", "true")
         try await own(edition, ".testament-outliner-remove").click()
+        try await expect(dialog).toHaveAttribute("data-open", "true")
         try await dialog.locator(".dialog-primary-button button").click()
         try await expect(edition).toHaveAttribute("data-outline-state", "removed")
         let posted = try await shape()

@@ -5,24 +5,26 @@ import WebTestsTesting
 
 /// Submit Testament and Submit Sentiment are the record page in edit mode
 /// (user, 2026-09-28): the record field at the head ("New record" until one
-/// is chosen), the record's fields, then the chronicle tree with ONE new
-/// node, open, its fields in its Metadata, its row named by its own fields
-/// as they are typed ("—" until then; no level name). A new record's tree is
-/// the new node alone. Submit Testament makes records: a chosen biblio-record
-/// is one the testament already has, its Submit waits, disabled, and the
-/// record's "Submit Amendment" carries what was typed into that record's
-/// amendment, the new testament added to its tree, the only node that moves:
-/// under an edition a testament is a copy and its digitization, the
-/// edition's own fields shown above its own, disabled — what it inherits,
-/// carrier and all — its own edition fields kept aside unposted until it
-/// returns to the top; nothing goes under a digitization. A chosen
-/// lexico-record's fields are frozen and its tree is its own, the new
-/// sentiment placed in it. A manuscript's citations are its copy's. A
-/// work's page offers its amendment; a word's, its submission with the
-/// record chosen; signed out, each says so in an alert. Each case is
-/// submitted, and its evidence and overture read back from the database. A
-/// throwaway admin owns the scratch records and every row submitted, removed
-/// after.
+/// is chosen), the record's fields, then the chronicle tree with the new
+/// nodes, open, their fields in their Metadata, each row named by its own
+/// fields as they are typed ("—" until then; no level name). A new
+/// testament is drawn as the nodes it will become (user, 2026-10-01): a
+/// printed one edition › copy › digitization, the copy removable with its
+/// icon-only − (the digitization then under the edition) and put back with
+/// the edition's +; a manuscript copy › digitization. A copy node left empty
+/// blocks submit ("Fill in the copy or remove it."). Submit Testament makes
+/// records: a chosen biblio-record is one the testament already has, its
+/// Submit waits, disabled, and the record's "Submit Amendment" carries what
+/// was typed into that record's amendment, the new nodes added to its tree:
+/// under an edition a copy and its digitization, the edition's carrier
+/// taken, its own edition node out and unposted; nothing goes under a
+/// digitization. A chosen lexico-record's fields are frozen and its tree is
+/// its own, the new sentiment placed in it. A manuscript's citations are its
+/// copy's. A work's page offers its amendment; a word's, its submission
+/// with the record chosen; signed out, each says so in an alert. Each case
+/// is submitted, and its evidence and overture read back from the database.
+/// A throwaway admin owns the scratch records and every row submitted,
+/// removed after.
 @Suite("Submission", .serialized)
 struct SubmissionTests {
   static let testamentForm = "/mission-control/submit/bibliographic/evidence-testament"
@@ -31,7 +33,7 @@ struct SubmissionTests {
   // MARK: - Submit Testament
 
   @Test(arguments: gnorium.engines, Layout.allCases)
-  func aTestamentIsOneNewNodeInItsRecordsTree(engine: BrowserEngine, layout: Layout) async throws {
+  func aTestamentIsItsNewNodesInItsRecordsTree(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
@@ -93,9 +95,19 @@ struct SubmissionTests {
     try await dropdown.locator(".dropdown-option[data-value='\(value)']").filter(visible: true).first.click()
   }
 
-  /// A new record: its fields to fill in, its tree the new testament alone,
-  /// named as its fields are typed; submitted, an evidence and its overture
-  /// with no record chosen.
+  /// A new testament's node, and its own row's parts.
+  private func node(_ scope: Locator, _ level: String) -> Locator {
+    scope.locator(".outliner-item[data-outliner-id='\(level)-new']")
+  }
+
+  private func row(_ scope: Locator, _ level: String) -> Locator {
+    node(scope, level).locator(":scope > .outliner-row")
+  }
+
+  /// A new record: its fields to fill in, its tree the new testament's
+  /// nodes, each named as its fields are typed; the copy removed and put
+  /// back, left empty refused; submitted without it, an evidence and its
+  /// overture with no record chosen and no copy.
   private func newTestament(_ page: Page, suffix: String, source: String) async throws {
     try await page.openHydrated(Self.testamentForm)
     let form = page.locator(".submit-testament-form")
@@ -108,15 +120,15 @@ struct SubmissionTests {
     let apparatus = form.locator("#metadata")
     try await expect(apparatus.locator("input[name='title']")).toBeEnabled()
     let tree = form.locator(".submit-testament-tree")
-    try await expect(tree.locator(".record-row-view")).toHaveCount(1)
-    try await expect(tree.locator(".outliner-view")).toHaveCount(0)
-    let draft = tree.locator("[data-submission-draft='true']")
-    let title = draft.locator(".record-row-title").first
-    try await expect(draft.locator(".record-row-number").first).toHaveText("1")
-    try await expect(title).toHaveText("—")
+    // Edition › copy › digitization, numbered as the record page numbers.
+    for (level, number) in [("edition", "1"), ("copy", "1.1"), ("manifest", "1.1.1")] {
+      try await expect(node(tree, level)).toHaveAttribute("data-outliner-removed", "false")
+      try await expect(row(tree, level).locator(".record-row-number").first).toHaveText(number)
+      try await expect(row(tree, level).locator(".record-row-title").first).toHaveText("—")
+    }
     // No card and no level named: its fields in its open Metadata.
     try await expect(form.locator(".framed-accordion-view")).toHaveCount(0)
-    try await expect(draft.locator(".metadata-accordion-view .accordion-details").first)
+    try await expect(row(tree, "edition").locator(".metadata-accordion-view .accordion-details").first)
       .toHaveAttribute("data-expanded", "true")
 
     // The work.
@@ -127,59 +139,87 @@ struct SubmissionTests {
       "[data-item-list='work-voice'] [data-item-section='true']:not([data-item-template] *) .text-input-input"
     ).first.fill("Web Tests Author \(suffix)")
 
-    // A manuscript's citations are its copy's, after its Acquisition; a
-    // printed testament's its edition's.
-    let carrier = draft.locator(".dropdown-view:has(#testament-carrier)")
+    // A manuscript: no edition node; its copy the top, the carrier and its
+    // making there, not removable; its citations its copy's.
+    let carrier = tree.locator(".dropdown-view:has(#testament-carrier)")
     let citations = "fieldset:has([data-item-list='reference-citation'])"
     try await choose(carrier, "manuscript")
+    try await expect(node(tree, "edition")).toHaveAttribute("data-outliner-removed", "true")
+    try await expect(row(tree, "copy").locator(".record-row-number").first).toHaveText("1")
+    try await expect(row(tree, "copy").locator("#testament-carrier")).toHaveCount(1)
+    try await expect(row(tree, "copy").locator(".testament-draft-remove-copy")).toBeHidden()
     try await expect(
-      draft.locator(".testament-metadata-view-acquisition [data-citations-slot='production'] \(citations)")
+      row(tree, "copy").locator(".testament-metadata-view-acquisition [data-citations-slot='production'] \(citations)")
     ).toBeVisible()
-    // The testament: its Carrier first, which shows its edition; its row
-    // named by its edition statement as it is typed.
+    // Printed: its edition back, the carrier and publication there; the
+    // copy's making gone; the edition named as it is typed.
     try await choose(carrier, "printed")
+    try await expect(node(tree, "edition")).toHaveAttribute("data-outliner-removed", "false")
+    let edition = row(tree, "edition")
+    try await expect(edition.locator("#testament-carrier")).toHaveCount(1)
     try await expect(
-      draft.locator(
+      edition.locator(
         ".activity-statement-view[data-as-namespace='publication'] [data-citations-slot='publication'] \(citations)")
     ).toBeVisible()
-    try await expect(draft.locator(".activity-statement-view[data-as-namespace='publication']")).toBeVisible()
-    try await expect(draft.locator(".activity-statement-view[data-as-namespace='production']")).toBeHidden()
-    try await draft.locator("input[name='edition']").fill("Second edition")
-    try await expect(title).toHaveText("Second edition")
-    try await draft.locator(".combobox-view:has(input[name='provider-dropdown']) .text-input-input").fill("British Library")
-    try await draft.locator("input[name='source-url']").fill("\(source)/new")
+    try await expect(row(tree, "copy").locator(".activity-statement-view[data-as-namespace='production']"))
+      .toBeHidden()
+    try await edition.locator("input[name='edition']").fill("Second edition")
+    try await expect(edition.locator(".record-row-title").first).toHaveText("Second edition")
+    let manifest = row(tree, "manifest")
+    try await manifest.locator(".combobox-view:has(input[name='provider-dropdown']) .text-input-input")
+      .fill("British Library")
+    try await manifest.locator("input[name='source-url']").fill("\(source)/new")
 
-    try await form.locator(".record-actions button[type='submit']").click()
+    // The copy left empty: refused on it, nothing sent.
+    let submit = form.locator(".record-actions button[type='submit']")
+    try await submit.click()
+    try await expect(row(tree, "copy").locator(".testament-draft-copy-message"))
+      .toHaveText("Fill in the copy or remove it.")
+    try await expect(page).toHaveURL("the form") { $0.path == Self.testamentForm }
+    // Removed: the digitization under the edition; the edition's + puts it
+    // back, and takes it out again.
+    try await row(tree, "copy").locator(".testament-draft-remove-copy").click()
+    try await expect(node(tree, "copy")).toHaveAttribute("data-outliner-removed", "true")
+    try await expect(manifest.locator(".record-row-number").first).toHaveText("1.1")
+    let add = edition.locator(".testament-draft-add-copy")
+    try await expect(add).toBeVisible()
+    try await add.click()
+    try await expect(node(tree, "copy")).toHaveAttribute("data-outliner-removed", "false")
+    try await expect(manifest.locator(".record-row-number").first).toHaveText("1.1.1")
+    try await expect(add).toBeHidden()
+    try await row(tree, "copy").locator(".testament-draft-remove-copy").click()
+
+    try await submit.click()
     try await expect(page, timeout: .seconds(15)).toHaveURL("the Mission Control page") {
       $0.path == "/mission-control"
     }
     let row = try TestAdmin.query(
       """
       SELECT e.title || '|' || coalesce(e.carrier, '') || '|' || coalesce(e.edition, '') || '|'
-        || coalesce(e.chosen_biblio_record_id::text, '') || '|' || count(o.id)
+        || coalesce(e.copy_label, '') || '|' || coalesce(e.chosen_biblio_record_id::text, '') || '|' || count(o.id)
         FROM bibliographic_evidences e LEFT JOIN bibliographic_overtures o ON o.bibliographic_evidence_id = e.id
         WHERE e.source_url = '\(source)/new' GROUP BY e.id;
       """
     ).trimmingCharacters(in: .whitespacesAndNewlines)
-    #expect(row == "\(name)|printed|Second edition||1", "\(row)")
+    #expect(row == "\(name)|printed|Second edition|||1", "\(row)")
   }
 
   /// A chosen record: the form's Submit waits, disabled, and the record's
   /// "Submit Amendment" carries what was typed into its amendment, the new
-  /// testament added at the top of its tree after its edition; placed under
-  /// the edition, it is a copy and its digitization taking the edition's
-  /// carrier; under a digitization it is refused. Submitted: the record's own
-  /// fields, the inherited carrier and the placement ride on the evidence and
-  /// its overture.
+  /// testament's nodes added at the top of its tree after its edition;
+  /// added under the edition by its +, a copy and its digitization taking
+  /// the edition's carrier, the copy removable (the digitization then under
+  /// the edition, whose + puts it back); under a digitization it is refused.
+  /// Submitted: the record's own fields, the inherited carrier and the
+  /// placement ride on the evidence and its overture.
   private func placedTestament(_ page: Page, work: ScratchWork, source: String) async throws {
     try await page.openHydrated(Self.testamentForm)
     let form = page.locator(".submit-testament-form")
     let field = form.locator(".record-choice-field-view")
     let dropdown = field.locator(".dropdown-view")
     let typed = form.locator(".submit-testament-tree")
-    let typedFields = typed.locator(".testament-metadata-view[data-editable='true']")
-    try await choose(typedFields.locator(".dropdown-view:has(#testament-carrier)"), "printed")
-    try await typedFields.locator("input[name='edition']").fill("Kept aside")
+    try await choose(typed.locator(".dropdown-view:has(#testament-carrier)"), "printed")
+    try await row(typed, "edition").locator("input[name='edition']").fill("Kept aside")
 
     try await dropdown.locator(".dropdown-trigger").click()
     try await dropdown.locator(".dropdown-search-input").fill(work.suffix)
@@ -195,57 +235,53 @@ struct SubmissionTests {
       $0.path == "\(work.path)/amendments/new"
     }
 
-    // Its edition fixed (1), the new testament after it (2), carried in.
+    // Its edition fixed (1), the new testament's nodes after it (2),
+    // carried in.
     let tree = page.locator(".testament-outliner-view")
-    let draft = tree.locator(".outliner-item[data-outliner-id='new']")
-    try await expect(draft).toHaveAttribute("data-outliner-removed", "false")
-    let number = draft.locator(".record-row-number").first
-    try await expect(number).toHaveText("2")
-    try await expect(tree.locator(".outliner-item:not([data-outliner-id='new']) .outliner-handle").first)
+    let edition = row(tree, "edition")
+    try await expect(node(tree, "edition")).toHaveAttribute("data-outliner-removed", "false")
+    try await expect(edition.locator(".record-row-number").first).toHaveText("2")
+    try await expect(row(tree, "copy").locator(".record-row-number").first).toHaveText("2.1")
+    try await expect(row(tree, "manifest").locator(".record-row-number").first).toHaveText("2.1.1")
+    try await expect(tree.locator(".outliner-item:not([data-testament-draft]) .outliner-handle").first)
       .toBeDisabled()
-    try await expect(draft.locator("input[name='placement-version']")).toHaveValue(work.versionID)
-    let fields = draft.locator(".testament-metadata-view[data-editable='true']")
-    try await expect(fields.locator("input[name='edition']")).toHaveValue("Kept aside")
-    try await expect(draft.locator(".record-row-title").first).toHaveText("Kept aside")
-    let inherited = draft.locator(".submission-tree-inherited-level[data-inherited-from^='edition-']")
-    try await expect(inherited).toBeHidden()
+    try await expect(tree.locator("input[name='placement-version']")).toHaveValue(work.versionID)
+    try await expect(edition.locator("input[name='edition']")).toHaveValue("Kept aside")
+    try await expect(edition.locator(".record-row-title").first).toHaveText("Kept aside")
 
-    // Under the edition, after its digitization: a copy and its
-    // digitization. The edition's own fields above them, disabled — its
-    // carrier among them — its own edition kept aside, the edition's carrier
-    // set on it and not drawn twice.
-    let handle = draft.locator(".outliner-handle").first
-    func move(_ action: String) async throws {
-      try await handle.click()
-      try await page.locator(".outliner-toolbar [data-outliner-action='\(action)']").click()
-      try await page.locator(".outliner-toolbar [data-outliner-action='done']").click()
-    }
-    try await move("indent")
+    // One testament an amendment: the tree's + hidden while it is in. Taken
+    // out by its top's −, then added under the edition by the edition's +:
+    // a copy and its digitization, the edition's carrier taken, its own
+    // edition node out.
+    let recordEdition = tree.locator(".outliner-item[data-outliner-id^='edition-']:not([data-testament-draft])").first
+    let addUnder = recordEdition.locator(":scope > .outliner-row button[aria-label='Add Testament']")
+    try await expect(addUnder).toBeHidden()
+    try await edition.locator(".testament-draft-remove").click()
+    try await expect(node(tree, "edition")).toHaveAttribute("data-outliner-removed", "true")
+    try await addUnder.click()
+    try await expect(node(tree, "edition")).toHaveAttribute("data-outliner-removed", "true")
+    let copy = row(tree, "copy")
+    let number = copy.locator(".record-row-number").first
     try await expect(number).toHaveText("1.2")
-    try await expect(fields).toHaveAttribute("data-draft-levels", "2,3")
-    try await expect(fields.locator(".activity-statement-view[data-as-namespace='publication']")).toBeHidden()
-    try await expect(fields.locator(".testament-metadata-view-acquisition")).toBeVisible()
-    try await expect(fields.locator(".activity-statement-view[data-as-namespace='digitization']")).toBeVisible()
-    try await expect(fields.locator("#new-testament-carrier")).toHaveValue("printed")
-    try await expect(fields.locator("#new-testament-carrier")).toBeDisabled()
-    try await expect(fields.locator(".testament-metadata-view-carrier")).toBeHidden()
-    try await expect(inherited).toBeVisible()
-    try await expect(inherited.locator("input[name='edition']")).toHaveValue("First edition")
-    try await expect(inherited.locator("input[name='edition']")).toBeDisabled()
-    try await expect(inherited.locator("input[name='carrier']")).toBeDisabled()
-    // Back at the top, its own edition as it was left; under the edition
-    // again for the rest.
-    try await move("outdent")
-    try await expect(number).toHaveText("2")
-    try await expect(inherited).toBeHidden()
-    try await expect(fields.locator("input[name='edition']")).toHaveValue("Kept aside")
-    try await expect(fields.locator(".testament-metadata-view-carrier")).toBeVisible()
-    try await move("indent")
+    try await expect(row(tree, "manifest").locator(".record-row-number").first).toHaveText("1.2.1")
+    try await expect(copy.locator(".testament-metadata-view-acquisition")).toBeVisible()
+    try await expect(row(tree, "manifest").locator(".activity-statement-view[data-as-namespace='digitization']"))
+      .toBeVisible()
+    try await expect(tree.locator("#new-testament-carrier")).toBeDisabled()
+    // The copy removed: the digitization under the edition; the edition's +
+    // puts it back.
+    try await copy.locator(".testament-draft-remove-copy").click()
+    try await expect(node(tree, "copy")).toHaveAttribute("data-outliner-removed", "true")
+    try await expect(row(tree, "manifest").locator(".record-row-number").first).toHaveText("1.2")
+    try await expect(addUnder).toBeVisible()
+    try await addUnder.click()
+    try await expect(node(tree, "copy")).toHaveAttribute("data-outliner-removed", "false")
     try await expect(number).toHaveText("1.2")
     // Named by its copy label as it is typed.
-    try await fields.locator("input[name='copyLabel']").fill("Copy 2")
-    try await expect(draft.locator(".record-row-title").first).toHaveText("Copy 2")
+    try await copy.locator("input[name='copyLabel']").fill("Copy 2")
+    try await expect(copy.locator(".record-row-title").first).toHaveText("Copy 2")
     // Under the digitization above it: refused, in the tree's words.
+    let handle = copy.locator(".outliner-handle").first
     try await handle.click()
     try await handle.press("ArrowRight")
     try await expect(tree.locator(".outliner-feedback .alert-content"))
@@ -254,8 +290,10 @@ struct SubmissionTests {
     try await expect(number).toHaveText("1.2")
 
     // Submitted: its own edition, kept aside, is not posted.
-    try await fields.locator(".combobox-view:has(input[name='provider-dropdown']) .text-input-input").fill("British Library")
-    try await fields.locator("input[name='source-url']").fill("\(source)/placed")
+    let manifest = row(tree, "manifest")
+    try await manifest.locator(".combobox-view:has(input[name='provider-dropdown']) .text-input-input")
+      .fill("British Library")
+    try await manifest.locator("input[name='source-url']").fill("\(source)/placed")
     try await page.locator("button[type='submit'][form='amendment-new']").click()
     try await expect(page, timeout: .seconds(15)).toHaveURL("the Mission Control page") {
       $0.path == "/mission-control"
@@ -277,11 +315,11 @@ struct SubmissionTests {
     let placement = try TestAdmin.query(
       "SELECT placement_json FROM bibliographic_evidences WHERE source_url = '\(source)/placed';")
     let shape = try JSONSerialization.jsonObject(with: Data(placement.utf8)) as? [String: [String: Any]] ?? [:]
-    let copy = shape.first { $0.key.lowercased() == "copy-\(evidence.lowercased())" }
-    let manifest = shape.first { $0.key.lowercased() == "manifest-\(evidence.lowercased())" }
-    #expect((copy?.value["parent"] as? String)?.hasPrefix("edition-") == true, "\(placement)")
-    #expect((copy?.value["position"] as? Int) == 1, "\(placement)")
-    #expect((manifest?.value["parent"] as? String)?.lowercased() == copy?.key.lowercased(), "\(placement)")
+    let placedCopy = shape.first { $0.key.lowercased() == "copy-\(evidence.lowercased())" }
+    let placedManifest = shape.first { $0.key.lowercased() == "manifest-\(evidence.lowercased())" }
+    #expect((placedCopy?.value["parent"] as? String)?.hasPrefix("edition-") == true, "\(placement)")
+    #expect((placedCopy?.value["position"] as? Int) == 1, "\(placement)")
+    #expect((placedManifest?.value["parent"] as? String)?.lowercased() == placedCopy?.key.lowercased(), "\(placement)")
     #expect(shape.keys.contains { $0.lowercased() == "edition-\(evidence.lowercased())" } == false)
   }
 
