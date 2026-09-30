@@ -28,7 +28,7 @@ struct SignOutTests {
         try await expect(page.locator("a[href='/auth/sign-out']")).toHaveCount(0)
         let button = form.locator("button[type='submit']")
         try await expect(button).toHaveCount(1)
-        try await expect(button).toContainText("Sign out")
+        try await expect(button).toContainText("Sign Out")
 
         // It looks like its neighbors: the same width, height and weight as Change password.
         let neighbour = page.locator("nav.account-links a.button-view[href='/account/password']")

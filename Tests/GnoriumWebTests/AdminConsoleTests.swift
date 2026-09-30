@@ -103,20 +103,20 @@ struct AdminConsoleTests {
         try await expect(page).toHaveURL("/admin-console/mfa/verify")
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         try await page.locator("#verify-mfa-recovery-code").fill(codes[0])
-        try await page.getByRole(.button, name: "Use recovery code").click()
+        try await page.getByRole(.button, name: "Use Recovery Code").click()
         try await expect(page).toHaveURL("/admin-console")
 
         // It worked once.
         try await page.openHydrated("/admin-console/mfa/verify")
         try await page.locator("#verify-mfa-recovery-code").fill(codes[0])
-        try await page.getByRole(.button, name: "Use recovery code").click()
+        try await page.getByRole(.button, name: "Use Recovery Code").click()
         try await expect(page).toHaveURL("/admin-console/mfa/verify?error=invalid-recovery-code")
         try await expect(page.locator(".page-alerts .alert-view")).toContainText("used already")
         try await page.openHydrated("/admin-console/mfa/manage")
         try await expect(page.locator(".manage-mfa-view")).toContainText("7 of 8 unused")
 
         // New codes, shown once; the old ones are gone.
-        try await page.getByRole(.button, name: "Regenerate recovery codes").click()
+        try await page.getByRole(.button, name: "Regenerate Recovery Codes").click()
         try await expect(page.locator(".recovery-codes-view")).toBeVisible()
         try await Self.check(page, sheet: "recovery-codes-view", layout: layout, name: "mfa-regenerated")
         let fresh = try await Self.shownCodes(page)
@@ -129,12 +129,12 @@ struct AdminConsoleTests {
         // Off, with a current code: a wrong one changes nothing.
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         try await page.locator("#manage-mfa-code").fill("000000")
-        try await page.getByRole(.button, name: "Turn off MFA").click()
+        try await page.getByRole(.button, name: "Turn Off MFA").click()
         try await expect(page).toHaveURL("/admin-console/mfa/manage?error=invalid")
         #expect(try admin.column("totp_enabled") == "true")
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         try await page.locator("#manage-mfa-code").fill(try Self.code(secret: secret))
-        try await page.getByRole(.button, name: "Turn off MFA").click()
+        try await page.getByRole(.button, name: "Turn Off MFA").click()
         try await expect(page).toHaveURL("/admin-console/mfa/setup?notice=disabled")
         try await expect(page.locator(".page-alerts .alert-view")).toContainText("is off")
         #expect(try admin.column("totp_enabled") == "false")

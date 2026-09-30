@@ -50,7 +50,7 @@ struct AccountTests {
         try await expect(links.locator("a[href='/admin-console/mfa/setup']")).toHaveCount(asAdmin ? 1 : 0)
         try await expect(links.locator("a[href='/admin-console']")).toHaveCount(asAdmin ? 1 : 0)
         let signOut = links.locator("form.account-sign-out[action='/auth/sign-out'][method='post'] button[type='submit']")
-        try await expect(signOut).toContainText("Sign out")
+        try await expect(signOut).toContainText("Sign Out")
         try await expect(page.locator("a[href='/auth/sign-out']")).toHaveCount(0)
         // Every row has its icon, and every row is as wide as the list.
         let rows = try await page.evaluate(
