@@ -56,12 +56,12 @@ struct LexicographicTranslationTests {
             output, result, duration_ms, created_at)
           VALUES ('\(run)', '\(translation)', 's-1-1', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
             '\(try Self.trace(german: german))', 'passed', 900, now());
-        INSERT INTO sentiment_amendments (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition, target,
+        INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition, target,
             status, submitted_by_user_id, lexicographic_translation_id, lexicographic_translation_run_id, summary)
           VALUES ('\(amendment)', '\(english.recordID.lowercased())', '\(english.versionID.lowercased())', 's-1-1',
             'A leaf sense.', 'translations', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'),
             '\(translation)', '\(run)', 'German, broader; no other language.');
-        INSERT INTO sentiment_equivalents (id, sentiment_amendment_id, position, language_code, target_lexico_record_id,
+        INSERT INTO sentiment_equivalents (id, lexicographic_epilogue_id, position, language_code, target_lexico_record_id,
             target_sentiment_id, title, type, relation, confidence, reason, citations_json)
           VALUES (gen_random_uuid(), '\(amendment)', 0, 'deu', '\(german.recordID.lowercased())', 's-1-1',
             '\(german.title)', 'Noun', 'broader', 'clear', 'The German word names more.',
@@ -70,9 +70,9 @@ struct LexicographicTranslationTests {
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         // The amendment, proposed: its equivalent with its provenance, and the verdicts.
-        try await page.openHydrated("/mission-control/amendments/lexicographic/\(amendment)")
-        let body = page.locator(".sentiment-amendment-body")
-        try await expect(page.locator(".disputorium-core-title")).toHaveText("Sentiment amendment")
+        try await page.openHydrated("/mission-control/epilogues/lexicographic/\(amendment)")
+        let body = page.locator(".lexicographic-epilogue-body")
+        try await expect(page.locator(".disputorium-core-title")).toHaveText("Epilogue")
         try await expect(page.locator(".pedigree-view a[href='/users/gnorium']").first).toBeAttached()
         try await expect(body.getByText("A leaf sense.").first).toBeVisible()
         try await expect(body.getByText("Translations proposed")).toBeVisible()
@@ -82,9 +82,9 @@ struct LexicographicTranslationTests {
         try await expect(body.getByText("\(german.title) 1.1: A leaf sense.")).toBeVisible()
         #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
 
-        try await page.locator("button[form='sentiment-amendment-permit']").click()
+        try await page.locator("button[form='lexicographic-epilogue-permit']").click()
         try await expect(page.locator(".disputorium-core-header-status-chip")).toHaveText("Permitted")
-        try await expect(page.locator("button[form='sentiment-amendment-permit']")).toHaveCount(0)
+        try await expect(page.locator("button[form='lexicographic-epilogue-permit']")).toHaveCount(0)
         try await expect(page.getByText("Permitted version")).toBeAttached()
 
         // The English record lists the German word under the sentiment's Translations.
@@ -108,12 +108,12 @@ struct LexicographicTranslationTests {
         try await expect(page.locator(".session-view").getByText("propose_equivalent").first).toBeAttached()
         try await expect(page.locator(".session-view").getByText("German, broader; no other language.")).toBeAttached()
 
-        // Listed on the Madrigals register's Lexicographic tab, and the amendment on Amendments.
+        // Listed on the Madrigals register's Lexicographic tab, and the epilogue on Epilogues' Lexicographic tab.
         try await page.openHydrated("/mission-control/madrigals?tab=lexicographic")
         try await expect(page.locator("a[href='/mission-control/translations/lexicographic/\(translation.uppercased())']"))
           .toBeAttached()
-        try await page.openHydrated("/mission-control/amendments?tab=lexicographic")
-        try await expect(page.locator("a[href='/mission-control/amendments/lexicographic/\(amendment)']")).toBeAttached()
+        try await page.openHydrated("/mission-control/epilogues?tab=lexicographic")
+        try await expect(page.locator("a[href='/mission-control/epilogues/lexicographic/\(amendment)']")).toBeAttached()
         #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
       }
     } catch {
@@ -129,9 +129,9 @@ struct LexicographicTranslationTests {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      DELETE FROM lexico_record_versions WHERE sentiment_amendment_id IN
-        (SELECT id FROM sentiment_amendments WHERE lexico_record_id IN (\(records)));
-      DELETE FROM sentiment_amendments WHERE lexico_record_id IN (\(records));
+      DELETE FROM lexico_record_versions WHERE lexicographic_epilogue_id IN
+        (SELECT id FROM lexicographic_epilogues WHERE lexico_record_id IN (\(records)));
+      DELETE FROM lexicographic_epilogues WHERE lexico_record_id IN (\(records));
       DELETE FROM lexicographic_translations WHERE id = '\(translation)';
       COMMIT;
       """)

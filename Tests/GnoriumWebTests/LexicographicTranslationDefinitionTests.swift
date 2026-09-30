@@ -39,20 +39,20 @@ struct LexicographicTranslationDefinitionTests {
             '["in seafaring use"]')::text
           WHERE id = '\(word.versionID.lowercased())';
         -- The Arabic record translated: a version (treatment 3) permitted
-        -- from a sentiment amendment, as the antecedent check requires.
-        INSERT INTO sentiment_amendments (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition, target,
+        -- from a lexicographic epilogue, as the antecedent check requires.
+        INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition, target,
             status, submitted_by_user_id, summary, definition_translation_json, evaluated_at, evaluated_by_user_id)
           VALUES ('\(arabicAmendment)', '\(arabic.recordID.lowercased())', '\(arabic.versionID.lowercased())', 's-1-1',
             'A leaf sense.', 'translations', 'permitted', (SELECT id FROM users WHERE username = 'gnorium'),
             'Wrote the Arabic definition.', '{"language_code":"ara","definition":"\(Self.arabic)"}', now(),
             (SELECT id FROM users WHERE username = 'gnorium'));
-        INSERT INTO lexico_record_versions (id, lexico_record_id, sentiment_amendment_id, treatment, record_json, created_at)
+        INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_epilogue_id, treatment, record_json, created_at)
           SELECT gen_random_uuid(), lexico_record_id, '\(arabicAmendment)', 3,
               jsonb_set(record_json::jsonb, '{senses,1,definitionTranslation}',
                 '{"languageCode":"ara","definition":"\(Self.arabic)","labels":{"domain":[],"grammar":[],"region":[],"register":[]}}')::text,
               now() + interval '1 second'
             FROM lexico_record_versions WHERE id = '\(arabic.versionID.lowercased())';
-        INSERT INTO sentiment_amendments (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition, target,
+        INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition, target,
             status, submitted_by_user_id, summary, definition_translation_json)
           VALUES ('\(amendment)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', 's-1-1',
             'A leaf sense.', 'translations', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'),
@@ -61,15 +61,15 @@ struct LexicographicTranslationDefinitionTests {
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         // The amendment, proposed: the definition in German with its label and provenance.
-        try await page.openHydrated("/mission-control/amendments/lexicographic/\(amendment)")
-        let body = page.locator(".sentiment-amendment-body")
+        try await page.openHydrated("/mission-control/epilogues/lexicographic/\(amendment)")
+        let body = page.locator(".lexicographic-epilogue-body")
         try await expect(body.getByText("Definition in German")).toBeVisible()
         try await expect(body.getByText(Self.german)).toHaveAttribute("lang", "de")
         try await expect(body.getByText("in der Seefahrt")).toBeVisible()
         try await expect(body.getByText("The English says it plainly.")).toBeVisible()
         #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
 
-        try await page.locator("button[form='sentiment-amendment-permit']").click()
+        try await page.locator("button[form='lexicographic-epilogue-permit']").click()
         try await expect(page.locator(".disputorium-core-header-status-chip")).toHaveText("Permitted")
 
         // One record-level English toggle, selected initially.
@@ -111,9 +111,9 @@ struct LexicographicTranslationDefinitionTests {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      DELETE FROM lexico_record_versions WHERE sentiment_amendment_id IN
-        (SELECT id FROM sentiment_amendments WHERE lexico_record_id IN (\(records)));
-      DELETE FROM sentiment_amendments WHERE lexico_record_id IN (\(records));
+      DELETE FROM lexico_record_versions WHERE lexicographic_epilogue_id IN
+        (SELECT id FROM lexicographic_epilogues WHERE lexico_record_id IN (\(records)));
+      DELETE FROM lexicographic_epilogues WHERE lexico_record_id IN (\(records));
       COMMIT;
       """)
     for word in words { word.remove() }
