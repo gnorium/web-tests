@@ -459,8 +459,8 @@ struct SubmissionTests {
     try await draft.locator("#definition").fill(definition)
     try await expect(title).toHaveText(definition)
     try await form.locator(".record-actions button[type='submit']").click()
-    try await expect(page, timeout: .seconds(15)).toHaveURL("an evidence's page") {
-      $0.path.hasPrefix("/mission-control/evidence/lexicographic/")
+    try await expect(page, timeout: .seconds(15)).toHaveURL("its overture's page") {
+      $0.path.hasPrefix("/mission-control/overtures/lexicographic/")
     }
     let row = try TestAdmin.query(
       """
@@ -513,8 +513,8 @@ struct SubmissionTests {
     try await draft.locator("#definition").fill("\(definition), placed")
     try await expect(draft.locator(".record-row-title").first).toHaveText("\(definition), placed")
     try await form.locator(".record-actions button[type='submit']").click()
-    try await expect(page, timeout: .seconds(15)).toHaveURL("an evidence's page") {
-      $0.path.hasPrefix("/mission-control/evidence/lexicographic/")
+    try await expect(page, timeout: .seconds(15)).toHaveURL("its overture's page") {
+      $0.path.hasPrefix("/mission-control/overtures/lexicographic/")
     }
     let row = try TestAdmin.query(
       """
