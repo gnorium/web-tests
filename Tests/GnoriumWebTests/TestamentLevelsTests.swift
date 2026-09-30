@@ -5,11 +5,13 @@ import WebTestsTesting
 
 /// The testament form is the record page in edit mode (user, 2026-09-28):
 /// the work first, then the tree's one new node, its Carrier first, then its
-/// levels' fields, each group headed by its event as a group of fields is —
-/// an edition's Publication, a copy's Production and its Acquisition
-/// (holding institution, shelf mark, copy label), a Digitization — each
-/// event as an imprint gives it (place, agents, date); no card, no level
-/// named on the node, no Creation, no type check. A level dated before the
+/// levels' fields in one stack, unheaded (user, 2026-10-01) — an edition's
+/// Publication, a copy's Production and its Acquisition (holding
+/// institution, shelf mark, copy label), a Digitization — each event as an
+/// imprint gives it (place, agents, date); the carrier saying which of
+/// Publication and Production shows; no card, no level or group named, no
+/// Creation, no type check. A whole witness's modify form is the same
+/// stack. A level dated before the
 /// work is warned of as it is
 /// typed, never refused. On Submit Testament nothing is submitted (the
 /// submit event is dispatched by hand, which runs the form's script but
@@ -103,15 +105,14 @@ struct TestamentLevelsTests {
       try await expect(block("publication")).toBeVisible()
       try await expect(block("production")).toBeHidden()
       try await expect(block("digitization")).toBeVisible()
-      for (kind, heading) in [("publication", "Publication"), ("digitization", "Digitization")] {
-        try await expect(block(kind).locator(".metadata-group-title").first).toHaveText(heading)
-      }
+      // No group is headed: the fields say what they are.
+      try await expect(draft.locator(".metadata-group-title")).toHaveCount(0)
       try await expect(form.locator("[data-as-namespace='creation']")).toHaveCount(0)
       try await expect(form.locator(".section-legend").filter(hasText: "Provision")).toHaveCount(0)
 
       // The copy's Acquisition, whatever the carrier.
       let acquisition = draft.locator(".testament-metadata-view-acquisition")
-      try await expect(acquisition.locator(".metadata-group-title").first).toHaveText("Acquisition")
+      try await expect(acquisition).toBeVisible()
       try await expect(form.locator("#testament-copy-label")).toBeVisible()
       try await expect(acquisition.locator("input[name='holding-institution-dropdown']")).toHaveCount(1)
       try await expect(acquisition.locator(".section-legend").filter(hasText: "Shelf mark or call number")).toBeVisible()
@@ -213,19 +214,17 @@ struct TestamentLevelsTests {
         try await page.openHydrated("/mission-control/overtures/bibliographic/\(overture)/modify")
         let form = page.locator(".modify-bibliographic-overture-form")
         let copy = form.locator(".activity-statement-view[data-as-namespace='production']")
-        try await expect(form.locator("#as-accordion-production .accordion-title").first).toContainText("Production")
-        let acquisition = form.locator("#acquisition-accordion")
+        // One stack, no card, no heading: the manuscript's Production shows,
+        // its Publication does not.
+        try await expect(form.locator(".framed-accordion-view, .metadata-group-title")).toHaveCount(0)
+        try await expect(copy).toBeVisible()
+        try await expect(form.locator(".activity-statement-view[data-as-namespace='publication']")).toBeHidden()
+        let acquisition = form.locator(".testament-metadata-view-acquisition")
         let label = form.locator("#testament-copy-label")
-        if !(try await label.isVisible()) {
-          try await acquisition.locator(".accordion-summary").first.click()
-        }
         try await expect(label).toBeVisible()
         try await expect(label).toHaveValue("Web tests copy 9")
         try await expect(acquisition.locator("input[name='shelf_mark_value']")).toHaveValue("22273")
         try await expect(acquisition.locator("input[name='holding_institution']")).toHaveValue("folger_shakespeare_library")
-        if !(try await copy.locator("input[name='as-production-place']").isVisible()) {
-          try await form.locator("#as-accordion-production .accordion-summary").first.click()
-        }
         try await expect(copy.locator("input[name='as-production-place']")).toHaveValue("Web tests scriptorium")
         try await shoot(page, "modify-manuscript", layout)
         try await label.fill("Web tests copy 10")
