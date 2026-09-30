@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// The Graph page (user, 2026-09-29): how records relate, asked as one
-/// query row read as a phrase — "[Citations] of [Hamlet]" — a relation's
+/// query row read as a phrase—"[Citations] of [Hamlet]"—a relation's
 /// plural (a dropdown of the relations stored between records) and a record
 /// (a combobox of both halves' records), left empty for every pair; "+"
 /// adds a hop, "[Translations] of [citations] of [Hamlet]", the rows the

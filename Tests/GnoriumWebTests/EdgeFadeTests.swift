@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// A single line too long for its box is clipped and fades out at its end
-/// (`fadeOverflow`, EdgeFade.swift), never cut with an ellipsis — in tables,
+/// (`fadeOverflow`, EdgeFade.swift), never cut with an ellipsis—in tables,
 /// breadcrumbs, menus, chips, sidebars, everywhere. The fade is drawn exactly
 /// on the boxes whose line runs past them.
 ///
@@ -156,8 +156,8 @@ struct EdgeFadeTests {
     path == "/" ? "home" : path.dropFirst().replacingOccurrences(of: "/", with: "-")
   }
 
-  /// No ellipsis anywhere, and every box faded exactly where it overflows —
-  /// and never a button at 1400 wide.
+  /// No ellipsis anywhere, and every box faded exactly where it overflows—and
+  /// never a button at 1400 wide.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func everyPageFadesWhereItOverflows(engine: BrowserEngine, layout: Layout) async throws {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in

@@ -4,8 +4,8 @@ import WebTests
 import WebTestsTesting
 
 /// A prefix page is the records list itself (user, 2026-09-28): no heading
-/// of its own, its tab naming it, its prefix the filters in force —
-/// Language, then Title — removable as any filter is. The Title row's −
+/// of its own, its tab naming it, its prefix the filters in force—Language,
+/// then Title—removable as any filter is. The Title row's −
 /// and Apply go to the language's page; the language picked again (cleared)
 /// and Apply, to the whole list. The breadcrumbs keep the prefix. A scratch
 /// work made by SQL, removed after (`ScratchRecord`).
@@ -94,7 +94,7 @@ struct RecordPrefixFiltersTests {
     try await Self.expectLanguageNames(page)
   }
 
-  /// Every row's Language cell shows the language's name — its whole title
+  /// Every row's Language cell shows the language's name—its whole title
   /// (the name), never a short code in its place.
   static func expectLanguageNames(_ page: Page) async throws {
     let cells = try await page.evaluate(

@@ -5,8 +5,8 @@ import WebTestsTesting
 
 /// Translation is one session per chunk of pages (user, 2026-09-29): a
 /// madrigal's page lists its chunks as sessions ("Pages 1–2"), shows the
-/// focused one's trace — each page opened, translated and committed, its
-/// last words — and no Carry, Blend or Match stage cards; a madrigal that ran
+/// focused one's trace—each page opened, translated and committed, its
+/// last words—and no Carry, Blend or Match stage cards; a madrigal that ran
 /// those lists their runs after its chunks, as history.
 @Suite("Translation sessions", .serialized)
 struct TranslationSessionsTests {

@@ -35,7 +35,7 @@ struct ReferenceSourcesTests {
       try await expect(page.locator("#reference-sources-lexicographic-open .reference-sources-source").nth(0))
         .toContainText("English Wiktionary")
       #expect(try await page.url().hasSuffix("/reference-sources?kind=lexicographic&language=eng"))
-      // The filter cleared as any filter is — its value picked again, then
+      // The filter cleared as any filter is—its value picked again, then
       // Apply: every language, every Wiktionary edition.
       try await page.openHydrated("/reference-sources?kind=lexicographic&language=eng")
       let filter = page.locator(".filter-bar-view")

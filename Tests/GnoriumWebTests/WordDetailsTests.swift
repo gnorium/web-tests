@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// A word of a transcript opens what it is (user, 2026-09-29): in the
 /// testament reader and in an utterance, a click, a tap, or Enter on a
-/// focused word opens a dialog as large as the screen over the reader — the
+/// focused word opens a dialog as large as the screen over the reader—the
 /// word as written, its lemma, part of speech and morphology, then the
 /// lexico-record a word→sentiment link puts it to, read at a glance: its
 /// language, title and type, its Origin, its sentiments laid open without

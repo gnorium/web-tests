@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// A record with no treatment (user, 2026-09-29): a citation naming a work
-/// Gnorium had no record of made one — its identity, its Citations, no
+/// Gnorium had no record of made one—its identity, its Citations, no
 /// version. Its page says "—" for what it has undergone and what made it
 /// ("Created by gnorium from the citation … in [work], page N"), lists the
 /// work citing it, and is not indexed; a treated record's page is. Phone

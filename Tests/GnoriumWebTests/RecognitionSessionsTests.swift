@@ -4,8 +4,8 @@ import WebTests
 import WebTestsTesting
 
 /// A recognition is one stage, the pipeline's own (user, 2026-09-29): no
-/// Sight, Proof or Vouch cards, and one session a chunk of pages — never a
-/// row a page — whose trace shows the tool calls it read and committed with.
+/// Sight, Proof or Vouch cards, and one session a chunk of pages—never a
+/// row a page—whose trace shows the tool calls it read and committed with.
 @Suite("Recognition sessions", .serialized)
 struct RecognitionSessionsTests {
   static let page = #"<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><pb n="1"/><p><s><w lemma="sea" type="noun">sea</w></s><lb/></p></body></text></TEI>"#
@@ -133,7 +133,7 @@ struct RecognitionSessionsTests {
         try await expect(detail.locator(".detail-view-image")).toHaveAttribute("src", detailURL)
         try await expect(detail.locator(".datum-view")).toContainText("1200 × 800")
         // The box sits on the page where the region is: 10% in, 25% down,
-        // 30% wide and 20% high — once the page, lazily loaded, has come in.
+        // 30% wide and 20% high—once the page, lazily loaded, has come in.
         let pageImage = detail.locator(".detail-view-page-image")
         for _ in 0..<50 {
           if try await pageImage.evaluate("el => el.complete && el.naturalHeight > 0") == .bool(true) { break }

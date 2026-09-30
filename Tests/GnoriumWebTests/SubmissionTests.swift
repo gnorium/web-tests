@@ -325,7 +325,7 @@ struct SubmissionTests {
 
   // MARK: - From a record's page
 
-  /// A record's page offers its one road in — Submit Amendment on a
+  /// A record's page offers its one road in—Submit Amendment on a
   /// work's, which opens the record's amendment; Submit Sentiment on a
   /// word's, which opens the form with the record chosen: its fields frozen,
   /// its tree drawn. Signed out, the button is there all the same and says

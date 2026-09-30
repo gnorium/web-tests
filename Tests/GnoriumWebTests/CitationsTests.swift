@@ -171,8 +171,8 @@ struct CitationsTests {
 
 /// A proposal's Entries (user, 2026-09-29): a pending proposal's headed
 /// entries, previewed from its own transcript (the utterances service's
-/// `/entries/preview`, nothing stored; its body says so, no header chip —
-/// user, 2026-09-30) and listed above Citations, each with the
+/// `/entries/preview`, nothing stored; its body says so, no header chip—user,
+/// 2026-09-30) and listed above Citations, each with the
 /// record it is the entry for as the resolver linked it; a signed-in reader
 /// suggests another record (or none) as a modification, which an admin
 /// accepts, and the entry's link is then a person's, fixed. Phone and

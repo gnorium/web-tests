@@ -37,8 +37,8 @@ struct FormItemsRowsTests {
         const combobox = row.querySelector('.combobox-view');
         const input = combobox ? combobox.querySelector('input[type="hidden"]') : row.querySelector('.text-input-input');
         const shown = combobox ? combobox.querySelector('.text-input-input') : input;
-        // Every id a row's elements name — a label's, a dropdown's, a
-        // tooltip's — is one of the row's own.
+        // Every id a row's elements name—a label's, a dropdown's, a
+        // tooltip's—is one of the row's own.
         const dangling = [];
         for (const el of row.querySelectorAll('[for], [aria-describedby], [aria-controls], [aria-labelledby], [aria-activedescendant]')) {
           for (const attr of ['for', 'aria-describedby', 'aria-controls', 'aria-labelledby', 'aria-activedescendant']) {

@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// Attribution is one evidence-bound session per concerto (user,
 /// 2026-09-29): its page lists no Trawl, Weigh or Label stages, and shows the
-/// session's trace — the canvases it looked at and the fields it recorded. A
+/// session's trace—the canvases it looked at and the fields it recorded. A
 /// concerto that ran the old stages still lists them, its history.
 @Suite("Attribution sessions", .serialized)
 struct AttributionSessionTests {

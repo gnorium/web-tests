@@ -8,8 +8,8 @@ import WebTestsTesting
 /// page, the records list filtered to it: `Biblio-records › English ›
 /// {title} › report`, and where works share those three, `… › report ›
 /// {author}`, the three segments the list of them. From the record page a
-/// reader climbs crumb by crumb — the group's list, the title's, the
-/// language's, the whole list — each page listing the record and crumbed up
+/// reader climbs crumb by crumb—the group's list, the title's, the
+/// language's, the whole list—each page listing the record and crumbed up
 /// to itself. The biblio records are scratch works made by SQL (no account
 /// owns a record; a pair's qualifiers written as the server computes them)
 /// and removed after; the lexico record is the first the index lists.

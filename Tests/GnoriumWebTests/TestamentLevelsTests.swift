@@ -5,9 +5,9 @@ import WebTestsTesting
 
 /// The testament form is the record page in edit mode (user, 2026-09-28):
 /// the work first, then the tree's one new node, its Carrier first, then its
-/// levels' fields in one stack, unheaded (user, 2026-10-01) — an edition's
+/// levels' fields in one stack, unheaded (user, 2026-10-01)—an edition's
 /// Publication, a copy's Production and its Acquisition (holding
-/// institution, shelf mark, copy label), a Digitization — each event as an
+/// institution, shelf mark, copy label), a Digitization—each event as an
 /// imprint gives it (place, agents, date); the carrier saying which of
 /// Publication and Production shows; no card, no level or group named, no
 /// Creation, no type check. A whole witness's modify form is the same
@@ -57,8 +57,8 @@ struct TestamentLevelsTests {
 
       // The work, whole and first; then the three levels, in the tree's
       // order, each as a title page gives it: an edition's forms and
-      // statement, then each level's imprint — its place, its agents, its
-      // date (ISBD area 4, MARC 264) — then its own fields.
+      // statement, then each level's imprint—its place, its agents, its
+      // date (ISBD area 4, MARC 264)—then its own fields.
       let order = try await form.evaluate(
         """
         (form) => {

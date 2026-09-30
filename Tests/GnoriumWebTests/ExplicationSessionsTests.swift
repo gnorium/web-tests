@@ -5,8 +5,8 @@ import WebTestsTesting
 
 /// Explication is one session per cluster of utterances (user, 2026-09-29):
 /// the antiphon's page lists its clusters as sessions ("Cluster 1 of 2 · 2
-/// utterances"), shows the focused one's trace — each utterance read and
-/// assigned, its last words — and no Gloss, Draft or Audit stage cards; an
+/// utterances"), shows the focused one's trace—each utterance read and
+/// assigned, its last words—and no Gloss, Draft or Audit stage cards; an
 /// antiphon that ran those lists their runs after its clusters, as history.
 @Suite("Explication sessions", .serialized)
 struct ExplicationSessionsTests {

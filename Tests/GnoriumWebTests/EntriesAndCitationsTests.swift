@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// A record's Entries and its Citations (user, 2026-09-29). A canon is a
-/// reference work — a biblio-record whose type is a reference type — and a
+/// reference work—a biblio-record whose type is a reference type—and a
 /// record's entries in canons are its "Entries" (each referred to as a record
 /// is: language, title, type; the heading as printed; the page); the works
 /// citing it in running text are its "Citations", one row per work with how
@@ -215,7 +215,7 @@ struct EntriesAndCitationsTests {
   }
 
   /// Two pages of text: "scratchfind" once on the first, twice on the
-  /// second — the second time broken over two lines inside the word, with a
+  /// second—the second time broken over two lines inside the word, with a
   /// hyphen (`<lb break="no"/>`).
   static let tei = """
     <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>

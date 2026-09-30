@@ -209,7 +209,7 @@ struct ComboboxTests {
 
   /// A voice's name suggests, as it is typed, the voices already on works
   /// (the server's, fetched as typed): chosen, a proper-noun sentiment's
-  /// suggestion links the voice — its name shown, the link posted with it —;
+  /// suggestion links the voice—its name shown, the link posted with it —;
   /// a name typed and not chosen is stored unlinked, and so is a chosen one
   /// edited after. Chrome, phone and desktop; a scratch work voiced by a
   /// linked author, removed after.

@@ -376,7 +376,7 @@ struct OriginTests {
       try await deepRelation.locator(".dropdown-trigger").click()
 
       // The translation's page: an Origin section after the Metadata, the
-      // tree of its steps — the typed step, and under it, indented, the
+      // tree of its steps—the typed step, and under it, indented, the
       // original's record, linked.
       try await page.openHydrated(translation.path)
       let tree = page.locator("#origin .origin-view")
