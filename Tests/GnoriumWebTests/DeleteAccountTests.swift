@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// Delete Account, as its owner uses it: the page is reached from the
-/// account menu, refuses a wrong password, and, with the right one and the
+/// account page, refuses a wrong password, and, with the right one and the
 /// box ticked, erases the account's private data and signs it out. The
 /// account is a throwaway `TestAdmin`, made for the test and removed after.
 @Suite("Delete account")
@@ -15,12 +15,14 @@ struct DeleteAccountTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        _ = try await page.goto("/account/delete", waitUntil: .load)
+        // The account page links here.
+        _ = try await page.goto("/account", waitUntil: .load)
+        try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
+        try await page.locator("nav.account-links a[href='/account/delete']").click()
+        try await expect(page).toHaveURL("/account/delete")
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         try await expect(page.locator(".delete-account-view .account-core-title")).toHaveText("Delete Account")
         try await expect(page.locator(".delete-account-summary")).toContainText("@\(admin.username)")
-        // The account menu links here.
-        try await expect(page.locator("a.ellipsis-menu-link[href='/account/delete']")).toHaveCount(1)
 
         // A wrong password deletes nothing.
         try await page.locator("#delete-account-password").fill("not the password")

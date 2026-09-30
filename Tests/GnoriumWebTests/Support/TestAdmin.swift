@@ -2,7 +2,8 @@ import Foundation
 import Security
 import WebTests
 
-/// A throwaway admin account for one test, signed in by cookie.
+/// A throwaway admin account for one test (or, with `admin: false`, a plain
+/// one), signed in by cookie.
 ///
 /// Nobody's password is typed or stored. The account is registered over
 /// HTTP with a random password generated here and held only in memory, so
@@ -35,7 +36,9 @@ struct TestAdmin: Sendable {
     psqlPath == nil ? "psql was not found (set GNORIUM_PSQL); signed-in tests need it to make a test admin." : nil
   }
 
-  static func create(baseURL: URL) async throws -> TestAdmin {
+  /// `admin: false` leaves the account a plain contributor (the same
+  /// throwaway rules; only the role differs).
+  static func create(baseURL: URL, admin: Bool = true) async throws -> TestAdmin {
     // A run killed mid-test leaves its account behind; sweep those (and only
     // those: web_tests_ accounts on the reserved .test domain, an hour old,
     // that the event log doesn't name; one it names is history, and without
@@ -56,7 +59,9 @@ struct TestAdmin: Sendable {
       throw WebTestError("Registering the test admin failed with HTTP \(registered.statusCode).")
     }
 
-    try runSQL("UPDATE users SET role = 'admin' WHERE username = '\(username)' AND email = '\(email)';")
+    if admin {
+      try runSQL("UPDATE users SET role = 'admin' WHERE username = '\(username)' AND email = '\(email)';")
+    }
 
     let (signedIn, _) = try await post(
       baseURL.appendingPathComponent("auth/sign-in"), ["email-or-username": username, "password": password])
@@ -94,8 +99,10 @@ struct TestAdmin: Sendable {
     case "false false":
       try Self.runSQL(Self.deleteStatement(username))
     case "false true":
+      // A fresh sign-in: the test may have signed its own session out.
       let (deleted, _) = try await Self.post(
-        baseURL.appendingPathComponent("account/delete"), ["password": password, "confirm": "on"], cookie: cookie)
+        baseURL.appendingPathComponent("account/delete"), ["password": password, "confirm": "on"],
+        cookie: try await signIn())
       let now = try Self.query("SELECT (deleted_at IS NOT NULL AND email IS NULL)::text FROM users WHERE username = '\(username)';")
       guard deleted.statusCode == 200, now == "true" else {
         throw WebTestError("Deleting the test account \(username) through Delete account failed (HTTP \(deleted.statusCode)).")
@@ -119,6 +126,29 @@ struct TestAdmin: Sendable {
   /// This throwaway account's own row, while it is live (it has its email).
   private static func deleteStatement(_ username: String) -> String {
     "DELETE FROM users WHERE username = '\(username)' AND email = '\(username)@gnorium.test';"
+  }
+
+  /// A new sign-in over HTTP, as its cookie: another session row of this
+  /// account's (a throwaway row for a test to delete).
+  @discardableResult
+  func signIn() async throws -> Cookie {
+    let (signedIn, _) = try await Self.post(
+      baseURL.appendingPathComponent("auth/sign-in"), ["email-or-username": username, "password": password])
+    guard signedIn.statusCode == 200,
+      let token = HTTPCookie.cookies(
+        withResponseHeaderFields: signedIn.allHeaderFields as? [String: String] ?? [:], for: baseURL
+      ).first(where: { $0.name == "auth_token" })?.value
+    else {
+      throw WebTestError("Signing the test account in again failed with HTTP \(signedIn.statusCode).")
+    }
+    return Cookie(name: "auth_token", value: token, url: baseURL)
+  }
+
+  /// This account's newest session row's id.
+  func newestSessionID() throws -> String {
+    try Self.query(
+      "SELECT sessions.id FROM sessions JOIN users ON users.id = sessions.user_id WHERE users.username = '\(username)' ORDER BY sessions.created_at DESC LIMIT 1;"
+    )
   }
 
   /// How many sign-in sessions this account has on the server.

@@ -43,7 +43,12 @@ struct AccountCoreTests {
   static let measure = """
     (() => {
       const card = document.querySelector('.account-core-card').getBoundingClientRect();
-      const header = document.querySelector('.navbar-view').getBoundingClientRect();
+      // The card is centered below what heads the page: the navbar, or, for
+      // an unverified account, the reminder at the top of the content (the
+      // section's gap under it, as the content area's padding under the
+      // navbar: both 32).
+      const header = (document.querySelector('.page-section > .email-verification-banner-view')
+        ?? document.querySelector('.navbar-view')).getBoundingClientRect();
       const footer = document.querySelector('.layout-footer-wrapper').getBoundingClientRect();
       const style = getComputedStyle(document.querySelector('.account-core-card'));
       const title = getComputedStyle(document.querySelector('.account-core-title'));
@@ -105,7 +110,7 @@ struct AccountCoreTests {
     }
   }
 
-  /// Change password and Delete account are signed in only.
+  /// Account, Change password and Delete account are signed in only.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func changePasswordIsTheSameCard(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -118,6 +123,7 @@ struct AccountCoreTests {
           ("/auth/forgot-password", try await Self.frame(of: page, at: "/auth/forgot-password")),
           ("/account/password", try await Self.frame(of: page, at: "/account/password")),
           ("/account/delete", try await Self.frame(of: page, at: "/account/delete")),
+          ("/account", try await Self.frame(of: page, at: "/account")),
         ])
       }
     } catch {
