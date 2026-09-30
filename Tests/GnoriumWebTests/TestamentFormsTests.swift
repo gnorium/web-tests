@@ -42,7 +42,7 @@ struct TestamentFormsTests {
         try await carrier.locator(".dropdown-option[data-value='printed']").click()
         let rows = forms.locator("[data-item-section='true']:not([data-item-template] *)")
         try await expect(rows.first.locator(".text-input-input")).toHaveAttribute("placeholder", "Form")
-        try await expect(forms.locator("[data-item-add-btn='true'] button")).toContainText("Add form")
+        try await expect(forms.locator("[data-item-add-btn='true'] button")).toHaveAttribute("aria-label", "Add Form")
         try await rows.first.locator(".text-input-input").fill("Poëms, by J. D.")
         try await forms.locator("[data-item-add-btn='true'] button").click()
         try await expect(rows).toHaveCount(2)

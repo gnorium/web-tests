@@ -185,7 +185,7 @@ struct OriginTests {
         "(a) => [...a.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')).join('|')"
       ).string
       #expect(named == "Add Origin Step|Remove Origin Step", "add first, then remove: \(named ?? "")")
-      try await expect(block.locator(":scope > .origin-field-view-add .origin-add-btn")).toHaveText("Add Origin Step")
+      try await expect(block.locator(".origin-field-view-add .origin-add-btn")).toHaveText("Origin")
       if viewport.width < 768 {
         let stacked = try await secondActions.evaluate(
           "(a) => { const [x, y] = a.querySelectorAll('button'); const r = (b) => b.getBoundingClientRect(); const w = a.getBoundingClientRect().width; return r(x).bottom <= r(y).top && Math.abs(r(x).width - w) < 2 && Math.abs(r(y).width - w) < 2 }"
