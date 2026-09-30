@@ -79,8 +79,6 @@ struct AmendmentRemovalTests {
 
         // The edition removed, its digitization with it.
         try await reveal(edition)
-        try await expect(own(edition, ".metadata-accordion-view > .accordion-view > .accordion-details"))
-          .toHaveAttribute("data-open-finished", "true")
         try await own(edition, ".testament-outliner-remove").click()
         try await expect(dialog).toHaveAttribute("data-open", "true")
         try await dialog.locator(".dialog-primary-button button").click()

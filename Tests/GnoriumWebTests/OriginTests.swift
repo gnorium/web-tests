@@ -243,7 +243,7 @@ struct OriginTests {
       try await voiceRows.nth(1).locator(".dropdown-trigger").click()
       try await voiceRows.nth(1).locator(".dropdown-option[data-value='translator']").click()
       try await voiceRows.nth(1).locator(".text-input-input").fill("Bea Author")
-      // Its own step goes under it in the tree, indented.
+      // Its own step goes under it in the tree, inside its card.
       let secondItem = block.locator(".outliner-item[data-origin-step='\(secondKey)']")
       try await second.locator(".origin-field-view-actions .origin-add-own-btn").click()
       let nested = secondItem.locator(":scope > .outliner-list").locator(cards)
@@ -251,7 +251,8 @@ struct OriginTests {
       let indent = try await secondItem.evaluate(
         "(item) => { const own = item.querySelector(':scope > .outliner-row > .outliner-node'); const under = item.querySelector(':scope > .outliner-list .outliner-node'); return Math.round(under.getBoundingClientRect().left - own.getBoundingClientRect().left) }"
       ).int
-      #expect(indent == 24, "a step under a step stands one level (24px) in, not \(String(describing: indent))")
+      // Inside its card: the card's 1px border and 16px padding in.
+      #expect(indent == 17, "a step under a step stands inside its card (17px in), not \(String(describing: indent))")
       try await expect(nested.first.locator(".origin-record-field-view")).toHaveCount(1)
       let nestedRelation = nested.first.locator(".dropdown-view").first
       try await nestedRelation.locator(".dropdown-trigger").click()
