@@ -8,7 +8,7 @@ import WebTestsTesting
 /// Security and Admin console (admins only), Delete account, and Sign out
 /// (a POST form). The menu itself keeps one account link. And the email
 /// verification reminder: a warning alert at the top of the page's content,
-/// whose Resend email sends a new link and whose close control dismisses it.
+/// whose Resend Email sends a new link and whose close control dismisses it.
 /// The accounts are throwaway ones, made for the test and removed after.
 @Suite("Account")
 struct AccountTests {
@@ -91,7 +91,7 @@ struct AccountTests {
 
   /// The reminder for an unverified address: the design system's warning
   /// alert inside the page's content (under the navbar, not above the whole
-  /// page), spaced by the section's gap; Resend email sends a new link, and
+  /// page), spaced by the section's gap; Resend Email sends a new link, and
   /// the alert's own close control dismisses it.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func theVerificationReminderResendsAndDismisses(engine: BrowserEngine, layout: Layout) async throws {
@@ -121,14 +121,14 @@ struct AccountTests {
         #expect(placement.inSection, "at the top of the page's content")
         #expect(placement.belowNavbar)
         #expect(placement.margin == "0px", "spaced by its parent's gap, not a margin")
-        let resend = banner.getByRole(.button, name: "Resend email")
+        let resend = banner.getByRole(.button, name: "Resend Email")
         try await expect(resend).toBeVisible()
         try await expect(resend).toHaveAttribute("data-weight", "quiet")
         try await page.expectNoHorizontalOverflow()
 
         try await resend.click()
         try await expect(page.locator(".alert-view.alert-green")).toContainText("We sent a new link")
-        try await expect(banner.locator(".button-label")).toHaveText("Email sent")
+        try await expect(banner.locator(".button-label")).toHaveText("Email Sent")
 
         try await banner.locator(".alert-dismiss").click()
         try await expect(banner).toBeHidden()
