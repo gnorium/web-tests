@@ -12,7 +12,7 @@ import WebTestsTesting
 /// printed one edition › copy › digitization, the copy removable with its
 /// icon-only − (the digitization then under the edition) and put back with
 /// the edition's +; a manuscript copy › digitization. A copy node left empty
-/// blocks submit ("Fill in the copy or remove it."). Submit Testament makes
+/// blocks submit ("Fill in Copy, Holding institution or Classification identifier, or remove the copy."). Submit Testament makes
 /// records: a chosen biblio-record is one the testament already has, its
 /// Submit waits, disabled, and the record's "Submit Amendment" carries what
 /// was typed into that record's amendment, the new nodes added to its tree:
@@ -174,7 +174,7 @@ struct SubmissionTests {
     let submit = form.locator(".record-actions button[type='submit']")
     try await submit.click()
     try await expect(row(tree, "copy").locator(".testament-draft-copy-message"))
-      .toHaveText("Fill in the copy or remove it.")
+      .toHaveText("Fill in Copy, Holding institution or Classification identifier, or remove the copy.")
     try await expect(page).toHaveURL("the form") { $0.path == Self.testamentForm }
     // Removed: the digitization under the edition; the edition's + puts it
     // back, and takes it out again.
