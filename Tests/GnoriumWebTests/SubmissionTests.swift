@@ -8,18 +8,21 @@ import WebTestsTesting
 /// is chosen), the record's fields, then the chronicle tree with ONE new
 /// node, open, its fields in its Metadata, its row named by its own fields
 /// as they are typed ("—" until then; no level name). A new record's tree is
-/// the new node alone. A chosen record's fields are frozen (changing them
-/// is an amendment) and its tree is its own, the new node the only one that
-/// moves: under an edition a testament is a copy and its digitization, the
+/// the new node alone. Submit Testament makes records: a chosen biblio-record
+/// is one the testament already has, its Submit waits, disabled, and the
+/// record's "Submit Amendment" carries what was typed into that record's
+/// amendment, the new testament added to its tree, the only node that moves:
+/// under an edition a testament is a copy and its digitization, the
 /// edition's own fields shown above its own, disabled — what it inherits,
 /// carrier and all — its own edition fields kept aside unposted until it
-/// returns to the top; nothing goes under a digitization. A manuscript's
-/// citations are its copy's. Unchosen, the editable fields come back as
-/// they were left. A record's page opens its submission form with the
-/// record chosen; signed out, its Submit buttons say so in an alert. Each
-/// case is submitted, and its evidence and overture read back from the
-/// database. A throwaway admin owns the scratch records and every row
-/// submitted, removed after.
+/// returns to the top; nothing goes under a digitization. A chosen
+/// lexico-record's fields are frozen and its tree is its own, the new
+/// sentiment placed in it. A manuscript's citations are its copy's. A
+/// work's page offers its amendment; a word's, its submission with the
+/// record chosen; signed out, each says so in an alert. Each case is
+/// submitted, and its evidence and overture read back from the database. A
+/// throwaway admin owns the scratch records and every row submitted, removed
+/// after.
 @Suite("Submission", .serialized)
 struct SubmissionTests {
   static let testamentForm = "/mission-control/submit/bibliographic/evidence-testament"
@@ -102,7 +105,7 @@ struct SubmissionTests {
     try await expect(form.locator(".record-view .record-identity .form-header-view")).toHaveCount(1)
     let field = form.locator(".record-choice-field-view")
     try await expect(field.locator(".dropdown-selected-text")).toHaveText("New record")
-    let apparatus = form.locator(".submit-testament-apparatus")
+    let apparatus = form.locator("#metadata")
     try await expect(apparatus.locator("input[name='title']")).toBeEnabled()
     let tree = form.locator(".submit-testament-tree")
     try await expect(tree.locator(".record-row-view")).toHaveCount(1)
@@ -161,49 +164,49 @@ struct SubmissionTests {
     #expect(row == "\(name)|printed|Second edition||1", "\(row)")
   }
 
-  /// A chosen record: its fields frozen in place of the editable ones, its
-  /// tree its own with the new testament after its edition; placed under
+  /// A chosen record: the form's Submit waits, disabled, and the record's
+  /// "Submit Amendment" carries what was typed into its amendment, the new
+  /// testament added at the top of its tree after its edition; placed under
   /// the edition, it is a copy and its digitization taking the edition's
-  /// carrier; under a digitization it is refused. Unchosen, the typed fields
-  /// come back. Chosen again and submitted: the record's own fields, the
-  /// inherited carrier and the placement ride on the evidence and its
-  /// overture.
+  /// carrier; under a digitization it is refused. Submitted: the record's own
+  /// fields, the inherited carrier and the placement ride on the evidence and
+  /// its overture.
   private func placedTestament(_ page: Page, work: ScratchWork, source: String) async throws {
     try await page.openHydrated(Self.testamentForm)
     let form = page.locator(".submit-testament-form")
     let field = form.locator(".record-choice-field-view")
     let dropdown = field.locator(".dropdown-view")
-    let apparatus = form.locator(".submit-testament-apparatus")
-    let tree = form.locator(".submit-testament-tree")
-    try await apparatus.locator("input[name='title']").fill("Typed before choosing")
+    let typed = form.locator(".submit-testament-tree")
+    let typedFields = typed.locator(".testament-metadata-view[data-editable='true']")
+    try await choose(typedFields.locator(".dropdown-view:has(#testament-carrier)"), "printed")
+    try await typedFields.locator("input[name='edition']").fill("Kept aside")
 
-    func pick() async throws {
-      try await dropdown.locator(".dropdown-trigger").click()
-      try await dropdown.locator(".dropdown-search-input").fill(work.suffix)
-      try await dropdown.locator(
-        ".dropdown-options-list[data-dropdown-results='true'] .dropdown-option[data-value='\(work.recordID)']"
-      ).click()
-      try await expect(field.locator("input[name='biblio-record']")).toHaveValue(work.recordID)
-      try await expect(tree.locator(".outliner-view"), timeout: .seconds(15)).toHaveCount(1)
+    try await dropdown.locator(".dropdown-trigger").click()
+    try await dropdown.locator(".dropdown-search-input").fill(work.suffix)
+    try await dropdown.locator(
+      ".dropdown-options-list[data-dropdown-results='true'] .dropdown-option[data-value='\(work.recordID)']"
+    ).click()
+    try await expect(field.locator("input[name='biblio-record']")).toHaveValue(work.recordID)
+    let amend = field.locator("[data-record-choice-amendment] .record-choice-amendment-button")
+    try await expect(amend, timeout: .seconds(15)).toBeVisible()
+    try await expect(form.locator(".record-actions button[type='submit']")).toBeDisabled()
+    try await amend.click()
+    try await expect(page, timeout: .seconds(15)).toHaveURL("the record's amendment") {
+      $0.path == "\(work.path)/amendments/new"
     }
-    try await pick()
-    // Its own fields, frozen.
-    let frozen = apparatus.locator(".record-choice-apparatus")
-    try await expect(frozen.locator("input[name='title']")).toHaveValue(work.title)
-    try await expect(frozen.locator("input[name='title']")).toBeDisabled()
-    try await expect(apparatus.locator("input[name='title']:not([disabled])")).toHaveCount(0)
-    // Its edition fixed (1), the new testament after it (2).
+
+    // Its edition fixed (1), the new testament after it (2), carried in.
+    let tree = page.locator(".testament-outliner-view")
     let draft = tree.locator(".outliner-item[data-outliner-id='new']")
+    try await expect(draft).toHaveAttribute("data-outliner-removed", "false")
     let number = draft.locator(".record-row-number").first
     try await expect(number).toHaveText("2")
     try await expect(tree.locator(".outliner-item:not([data-outliner-id='new']) .outliner-handle").first)
       .toBeDisabled()
-    try await expect(form.locator("input[name='placement-version']")).toHaveValue(work.versionID)
-
-    // At the top, its own edition typed.
+    try await expect(draft.locator("input[name='placement-version']")).toHaveValue(work.versionID)
     let fields = draft.locator(".testament-metadata-view[data-editable='true']")
-    try await choose(fields.locator(".dropdown-view:has(#testament-carrier)"), "printed")
-    try await fields.locator("input[name='edition']").fill("Kept aside")
+    try await expect(fields.locator("input[name='edition']")).toHaveValue("Kept aside")
+    try await expect(draft.locator(".record-row-title").first).toHaveText("Kept aside")
     let inherited = draft.locator(".submission-tree-inherited-level[data-inherited-from^='edition-']")
     try await expect(inherited).toBeHidden()
 
@@ -223,8 +226,8 @@ struct SubmissionTests {
     try await expect(fields.locator(".activity-statement-view[data-as-namespace='publication']")).toBeHidden()
     try await expect(fields.locator(".testament-metadata-view-acquisition")).toBeVisible()
     try await expect(fields.locator(".activity-statement-view[data-as-namespace='digitization']")).toBeVisible()
-    try await expect(fields.locator("#testament-carrier")).toHaveValue("printed")
-    try await expect(fields.locator("#testament-carrier")).toBeDisabled()
+    try await expect(fields.locator("#new-testament-carrier")).toHaveValue("printed")
+    try await expect(fields.locator("#new-testament-carrier")).toBeDisabled()
     try await expect(fields.locator(".testament-metadata-view-carrier")).toBeHidden()
     try await expect(inherited).toBeVisible()
     try await expect(inherited.locator("input[name='edition']")).toHaveValue("First edition")
@@ -250,26 +253,10 @@ struct SubmissionTests {
     try await handle.press("Escape")
     try await expect(number).toHaveText("1.2")
 
-    // Unchosen: the typed fields back as they were left, the tree a new
-    // record's, the new testament's fields still in it.
-    try await dropdown.locator(".dropdown-trigger").click()
-    try await dropdown.locator(".dropdown-option[data-value='\(work.recordID)']").first.click()
-    try await expect(field.locator(".dropdown-selected-text")).toHaveText("New record")
-    try await expect(apparatus.locator(".record-choice-apparatus")).toHaveCount(0)
-    try await expect(apparatus.locator("input[name='title']")).toHaveValue("Typed before choosing")
-    try await expect(tree.locator(".outliner-view"), timeout: .seconds(15)).toHaveCount(0)
-    try await expect(tree.locator("input[name='copyLabel']")).toHaveValue("Copy 2")
-    try await expect(form.locator("input[name='placement-version']")).toHaveCount(0)
-
-    // Chosen again, placed under the edition, submitted: its own edition,
-    // kept aside, is not posted.
-    try await pick()
-    try await move("indent")
-    try await expect(number).toHaveText("1.2")
-    try await expect(fields.locator("input[name='edition']")).toHaveValue("Kept aside")
+    // Submitted: its own edition, kept aside, is not posted.
     try await fields.locator(".combobox-view:has(input[name='provider-dropdown']) .text-input-input").fill("British Library")
     try await fields.locator("input[name='source-url']").fill("\(source)/placed")
-    try await form.locator(".record-actions button[type='submit']").click()
+    try await page.locator("button[type='submit'][form='amendment-new']").click()
     try await expect(page, timeout: .seconds(15)).toHaveURL("the Mission Control page") {
       $0.path == "/mission-control"
     }
@@ -300,11 +287,11 @@ struct SubmissionTests {
 
   // MARK: - From a record's page
 
-  /// A record's page offers its submission — Submit Testament on a work's,
-  /// Submit Sentiment on a word's — which opens the form with the record
-  /// chosen: its fields frozen, its tree drawn. Signed out, the button is
-  /// there all the same and says so in an alert, as the form's Submit does;
-  /// no page explains it in prose.
+  /// A record's page offers its one road in — Submit Amendment on a
+  /// work's, which opens the record's amendment; Submit Sentiment on a
+  /// word's, which opens the form with the record chosen: its fields frozen,
+  /// its tree drawn. Signed out, the button is there all the same and says
+  /// so in an alert, as the form's Submit does; no page explains it in prose.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func aRecordsPageOpensItsSubmissionWithItChosen(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -313,50 +300,51 @@ struct SubmissionTests {
     let word = try ScratchWord(owner: admin)
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        for (path, label, form, field, id, tree) in [
-          (work.path, "Submit Testament", ".submit-testament-form", "biblio-record", work.recordID, ".submit-testament-tree"),
-          (word.path, "Submit Sentiment", ".submit-sentiment-form", "lexico-record", word.recordID, ".submit-sentiment-tree"),
-        ] {
+        for (path, label) in [(work.path, "Submit Amendment"), (word.path, "Submit Sentiment")] {
           try await page.openHydrated(path)
-          // Its actions (a work's Submit Testament then Submit Amendment):
-          // on a phone each full width, one column, stacked in order, as the
-          // filter bar's buttons; wider, content-width side by side (user,
-          // 2026-09-30).
+          // Its one action: on a phone full width, wider content-width
+          // (user, 2026-09-30).
           let shape = try await page.locator(".record-actions .sign-in-gate-actions").evaluate(
             """
             (g) => {
               const w = g.closest('.record-actions').getBoundingClientRect().width;
               const rs = [...g.querySelectorAll(':scope > * .button-view')].map((b) => b.getBoundingClientRect());
               const full = rs.every((r) => Math.abs(r.width - w) < 2);
-              const stacked = rs.every((r, i) => i === 0 || rs[i - 1].bottom <= r.top);
-              const row = rs.every((r, i) => i === 0 || Math.abs(rs[i - 1].top - r.top) < 2) && rs.every((r) => r.width < w / 2);
-              return rs.length + (full && stacked ? ':stacked' : row ? ':row' : ':mixed');
+              const narrow = rs.every((r) => r.width < w / 2);
+              return rs.length + (full ? ':full' : narrow ? ':content' : ':mixed');
             }
             """
           ).string ?? ""
-          let count = path == work.path ? 2 : 1
           if layout == .phone {
-            #expect(shape == "\(count):stacked", "\(label)'s page: its actions full width and stacked on a phone, not \(shape)")
+            #expect(shape == "1:full", "\(label)'s page: its action full width on a phone, not \(shape)")
           } else {
-            #expect(shape == "\(count):row", "\(label)'s page: its actions content-width side by side, not \(shape)")
+            #expect(shape == "1:content", "\(label)'s page: its action content-width, not \(shape)")
           }
           try await page.locator(".record-actions a").filter(hasText: label).click()
-          try await expect(page, timeout: .seconds(15)).toHaveURL("the form, the record chosen") {
-            $0.query?.contains("record=\(id)") == true
-          }
-          let chosen = page.locator("\(form) .record-choice-field-view input[name='\(field)']")
-          try await expect(chosen).toHaveValue(id)
-          try await expect(page.locator("\(form) .record-choice-apparatus"), timeout: .seconds(15)).toHaveCount(1)
-          try await expect(page.locator("\(tree) .outliner-view")).toHaveCount(1)
-          try await expect(page.locator("\(tree) .outliner-item[data-outliner-id='new']")).toHaveCount(1)
         }
+        // The word's form, the record chosen, its tree drawn.
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the form, the record chosen") {
+          $0.query?.contains("record=\(word.recordID)") == true
+        }
+        let chosen = page.locator(".submit-sentiment-form .record-choice-field-view input[name='lexico-record']")
+        try await expect(chosen).toHaveValue(word.recordID)
+        try await expect(page.locator(".submit-sentiment-form .record-choice-apparatus"), timeout: .seconds(15))
+          .toHaveCount(1)
+        try await expect(page.locator(".submit-sentiment-tree .outliner-item[data-outliner-id='new']")).toHaveCount(1)
+        // The work's amendment.
+        try await page.openHydrated(work.path)
+        try await page.locator(".record-actions a").filter(hasText: "Submit Amendment").click()
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the record's amendment") {
+          $0.path == "\(work.path)/amendments/new"
+        }
+        try await expect(page.locator(".testament-outliner-view")).toHaveCount(1)
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
       }
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(work.path)
-        try await page.locator(".record-actions a").filter(hasText: "Submit Testament").click()
-        try await expect(page.locator(".record-actions .alert-content")).toHaveText("Sign in to submit a testament.")
+        try await page.locator(".record-actions a").filter(hasText: "Submit Amendment").click()
+        try await expect(page.locator(".record-actions .alert-content")).toHaveText("Sign in to submit an amendment.")
         #expect(URL(string: try await page.url())?.path == work.path)
         try await page.openHydrated(Self.sentimentForm)
         try await expect(page.locator("body")).not.toContainText("Sign in to submit a sentiment.")
