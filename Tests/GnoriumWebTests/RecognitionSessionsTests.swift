@@ -92,10 +92,11 @@ struct RecognitionSessionsTests {
     }
     do {
       let user = try admin.column("id")
+      let detailURL = image(600, 400)
       let result: [String: Any] = [
         "ok": true, "tool": "zoom_image", "page": "1", "region": [100, 250, 300, 200], "image": "attached below",
         "source_width": 1200, "source_height": 800, "sent_width": 600, "sent_height": 400,
-        "detail_url": image(600, 400), "page_url": image(400, 400),
+        "detail_url": detailURL, "page_url": image(400, 400),
       ]
       let blocks: [[String: String]] = [
         [
@@ -129,7 +130,7 @@ struct RecognitionSessionsTests {
         let detail = card.locator(".detail-view")
         try await expect(detail).toBeVisible()
         try await expect(detail.locator(".detail-view-image")).toBeVisible()
-        try await expect(detail.locator(".detail-view-image")).toHaveAttribute("src", result["detail_url"] as! String)
+        try await expect(detail.locator(".detail-view-image")).toHaveAttribute("src", detailURL)
         try await expect(detail.locator(".datum-view")).toContainText("1200 × 800")
         // The box sits on the page where the region is: 10% in, 25% down,
         // 30% wide and 20% high — once the page, lazily loaded, has come in.
