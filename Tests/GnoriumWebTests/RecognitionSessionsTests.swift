@@ -52,11 +52,9 @@ struct RecognitionSessionsTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)")
         // No stage cards: the stage is the pipeline's name.
-        try await expect(page.locator(".computorium-core-stage-link")).toHaveCount(0)
+        try await expect(page.locator(".stages-view")).toHaveCount(0)
         try await expect(page.getByText("Stages", exact: true)).toHaveCount(0)
-        for stage in ["sight", "proof", "vouch"] {
-          try await expect(page.locator("a[href*='stage=\(stage)']")).toHaveCount(0)
-        }
+        try await expect(page.locator("a[href*='stage=']")).toHaveCount(0)
         try await expect(page.locator(".pipeline-container")).toHaveAttribute("data-active-stage", "recognition")
         // One session for the chunk, not a row for each of its pages (the
         // sidebar is drawn twice, for wide screens and the phone's menu).

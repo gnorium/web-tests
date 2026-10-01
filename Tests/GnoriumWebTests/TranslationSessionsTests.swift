@@ -6,8 +6,7 @@ import WebTestsTesting
 /// Translation is one session per chunk of pages (user, 2026-09-29): a
 /// madrigal's page lists its chunks as sessions ("Pages 1–2"), shows the
 /// focused one's trace—each page opened, translated and committed, its
-/// last words—and no Carry, Blend or Match stage cards; a madrigal that ran
-/// those lists their runs after its chunks, as history.
+/// last words—and no stages.
 @Suite("Translation sessions", .serialized)
 struct TranslationSessionsTests {
   static func trace() throws -> String {
@@ -32,7 +31,7 @@ struct TranslationSessionsTests {
   static let tei = #"{"teiXml":"<TEI><text><body><pb n=\"1\" facs=\"https://example.org/iiif/wt1/full/1300,/0/default.jpg\"/><p>Regola del tre</p><pb n=\"2\" facs=\"https://example.org/iiif/wt2/full/1300,/0/default.jpg\"/><p>Somma</p></body></text></TEI>"}"#
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aMadrigalIsOneSessionPerChunkWithItsHistory(engine: BrowserEngine, layout: Layout) async throws {
+  func aMadrigalIsOneSessionPerChunk(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -58,27 +57,20 @@ struct TranslationSessionsTests {
         INSERT INTO translation_stage_runs (id, bibliographic_madrigal_id, stage, chunk, attempt, provider, model, output,
           result, duration_ms, created_at)
           VALUES (gen_random_uuid(), '\(madrigal)', 'translation', 'Pages 1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
-            '\(try Self.trace())', 'passed', 1200, now()),
-          (gen_random_uuid(), '\(madrigal)', 'carry', NULL, 1, 'deepseek', 'deepseek-flash',
-            '[{"type":"text","content":"carry ran"}]', 'passed', 10, now() - interval '1 day');
+            '\(try Self.trace())', 'passed', 1200, now());
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/madrigals/bibliographic/\(madrigal)")
         let pipeline = page.locator(".pipeline-container")
         try await expect(pipeline).toHaveAttribute("data-active-stage", "translation")
-        try await expect(page.locator(".computorium-core-stage-link")).toHaveCount(0)
-        for stage in ["carry", "blend", "match"] {
-          try await expect(page.locator("a[href*='stage=\(stage)']")).toHaveCount(0)
-        }
-        try await expect(pipeline).toHaveAttribute("data-item-order", "Pages 1–2,Carry")
+        try await expect(page.locator(".stages-view")).toHaveCount(0)
+        try await expect(page.locator("a[href*='stage=']")).toHaveCount(0)
+        try await expect(pipeline).toHaveAttribute("data-item-order", "Pages 1–2")
         let session = page.locator(".session-view")
         try await expect(session.getByText("open_page").first).toBeAttached()
         try await expect(session.getByText("write_translation").first).toBeAttached()
         try await expect(session.getByText("Two pages of arithmetic, translated.")).toBeAttached()
-
-        try await page.openHydrated("/mission-control/madrigals/bibliographic/\(madrigal)?semblance=Carry")
-        try await expect(page.locator(".session-view").getByText("carry ran")).toBeAttached()
       }
     } catch {
       remove(antiphon: antiphon, proposal: proposal, madrigal: madrigal, work: work)

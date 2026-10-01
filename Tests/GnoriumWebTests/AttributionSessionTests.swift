@@ -4,9 +4,9 @@ import WebTests
 import WebTestsTesting
 
 /// Attribution is one evidence-bound session per concerto (user,
-/// 2026-09-29): its page lists no Trawl, Weigh or Label stages, and shows the
-/// session's trace—the canvases it looked at and the fields it recorded. A
-/// concerto that ran the old stages still lists them, its history.
+/// 2026-09-29): its page lists no stages, heads the session with its stage's
+/// name alone, and shows the session's trace—the canvases it looked at and
+/// the fields it recorded.
 @Suite("Attribution sessions", .serialized)
 struct AttributionSessionTests {
   static func trace() throws -> String {
@@ -46,10 +46,9 @@ struct AttributionSessionTests {
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/concertos/bibliographic/\(work.concertoID)")
-        try await expect(page.locator(".computorium-core-stage-link")).toHaveCount(0)
-        for stage in ["trawl", "weigh", "label"] {
-          try await expect(page.locator("a[href*='stage=\(stage)']")).toHaveCount(0)
-        }
+        try await expect(page.locator(".stages-view")).toHaveCount(0)
+        try await expect(page.locator("a[href*='stage=']")).toHaveCount(0)
+        try await expect(page.locator(".computorium-core-stage-title")).toHaveText("Attribution")
         try await expect(page.locator(".pipeline-container")).toHaveAttribute("data-active-stage", "attribution")
         let session = page.locator(".session-view")
         try await expect(session.getByText("view_canvas").first).toBeAttached()
@@ -61,38 +60,6 @@ struct AttributionSessionTests {
       try await admin.remove(after: error)
     }
     remove(runIDs: [runID], work: work)
-    try await admin.remove()
-  }
-
-  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aConcertoThatRanTheOldStagesListsThem(engine: BrowserEngine, layout: Layout) async throws {
-    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
-    guard gnorium.engines.contains(engine) else { return }
-    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let work = try ScratchWork(owner: admin)
-    let runIDs = (0..<3).map { _ in UUID().uuidString.lowercased() }
-    do {
-      let rows = zip(runIDs, ["trawl", "weigh", "label"]).map { id, stage in
-        "('\(id)', '\(work.concertoID)', '\(stage)', 1, 'DeepSeek', 'deepseek-flash', '[{\"type\":\"text\",\"content\":\"\(stage) ran\"}]', 'passed', 10, now())"
-      }.joined(separator: ", ")
-      _ = try TestAdmin.query(
-        """
-        INSERT INTO attribution_stage_runs (id, bibliographic_concerto_id, stage, attempt, provider, model, output, result, duration_ms, created_at)
-          VALUES \(rows);
-        """)
-      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        try await page.openHydrated("/mission-control/concertos/bibliographic/\(work.concertoID)")
-        for stage in ["trawl", "weigh", "label"] {
-          try await expect(page.locator("a[href*='stage=\(stage)']").first).toBeAttached()
-        }
-        try await expect(page.locator(".pipeline-container")).toHaveAttribute("data-active-stage", "label")
-        try await expect(page.locator(".session-view").getByText("label ran")).toBeAttached()
-      }
-    } catch {
-      remove(runIDs: runIDs, work: work)
-      try await admin.remove(after: error)
-    }
-    remove(runIDs: runIDs, work: work)
     try await admin.remove()
   }
 
