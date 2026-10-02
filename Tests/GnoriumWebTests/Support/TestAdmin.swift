@@ -54,7 +54,7 @@ struct TestAdmin: Sendable {
 
     let (registered, _) = try await post(
       baseURL.appendingPathComponent("auth/register"),
-      ["first-name": "Web", "last-name": "Tests", "email": email, "username": username, "password": password])
+      ["full-name": "Web Tests", "email": email, "username": username, "password": password])
     guard registered.statusCode == 201 else {
       throw WebTestError("Registering the test admin failed with HTTP \(registered.statusCode).")
     }

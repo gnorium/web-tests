@@ -136,8 +136,8 @@ struct FieldValidationTests {
       try await page.locator("#confirmPassword").fill("two")
       try await page.locator("form.register-form button[type='submit']").click()
 
-      try await expect(page.locator("#first-name-validation-message")).toHaveText("Enter your first name.")
-      try await expect(page.locator("#first-name")).toBeFocused()
+      try await expect(page.locator("#full-name-validation-message")).toHaveText("Enter your full name.")
+      try await expect(page.locator("#full-name")).toBeFocused()
       try await expect(page.locator("#username-validation-message")).toHaveText("A username is 3–20 characters.")
       try await expect(page.locator("#email-validation-message")).toHaveText("Enter a valid email address.")
       try await expect(page.locator("#confirmPassword-validation-message")).toHaveText("The passwords don't match.")
