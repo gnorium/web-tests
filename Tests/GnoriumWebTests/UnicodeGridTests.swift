@@ -5,6 +5,7 @@ import WebTestsTesting
 @Suite("Full-width Unicode grid", .serialized)
 struct UnicodeGridTests {
   struct Geometry: Decodable {
+    let initialUnique: Int
     let columns: Int
     let rows: Int
     let count: Int
@@ -28,6 +29,8 @@ struct UnicodeGridTests {
             const parent = grid.parentElement;
             // Exercise the actual pointer handler before the next resize. The
             // old whole-pool cycle introduced duplicates after pointer moves.
+            const initialValues = Array.from(grid.children, c => c.textContent);
+            const beforeUnique = new Set(initialValues).size;
             const rect = grid.getBoundingClientRect();
             for (let pass = 0; pass < 3; pass++) {
               for (let y = 16; y < rect.height; y += 256) {
@@ -39,6 +42,7 @@ struct UnicodeGridTests {
               }
             }
             return {
+              initialUnique: beforeUnique,
               columns: Math.floor(parent.clientWidth / 32), rows: Math.floor(parent.clientHeight / 32),
               count: grid.children.length,
               unique: new Set(Array.from(grid.children, cell => cell.textContent)).size,
@@ -47,6 +51,7 @@ struct UnicodeGridTests {
             };
           })()
           """, as: Geometry.self)
+        #expect(size.initialUnique == size.count)
         #expect(size.count == size.columns * size.rows)
         #expect(size.unique == size.count)
         #expect(size.width == Double(size.columns * 32))
