@@ -26,6 +26,18 @@ struct UnicodeGridTests {
             await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
             const grid = document.querySelector('.unicode-grid-view');
             const parent = grid.parentElement;
+            // Exercise the actual pointer handler before the next resize. The
+            // old whole-pool cycle introduced duplicates after pointer moves.
+            const rect = grid.getBoundingClientRect();
+            for (let pass = 0; pass < 3; pass++) {
+              for (let y = 16; y < rect.height; y += 256) {
+                for (let x = 16; x < rect.width; x += 256) {
+                  document.dispatchEvent(new MouseEvent('mousemove', {
+                    clientX: rect.x + x, clientY: rect.y + y, bubbles: true
+                  }));
+                }
+              }
+            }
             return {
               columns: Math.floor(parent.clientWidth / 32), rows: Math.floor(parent.clientHeight / 32),
               count: grid.children.length,
