@@ -5,6 +5,7 @@ import WebTestsTesting
 @Suite("Full-width Unicode grid", .serialized)
 struct UnicodeGridTests {
   struct Geometry: Decodable {
+    let initialBalanced: Bool
     let initialUnique: Int
     let columns: Int
     let rows: Int
@@ -31,6 +32,11 @@ struct UnicodeGridTests {
             // old whole-pool cycle introduced duplicates after pointer moves.
             const initialValues = Array.from(grid.children, c => c.textContent);
             const beforeUnique = new Set(initialValues).size;
+            const capacities = grid.dataset.scriptCapacities.split(',').map(Number);
+            const counts = capacities.map(() => 0);
+            for (const cell of grid.children) counts[Number(cell.dataset.script)]++;
+            const minimum = Math.min(...counts.filter((count, index) => count < capacities[index]));
+            const initialBalanced = counts.every(count => count <= minimum + 1);
             const rect = grid.getBoundingClientRect();
             for (let pass = 0; pass < 3; pass++) {
               for (let y = 16; y < rect.height; y += 256) {
@@ -42,7 +48,7 @@ struct UnicodeGridTests {
               }
             }
             return {
-              initialUnique: beforeUnique,
+              initialBalanced, initialUnique: beforeUnique,
               columns: Math.floor(parent.clientWidth / 32), rows: Math.floor(parent.clientHeight / 32),
               count: grid.children.length,
               unique: new Set(Array.from(grid.children, cell => cell.textContent)).size,
@@ -51,6 +57,7 @@ struct UnicodeGridTests {
             };
           })()
           """, as: Geometry.self)
+        #expect(size.initialBalanced)
         #expect(size.initialUnique == size.count)
         #expect(size.count == size.columns * size.rows)
         #expect(size.unique == size.count)
