@@ -9,6 +9,36 @@ import WebTestsTesting
 /// Nothing is ever sent: every submit here is invalid on purpose.
 @Suite("Field validation")
 struct FieldValidationTests {
+  @Test(arguments: gnorium.engines)
+  func unavailableUsernameUsesMatchingBorderAndOutline(engine: BrowserEngine) async throws {
+    try await withPage(engine, gnorium) { page in
+      try await page.openHydrated("/auth/register")
+      let input = page.locator("#username")
+      try await input.fill("gnorium")
+      let message = page.locator("#username-validation-message")
+      try await expect(message).toHaveText("This username is unavailable.")
+      let ring = try await input.evaluate(
+        """
+        async (el) => {
+          el.focus();
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const style = getComputedStyle(el);
+          const probe = document.createElement('span');
+          probe.style.color = 'var(--border-color-red)';
+          document.body.append(probe);
+          const red = getComputedStyle(probe).color;
+          probe.remove();
+          return style.borderTopColor === red && style.borderTopWidth === '1px' && style.outlineWidth === '1px'
+            && style.borderTopColor === style.outlineColor;
+        }
+        """)
+      #expect(ring.bool == true)
+      try await input.fill("a")
+      try await expect(message).toHaveCount(0)
+      try await page.expectNoErrors()
+    }
+  }
+
   @Test(arguments: gnorium.engines, Layout.allCases)
   func anEmptySignInShowsInlineErrorsAndNoBubble(engine: BrowserEngine, layout: Layout) async throws {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
