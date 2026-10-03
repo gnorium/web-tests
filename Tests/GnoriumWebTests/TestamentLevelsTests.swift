@@ -6,9 +6,11 @@ import WebTestsTesting
 /// The testament form is the record page in edit mode (user, 2026-09-28):
 /// the work first, then the tree's one new node, its Carrier first, then its
 /// levels' fields in one stack, unheaded (user, 2026-10-01)—an edition's
-/// Publication, a copy's Production and its Acquisition (holding
-/// institution, shelf mark, copy label), a Digitization—each event as an
-/// imprint gives it (place, agents, date); the carrier saying which of
+/// Publication, a copy's Acquisition (holding institution, call number,
+/// copy label) and its Production, a Digitization—each level's description
+/// fields first (`TestamentDescription`, user, 2026-10-03): a publication's
+/// and a digitization's agents and date before its place, a Production's
+/// event as an imprint gives it (place, agents, date); the carrier saying which of
 /// Publication and Production shows; no card, no level or group named, no
 /// Creation, no type check. A whole witness's modify form is the same
 /// stack. A level dated before the
@@ -55,10 +57,12 @@ struct TestamentLevelsTests {
       let form = page.locator(".submit-testament-form")
       try await shoot(page, "top", layout)
 
-      // The work, whole and first; then the three levels, in the tree's
-      // order, each as a title page gives it: an edition's forms and
-      // statement, then each level's imprint—its place, its agents, its
-      // date (ISBD area 4, MARC 264)—then its own fields.
+      // The work, whole and first; then the levels, in the tree's order,
+      // each level's description fields first: an edition's statement, its
+      // agents and date, then its forms and place; a copy's Acquisition, then
+      // its Production as an imprint gives it (place, agents, date); a
+      // digitization's provider, agents and date, then its place and its own
+      // fields.
       let order = try await form.evaluate(
         """
         (form) => {
@@ -66,10 +70,13 @@ struct TestamentLevelsTests {
           const chain = [
             '#work-language', '#work-title', '#work-type', '#work-place', "[data-item-list='work-voice']",
             "[name='year']", "[data-item-list='work-genre']", '#testament-carrier',
-            ".activity-statement-view[data-as-namespace='publication']", "[data-item-list='title-form']",
-            '#work-edition', "[name='as-publication-place']",
-            ".activity-statement-view[data-as-namespace='production']", '#testament-copy-label',
-            ".activity-statement-view[data-as-namespace='digitization']", '#testament-source-url', '#testament-license',
+            ".activity-statement-view[data-as-namespace='publication']", '#work-edition',
+            "[data-item-list='as-publication']", "[name='as-publication-year']", "[data-item-list='title-form']",
+            "[name='as-publication-place']",
+            '#testament-copy-label', ".activity-statement-view[data-as-namespace='production']",
+            ".activity-statement-view[data-as-namespace='digitization']", "[name='provider-dropdown']",
+            "[data-item-list='as-digitization']", "[name='as-digitization-place']", '#testament-source-url',
+            '#testament-license',
           ];
           for (let i = 1; i < chain.length; i++) {
             const a = at(chain[i - 1]), b = at(chain[i]);
@@ -78,7 +85,9 @@ struct TestamentLevelsTests {
           }
           for (const kind of ['publication', 'production', 'digitization']) {
             const block = at(`.activity-statement-view[data-as-namespace='${kind}']`);
-            const parts = [`[name='as-${kind}-place']`, `[data-item-list='as-${kind}']`, `[name='as-${kind}-year']`]
+            const place = `[name='as-${kind}-place']`, agents = `[data-item-list='as-${kind}']`;
+            const year = `[name='as-${kind}-year']`;
+            const parts = (kind === 'production' ? [place, agents, year] : [agents, year, place])
               .map((s) => block.querySelector(s));
             if (parts.some((p) => !p)) return kind + ' lacks a part';
             if (!(parts[0].compareDocumentPosition(parts[1]) & Node.DOCUMENT_POSITION_FOLLOWING)
@@ -115,7 +124,7 @@ struct TestamentLevelsTests {
       try await expect(acquisition).toBeVisible()
       try await expect(form.locator("#testament-copy-label")).toBeVisible()
       try await expect(acquisition.locator("input[name='holding-institution-dropdown']")).toHaveCount(1)
-      try await expect(acquisition.locator(".section-legend").filter(hasText: "Shelf mark or call number")).toBeVisible()
+      try await expect(acquisition.locator(".section-legend").filter(hasText: "Call number")).toBeVisible()
       try await expect(form.locator("input[name='as-production-place']")).toHaveCount(1)
 
       // The date check: a publication before the work is warned of under
@@ -204,7 +213,7 @@ struct TestamentLevelsTests {
           VALUES ('\(evidence)', '\(submission)', 'https://example.org/web-tests/levels', 'eng', 'pending',
             'Web tests levels \(overture.prefix(8))', 'manuscript', 1623);
         INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_evidence_id, source_url, language, processing_status, title, type,
-          year_qualifier, era, year, provider, holding_institution, copy_label, shelf_mark_json, activity_statements_json, carrier)
+          year_qualifier, era, year, provider, holding_institution, copy_label, call_number_json, activity_statements_json, carrier)
           VALUES ('\(overture)', '\(submission)', '\(evidence)', 'https://example.org/web-tests/levels', 'eng', 'pending',
             'Web tests levels \(overture.prefix(8))', 'manuscript', 'exact', 'anno_domini', 1623, 'folger_shakespeare_library',
             'folger_shakespeare_library', 'Web tests copy 9', '{"scheme":"stc","value":"22273"}', '\(statements)', 'manuscript');
@@ -223,7 +232,7 @@ struct TestamentLevelsTests {
         let label = form.locator("#testament-copy-label")
         try await expect(label).toBeVisible()
         try await expect(label).toHaveValue("Web tests copy 9")
-        try await expect(acquisition.locator("input[name='shelf_mark_value']")).toHaveValue("22273")
+        try await expect(acquisition.locator("input[name='call_number_value']")).toHaveValue("22273")
         try await expect(acquisition.locator("input[name='holding_institution']")).toHaveValue("folger_shakespeare_library")
         try await expect(copy.locator("input[name='as-production-place']")).toHaveValue("Web tests scriptorium")
         try await shoot(page, "modify-manuscript", layout)
@@ -243,7 +252,7 @@ struct TestamentLevelsTests {
       let json = try JSONSerialization.jsonObject(with: Data(content.utf8)) as? [String: Any] ?? [:]
       #expect(json["copyLabel"] as? String == "Web tests copy 10", "Its copy label is posted and kept.")
       #expect(json["holdingInstitution"] as? String == "folger_shakespeare_library")
-      #expect((json["shelfMarkOrCallNumber"] as? [String: Any])?["value"] as? String == "22273")
+      #expect((json["callNumber"] as? [String: Any])?["value"] as? String == "22273")
       let kept = (json["activityStatements"] as? [[String: Any]] ?? []).first { $0["kind"] as? String == "production" }
       #expect(kept?["place"] as? String == "Web tests scriptorium", "Its production is posted as it stands.")
       #expect(kept?["year"] as? Int == 1601)
