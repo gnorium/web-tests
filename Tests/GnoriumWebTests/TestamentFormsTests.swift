@@ -3,55 +3,29 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A title's forms belong to the nodes of a record's tree (user,
-/// 2026-09-27): on Submit Testament, the new testament's edition's, in its
-/// Publication, never the work's; the same rows as Submit Sentiment's ("Form", "+ Add
-/// form"), serialized in order for the record field, which matches them.
-/// Nothing is submitted.
+/// Forms are never typed (user, 2026-10-03): a testament's are derived
+/// from the citations of it in the corpus, shown read-only on the record
+/// page and frozen in an amendment. Submit Testament has no Form rows, at
+/// any level, nor the work. Nothing is submitted.
 @Suite("Testament forms")
 struct TestamentFormsTests {
   static let form = "/mission-control/submit/bibliographic/evidence-testament"
 
   @Test(arguments: gnorium.engines, Layout.allCases)
-  func theFormsAreTheEditions(engine: BrowserEngine, layout: Layout) async throws {
+  func noFormIsTyped(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(Self.form)
         let form = page.locator(".submit-testament-form")
-        let forms = form.locator("[data-item-list='title-form']")
-        try await expect(forms).toHaveCount(1)
-        // In the new testament's Publication, not the work.
-        let placed = try await forms.evaluate(
-          """
-          (group) => JSON.stringify({
-            publication: !!group.closest("[data-submission-draft='true'] [data-as-namespace='publication']"),
-            work: !!group.closest('.biblio-record-metadata-view'),
-          })
-          """
-        ).string ?? "{}"
-        struct Placed: Decodable { let publication: Bool; let work: Bool }
-        let where_ = try JSONDecoder().decode(Placed.self, from: Data(placed.utf8))
-        #expect(where_.publication, "the Form rows are not in the new testament's Publication")
-        #expect(!where_.work, "the Form rows are in the work")
-
-        // The Carrier shows its event: printed, its Publication.
         let carrier = form.locator(".dropdown-view:has(#testament-carrier)")
         try await carrier.locator(".dropdown-trigger").click()
         try await carrier.locator(".dropdown-option[data-value='printed']").click()
-        let rows = forms.locator("[data-item-section='true']:not([data-item-template] *)")
-        try await expect(rows.first.locator(".text-input-input")).toHaveAttribute("placeholder", "Form")
-        try await expect(forms.locator("[data-item-add-btn='true'] button")).toHaveAttribute("aria-label", "Add Form")
-        try await rows.first.locator(".text-input-input").fill("Poëms, by J. D.")
-        try await forms.locator("[data-item-add-btn='true'] button").click()
-        try await expect(rows).toHaveCount(2)
-        try await rows.nth(1).locator(".text-input-input").fill("Poems by J.D.")
-        // The record field asks again as the title changes, the forms
-        // serialized with the form it posts.
-        try await form.locator("input[name='title']").fill("Poems")
-        try await expect(forms.locator(".title-form-json"), timeout: .seconds(10))
-          .toHaveValue(#"[{"value":"Poëms, by J. D."},{"value":"Poems by J.D."}]"#)
+        try await expect(form.locator("[data-item-list='title-form'], .title-form-json")).toHaveCount(0)
+        try await expect(form.locator("button[aria-label='Add Form']")).toHaveCount(0)
+        // A new testament has no citations yet: no Forms list either.
+        try await expect(form.locator(".derived-forms-view")).toHaveCount(0)
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
       }
@@ -59,5 +33,83 @@ struct TestamentFormsTests {
       try await admin.remove(after: error)
     }
     try await admin.remove()
+  }
+
+  /// A record page shows each node's Forms read-only, after its description
+  /// fields: the work's from the citations linked to the record alone, the
+  /// edition's from those a person linked to it, each with its dates and
+  /// its testaments; a work naming itself counts. Chrome headless.
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func aRecordPageShowsItsDerivedForms(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let work = try ScratchWork(owner: admin)
+    let version = work.versionID.lowercased()
+    let record = work.recordID.lowercased()
+    let edition = try TestAdmin.query(
+      "SELECT key FROM biblio_record_versions, jsonb_object_keys(shape_json::jsonb) AS key WHERE id = '\(version)' AND key LIKE 'edition-%';"
+    ).trimmingCharacters(in: .whitespacesAndNewlines)
+    let extraction = UUID().uuidString.lowercased()
+    let citations = [UUID().uuidString.lowercased(), UUID().uuidString.lowercased()]
+    func cite(_ id: String, _ surface: String, word: Int, node: String?) -> String {
+      """
+      INSERT INTO citations (id, biblio_record_version_id, biblio_record_id, testament_id, permitted_at, canvas_id, page,
+        start_line, start_word, start_surface, end_line, end_word, end_surface, element, kind, surface, parts_json,
+        language_code, status, decided_by, cited_biblio_record_id, cited_node_id, resolved_at,
+        created_at, entry_head)
+        VALUES ('\(id)', '\(version)', '\(record)', '\(version)', now(), 'c', 1, 1, \(word), 'w', 1, \(word), 'w',
+          'bibl', 'work', '\(surface)', '{}', 'eng', 'resolved', 'person', '\(record)', \(node.map { "'\($0)'" } ?? "NULL"),
+          now(), now(), false);
+      """
+    }
+    _ = try TestAdmin.query(
+      """
+      BEGIN;
+      INSERT INTO citation_extractions (id, biblio_record_version_id, testament_id, permitted_at, citations_version, count, extracted_at)
+        VALUES ('\(extraction)', '\(version)', '\(version)', now(), 'web-tests', 2, now());
+      \(cite(citations[0], "The Placement Report", word: 1, node: nil))
+      \(cite(citations[1], "Placement Rep.", word: 2, node: edition))
+      COMMIT;
+      """)
+    func cleanUp() async throws {
+      _ = try? TestAdmin.query(
+        """
+        DELETE FROM citations WHERE id IN ('\(citations[0])', '\(citations[1])');
+        DELETE FROM citation_extractions WHERE id = '\(extraction)';
+        """)
+      work.remove()
+      try await admin.remove()
+    }
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated(work.path)
+        // The work's, right after its title.
+        let order = try await page.locator("#record-metadata").evaluate(
+          """
+          (root) => {
+            const title = root.querySelector('#work-title'), forms = root.querySelector('.derived-forms-view');
+            if (!title || !forms) return 'missing';
+            return title.compareDocumentPosition(forms) & Node.DOCUMENT_POSITION_FOLLOWING ? 'ok' : 'forms before title';
+          }
+          """
+        ).string
+        #expect(order == "ok", "\(order ?? "")")
+        let texts = try await page.evaluate(
+          "JSON.stringify([...document.querySelectorAll('.derived-forms-view')].map((v) => v.textContent.replace(/\\s+/g, ' ').trim()))"
+        ).string ?? "[]"
+        #expect(texts.contains("The Placement Report, AD 1958, 1 testament"), "\(texts)")
+        #expect(texts.contains("Placement Rep., AD 1958, 1 testament"), "\(texts)")
+        // Read-only: no field, no item control.
+        try await expect(page.locator(".derived-forms-view input")).toHaveCount(0)
+        try await expect(page.locator("button[aria-label='Add Form']")).toHaveCount(0)
+        try await page.expectNoErrors()
+        try await page.expectNoHorizontalOverflow()
+      }
+    } catch {
+      try await cleanUp()
+      throw error
+    }
+    try await cleanUp()
   }
 }

@@ -45,7 +45,7 @@ struct SentimentFormTests {
         (form) => {
           const chain = [
             '.record-choice-field-view', '#language', '#script', '#title', '#type', '.submit-sentiment-tree',
-            "[data-submission-draft='true']", "[data-item-list='title-form']", '#definition', '#label-grammar',
+            "[data-submission-draft='true']", '#definition', '#label-grammar',
             '#label-register', '#label-domain', '#label-region', '#label-currency',
           ];
           for (let i = 1; i < chain.length; i++) {
@@ -70,21 +70,9 @@ struct SentimentFormTests {
       try await expect(form.locator("input[name='title']")).toHaveAttribute("placeholder", "Title")
       try await expect(form.locator("#definition")).toHaveAttribute("placeholder", "Definition")
 
-      // The Form rows: "+ Add form", each a Form, serialized in order.
-      let forms = form.locator("[data-item-list='title-form']")
-      let rows = forms.locator("[data-item-section='true']:not([data-item-template] *)")
-      try await expect(rows.first.locator(".text-input-input")).toHaveAttribute("placeholder", "Form")
-      try await expect(forms.locator("[data-item-add-btn='true'] button")).toHaveAttribute("aria-label", "Add Form")
-      try await rows.first.locator(".text-input-input").fill("computor")
-      try await forms.locator("[data-item-add-btn='true'] button").click()
-      try await expect(rows).toHaveCount(2)
-      try await rows.nth(1).locator(".text-input-input").fill("computors")
-      // The record field asks again as the title changes, the forms
-      // serialized with the form it posts.
-      try await form.locator("input[name='title']").fill("computer")
-      try await expect(forms.locator(".title-form-json"), timeout: .seconds(10))
-        .toHaveValue(#"[{"value":"computor"},{"value":"computors"}]"#)
-      try await form.locator("input[name='title']").fill("")
+      // No Form rows: a sentiment's forms are its utterances', never typed.
+      try await expect(form.locator("[data-item-list='title-form'], .title-form-json")).toHaveCount(0)
+      try await expect(form.locator("button[aria-label='Add Form']")).toHaveCount(0)
 
       // Grammar in lowercase; each region under its language.
       try await expect(page.locator(".dropdown-option[data-value='often_in_plural']"))

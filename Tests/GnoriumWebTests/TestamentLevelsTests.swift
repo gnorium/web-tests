@@ -59,7 +59,7 @@ struct TestamentLevelsTests {
 
       // The work, whole and first; then the levels, in the tree's order,
       // each level's description fields first: an edition's statement, its
-      // agents and date, then its forms and place; a copy's Acquisition, then
+      // agents and date, then its place (its Forms are derived, never typed); a copy's Acquisition, then
       // its Production as an imprint gives it (place, agents, date); a
       // digitization's provider, agents and date, then its place and its own
       // fields.
@@ -71,8 +71,7 @@ struct TestamentLevelsTests {
             '#work-language', '#work-title', '#work-type', '#work-place', "[data-item-list='work-voice']",
             "[name='year']", "[data-item-list='work-genre']", '#testament-carrier',
             ".activity-statement-view[data-as-namespace='publication']", '#work-edition',
-            "[data-item-list='as-publication']", "[name='as-publication-year']", "[data-item-list='title-form']",
-            "[name='as-publication-place']",
+            "[data-item-list='as-publication']", "[name='as-publication-year']", "[name='as-publication-place']",
             '#testament-copy-label', ".activity-statement-view[data-as-namespace='production']",
             ".activity-statement-view[data-as-namespace='digitization']", "[name='provider-dropdown']",
             "[data-item-list='as-digitization']", "[name='as-digitization-place']", '#testament-source-url',
