@@ -59,6 +59,8 @@ struct UtteranceTests {
         try await page.openHydrated(scratchWord.path)
         let row = page.locator("#record-row-s-1-1")
         let attestation = row.locator(".attestation-view")
+        // Its first attestation against the margin, in the house style.
+        try await expect(row.locator(".record-row-date").first).toHaveText("AD 1901")
         // Closed, its utterance is not fetched.
         try await expect(row.locator(".attestation-view-utterance")).toHaveAttribute("data-loaded", "false")
         let fetchedBefore = try await page.evaluate(
