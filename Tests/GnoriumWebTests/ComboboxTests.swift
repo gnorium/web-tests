@@ -262,13 +262,13 @@ struct ComboboxTests {
         try await expect(field).toHaveCount(1)
 
         // Typed, the server's suggestions: the scratch work's author among
-        // them, by name, with how many works they voice.
+        // them, by name alone (no count, gnorium-server 473d4e0).
         try await field.type(work.suffix)
         let option = voice.locator(".combobox-option[data-value='\(work.author)']")
         try await expect(option, timeout: .seconds(10)).toBeVisible()
         try await expect(option).toHaveAttribute("role", "option")
         try await expect(option).toHaveAttribute("data-display", work.author)
-        try await expect(option).toContainText("1 work")
+        try await expect(option).toHaveText(work.author)
         // Not chosen, the text is the name as typed.
         try await expect(value).toHaveValue(work.suffix)
         // Chosen by the keys: the name, and nothing else.

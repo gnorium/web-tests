@@ -98,7 +98,8 @@ struct SubmissionTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await newTestament(page, suffix: suffix, source: source)
         try await placedTestament(page, work: work, source: source)
-        try await page.expectNoErrors()
+        // The fixture manifests' page images are nowhere: the viewer's asks for them fail.
+        try await page.expectNoErrors(ignoring: ["/web-tests-submission-"])
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
@@ -275,6 +276,10 @@ struct SubmissionTests {
     try await expect(manifest.locator(".record-row-number").first).toHaveText("1.1.1")
     try await Self.shoot(page, "submit-testament-dragged", from: tree)
 
+    // Once the move has settled: a click while the rows slide lands
+    // wherever Submit was a frame ago.
+    _ = try await page.evaluate(
+      "Promise.all(document.getAnimations().filter(a => a.effect?.getTiming().iterations !== Infinity).map(a => a.finished.catch(() => null))).then(() => 1)", as: Int.self)
     try await submit.click()
     try await expect(page, timeout: .seconds(15)).toHaveURL("the Mission Control page") {
       $0.path == "/mission-control"
@@ -329,8 +334,10 @@ struct SubmissionTests {
     try await expect(edition.locator(".record-row-number").first).toHaveText("2")
     try await expect(row(tree, "copy").locator(".record-row-number").first).toHaveText("2.1")
     try await expect(row(tree, "manifest").locator(".record-row-number").first).toHaveText("2.1.1")
+    // The record's own nodes still move while the new ones stand: one moved
+    // into a new level is that level inserted over it (gnorium-web a5dd799d9).
     try await expect(tree.locator(".outliner-item:not([data-testament-draft]) .outliner-handle").first)
-      .toBeDisabled()
+      .toBeEnabled()
     try await expect(tree.locator("input[name='placement-version']")).toHaveValue(work.versionID)
     try await expect(edition.locator("input[name='edition']")).toHaveValue("Kept aside")
     try await expect(edition.locator(".record-row-title").first).toHaveText("Kept aside")
