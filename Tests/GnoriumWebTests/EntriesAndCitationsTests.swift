@@ -138,7 +138,8 @@ struct EntriesAndCitationsTests {
         let table = page.locator(".record-citations-view-table")
         try await expect(table).toContainText("ANOTHER HEADING")
         try await expect(table).toContainText("Cited 1")
-        try await expect(table).toContainText("Labeled by gnorium")
+        // Machine work needs no mark: no column says who linked it.
+        try await expect(table.locator("th[data-table-column-id='status']")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
