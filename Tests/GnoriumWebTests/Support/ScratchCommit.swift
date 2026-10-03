@@ -23,7 +23,7 @@ struct ScratchCommit {
   var overturePath: String { "/mission-control/overtures/bibliographic/\(pendingOvertureID)" }
   var hallmarkPath: String { "/mission-control/hallmarks/bibliographic/\(hallmarkID)" }
 
-  init(owner: TestAdmin) throws {
+  init(owner: TestAdmin, sourceURL: String = ScratchCommit.sourceURL) throws {
     let user = try owner.column("id")
     func id() -> String { UUID().uuidString.lowercased() }
     submissionID = id()
@@ -37,15 +37,15 @@ struct ScratchCommit {
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(submissionID)', '\(user)');
       INSERT INTO bibliographic_evidences (id, batch_id, source_url, language, processing_status, title, type)
-        VALUES ('\(evidenceID)', '\(submissionID)', '\(Self.sourceURL)', 'eng', 'pending', 'Web tests commit \(evidenceID.prefix(8))', 'report');
+        VALUES ('\(evidenceID)', '\(submissionID)', '\(sourceURL)', 'eng', 'pending', 'Web tests commit \(evidenceID.prefix(8))', 'report');
       INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_evidence_id, source_url, language, processing_status)
-        VALUES ('\(pendingOvertureID)', '\(submissionID)', '\(evidenceID)', '\(Self.sourceURL)', 'eng', 'pending');
+        VALUES ('\(pendingOvertureID)', '\(submissionID)', '\(evidenceID)', '\(sourceURL)', 'eng', 'pending');
       INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_evidence_id, source_url, language, processing_status, committed_by_user_id, committed_at)
-        VALUES ('\(committedOvertureID)', '\(submissionID)', '\(evidenceID)', '\(Self.sourceURL)', 'eng', 'pending', '\(user)', now());
+        VALUES ('\(committedOvertureID)', '\(submissionID)', '\(evidenceID)', '\(sourceURL)', 'eng', 'pending', '\(user)', now());
       INSERT INTO bibliographic_concertos (id, bibliographic_overture_id, requested_by_user_id, processing_status)
         VALUES ('\(concertoID)', '\(committedOvertureID)', '\(user)', 'submitted');
       INSERT INTO bibliographic_hallmarks (id, thread_id, bibliographic_overture_id, bibliographic_concerto_id, metadata_json, processing_status)
-        VALUES ('\(hallmarkID)', '\(hallmarkID)', '\(committedOvertureID)', '\(concertoID)', '{"language":"eng","sourceUrl":"\(Self.sourceURL)","sourceKind":"iiif-manifest"}', 'pending');
+        VALUES ('\(hallmarkID)', '\(hallmarkID)', '\(committedOvertureID)', '\(concertoID)', '{"language":"eng","sourceUrl":"\(sourceURL)","sourceKind":"iiif-manifest"}', 'pending');
       COMMIT;
       """)
   }

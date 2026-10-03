@@ -16,7 +16,7 @@ final class FixtureServer: @unchecked Sendable {
   }
 
   private let listener: NWListener
-  private let files: [String: File]
+  private var files: [String: File]
   private let queue = DispatchQueue(label: "web-tests.fixture-server")
   /// The port the system picked.
   private(set) var port: UInt16 = 0
@@ -69,17 +69,35 @@ final class FixtureServer: @unchecked Sendable {
     return try await FixtureServer(files: files)
   }
 
+  /// A locally served, identified three-page witness. Configured before any
+  /// caller receives the server; no live data or external host is involved.
+  static func attributionManifest() async throws -> FixtureServer {
+    let server = try await FixtureServer(files: [:])
+    let base = server.baseURL
+    let items = (1...3).map { n in
+      #"{"id":"\#(base)/canvas/\#(n)","type":"Canvas","width":800,"height":1100,"label":{"en":["\#(n == 3 ? "Colophon" : "Title page")"]},"items":[{"type":"AnnotationPage","items":[{"body":{"id":"\#(base)/page-\#(n)/full/max/0/default.jpg","service":[{"id":"\#(base)/page-\#(n)","type":"ImageService3"}]}}]}]}"#
+    }.joined(separator: ",")
+    var files: [String: File] = ["/manifest.json": .init(contentType: "application/json", body: Data(#"{"id":"\#(base)/manifest.json","type":"Manifest","label":{"en":["Evidence test"]},"items":[\#(items)]}"#.utf8))]
+    for n in 1...3 {
+      files["/page-\(n)/info.json"] = .init(contentType: "application/json", body: Data(#"{"@context":"http://iiif.io/api/image/3/context.json","id":"\#(base)/page-\#(n)","type":"ImageService3","protocol":"http://iiif.io/api/image","profile":"level0","width":800,"height":1100}"#.utf8))
+      files["/page-\(n)/*"] = .init(contentType: "image/svg+xml", body: Data(#"<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1100"><rect width="800" height="1100" fill="white"/><text x="80" y="100">Evidence fixture \#(n)</text></svg>"#.utf8))
+    }
+    server.files = files
+    return server
+  }
+
   private func serve(_ connection: NWConnection) {
     connection.start(queue: queue)
     connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [files] data, _, _, _ in
       let request = data.map { String(decoding: $0, as: UTF8.self) } ?? ""
       let target = request.split(separator: " ", maxSplits: 2).dropFirst().first.map(String.init) ?? "/"
       let path = String(target.split(separator: "?", maxSplits: 1).first ?? "/")
-      let file = files[path]
+      let file = files[path] ?? files.first { key, _ in key.hasSuffix("*") && path.hasPrefix(String(key.dropLast())) }?.value
       let status = file == nil ? "404 Not Found" : "200 OK"
       let body = file?.body ?? Data("Not found".utf8)
       var head = "HTTP/1.1 \(status)\r\n"
       head += "Content-Type: \(file?.contentType ?? "text/plain")\r\n"
+      head += "Access-Control-Allow-Origin: *\r\n"
       head += "Content-Length: \(body.count)\r\nConnection: close\r\n\r\n"
       connection.send(
         content: Data(head.utf8) + body,
