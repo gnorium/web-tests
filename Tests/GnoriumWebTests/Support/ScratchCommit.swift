@@ -5,6 +5,8 @@ import Foundation
 /// hallmark (its own overture committed, its concerto submitted), with
 /// two. Every row by its own id, removed in the order the foreign keys
 /// allow. Nothing here is ever committed: a test only opens and cancels.
+/// The hallmark's metadata holds what the witness's fields require (its
+/// page decodes them): the language, the source URL and its kind.
 struct ScratchCommit {
   private let submissionID: String
   private let evidenceID: String
@@ -38,7 +40,7 @@ struct ScratchCommit {
       INSERT INTO bibliographic_concertos (id, bibliographic_overture_id, requested_by_user_id, processing_status)
         VALUES ('\(concertoID)', '\(committedOvertureID)', '\(user)', 'submitted');
       INSERT INTO bibliographic_hallmarks (id, thread_id, bibliographic_overture_id, bibliographic_concerto_id, metadata_json, processing_status)
-        VALUES ('\(hallmarkID)', '\(hallmarkID)', '\(committedOvertureID)', '\(concertoID)', '{}', 'pending');
+        VALUES ('\(hallmarkID)', '\(hallmarkID)', '\(committedOvertureID)', '\(concertoID)', '{"language":"eng","sourceUrl":"https://example.org/web-tests","sourceKind":"pdf"}', 'pending');
       COMMIT;
       """)
   }
