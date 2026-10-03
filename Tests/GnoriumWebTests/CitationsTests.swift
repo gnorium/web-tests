@@ -5,7 +5,9 @@ import WebTestsTesting
 
 /// The citation graph (user, 2026-09-28). A proposal's Citations list every
 /// reference its text makes to another work and every word it cites as a
-/// word, where each is and what it links to, as the resolver found it; a
+/// word, where each is and what it links to, as the recognition placed it
+/// (a work's record, chosen by its session and kept with the proposal by the
+/// `<bibl>`'s `xml:id`; the TEI holds the work's identity only); a
 /// signed-in reader suggests another link as a modification, which an admin
 /// accepts, and the link is then a person's. A cited work's page says how
 /// many works cite it and lists them in its "Citations". Phone and desktop,
@@ -19,14 +21,26 @@ struct CitationsTests {
   }
 
   /// A page quoting `work` and naming it by its author and title (words 4
-  /// to 11), and citing "placement" as a word (word 15).
+  /// to 11), its `<bibl xml:id="bibl-1">` placed at that work by its
+  /// recognition, and citing "placement" as a word (word 15).
   static func tei(citing work: ScratchWork) -> String {
     """
     <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
     <pb n="1" facs="https://example.org/iiif/web-tests-citations/full/1300,/0/default.jpg"/>
-    <p><s ana="#autonomy-0"><w lemma="as" type="preposition">As</w> <cit><quote><w lemma="the" type="article">the</w> <w lemma="report" type="noun">report</w></quote> <bibl><author>\(words(work.author))</author><pc>,</pc> <title>\(words(work.title))</title></bibl></cit> <w lemma="say" type="verb">says</w><pc>,</pc> <w lemma="the" type="article">the</w> <w lemma="word" type="noun">word</w> <mentioned><w lemma="placement" type="noun">placement</w></mentioned><pc>.</pc><lb/></s></p>
+    <p><s ana="#autonomy-0"><w lemma="as" type="preposition">As</w> <cit><quote><w lemma="the" type="article">the</w> <w lemma="report" type="noun">report</w></quote> <bibl xml:id="bibl-1"><author>\(words(work.author))</author><pc>,</pc> <title>\(words(work.title))</title></bibl></cit> <w lemma="say" type="verb">says</w><pc>,</pc> <w lemma="the" type="article">the</w> <w lemma="word" type="noun">word</w> <mentioned><w lemma="placement" type="noun">placement</w></mentioned><pc>.</pc><lb/></s></p>
     </body></text></TEI>
     """
+  }
+
+  /// The record its recognition chose for the page's `bibl-1`, kept with the
+  /// proposal (`citation_placements_json`), as a recognition session leaves it.
+  static func place(_ reading: ScratchReading, at work: ScratchWork, canvas: String) throws {
+    _ = try TestAdmin.query(
+      """
+      UPDATE bibliographic_proposals SET citation_placements_json =
+        '[{"canvasID":"\(canvas)","citation":"bibl-1","recordID":"\(work.recordID)"}]'
+      WHERE id = '\(reading.proposalID)';
+      """)
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
@@ -38,6 +52,7 @@ struct CitationsTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let cited = try ScratchWork(owner: admin)
     let reading = try ScratchReading(owner: admin, tei: Self.tei(citing: cited))
+    try Self.place(reading, at: cited, canvas: "https://example.org/iiif/web-tests-citations")
     func cleanUp() async throws {
       _ = try? TestAdmin.query("DELETE FROM modifications WHERE modifiable_id = '\(reading.proposalID)';")
       reading.remove()
@@ -54,7 +69,7 @@ struct CitationsTests {
         try await expect(citations.locator(".proposal-citations-view-note")).toContainText("held once it is permitted")
         let rows = citations.locator(".proposal-citation")
         try await expect(rows).toHaveCount(2)
-        // The reference, resolved by its title and its author: the cited work.
+        // The reference, placed by its recognition: the cited work.
         let reference = rows.nth(0)
         try await expect(reference).toContainText("Reference")
         // Named by its words, never by where it is.
@@ -62,11 +77,10 @@ struct CitationsTests {
         try await expect(reference).toContainText("the report")
         try await expect(reference.locator("a[href='\(cited.path)']")).toHaveCount(1)
         try await expect(reference.locator("a[href='/users/gnorium']")).toHaveCount(1)
-        try await expect(reference).toContainText("title+voices")
         // The word cited as a word: no lexico-record holds it.
         try await expect(rows.nth(1)).toContainText("Word cited")
         try await expect(rows.nth(1)).toContainText("placement")
-        // Its record field is asked for once in view, the resolver's record chosen.
+        // Its record field is asked for once in view, the placed record chosen.
         _ = try await reference.evaluate("(el) => el.scrollIntoView({block: 'center'})")
         let field = reference.locator(".proposal-citations-view-record .origin-record-field-view")
         try await expect(field).toHaveCount(1)
@@ -77,7 +91,7 @@ struct CitationsTests {
         let submit = reference.locator("button[type='submit']")
         _ = try await submit.evaluate("(b) => b.scrollIntoView({block: 'center'})")
         try await expect(submit).toBeVisible()
-        // Once its record field is settled on the resolver's record.
+        // Once its record field is settled on the placed record.
         try await expect(reference.locator("input[name='citation-record-0']")).toHaveValue(cited.recordID)
         // Pressed on the element itself: a coordinate click could land on
         // the record field's popover as it settles.
@@ -124,10 +138,10 @@ struct CitationsTests {
       BEGIN;
       INSERT INTO citations (id, biblio_record_version_id, biblio_record_id, testament_id, permitted_at, canvas_id, page,
         start_line, start_word, start_surface, end_line, end_word, end_surface, element, kind, surface, parts_json,
-        language_code, status, decided_by, cited_biblio_record_id, confidence, basis, resolver_version, resolved_at, created_at)
+        language_code, status, decided_by, cited_biblio_record_id, resolved_at, created_at)
         VALUES ('\(citation)', '\(citing.versionID.lowercased())', '\(citing.recordID.lowercased())', '\(citing.recordID.lowercased())',
-          now(), 'c', 1, 1, 1, 'Report', 1, 1, 'Report', 'bibl', 'work', 'Report', '{}', 'eng', 'resolved', 'resolver',
-          '\(cited.recordID.lowercased())', 0.7, 'title', 'citation-resolver-v1', now(), now());
+          now(), 'c', 1, 1, 1, 'Report', 1, 1, 'Report', 'bibl', 'work', 'Report', '{}', 'eng', 'resolved', 'recognition',
+          '\(cited.recordID.lowercased())', now(), now());
       INSERT INTO citation_extractions (id, biblio_record_version_id, testament_id, permitted_at, citations_version, count, extracted_at)
         VALUES ('\(extraction)', '\(citing.versionID.lowercased())', '\(citing.recordID.lowercased())', now(), 'tei-bibl-ref-mentioned-v3', 1, now());
       COMMIT;
@@ -173,7 +187,7 @@ struct CitationsTests {
 /// entries, previewed from its own transcript (the utterances service's
 /// `/entries/preview`, nothing stored; its body says so, no header chip—user,
 /// 2026-09-30) and listed above Citations, each with the
-/// record it is the entry for as the resolver linked it; a signed-in reader
+/// record it is the entry for as the recognition placed it; a signed-in reader
 /// suggests another record (or none) as a modification, which an admin
 /// accepts, and the entry's link is then a person's, fixed. Phone and
 /// desktop, Chrome headless.
@@ -185,7 +199,7 @@ struct EntryLinksTests {
     """
     <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
     <pb n="1" facs="https://example.org/iiif/web-tests-entries/full/1300,/0/default.jpg"/>
-    <listBibl><bibl><author>\(CitationsTests.words(work.author))</author><pc>,</pc> <title>\(CitationsTests.words(work.title))</title></bibl><lb/></listBibl>
+    <listBibl><bibl xml:id="bibl-1"><author>\(CitationsTests.words(work.author))</author><pc>,</pc> <title>\(CitationsTests.words(work.title))</title></bibl><lb/></listBibl>
     </body></text></TEI>
     """
   }
@@ -199,6 +213,7 @@ struct EntryLinksTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let target = try ScratchWork(owner: admin)
     let reading = try ScratchReading(owner: admin, tei: Self.tei(listing: target))
+    try CitationsTests.place(reading, at: target, canvas: "https://example.org/iiif/web-tests-entries")
     func cleanUp() async throws {
       _ = try? TestAdmin.query("DELETE FROM modifications WHERE modifiable_id = '\(reading.proposalID)';")
       reading.remove()
@@ -224,8 +239,7 @@ struct EntryLinksTests {
         try await expect(row).toContainText(target.title)
         try await expect(row.locator("a[href='\(target.path)']")).toHaveCount(1)
         try await expect(row.locator("a[href='/users/gnorium']")).toHaveCount(1)
-        try await expect(row).toContainText("title+voices")
-        // Its record field is asked for once in view, the resolver's record chosen; no node.
+        // Its record field is asked for once in view, the placed record chosen; no node.
         _ = try await row.evaluate("(el) => el.scrollIntoView({block: 'center'})")
         let field = row.locator(".proposal-entries-view-record .origin-record-field-view")
         try await expect(field).toHaveCount(1)
