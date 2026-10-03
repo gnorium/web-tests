@@ -91,9 +91,14 @@ struct AdminConsoleTests {
         #expect(!shownAgain, "a recovery code is never shown again")
         try await expect(page.locator(".manage-mfa-view")).toContainText("8 of 8 unused")
 
-        // Signed out (from the account page) and in again, with a recovery code.
+        // Signed out (from the navbar's menu) and in again, with a recovery code.
         try await page.openHydrated("/account")
-        try await page.locator("form.account-sign-out button[type='submit']").click()
+        try await page.locator("[data-navbar-ellipsis]").filter(visible: true).first.click()
+        // Once the menu has finished opening: a click while it slides in
+        // lands wherever the button was a frame ago.
+        _ = try await page.evaluate(
+          "Promise.all(document.getAnimations().filter(a => a.effect?.getTiming().iterations !== Infinity).map(a => a.finished.catch(() => null))).then(() => 1)", as: Int.self)
+        try await page.locator("#navbar-ellipsis-menu form[action='/auth/sign-out'] button[type='submit']").click()
         try await expect(page.locator("a.ellipsis-menu-link[href='/auth/sign-in']"), timeout: .seconds(20))
           .toHaveCount(1)
         try await page.openHydrated("/admin-console/sign-in")
@@ -122,6 +127,7 @@ struct AdminConsoleTests {
         let fresh = try await Self.shownCodes(page)
         #expect(fresh.count == 8)
         #expect(Set(fresh).isDisjoint(with: codes))
+        try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         try await page.locator("a.recovery-codes-continue").click()
         try await expect(page).toHaveURL("/admin-console/mfa/manage")
         try await expect(page.locator(".manage-mfa-view")).toContainText("8 of 8 unused")
@@ -211,7 +217,10 @@ struct AdminConsoleTests {
     try await form.getByRole(.button, name: "Enable MFA").click()
 
     // The recovery codes, once: to copy, or to download as a text file.
+    // Hydrated before anything is clicked: a click on Continue while the
+    // page still loads is lost.
     try await expect(page.locator(".recovery-codes-view")).toBeVisible()
+    try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
     try await Self.check(page, sheet: "recovery-codes-view", layout: layout, name: "mfa-recovery-codes")
     try await Self.expectLinked(page, sheet: "copyable-code-view", name: "mfa-recovery-codes")
     try await expect(page.locator(".page-alerts .alert-view")).toContainText("won't be shown again")

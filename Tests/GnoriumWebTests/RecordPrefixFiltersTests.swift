@@ -85,7 +85,10 @@ struct RecordPrefixFiltersTests {
     try await expect(page).toHaveURL("/biblio-records") { url in url.path == "/biblio-records" }
     try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
     try await page.expectNoErrors()
-    try await expect(page.locator(".filter-bar-value-select input[name='language']")).toHaveCount(0)
+    // No language in force: the bar's fields sort by label, so its blank
+    // first row offers Language, with no value.
+    try await expect(page.locator(".filter-bar-value-select input[name='language']:not([value=''])")).toHaveCount(0)
+    try await expect(page.locator("main a[href='\(work.path)']")).toHaveCount(1)
     try await Self.expectLanguageNames(page)
 
     // The lexico-records list names its languages as well.

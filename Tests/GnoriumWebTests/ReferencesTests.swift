@@ -34,13 +34,15 @@ struct ReferencesTests {
         try await expect(page.locator("a[href='\(hallmark)']")).not.toHaveCount(0)
 
         try await page.openHydrated(hallmark)
-        // The work's fields, in its closed Metadata; under the title, its
-        // two sources, numbered, in the order cited.
-        try await page.locator("#record-metadata > .accordion-summary").click()
-        try await expect(page.locator("#record-metadata")).toHaveAttribute("data-open-finished", "true")
-        let title = page.locator("#field-references-title")
+        // The record drawn as a tree (user, 2026-10-03): the work's fields in
+        // its root's closed Metadata; under the title, its two sources,
+        // numbered, in the order cited.
+        let metadata = page.locator("#record-row-work #record-metadata-work")
+        try await page.locator("#record-metadata-work > .accordion-summary").click()
+        try await expect(metadata).toHaveAttribute("data-open-finished", "true")
+        let title = page.locator("#work-work-field-references-title")
         try await expect(title).not.toHaveAttribute("open")
-        try await page.locator("#field-references-title > .accordion-summary").click()
+        try await page.locator("#work-work-field-references-title > .accordion-summary").click()
         try await expect(title).toHaveAttribute("data-open-finished", "true")
         let items = title.locator("ol.field-references-list > li")
         try await expect(items).toHaveCount(2)

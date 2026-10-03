@@ -48,6 +48,17 @@ final class FixtureServer: @unchecked Sendable {
 
   func stop() { listener.cancel() }
 
+  /// A one-page IIIF v3 manifest at `path`, for a form whose Source URL the
+  /// server reads before it takes the submission: the testament's source is
+  /// `baseURL + path`, a path no other test names.
+  static func manifest(at path: String) async throws -> FixtureServer {
+    let service = "\(path)/page-1"
+    let body = Data(
+      #"{"type":"Manifest","label":{"none":["Web tests"]},"items":[{"type":"Canvas","width":1000,"height":1400,"label":{"none":["p1"]},"items":[{"items":[{"body":{"id":"\#(service)/full/max/0/default.jpg","service":[{"id":"\#(service)"}]}}]}]}]}"#
+        .utf8)
+    return try await FixtureServer(files: [path: .init(contentType: "application/ld+json", body: body)])
+  }
+
   private func serve(_ connection: NWConnection) {
     connection.start(queue: queue)
     connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [files] data, _, _, _ in

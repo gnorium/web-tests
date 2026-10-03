@@ -9,7 +9,9 @@ import WebTestsTesting
 /// own chevron; its voices and type), a note ending a list cut at 50; the
 /// closed dropdown names the chosen record so too. Once the work's
 /// language, title, author and type are filled, the match is offered
-/// first and never chosen for the submitter. A record found by typing (by
+/// first and chosen for the submitter (Submit Testament makes records: a
+/// work a record already is goes to its amendment, user, 2026-10-03). A
+/// record found by typing (by
 /// its title, never its author) and picked offers its amendment, the
 /// form's Submit waiting. Nothing is submitted (`SubmissionTests` submits). A throwaway
 /// admin owns a scratch work—its author, evidence, overture, concerto,
@@ -75,12 +77,13 @@ struct RecordChoiceTests {
       try await form.locator("input[name='title']").fill(work.title)
       try await author.fill(work.author)
 
-      // The scratch work is the match, offered first and never chosen for
-      // the submitter; no "New title". (Asked after a 500ms pause; with
+      // The scratch work is the match, offered first and chosen for the
+      // submitter; no "New title". (Asked after a 500ms pause; with
       // every suite running, the answer can take longer than the usual 5s.)
       try await expect(dropdown.locator(".dropdown-option").first, timeout: .seconds(15))
         .toHaveAttribute("data-value", work.recordID)
-      try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("New record")
+      try await expect(dropdown.locator(".dropdown-selected-text .breadcrumb-label-text"), timeout: .seconds(15))
+        .toHaveText(work.title)
       try await expect(dropdown.locator(".dropdown-option[data-value='new']")).toHaveCount(0)
       // Settled: a later answer to the key fields' asks redraws the field.
       // Each field typed asks again after a 500ms pause, and with every
@@ -98,7 +101,11 @@ struct RecordChoiceTests {
           setTimeout(() => { observer.disconnect(); resolve(false); }, 15000);
         })
         """, timeout: .seconds(20))
-      try await expect(field.locator("input[name='biblio-record']")).toHaveValue("")
+      // Chosen: its amendment offered, the form's Submit waiting.
+      try await expect(field.locator("input[name='biblio-record']")).toHaveValue(work.recordID)
+      try await expect(field.locator("[data-record-choice-amendment] .record-choice-amendment-button"))
+        .toBeVisible()
+      try await expect(form.locator(".record-actions button[type='submit']")).toBeDisabled()
       // Two rows: its language › its title; its voices and type.
       // No path, and no language in the second row.
       let option = dropdown.locator(".dropdown-option[data-value='\(work.recordID)']")
@@ -126,8 +133,8 @@ struct RecordChoiceTests {
             display: getComputedStyle(el).display,
             sameLine: Math.abs((chevron.top + chevron.bottom) / 2 - (context.top + context.bottom) / 2) < 8,
             after: chevron.left >= context.right,
-            size: el.querySelector('.breadcrumb-separator-view .next-icon-view').getBoundingClientRect().width,
-            trail: trail ? trail.getBoundingClientRect().width : null,
+            size: el.querySelector('.breadcrumb-separator-view .next-icon-view').getBoundingClientRect().height,
+            trail: trail ? trail.getBoundingClientRect().height : null,
           };
           menu.dataset.open = 'false';
           return measured;
@@ -136,7 +143,7 @@ struct RecordChoiceTests {
       #expect(row["display"].string == "inline")
       #expect(row["sameLine"].bool == true, "the chevron left the language's line")
       #expect(row["after"].bool == true)
-      #expect(row["size"].double == 8)
+      #expect(row["size"].double == 10, "the chevron's long edge, its height, is size10")
       if let trail = row["trail"].double { #expect(row["size"].double == trail) }
 
       // Afresh: found by typing, picked, and its amendment offered.

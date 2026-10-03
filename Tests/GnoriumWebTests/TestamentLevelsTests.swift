@@ -157,7 +157,8 @@ struct TestamentLevelsTests {
       try await publicationYear.fill("1610")
       try await expect(warning).toHaveCount(0)
 
-      // What the form posts: each event's statement by its kind, an empty
+      // What the form posts: each event's statement by its kind, every level
+      // shown (the impression's and the issue's publications too), an empty
       // production a slot.
       let posted = try await form.evaluate(
         """
@@ -171,7 +172,9 @@ struct TestamentLevelsTests {
         """
       ).string ?? ""
       let statements = try JSONSerialization.jsonObject(with: Data(posted.utf8)) as? [[String: Any]] ?? []
-      #expect(statements.map { $0["kind"] as? String } == ["publication", "production", "digitization"])
+      #expect(
+        statements.map { $0["kind"] as? String }
+          == ["publication", "impressionPublication", "issuePublication", "production", "digitization"])
       #expect(statements.first?["year"] as? Int == 1610)
       #expect(statements.allSatisfy { $0["type"] == nil }, "No creation, no provision tag.")
 

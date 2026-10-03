@@ -25,7 +25,12 @@ struct ComboboxTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let suffix = String(UUID().uuidString.prefix(8)).lowercased()
-    let source = "https://example.org/web-tests-combobox-\(suffix)"
+    // A manifest the server can read: it reads the Source URL before it
+    // takes the submission.
+    let path = "/web-tests-combobox-\(suffix)/manifest.json"
+    let fixtures = try await FixtureServer.manifest(at: path)
+    defer { fixtures.stop() }
+    let source = fixtures.baseURL + path
     func clean() {
       _ = try? TestAdmin.query(
         """
@@ -41,7 +46,8 @@ struct ComboboxTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await run(page, suffix: suffix, source: source)
-        try await page.expectNoErrors()
+        // The fixture manifest's page images are nowhere: the viewer's asks for them fail.
+        try await page.expectNoErrors(ignoring: ["/web-tests-combobox-"])
       }
     } catch {
       clean()
@@ -194,6 +200,9 @@ struct ComboboxTests {
       "[data-item-list='work-voice'] [data-item-section='true']\(live) .text-input-input"
     ).first.fill("Web Tests Author \(suffix)")
     try await form.locator("input[name='source-url']").fill(source)
+    // Every level is shown in a new testament: the impression and the
+    // issue left empty would be refused, so they are taken out.
+    try await Self.removeLevels(form, ["impression", "issue"])
     try await form.locator(".record-actions button[type='submit']").click()
     try await expect(page, timeout: .seconds(15)).toHaveURL("the Mission Control page") {
       $0.path == "/mission-control"
@@ -207,6 +216,15 @@ struct ComboboxTests {
     #expect(row == "\(typedProvider)|\(typedHolding)|[\"\(typedGenre)\"]", "\(row)")
   }
 
+  /// The new testament's `levels` taken out, each by its node's own −.
+  static func removeLevels(_ form: Locator, _ levels: [String]) async throws {
+    for level in levels {
+      let node = form.locator(".outliner-item[data-outliner-id='\(level)-new']")
+      try await node.locator(":scope > .outliner-footer .testament-draft-remove-level").click()
+      try await expect(node).toHaveAttribute("data-outliner-removed", "true")
+    }
+  }
+
   /// A voice's name suggests, as it is typed, the voices already on works
   /// (the server's, fetched as typed): chosen, a proper-noun sentiment's
   /// suggestion links the voice—its name shown, the link posted with it —;
@@ -218,7 +236,10 @@ struct ComboboxTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin, linked: true)
-    let source = "https://example.org/web-tests-combobox-voice-\(work.suffix)"
+    let path = "/web-tests-combobox-voice-\(work.suffix)/manifest.json"
+    let fixtures = try await FixtureServer.manifest(at: path)
+    defer { fixtures.stop() }
+    let source = fixtures.baseURL + path
     func clean() {
       _ = try? TestAdmin.query(
         """
@@ -277,8 +298,9 @@ struct ComboboxTests {
         try await carrier.locator(".dropdown-trigger").click()
         try await carrier.locator(".dropdown-option[data-value='printed']").click()
         try await form.locator("#metadata input[name='title']").fill("Web tests voice \(work.suffix)")
-        // No copy to say: its node removed, as an empty one is refused.
-        try await form.locator(".testament-draft-remove-copy").click()
+        // No impression, issue or copy to say: their nodes removed, as an
+        // empty one is refused.
+        try await Self.removeLevels(form, ["impression", "issue", "copy"])
         try await form.locator(".combobox-view:has(input[name='provider-dropdown']) .text-input-input").fill("Gallica")
         try await form.locator("input[name='source-url']").fill(source)
         try await form.locator(".record-actions button[type='submit']").click()
@@ -301,7 +323,8 @@ struct ComboboxTests {
         try await expect(again.locator("input[type='hidden']")).toHaveValue(link)
         try await againField.type(" Jr.")
         try await expect(again.locator("input[type='hidden']")).toHaveValue("\(work.author) Jr.")
-        try await page.expectNoErrors()
+        // The fixture manifest's page images are nowhere: the viewer's asks for them fail.
+        try await page.expectNoErrors(ignoring: ["/web-tests-combobox-"])
       }
     } catch {
       clean()
