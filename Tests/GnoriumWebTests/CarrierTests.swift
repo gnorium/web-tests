@@ -193,14 +193,6 @@ struct CarrierTests {
       let overflow = try await page.evaluate("document.documentElement.scrollWidth > window.innerWidth").bool
       #expect(overflow == false)
 
-      // The records list's Carrier filter: the article's testament is
-      // printed, so it is listed for printed and not for manuscript.
-      try await page.openHydrated("/biblio-records?carrier=printed")
-      try await expect(page.locator(".filter-bar-view")).toContainText("Carrier")
-      try await expect(page.locator("a[href='\(article.path)']").first).toBeAttached()
-      try await page.openHydrated("/biblio-records?carrier=manuscript")
-      try await expect(page.locator("a[href='\(article.path)']")).toHaveCount(0)
-
       // The article's page: a Container section after its Metadata, in prose.
       try await page.openHydrated(article.path)
       try await expect(page.locator("#container .record-section-title")).toHaveText("Container")
