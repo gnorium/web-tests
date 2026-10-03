@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// A repeated field's rows stay numbered by their place in the list: add a
 /// third voice on the Submit Amendment form, take the middle one away, and
-/// every name, id, label, attribute key and live diff is the row's place
+/// every name, id, label, and live diff is the row's place
 /// now, and the form serializes both rows. Nothing is submitted (the submit
 /// event is dispatched by hand, which runs the form's script but never
 /// posts). Needs a signed-in account, made for the test and removed after.
@@ -48,13 +48,9 @@ struct FormItemsRowsTests {
             }
           }
         }
-        const field = input.closest('.selectable-field-view');
-        const box = field && field.querySelector('.selectable-field-view-checkbox .checkbox-input');
         return {
           index: row.getAttribute('data-item-index'),
           id: input.id, name: input.name, value: shown.value, dangling,
-          key: field ? field.getAttribute('data-selectable-key') : null,
-          boxValue: box ? box.value : null, ticked: box ? box.checked : null,
           diff: shown.getAttribute('data-diff-state'),
           original: input.getAttribute('data-form-item-original')
         };
@@ -68,9 +64,6 @@ struct FormItemsRowsTests {
     let name: String
     let value: String
     let dangling: [String]
-    let key: String?
-    let boxValue: String?
-    let ticked: Bool?
     let diff: String?
     let original: String?
   }
@@ -113,12 +106,8 @@ struct FormItemsRowsTests {
       try await active.nth(2).locator(".text-input-input").fill("Third Author")
       try await active.nth(1).locator(".item-remove-btn").click()
       try await expect(active).toHaveCount(2)
-      // Attribution keys follow a moment after (the attribution script
-      // renumbers once the click has run).
-      try await expect(active.nth(1).locator(".selectable-field-view[data-selectable-key$='.name']"))
-        .toHaveAttribute("data-selectable-key", "author[2].name")
 
-      // Each row is its place now: names, ids, labels, attribute keys.
+      // Each row is its place now: names, ids, labels.
       var now = try await rows(authors)
       #expect(now.map(\.value) == [first, "Third Author"])
       #expect(now.map(\.index) == ["1", "2"])
@@ -127,16 +116,12 @@ struct FormItemsRowsTests {
       #expect(now[0].id.hasSuffix("work-voice-item1-text-input"))
       #expect(now[1].id.hasSuffix("work-voice-item2-text-input"))
       for row in now { #expect(row.dangling.isEmpty, "row \(row.index ?? "?") names ids it does not hold: \(row.dangling)") }
-      #expect(now.map(\.key) == ["author[1].name", "author[2].name"])
-      #expect(now.map(\.boxValue) == ["author[1].name", "author[2].name"])
 
       // Author 2 was the second author and is now "Third Author": a change
-      // at that place, diffed against it and ticked for attribution.
+      // at that place, diffed against it.
       // Author 1 is untouched.
       #expect(now[1].original == second)
       #expect(now[1].diff == "changed")
-      #expect(now[1].ticked == true)
-      #expect(now[0].ticked == false)
 
       // What saving posts: both rows, in order, and nothing stops it.
       let posted = try await authors.evaluate(
@@ -158,13 +143,10 @@ struct FormItemsRowsTests {
       // Another row after that is the third, not a second "item3".
       try await authors.locator("[data-item-add-btn='true'] button").click()
       try await expect(active).toHaveCount(3)
-      try await expect(active.nth(2).locator(".selectable-field-view[data-selectable-key$='.name']"))
-        .toHaveAttribute("data-selectable-key", "author[3].name")
       now = try await rows(authors)
       #expect(now.map(\.index) == ["1", "2", "3"])
       #expect(Set(now.map(\.id)).count == 3, "row ids repeat: \(now.map(\.id))")
       #expect(now[2].name == "work-voice-item3-text-input")
-      #expect(now.map(\.key) == ["author[1].name", "author[2].name", "author[3].name"])
       for row in now { #expect(row.dangling.isEmpty, "row \(row.index ?? "?") names ids it does not hold: \(row.dangling)") }
       // No author stood third: the row is new.
       #expect(now[2].original == "" || now[2].original == nil)

@@ -44,7 +44,7 @@ struct TestAdmin: Sendable {
     // that the event log doesn't name; one it names is history, and without
     // its password can't be deleted through the site, so it stays).
     try runSQL(
-      "DELETE FROM users WHERE username LIKE 'web\\_tests\\_%' AND email LIKE 'web\\_tests\\_%@gnorium.test' AND created_at < now() - interval '1 hour' AND NOT EXISTS (SELECT 1 FROM event_logs WHERE event_logs.user_id = users.id);"
+      "DELETE FROM users WHERE username LIKE 'web\\_tests\\_%' AND email LIKE 'web\\_tests\\_%@gnorium.test' AND created_at < now() - interval '1 hour' AND NOT EXISTS (SELECT 1 FROM event_logs WHERE event_logs.user_id = users.id) AND NOT EXISTS (SELECT 1 FROM submissions WHERE submissions.user_id = users.id);"
     )
     let suffix = randomHex(bytes: 5)
     // The username rule: 3–20 lowercase letters, digits and underscores.

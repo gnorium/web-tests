@@ -4,6 +4,38 @@ import WebTestsTesting
 
 @Suite("Full-width Unicode grid", .serialized)
 struct UnicodeGridTests {
+  struct BrandGeometry: Decodable {
+    let available: Double
+    let brand: Double
+    let logo: Double
+    let title: Double
+    let search: Double
+  }
+
+  @Test
+  func brandAndSearchKeepTheirInsetsOnSmallPhones() async throws {
+    guard gnorium.engines.contains(.chrome) else { return }
+    try await withPage(.chrome, gnorium, viewport: .init(width: 320, height: 568)) { page in
+      try await page.openHydrated("/")
+      for width in [320, 375, 1400] {
+        try await page.setViewport(width: width, height: 900)
+        let geometry = try await page.evaluate("""
+          (() => {
+            const width = selector => document.querySelector(selector).getBoundingClientRect().width;
+            return {available: width('.home-hero'), brand: width('.home-brand'),
+              logo: width('.home-brand .logo-view'), title: width('.home-brand .brand-title'),
+              search: width('.home-search')};
+          })()
+          """, as: BrandGeometry.self)
+        #expect(abs(geometry.brand - min(320, geometry.available - 64)) < 1)
+        #expect(abs(geometry.logo - geometry.brand) < 1)
+        #expect(geometry.title <= geometry.brand)
+        #expect(abs(geometry.search - min(640, geometry.available - 64)) < 1)
+        try await page.expectNoHorizontalOverflow()
+      }
+    }
+  }
+
   struct Geometry: Decodable {
     let initialBalanced: Bool
     let initialUnique: Int

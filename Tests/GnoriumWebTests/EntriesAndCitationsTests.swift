@@ -92,6 +92,19 @@ struct EntriesAndCitationsTests {
           + Self.entry(in: catalog, heading: "WEB TESTS HEADING", work: citedID)
           + Self.cite(1, by: catalog, work: citedID, entry: "ANOTHER HEADING") + Self.cite(3, by: letters, work: citedID)
           + "\nCOMMIT;")
+      // A current inferred placement is separate from the untouched recognition decision.
+      let targetNode = try TestAdmin.query(
+        "SELECT key FROM biblio_record_versions, jsonb_object_keys(shape_json::jsonb) AS key WHERE id = '\(cited.versionID.lowercased())' AND key LIKE 'edition-%';"
+      ).trimmingCharacters(in: .whitespacesAndNewlines)
+      #expect(targetNode.hasPrefix("edition-"))
+      _ = try TestAdmin.query(
+        """
+        INSERT INTO inferred_citation_placements
+          (citation_id, biblio_record_id, target_version_id, node_id, basis_json, computed_at)
+          SELECT id, '\(citedID)', '\(cited.versionID.lowercased())', '\(targetNode)',
+            '{"method":"citation-context-v1","fields":["surrounding sentence"],"similarity":0.75,"margin":0.25,"exemplarIDs":[]}', now()
+          FROM citations WHERE biblio_record_version_id = '\(catalog.versionID.lowercased())';
+        """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(cited.path)
         // Entries always come above Citations (user, 2026-09-30).
@@ -138,6 +151,13 @@ struct EntriesAndCitationsTests {
         let table = page.locator(".record-citations-view-table")
         try await expect(table).toContainText("ANOTHER HEADING")
         try await expect(table).toContainText("Cited 1")
+        try await expect(table.locator("th[data-table-column-id='testament']")).toHaveText("Testament")
+        try await expect(table.locator("a[href='\(cited.path)#record-row-\(targetNode)']")).toHaveCount(1)
+        try await expect(table).toContainText("Inferred: surrounding sentence; similarity 0.750 (not a probability); separation 0.250")
+        let inferenceSize = try await page.evaluate(
+          "getComputedStyle(document.querySelector('.record-citations-view-placement small')).fontSize"
+        ).string
+        #expect(inferenceSize == "12px")
         // Machine work needs no mark: no column says who linked it.
         try await expect(table.locator("th[data-table-column-id='status']")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
