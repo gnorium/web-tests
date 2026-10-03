@@ -4,8 +4,8 @@ import WebTests
 import WebTestsTesting
 
 /// The account page (`/account`), which the navbar's menu links to and
-/// which holds everything about the account: Profile, Edit Profile,
-/// Change Password, Security and Admin Console (admins only), and Delete
+/// which holds everything about the account: Profile,
+/// Change Password, Multi-Factor Authentication and Admin Console (admins only), and Delete
 /// Account. The menu
 /// itself keeps one account link and Sign Out (a POST form). And the email
 /// verification reminder: a warning alert at the top of the page's content,
@@ -47,10 +47,13 @@ struct AccountTests {
         try await expect(page.locator(".account-core-subtitle")).toContainText("@\(account.username)")
         let links = page.locator("nav.account-links")
         try await expect(links.locator("a[href='/users/\(account.username)']")).toContainText("Profile")
-        try await expect(links.locator("a[href='/account/profile']")).toContainText("Edit Profile")
+        try await expect(links.locator("a[href='/account/profile']")).toHaveCount(0)
         try await expect(links.locator("a[href='/account/password']")).toContainText("Change Password")
         try await expect(links.locator("a[href='/account/delete']")).toContainText("Delete Account")
         try await expect(links.locator("a[href='/admin-console/mfa/setup']")).toHaveCount(asAdmin ? 1 : 0)
+        if asAdmin {
+          try await expect(links.locator("a[href='/admin-console/mfa/setup']")).toHaveText("Multi‑Factor Authentication")
+        }
         try await expect(links.locator("a[href='/admin-console']")).toHaveCount(asAdmin ? 1 : 0)
         try await expect(links.locator("form[action='/auth/sign-out']")).toHaveCount(0)
         try await expect(page.locator("a[href='/auth/sign-out']")).toHaveCount(0)
@@ -64,7 +67,7 @@ struct AccountTests {
             list: Math.round(b.closest('nav').getBoundingClientRect().width)
           }))
           """, as: [Row].self)
-        #expect(rows.count == (asAdmin ? 6 : 4))
+        #expect(rows.count == (asAdmin ? 5 : 3))
         for row in rows {
           #expect(row.icon, "\(row.label) has no icon")
           #expect(row.width == row.list)
@@ -77,6 +80,21 @@ struct AccountTests {
           try await page.screenshot(
             to: URL(fileURLWithPath: directory).appendingPathComponent("account-\(layout)-\(asAdmin ? "admin" : "user").png"))
         }
+        try await expect(page.locator(".account-provider-row .button-view")).toHaveCSS("height", "40px")
+        try await expect(page.locator(".account-provider-password")).not.toBeVisible()
+        try await page.locator(".account-provider-row .button-view").click()
+        try await expect(page).toHaveURL("/account")
+        try await expect(page.locator(".account-provider-password")).toBeVisible()
+        try await expect(page.locator(".account-provider-password .label-text")).toHaveCSS("font-size", "14px")
+        let focused = try await page.evaluate("document.activeElement?.id === 'google-password'", as: Bool.self)
+        #expect(focused, "Clicking Connect should reveal and focus password confirmation")
+        let passwordAboveProvider = try await page.evaluate("document.querySelector('.account-provider-password').getBoundingClientRect().bottom <= document.querySelector('.account-provider-row').getBoundingClientRect().top", as: Bool.self)
+        #expect(passwordAboveProvider, "Password confirmation belongs above the Google row inside Links")
+        try await links.locator("a[href='/users/\(account.username)']").click()
+        try await expect(page.locator(".user-profile-actions a[href='/account/profile']")).toBeVisible()
+        try await page.locator(".user-profile-actions a[href='/account/profile']").click()
+        try await expect(page).toHaveURL("/account/profile")
+        try await expect(page.locator(".account-core-title")).toHaveText("Edit Profile")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }
