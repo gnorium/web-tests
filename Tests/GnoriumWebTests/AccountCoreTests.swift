@@ -110,6 +110,37 @@ struct AccountCoreTests {
     }
   }
 
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func alertRevealsFromItsTop(engine: BrowserEngine, layout: Layout) async throws {
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      _ = try await Self.frame(of: page, at: "/auth/verify-email?token=not-a-real-token")
+      // Let the real opening settle, then examine the same shell at partial
+      // heights. Centering a taller panel gives a negative top offset and
+      // clips both ends; its top must stay inside the upper border instead.
+      let anchored = try await page.evaluate(
+        """
+        (async () => {
+          await new Promise(resolve => setTimeout(resolve, 600));
+          const shell = document.querySelector('.page-alerts .alert-motion');
+          const panel = shell.querySelector('.alert-motion-content');
+          const saved = shell.getAttribute('style');
+          shell.style.transition = 'none';
+          shell.style.minHeight = '0';
+          shell.style.overflow = 'hidden';
+          const border = parseFloat(getComputedStyle(shell).borderTopWidth);
+          const offsets = [8, 16, 32, 48].map(height => {
+            shell.style.height = height + 'px';
+            return panel.getBoundingClientRect().top - shell.getBoundingClientRect().top - border;
+          });
+          if (saved === null) shell.removeAttribute('style');
+          else shell.setAttribute('style', saved);
+          return offsets.every(offset => Math.abs(offset) <= 0.5);
+        })()
+        """, as: Bool.self)
+      #expect(anchored, "The alert must reveal its panel from the top at every partial height")
+    }
+  }
+
   /// Account, Change password and Delete account are signed in only.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func changePasswordIsTheSameCard(engine: BrowserEngine, layout: Layout) async throws {
