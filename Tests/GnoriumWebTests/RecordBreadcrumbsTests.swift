@@ -112,7 +112,7 @@ struct RecordBreadcrumbsTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         let titlePrefix = work.path.split(separator: "/").prefix(3).joined(separator: "/")
-        try await page.openHydrated("/\(titlePrefix)?q=crumbs&field=title&treatment=attributed")
+        try await page.openHydrated("/\(titlePrefix)?title=crumbs&field=title&treatment=attributed")
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
         let lexicoTab = page.locator(".records-tabs #tab-lexico-records")

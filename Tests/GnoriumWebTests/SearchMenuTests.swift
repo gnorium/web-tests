@@ -34,7 +34,7 @@ struct SearchMenuTests {
   {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       for (tab, index, endpoint, field, name) in [
-        ("biblio-records", "/biblio-records", "/biblio-records/search", "q", work.title),
+        ("biblio-records", "/biblio-records", "/biblio-records/search", "title", work.title),
         ("lexico-records", "/lexico-records", "/lexico-records/search", "title", word.title),
       ] {
         try await page.goto(index)
@@ -117,7 +117,7 @@ struct SearchMenuTests {
   {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       for (index, parameter, field, noun, name, path) in [
-        ("/biblio-records", "q", "title", "biblio-records", work.title, work.path),
+        ("/biblio-records", "title", "title", "biblio-records", work.title, work.path),
         ("/lexico-records", "title", "title", "lexico-records", word.title, word.path),
       ] {
         for list in [index, "\(index)/eng"] {
@@ -161,6 +161,40 @@ struct SearchMenuTests {
     }
   }
 
+  /// Both lists find a title by any part of it, not its start alone: the
+  /// scratch rows by their names' ends. The lexico sidebar's utterance
+  /// radios find a word by the testament its utterance is anchored in, by
+  /// its work's title and its author's name, any part of either; the
+  /// address keeps the radio.
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func theSidebarFindsByAnyPartAndByTheUtterances(engine: BrowserEngine, layout: Layout) async throws {
+    try await Self.withScratch(anchored: true) { work, word in
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+        let searches: [(index: String, field: String, query: String, noun: String, name: String)] = [
+          ("/biblio-records", "title", String(work.title.dropFirst(5)), "biblio-record", work.title),
+          ("/lexico-records", "title", String(word.title.dropFirst(4)), "lexico-record", word.title),
+          ("/lexico-records", "utterance_work", "placement \(work.suffix)", "lexico-record", word.title),
+          ("/lexico-records", "utterance_author", "author \(work.suffix)", "lexico-record", word.title),
+        ]
+        for (index, field, query, noun, name) in searches {
+          try await page.openHydrated(index)
+          if layout == .phone {
+            try await page.locator(".sidebar-menu-btn").click()
+          }
+          let form = page.locator("[data-records-search='true']").filter(visible: true).first
+          try await form.locator("input[name='field'][value='\(field)']").check()
+          try await form.locator(".search-bar-input").fill(query)
+          try await Self.expectAddress(page, index, ["title": query, "field": field])
+          try await expect(page.locator(".records-count-view")).toHaveText("1 \(noun)")
+          let rows = page.locator(".records-results-view tbody a[href^='\(index)/']")
+          try await expect(rows).toHaveCount(1)
+          try await expect(rows.first).toHaveText(name)
+          try await page.expectNoErrors()
+        }
+      }
+    }
+  }
+
   /// A sort after a live search keeps the search. Both lists sort on the
   /// server: the header goes to the page's own path with what is typed, the
   /// field, the sort and page one, and the list stays filtered; a second
@@ -178,7 +212,7 @@ struct SearchMenuTests {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       for (index, parameter, field, column, name) in [
         ("/lexico-records", "title", "title", "title", word.title),
-        ("/biblio-records", "q", "title", "title", work.title),
+        ("/biblio-records", "title", "title", "title", work.title),
       ] {
         try await page.openHydrated(index)
         if layout == .phone {
@@ -354,7 +388,10 @@ struct SearchMenuTests {
 
   /// A throwaway admin's scratch work and word for `body`, removed after
   /// whatever it does. Skipped where no admin can be made.
-  private static func withScratch(_ body: (ScratchWork, ScratchWord) async throws -> Void) async throws {
+  /// `anchored`: the word's utterance is in the work's testament.
+  private static func withScratch(anchored: Bool = false, _ body: (ScratchWork, ScratchWord) async throws -> Void)
+    async throws
+  {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work: ScratchWork
@@ -362,7 +399,13 @@ struct SearchMenuTests {
     do {
       work = try ScratchWork(owner: admin)
       do {
-        word = try ScratchWord(owner: admin)
+        word = try ScratchWord(
+          owner: admin,
+          anchor: anchored
+            ? .init(
+              recordID: work.recordID, versionID: work.versionID, canvasID: "https://example.org/iiif/webtests-p1",
+              page: 1, line: 1, word: 1, surface: "scratchword")
+            : nil)
       } catch {
         work.remove()
         throw error
