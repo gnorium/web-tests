@@ -17,6 +17,8 @@ struct AmendmentInsertionTests {
   @Test(arguments: gnorium.engines, Layout.allCases)
   func anImpressionIsInsertedUnderAnEdition(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    let fixture = try await FixtureServer.attributionManifest()
+    defer { fixture.stop() }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
     let record = work.recordID.lowercased()
@@ -24,6 +26,8 @@ struct AmendmentInsertionTests {
       _ = try? TestAdmin.query(
         """
         BEGIN;
+        DELETE FROM inferred_citation_jobs WHERE record_id = '\(record)';
+        DELETE FROM biblio_record_versions WHERE biblio_record_id = '\(record)' AND id <> '\(work.versionID.lowercased())';
         DELETE FROM modifications WHERE modifiable_id IN
           (SELECT id FROM bibliographic_hallmarks WHERE biblio_record_id = '\(record)' AND id <> '\(work.hallmarkID.lowercased())');
         DELETE FROM bibliographic_hallmarks WHERE biblio_record_id = '\(record)' AND id <> '\(work.hallmarkID.lowercased())';
@@ -40,8 +44,10 @@ struct AmendmentInsertionTests {
         stood.firstMatch(of: /"edition-([0-9A-Fa-f-]+)"/).map { String($0.1) }, "\(stood)")
       _ = try TestAdmin.query(
         """
+        UPDATE bibliographic_evidences SET source_url = '\(fixture.baseURL)/manifest.json' WHERE id = '\(evidence.lowercased())';
+        UPDATE bibliographic_overtures SET source_url = '\(fixture.baseURL)/manifest.json' WHERE bibliographic_evidence_id = '\(evidence.lowercased())';
         UPDATE biblio_record_versions
-          SET metadata_json = replace(metadata_json, '"category":"report"', '"category":"report","carrier":"printed","copyLabel":"Copy 1"'),
+          SET metadata_json = replace(replace(metadata_json, 'https://example.org/web-tests', '\(fixture.baseURL)/manifest.json'), '"category":"report"', '"category":"report","carrier":"printed","copyLabel":"Copy 1"'),
             shape_json = '{"copy-\(evidence)":{"parent":"edition-\(evidence)","position":0},"edition-\(evidence)":{"parent":"work","position":0},"manifest-\(evidence)":{"parent":"copy-\(evidence)","position":0},"work":{"parent":null,"position":0}}'
           WHERE id = '\(work.versionID.lowercased())';
         """)
@@ -119,6 +125,30 @@ struct AmendmentInsertionTests {
         try await impression.locator("[name='impression']").first.fill("Second impression")
         try await expect(impression.locator(":scope > .outliner-row .record-row-title").first)
           .toHaveText("Second impression")
+        // A second ancestor and a move/deletion belong to this same review.
+        let issue = page.locator(".outliner-item[data-outliner-id='issue-new']")
+        try await impression.locator(":scope > .outliner-footer .testament-draft-add-level").first.click()
+        try await expect(issue).toBeVisible()
+        try await issue.locator("[name='issue']").first.fill("Library issue")
+        try await grip.click()
+        try await grip.press("ArrowDown")
+        try await grip.press("ArrowRight")
+        try await grip.press("Enter")
+        try await expect(issue.locator(":scope > .outliner-list > .outliner-item[data-outliner-id^='copy-']")).toHaveCount(1)
+        let impressionGrip = impression.locator(":scope > .outliner-row .outliner-handle").first
+        try await impressionGrip.click()
+        try await impressionGrip.press("ArrowLeft")
+        try await impressionGrip.press("Enter")
+        let editionRemoval = edition.locator(":scope > .outliner-footer .testament-outliner-remove").first
+        try await expect(editionRemoval).toBeVisible()
+        #expect(try await editionRemoval.getAttribute("inert") == nil)
+        try await editionRemoval.click()
+        try await page.locator(".testament-outliner-remove-dialog button").filter(hasText: "Remove").first.click()
+        let atomic = try await shape()
+        #expect(!atomic.contains("\"edition-\(witness)\""), "\(atomic)")
+        #expect(atomic.contains("\"manifest-\(witness)\""), "The existing leaf keeps its identity")
+        #expect(atomic.contains("\"issue-new\""))
+        try await page.expectNoHorizontalOverflow()
         try await page.locator(".record-actions button[type='submit']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the reopened hallmark") {
           $0.path.hasPrefix("/mission-control/hallmarks/bibliographic/")
@@ -129,14 +159,28 @@ struct AmendmentInsertionTests {
             WHERE biblio_record_id = '\(record)' AND id <> '\(work.hallmarkID.lowercased())';
           """
         ).trimmingCharacters(in: .whitespacesAndNewlines)
-        #expect(stored.contains("\"impression-\(witness)\":{\"parent\":\"edition-\(witness)\""), "\(stored)")
-        #expect(stored.contains("\"copy-\(witness)\":{\"parent\":\"impression-\(witness)\""), "\(stored)")
+        #expect(stored.contains("\"impression-\(witness)\":{\"parent\":\"work\""), "\(stored)")
+        #expect(stored.contains("\"issue-\(witness)\":{\"parent\":\"impression-\(witness)\""), "\(stored)")
+        #expect(stored.contains("\"copy-\(witness)\":{\"parent\":\"issue-\(witness)\""), "\(stored)")
+        #expect(!stored.contains("\"edition-\(witness)\""))
         let filed = try TestAdmin.query(
           """
           SELECT content_json FROM modifications WHERE modifiable_id IN
             (SELECT id FROM bibliographic_hallmarks WHERE biblio_record_id = '\(record)' AND id <> '\(work.hallmarkID.lowercased())');
           """)
         #expect(filed.contains("\"impression\":\"Second impression\""), "\(filed)")
+        #expect(filed.contains("\"issue\":\"Library issue\""), "\(filed)")
+        let modification = try TestAdmin.query("SELECT upper(id::text) FROM modifications WHERE modifiable_id IN (SELECT id FROM bibliographic_hallmarks WHERE biblio_record_id = '\(record)' AND id <> '\(work.hallmarkID.lowercased())');").trimmingCharacters(in: .whitespacesAndNewlines)
+        try await page.locator(".intervention-thread-view form[action$='/modifications/\(modification)/accept'] button").first.click()
+        try await page.waitForLoadState()
+        try await page.locator("button[form='hallmark-permit']").click()
+        try await expect(page.locator(".mission-control-object-header-status-chip"), timeout: .seconds(15)).toHaveText("Permitted")
+        let published = try TestAdmin.query("SELECT shape_json FROM biblio_record_versions WHERE biblio_record_id = '\(record)' ORDER BY created_at DESC LIMIT 1;").trimmingCharacters(in: .whitespacesAndNewlines)
+        let publishedShape = try JSONSerialization.jsonObject(with: Data(published.utf8)) as? NSDictionary
+        let reviewedShape = try JSONSerialization.jsonObject(with: Data(stored.utf8)) as? NSDictionary
+        #expect(publishedShape == reviewedShape, "One Permit publishes the complete reviewed tree")
+        let count = try TestAdmin.query("SELECT count(*) FROM biblio_record_versions WHERE biblio_record_id = '\(record)';").trimmingCharacters(in: .whitespacesAndNewlines)
+        #expect(count == "2", "The amendment has one new published version")
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
       }
