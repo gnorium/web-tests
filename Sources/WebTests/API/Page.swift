@@ -332,6 +332,16 @@ public struct Mouse: Sendable {
     try await driver.dispatchMouse([.move(x: x, y: y)])
   }
 
+  /// Presses `button` at the point, to drag from it.
+  public func down(x: Double, y: Double, button: MouseButton = .left) async throws {
+    try await driver.dispatchMouse([.move(x: x, y: y), .down(x: x, y: y, button: button, clickCount: 1)])
+  }
+
+  /// Releases `button` at the point, ending a drag.
+  public func up(x: Double, y: Double, button: MouseButton = .left) async throws {
+    try await driver.dispatchMouse([.move(x: x, y: y), .up(x: x, y: y, button: button, clickCount: 1)])
+  }
+
   public func click(x: Double, y: Double, button: MouseButton = .left, clickCount: Int = 1) async throws {
     var actions: [MouseAction] = [.move(x: x, y: y)]
     for count in 1...max(1, clickCount) {
