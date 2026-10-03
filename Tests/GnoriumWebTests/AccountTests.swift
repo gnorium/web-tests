@@ -4,8 +4,8 @@ import WebTests
 import WebTestsTesting
 
 /// The account page (`/account`), which the navbar's menu links to and
-/// which holds everything about the account: Profile, Change password,
-/// Security and Admin console (admins only), Delete account, and Sign out
+/// which holds everything about the account: Profile, Change Password,
+/// Security and Admin Console (admins only), Delete Account, and Sign out
 /// (a POST form). The menu itself keeps one account link. And the email
 /// verification reminder: a warning alert at the top of the page's content,
 /// whose Resend Email sends a new link and whose close control dismisses it.
@@ -45,8 +45,8 @@ struct AccountTests {
         try await expect(page.locator(".account-core-subtitle")).toContainText("@\(account.username)")
         let links = page.locator("nav.account-links")
         try await expect(links.locator("a[href='/users/\(account.username)']")).toContainText("Profile")
-        try await expect(links.locator("a[href='/account/password']")).toContainText("Change password")
-        try await expect(links.locator("a[href='/account/delete']")).toContainText("Delete account")
+        try await expect(links.locator("a[href='/account/password']")).toContainText("Change Password")
+        try await expect(links.locator("a[href='/account/delete']")).toContainText("Delete Account")
         try await expect(links.locator("a[href='/admin-console/mfa/setup']")).toHaveCount(asAdmin ? 1 : 0)
         try await expect(links.locator("a[href='/admin-console']")).toHaveCount(asAdmin ? 1 : 0)
         let signOut = links.locator("form.account-sign-out[action='/auth/sign-out'][method='post'] button[type='submit']")
