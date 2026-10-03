@@ -37,8 +37,8 @@ struct TestamentFormsTests {
 
   /// A record page shows each node's Forms read-only, after its description
   /// fields: the work's from the citations linked to the record alone, the
-  /// edition's from those a person linked to it, each with its dates and
-  /// its testaments; a work naming itself counts. Chrome headless.
+  /// edition's from those a person linked to it, each with its testaments
+  /// linked and no date; a work naming itself counts. Chrome headless.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aRecordPageShowsItsDerivedForms(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -98,8 +98,12 @@ struct TestamentFormsTests {
         let texts = try await page.evaluate(
           "JSON.stringify([...document.querySelectorAll('.derived-forms-view')].map((v) => v.textContent.replace(/\\s+/g, ' ').trim()))"
         ).string ?? "[]"
-        #expect(texts.contains("The Placement Report, AD 1958, 1 testament"), "\(texts)")
-        #expect(texts.contains("Placement Rep., AD 1958, 1 testament"), "\(texts)")
+        #expect(texts.contains("The Placement Report: \(work.title)"), "\(texts)")
+        #expect(texts.contains("Placement Rep.: \(work.title)"), "\(texts)")
+        // Never a date: a testament's may be a range, and a span of ranges does not read.
+        #expect(!texts.contains("AD 1958"), "\(texts)")
+        // Each testament linked: the citing version's page.
+        try await expect(page.locator(".derived-forms-view a[href$='/versions/\(work.versionID)']")).toHaveCount(2)
         // Read-only: no field, no item control.
         try await expect(page.locator(".derived-forms-view input")).toHaveCount(0)
         try await expect(page.locator("button[aria-label='Add Form']")).toHaveCount(0)
