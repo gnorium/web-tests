@@ -4,37 +4,47 @@ import WebTests
 import WebTestsTesting
 
 /// Submit Testament reads the testament its Source URL names as the record
-/// page reads one (user, 2026-10-03): once the IIIF manifest loads, the
-/// record page's viewer shows its semblances, with no ordinance pane, since
-/// nothing is recognized yet. A URL cleared takes the viewer away, and the
-/// field's own validation asks for one. A manifest the browser cannot read
-/// takes it away too, with a note under the field that blocks nothing:
-/// recognition reads the manifest on the server, which may still reach it. The manifests are data URLs, so no IIIF server is
-/// asked for anything but the images, which need not load. Nothing is
-/// submitted. Needs a signed-in account, made for the test and removed after.
+/// page reads one (user, 2026-10-03): the server reads the IIIF manifest,
+/// and the record page's viewer shows its semblances, with no ordinance
+/// pane, since nothing is recognized yet. A URL cleared takes the viewer
+/// away, and the field's own validation asks for one. A manifest the server
+/// cannot read takes it away too, with an error under the field that blocks
+/// the form for that URL: the submit would be refused for it.
+///
+/// The manifests are served by a fixture server on this machine
+/// (`FixtureServer`), which the dev server may fetch because `.env.dev`
+/// sets `MANIFEST_FETCH_ALLOW_LOOPBACK=true`. The images are not served and
+/// need not load. Nothing is submitted. Needs a signed-in account, made for
+/// the test and removed after.
 @Suite("Submit Testament reader")
 struct SubmitTestamentReaderTests {
   static let form = "/mission-control/submit/bibliographic/evidence-testament"
 
-  /// A IIIF v3 manifest of three pages, as a data URL.
-  static var manifestURL: String {
+  /// A IIIF v3 manifest of three pages.
+  static var manifest: Data {
     let canvases = (1...3).map { index in
       let service = "/web-tests-iiif/submit-reader-\(index)"
       return #"{"type":"Canvas","width":1000,"height":1400,"label":{"none":["p\#(index)"]},"items":[{"items":[{"body":{"id":"\#(service)/full/max/0/default.jpg","service":[{"id":"\#(service)"}]}}]}]}"#
     }
-    let manifest = #"{"type":"Manifest","label":{"none":["Web tests"]},"items":[\#(canvases.joined(separator: ","))]}"#
-    return "data:application/json,"
-      + (manifest.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? manifest)
+    return Data(#"{"type":"Manifest","label":{"none":["Web tests"]},"items":[\#(canvases.joined(separator: ","))]}"#.utf8)
   }
 
-  /// JSON, but no manifest: nothing to page.
-  static let notAManifestURL = "data:application/json,%7B%7D"
+  static func fixtures() async throws -> FixtureServer {
+    try await FixtureServer(files: [
+      "/manifest.json": .init(contentType: "application/ld+json", body: manifest),
+      // JSON, but no manifest: nothing to page.
+      "/not-a-manifest.json": .init(contentType: "application/json", body: Data("{}".utf8)),
+    ])
+  }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func theSourceURLShowsItsSemblances(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let fixtures = try await Self.fixtures()
+    defer { fixtures.stop() }
+    let manifestURL = fixtures.baseURL + "/manifest.json"
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(Self.form)
@@ -42,9 +52,6 @@ struct SubmitTestamentReaderTests {
         let reader = form.locator(".submit-testament-reader")
         let source = form.locator("input[name='source-url']")
         let message = form.locator("#testament-source-url-validation-message .field-validation-message-text")
-        let note = form.locator("#testament-source-url-validation-note")
-        let noteText =
-          "The pages could not be shown here; the manifest will still be read when the testament is submitted."
 
         // No URL: no viewer.
         try await expect(reader).toBeHidden()
@@ -52,7 +59,7 @@ struct SubmitTestamentReaderTests {
 
         // A manifest: its semblances, paged, and no ordinance pane or
         // switch to put the images away.
-        try await source.fill(Self.manifestURL)
+        try await source.fill(manifestURL)
         try await expect(reader).toBeVisible()
         let viewer = reader.locator(".artifact-view")
         try await expect(viewer).toHaveCount(1)
@@ -62,26 +69,26 @@ struct SubmitTestamentReaderTests {
         try await expect(viewer.locator(".artifact-transcript")).toHaveCount(0)
         try await expect(viewer.locator(".artifact-canvas-toggle")).toHaveCount(0)
         try await expect(message).toHaveCount(0)
-        try await expect(note).toHaveCount(0)
 
-        // Not a manifest the browser can read: the viewer goes, and a note
-        // says so without blocking anything—no error on the field.
-        try await source.fill(Self.notAManifestURL)
-        try await expect(note).toHaveAttribute("data-status", "info")
-        try await expect(note.locator(".field-validation-message-text")).toHaveText(noteText)
+        // Not a manifest: the viewer goes, and the field says why, an error
+        // that blocks the form for this URL.
+        try await source.fill(fixtures.baseURL + "/not-a-manifest.json")
+        try await expect(message).toHaveText("This isn't a readable IIIF manifest.")
+        try await expect(source).toHaveAttribute("aria-invalid", "true")
         try await expect(reader).toBeHidden()
         try await expect(reader.locator(".testament-view")).toHaveCount(0)
-        try await expect(message).toHaveCount(0)
-        #expect(try await source.getAttribute("aria-invalid") == nil, "the note marked the field invalid")
-        let valid = try await source.evaluate("(input) => input.checkValidity()")
-        #expect(valid == .bool(true), "the note blocks the form")
 
-        // A manifest again: the note goes, the viewer comes back.
-        try await source.fill(Self.manifestURL)
+        // Nothing answers: it could not be fetched.
+        try await source.fill(fixtures.baseURL + "/gone.json")
+        try await expect(message).toHaveText("The manifest could not be fetched.")
+        try await expect(reader).toBeHidden()
+
+        // A manifest again: the error goes, the viewer comes back.
+        try await source.fill(manifestURL)
         try await expect(reader).toBeVisible()
         try await expect(reader.locator(".artifact-view #artifact-page-total")).toHaveText("3")
-        try await expect(note).toHaveCount(0)
         try await expect(message).toHaveCount(0)
+        #expect(try await source.getAttribute("aria-invalid") == nil, "a readable manifest left the field invalid")
 
         // Cleared: the viewer goes, and the field asks to be filled in.
         try await source.fill("")

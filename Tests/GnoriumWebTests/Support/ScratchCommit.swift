@@ -8,6 +8,11 @@ import Foundation
 /// The hallmark's metadata holds what the witness's fields require (its
 /// page decodes them): the language, the source URL and its kind.
 struct ScratchCommit {
+  /// A IIIF manifest no one serves: `.invalid` never resolves, so the
+  /// server's manifest route answers at once that it could not be fetched,
+  /// and the viewer pages nothing, quietly.
+  static let sourceURL = "https://web-tests.invalid/manifest.json"
+
   private let submissionID: String
   private let evidenceID: String
   private let pendingOvertureID: String
@@ -32,15 +37,15 @@ struct ScratchCommit {
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(submissionID)', '\(user)');
       INSERT INTO bibliographic_evidences (id, batch_id, source_url, language, processing_status, title, type)
-        VALUES ('\(evidenceID)', '\(submissionID)', 'https://example.org/web-tests', 'eng', 'pending', 'Web tests commit \(evidenceID.prefix(8))', 'report');
+        VALUES ('\(evidenceID)', '\(submissionID)', '\(Self.sourceURL)', 'eng', 'pending', 'Web tests commit \(evidenceID.prefix(8))', 'report');
       INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_evidence_id, source_url, language, processing_status)
-        VALUES ('\(pendingOvertureID)', '\(submissionID)', '\(evidenceID)', 'https://example.org/web-tests', 'eng', 'pending');
+        VALUES ('\(pendingOvertureID)', '\(submissionID)', '\(evidenceID)', '\(Self.sourceURL)', 'eng', 'pending');
       INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_evidence_id, source_url, language, processing_status, committed_by_user_id, committed_at)
-        VALUES ('\(committedOvertureID)', '\(submissionID)', '\(evidenceID)', 'https://example.org/web-tests', 'eng', 'pending', '\(user)', now());
+        VALUES ('\(committedOvertureID)', '\(submissionID)', '\(evidenceID)', '\(Self.sourceURL)', 'eng', 'pending', '\(user)', now());
       INSERT INTO bibliographic_concertos (id, bibliographic_overture_id, requested_by_user_id, processing_status)
         VALUES ('\(concertoID)', '\(committedOvertureID)', '\(user)', 'submitted');
       INSERT INTO bibliographic_hallmarks (id, thread_id, bibliographic_overture_id, bibliographic_concerto_id, metadata_json, processing_status)
-        VALUES ('\(hallmarkID)', '\(hallmarkID)', '\(committedOvertureID)', '\(concertoID)', '{"language":"eng","sourceUrl":"https://example.org/web-tests","sourceKind":"pdf"}', 'pending');
+        VALUES ('\(hallmarkID)', '\(hallmarkID)', '\(committedOvertureID)', '\(concertoID)', '{"language":"eng","sourceUrl":"\(Self.sourceURL)","sourceKind":"iiif-manifest"}', 'pending');
       COMMIT;
       """)
   }
