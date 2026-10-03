@@ -99,4 +99,136 @@ struct TableResizeTests {
       }
     }
   }
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func dashboardTablesResizeAfterLiveUpdates(engine: BrowserEngine, layout: Layout) async throws {
+    guard gnorium.engines.contains(engine) else { return }
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      try await page.openHydrated("/mission-control")
+      // Install observation before the client starts, using the actual public
+      // dashboard HTML on the same origin. A hydrated original table is not
+      // evidence that an SSE replacement was rehydrated.
+      let original = try await page.evaluate("fetch('/mission-control').then(response => response.text())", as: String.self)
+      let observer = """
+        <script>
+        (() => {
+          const ids = ['workers-summary', 'recent-activity'];
+          const first = new Map(), replaced = new Set();
+          window.__liveTablesReplaced = false;
+          const observer = new MutationObserver(() => {
+            for (const id of ids) {
+              const table = document.querySelector(`#live-region-${id} .table-view`);
+              if (!table) continue;
+              if (!first.has(id)) first.set(id, table);
+              else if (first.get(id) !== table && table.dataset.tableHydrated === 'true') replaced.add(id);
+            }
+            if (replaced.size === ids.length) {
+              window.__liveTablesReplaced = true;
+              observer.disconnect();
+            }
+          });
+          observer.observe(document.documentElement, {childList: true, subtree: true, attributes: true});
+        })();
+        </script>
+        """
+      let name = "dashboard-live-resize-\(UUID().uuidString).html"
+      let file = URL(fileURLWithPath: "/Users/Madhavik/Downloads/Gnorium/gnorium-web/Public").appendingPathComponent(name)
+      try original.replacingOccurrences(of: "<head>", with: "<head>" + observer).write(to: file, atomically: true, encoding: .utf8)
+      defer { try? FileManager.default.removeItem(at: file) }
+      try await page.openHydrated("/\(name)")
+      let liveTablesReady = try await page.evaluate("""
+        new Promise(resolve => {
+          const deadline = Date.now() + 15000;
+          const check = () => {
+            if (window.__liveTablesReplaced) resolve(true);
+            else if (Date.now() >= deadline) resolve(false);
+            else setTimeout(check, 50);
+          };
+          check();
+        })
+        """, as: Bool.self)
+      #expect(liveTablesReady, "Observed SSE replacement nodes receive table interaction bindings")
+      for selector in [".mission-control-workers-table", ".mission-control-dashboard-recent-activity-table"] {
+        let headerSelector = "\(selector) th[data-table-column-id]:first-child"
+        let before = try await page.evaluate("document.querySelector(\"\(headerSelector)\").getBoundingClientRect().width", as: Double.self)
+        let handle = page.locator("\(headerSelector) .table-resizer")
+        _ = try await page.evaluate("document.querySelector(\"\(headerSelector) .table-resizer\").scrollIntoView({block: 'center', inline: 'center'})")
+        guard let box = try await handle.boundingBox() else { Issue.record("No resize handle for \(selector)"); continue }
+        let x = box.x + box.width / 2, y = box.y + box.height / 2
+        try await page.mouse.down(x: x, y: y)
+        for step in 1...4 { try await page.mouse.move(x: x + 80 * Double(step) / 4, y: y) }
+        try await page.mouse.up(x: x + 80, y: y)
+        let after = try await page.evaluate("document.querySelector(\"\(headerSelector)\").getBoundingClientRect().width", as: Double.self)
+        #expect(after > before + 60, "\(selector) drag must change its column width: \(before) -> \(after)")
+        try await handle.dblclick()
+      }
+      try await expect(page.locator("main a[href*='/mission-control/prompts/']")).toHaveCount(3)
+      try await page.expectNoErrors()
+      try await page.expectNoHorizontalOverflow()
+    }
+  }
+
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func sharedPoolAdminFieldsFillWidthAndActionsShareRow(engine: BrowserEngine, layout: Layout) async throws {
+    guard gnorium.engines.contains(engine) else { return }
+    guard let path = ProcessInfo.processInfo.environment["GNORIUM_WORKERS_FIXTURE_PATH"],
+      FileManager.default.fileExists(atPath: path) else {
+      try Test.cancel("Export the actual shared worker admin view first.")
+    }
+    let name = "workers-layout-\(UUID().uuidString).html"
+    let file = URL(fileURLWithPath: "/Users/Madhavik/Downloads/Gnorium/gnorium-web/Public").appendingPathComponent(name)
+    try Data(contentsOf: URL(fileURLWithPath: path)).write(to: file)
+    defer { try? FileManager.default.removeItem(at: file) }
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      try await page.openHydrated("/\(name)")
+      try await expect(page.locator("h1")).toHaveText("Computorium Workers")
+      try await expect(page.locator("#worker-count")).toHaveAttribute("value", "4")
+      let geometry = try await page.evaluate("""
+        (() => {
+          const content = document.querySelector('.mission-control-workers-content');
+          const count = document.querySelector('#worker-count');
+          const buttons = [...content.querySelectorAll('.mission-control-worker-control-actions button')];
+          const box = content.getBoundingClientRect();
+          const input = count.getBoundingClientRect();
+          const rects = buttons.map(button => button.getBoundingClientRect());
+          const fields = [...content.querySelectorAll('.datum-view')];
+          return Math.abs(input.width - box.width) < 4
+            && fields.every(field => Math.abs(field.getBoundingClientRect().width - box.width) < 4)
+            && rects.length === 2 && Math.abs(rects[0].top - rects[1].top) < 4
+            && buttons[0].form?.getAttribute('action') === '/mission-control/workers/count'
+            && buttons[1].form?.getAttribute('action') === '/mission-control/workers'
+            && buttons[0].textContent.trim() === 'Save Worker Count'
+            && buttons[1].textContent.trim() === 'Start';
+        })()
+        """, as: Bool.self)
+      #expect(geometry, "Global fields fill available width and Save/Start share one row at supported widths")
+      try await page.expectNoHorizontalOverflow()
+      try await page.expectNoErrors()
+    }
+  }
+
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func sharedComputoriumPoolIsPublicFromBothDashboardKinds(engine: BrowserEngine, layout: Layout) async throws {
+    guard gnorium.engines.contains(engine) else { return }
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      for kind in ["bibliographic", "lexicographic"] {
+        try await page.openHydrated("/mission-control?tab=\(kind)")
+        let link = page.locator(".mission-control-workers-table a[href='/mission-control/workers']")
+        try await expect(link).toHaveCount(1)
+        try await expect(link).toHaveText("Worker 1")
+        try await expect(page.locator(".mission-control-workers-table th[data-table-column-id='pipeline']")).toHaveCount(0)
+        if layout == .phone { try await link.tap() }
+        else { try await link.click() }
+        try await expect(page.locator("h1")).toHaveText("Computorium Workers")
+        try await expect(page.locator(".mission-control-worker-settings .datum-view")).toHaveCount(6)
+        try await expect(page.locator("main input[name='count'], main input[name='enabled']")).toHaveCount(0)
+        let breadcrumb = try await page.evaluate("document.querySelector('.breadcrumb-list')?.textContent || ''", as: String.self)
+        #expect(breadcrumb.contains("Computorium Workers"))
+        #expect(!breadcrumb.contains("Bibliographic") && !breadcrumb.contains("Lexicographic") && !breadcrumb.contains("Attribution"))
+        try await page.expectNoHorizontalOverflow()
+      }
+      try await page.expectNoErrors()
+      try await page.expectNoHorizontalOverflow()
+    }
+  }
+
 }
