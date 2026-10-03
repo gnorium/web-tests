@@ -52,11 +52,21 @@ final class FixtureServer: @unchecked Sendable {
   /// server reads before it takes the submission: the testament's source is
   /// `baseURL + path`, a path no other test names.
   static func manifest(at path: String) async throws -> FixtureServer {
-    let service = "\(path)/page-1"
-    let body = Data(
-      #"{"type":"Manifest","label":{"none":["Web tests"]},"items":[{"type":"Canvas","width":1000,"height":1400,"label":{"none":["p1"]},"items":[{"items":[{"body":{"id":"\#(service)/full/max/0/default.jpg","service":[{"id":"\#(service)"}]}}]}]}]}"#
-        .utf8)
-    return try await FixtureServer(files: [path: .init(contentType: "application/ld+json", body: body)])
+    try await manifests(at: [path])
+  }
+
+  /// A one-page IIIF v3 manifest at each of `paths`.
+  static func manifests(at paths: [String]) async throws -> FixtureServer {
+    var files: [String: File] = [:]
+    for path in paths {
+      let service = "\(path)/page-1"
+      files[path] = File(
+        contentType: "application/ld+json",
+        body: Data(
+          #"{"type":"Manifest","label":{"none":["Web tests"]},"items":[{"type":"Canvas","width":1000,"height":1400,"label":{"none":["p1"]},"items":[{"items":[{"body":{"id":"\#(service)/full/max/0/default.jpg","service":[{"id":"\#(service)"}]}}]}]}]}"#
+            .utf8))
+    }
+    return try await FixtureServer(files: files)
   }
 
   private func serve(_ connection: NWConnection) {

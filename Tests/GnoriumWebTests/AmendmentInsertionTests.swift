@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// An amendment inserts a level as attribution does (user, 2026-10-03): a
-/// node's "+ Impression" puts a new impression under it, over the node under
+/// node's "+ Testament" puts a new impression under it, over the node under
 /// it, shown and empty with its fields; its "− Testament" takes it out
 /// again. Left empty it stops the amendment with Submit Testament's words;
 /// filled, it names its row, and the reopened object carries the tree with
@@ -54,8 +54,12 @@ struct AmendmentInsertionTests {
         // Out of the tree until it is asked for: the edition's own control,
         // the icon and the noun.
         try await expect(impression).toBeHidden()
-        try await expect(insert).toHaveText("Impression")
-        try await expect(insert).toHaveAttribute("aria-label", "Add Impression")
+        // Held out of the outline, so a move to the item above never lands
+        // on it.
+        try await expect(page.locator("#testament-outliner .outliner-item[data-testament-inserted='true']"))
+          .toHaveCount(0)
+        try await expect(insert).toHaveText("Testament")
+        try await expect(insert).toHaveAttribute("aria-label", "Add Testament")
         #expect(!(try await shape()).contains("impression-"))
 
         // In: under the edition, over the digitization, which hangs from it.
@@ -80,6 +84,8 @@ struct AmendmentInsertionTests {
         try await expect(edition.locator(":scope > .outliner-list > .outliner-item[data-outliner-id^='manifest-']"))
           .toHaveCount(1)
         try await expect(manifest).not.toHaveAttribute("data-outline-state", "moved")
+        try await expect(page.locator("#testament-outliner .outliner-item[data-testament-inserted='true']"))
+          .toHaveCount(0)
         #expect(!(try await shape()).contains("impression-"))
 
         // In, and submitted empty: it says what to fill in.
