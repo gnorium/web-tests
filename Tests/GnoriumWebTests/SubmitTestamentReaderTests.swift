@@ -6,9 +6,10 @@ import WebTestsTesting
 /// Submit Testament reads the testament its Source URL names as the record
 /// page reads one (user, 2026-10-03): once the IIIF manifest loads, the
 /// record page's viewer shows its semblances, with no ordinance pane, since
-/// nothing is recognized yet. A URL cleared, or a manifest that cannot be
-/// read, takes the viewer away, and the field says why in its own
-/// validation message. The manifests are data URLs, so no IIIF server is
+/// nothing is recognized yet. A URL cleared takes the viewer away, and the
+/// field's own validation asks for one. A manifest the browser cannot read
+/// takes it away too, with a note under the field that blocks nothing:
+/// recognition reads the manifest on the server, which may still reach it. The manifests are data URLs, so no IIIF server is
 /// asked for anything but the images, which need not load. Nothing is
 /// submitted. Needs a signed-in account, made for the test and removed after.
 @Suite("Submit Testament reader")
@@ -41,6 +42,9 @@ struct SubmitTestamentReaderTests {
         let reader = form.locator(".submit-testament-reader")
         let source = form.locator("input[name='source-url']")
         let message = form.locator("#testament-source-url-validation-message .field-validation-message-text")
+        let note = form.locator("#testament-source-url-validation-note")
+        let noteText =
+          "The pages could not be shown here; the manifest will still be read when the testament is submitted."
 
         // No URL: no viewer.
         try await expect(reader).toBeHidden()
@@ -58,17 +62,25 @@ struct SubmitTestamentReaderTests {
         try await expect(viewer.locator(".artifact-transcript")).toHaveCount(0)
         try await expect(viewer.locator(".artifact-canvas-toggle")).toHaveCount(0)
         try await expect(message).toHaveCount(0)
+        try await expect(note).toHaveCount(0)
 
-        // Not a manifest: the viewer goes, and the field says why.
+        // Not a manifest the browser can read: the viewer goes, and a note
+        // says so without blocking anything—no error on the field.
         try await source.fill(Self.notAManifestURL)
-        try await expect(message).toHaveText("The manifest could not be loaded.")
+        try await expect(note).toHaveAttribute("data-status", "info")
+        try await expect(note.locator(".field-validation-message-text")).toHaveText(noteText)
         try await expect(reader).toBeHidden()
         try await expect(reader.locator(".testament-view")).toHaveCount(0)
+        try await expect(message).toHaveCount(0)
+        #expect(try await source.getAttribute("aria-invalid") == nil, "the note marked the field invalid")
+        let valid = try await source.evaluate("(input) => input.checkValidity()")
+        #expect(valid == .bool(true), "the note blocks the form")
 
-        // A manifest again: the message goes, the viewer comes back.
+        // A manifest again: the note goes, the viewer comes back.
         try await source.fill(Self.manifestURL)
         try await expect(reader).toBeVisible()
         try await expect(reader.locator(".artifact-view #artifact-page-total")).toHaveText("3")
+        try await expect(note).toHaveCount(0)
         try await expect(message).toHaveCount(0)
 
         // Cleared: the viewer goes, and the field asks to be filled in.
