@@ -42,6 +42,39 @@ struct TableResizeTests {
     try await page.locator("main .table-table th[data-table-column-id='\(column)'] .table-resizer").dblclick()
   }
 
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func recordTitlesStartReadableAndKeepExplicitResizing(engine: BrowserEngine, layout: Layout) async throws {
+    guard gnorium.engines.contains(engine) else { return }
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      for path in ["/biblio-records", "/lexico-records"] {
+        try await page.openHydrated(path)
+        try await page.expectNoErrors()
+        let initial = try await Self.width(page, "title")
+        if layout == .desktop {
+          #expect(initial >= 300, "\(path): default desktop Title is \(initial), expected readable 320px descriptor")
+        } else {
+          #expect(initial >= 140, "\(path): phone priority Title must remain readable (\(initial))")
+        }
+        _ = try await page.evaluate("(() => { document.querySelector('main th[data-table-column-id=\"title\"] .table-resizer').scrollIntoView({ block: 'center', inline: 'center' }); return true; })()", as: Bool.self)
+        try await Self.drag(page, "title", by: 120)
+        let resized = try await Self.width(page, "title")
+        #expect(resized > initial + 100, "\(path): Title must respond to an actual handle drag")
+        try await expect(page.locator("main .table-table")).toHaveAttribute("data-manually-resized", "true")
+        // A viewport change must keep the explicitly pinned colgroup geometry.
+        let pinned = try await page.evaluate("document.querySelector('main col[data-table-column-id=\"title\"]').getAttribute('width')", as: String.self)
+        let alternate = layout == .desktop ? Layout.phone : Layout.desktop
+        try await page.setViewport(alternate.viewport(for: engine))
+        let retained = try await page.evaluate("document.querySelector('main col[data-table-column-id=\"title\"]').getAttribute('width')", as: String.self)
+        #expect(retained == pinned, "\(path): viewport change must retain the explicitly resized colgroup width")
+        try await expect(page.locator("main .table-table")).toHaveAttribute("data-manually-resized", "true")
+        try await page.setViewport(layout.viewport(for: engine))
+        try await page.openHydrated(path)
+        let restored = try await Self.width(page, "title")
+        #expect(abs(restored - initial) < 3, "\(path): reload should restore its readable default")
+      }
+    }
+  }
+
   @Test(arguments: gnorium.engines)
   func aColumnIsDraggedWiderAndFitsOnADoubleClick(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine)) { page in
@@ -81,7 +114,7 @@ struct TableResizeTests {
         let before = try await Self.width(page, "treatment")
         try await Self.drag(page, "treatment", by: 120)
         let dragged = try await Self.width(page, "treatment")
-        #expect(dragged > before + 100, "\(path): Treatment dragged 120 wider, \(before) became \(dragged)")
+        #expect(dragged > before + 100, "\(path): Operation dragged 120 wider, \(before) became \(dragged)")
         try await Self.fit(page, "treatment")
         let fitted = try await Self.width(page, "treatment")
         let heading = try await page.evaluate(
@@ -94,8 +127,8 @@ struct TableResizeTests {
           })()
           """, as: Width.self
         ).width
-        #expect(fitted < dragged - 20, "\(path): a double-click left Treatment \(fitted) (dragged to \(dragged))")
-        #expect(abs(fitted - heading) < 4, "\(path): Treatment fits to \(fitted), its heading is \(heading)")
+        #expect(fitted < dragged - 20, "\(path): a double-click left Operation \(fitted) (dragged to \(dragged))")
+        #expect(abs(fitted - heading) < 4, "\(path): Operation fits to \(fitted), its heading is \(heading)")
       }
     }
   }
@@ -180,11 +213,11 @@ struct TableResizeTests {
     defer { try? FileManager.default.removeItem(at: file) }
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/\(name)")
-      try await expect(page.locator("h1")).toHaveText("Computorium Workers")
+      try await expect(page.locator("h1")).toHaveText("Workers")
       try await expect(page.locator("#worker-count")).toHaveAttribute("value", "4")
       let geometry = try await page.evaluate("""
         (() => {
-          const content = document.querySelector('.mission-control-workers-content');
+          const content = document.querySelector('.workers-content');
           const count = document.querySelector('#worker-count');
           const buttons = [...content.querySelectorAll('.mission-control-worker-control-actions button')];
           const box = content.getBoundingClientRect();
@@ -218,11 +251,11 @@ struct TableResizeTests {
         try await expect(page.locator(".mission-control-workers-table th[data-table-column-id='pipeline']")).toHaveCount(0)
         if layout == .phone { try await link.tap() }
         else { try await link.click() }
-        try await expect(page.locator("h1")).toHaveText("Computorium Workers")
+        try await expect(page.locator("h1")).toHaveText("Workers")
         try await expect(page.locator(".mission-control-worker-settings .datum-view")).toHaveCount(6)
         try await expect(page.locator("main input[name='count'], main input[name='enabled']")).toHaveCount(0)
         let breadcrumb = try await page.evaluate("document.querySelector('.breadcrumb-list')?.textContent || ''", as: String.self)
-        #expect(breadcrumb.contains("Computorium Workers"))
+        #expect(breadcrumb.contains("Workers"))
         #expect(!breadcrumb.contains("Bibliographic") && !breadcrumb.contains("Lexicographic") && !breadcrumb.contains("Attribution"))
         try await page.expectNoHorizontalOverflow()
       }

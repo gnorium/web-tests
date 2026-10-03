@@ -50,7 +50,22 @@ struct SponsorCheckoutTests {
           return true;
         })();
         """, as: Bool.self)
+      try await expect(page.locator("[data-dropdown-id=sponsor-frequency] button")).toHaveCSS("background-color", "rgb(255, 255, 255)")
+      let frequencyStyle = try await page.evaluate("""
+        (()=>{const b=document.querySelector('[data-dropdown-id=sponsor-frequency] button');
+          const text=b.querySelector('.dropdown-selected-text');const form=document.querySelector('#sponsor-checkout-form');
+          const font=getComputedStyle(text).fontSize, width=b.getBoundingClientRect().width, parentWidth=form.getBoundingClientRect().width, background=getComputedStyle(b).backgroundColor;
+          const probe=document.createElement('span');probe.style.backgroundColor='var(--background-color-base)';document.body.append(probe);
+          const white=getComputedStyle(probe).backgroundColor;probe.remove();
+          return JSON.stringify({ok:!b.disabled && font==='16px' && Math.abs(width-parentWidth)<2 && background===white,font,width,parentWidth,background,white});})()
+        """, as: String.self)
+      #expect(frequencyStyle.contains("\"ok\":true"), Comment(rawValue: frequencyStyle))
       try await expect(page.locator("#sponsor-amount")).toHaveAttribute("min", "1")
+      #expect(try await page.evaluate("""
+        (()=>{const label=document.querySelector('label[for=sponsor-profile]');
+          return getComputedStyle(label).fontSize==='16px' && getComputedStyle(document.querySelector('#sponsor-amount')).fontSize==='16px'
+            && [...document.querySelectorAll('main.sponsor-content > p')].every(p=>getComputedStyle(p).fontSize==='16px');})()
+        """, as: Bool.self), "Body, amount and recognition checkbox use consistent 16px text")
       try await expect(page.locator("#sponsor-profile")).toBeChecked(false)
       try await page.locator("#sponsor-amount").fill("500")
       try await page.locator("#sponsor-profile").check()
@@ -75,11 +90,11 @@ struct SponsorCheckoutTests {
       #expect(confirm.contains("order_fixture"))
       #expect(!confirm.contains("grossUSD") && !confirm.contains("netUSD"))
       // Exercise the actual control: setting its hidden input bypasses broken menus.
-      try await page.locator("#sponsor-frequency[role=combobox]").click()
-      try await expect(page.locator("#sponsor-frequency")).toHaveAttribute("aria-expanded", "true")
-      try await page.locator(".select-view [role=option][data-value=monthly]").click()
-      try await expect(page.locator("#sponsor-frequency .select-label")).toContainText("Monthly")
-      try await expect(page.locator("#sponsor-frequency")).toHaveAttribute("aria-expanded", "false")
+      try await page.locator("[data-dropdown-id=sponsor-frequency] button").click()
+      try await expect(page.locator("#sponsor-checkout-form .dropdown-view [data-dropdown-menu]")).toHaveAttribute("data-open", "true")
+      try await page.locator("#sponsor-checkout-form .dropdown-view [data-dropdown-option][data-value=monthly]").click()
+      try await expect(page.locator("[data-dropdown-id=sponsor-frequency] .dropdown-selected-text")).toContainText("Monthly")
+      try await expect(page.locator("#sponsor-checkout-form .dropdown-view [data-dropdown-menu]")).toHaveAttribute("data-open", "false")
       #expect(try await page.evaluate("document.querySelector('[name=frequency]').value === 'monthly'", as: Bool.self))
       try await page.locator("#sponsor-checkout-form button[type=submit]").click()
       try await expect(page.locator("#sponsor-checkout-receipt a")).toHaveAttribute("href", "/sponsor-gnorium/receipts/fixture?token=fixture-token")

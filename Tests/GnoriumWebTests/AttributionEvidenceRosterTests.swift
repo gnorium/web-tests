@@ -290,7 +290,7 @@ struct AttributionEvidenceRosterTests {
             const group = document.querySelector('.pipeline-selection-group');
             const buttons = [...group.querySelectorAll('button')];
             return group.getAttribute('role') === 'radiogroup'
-              && group.getAttribute('aria-label') === 'Treatment'
+              && group.getAttribute('aria-label') === 'Operation'
               && buttons.every(button => Math.abs(button.getBoundingClientRect().top - buttons[0].getBoundingClientRect().top) < 1);
           })()
           """, as: Bool.self)
