@@ -73,14 +73,14 @@ struct SubmitTestamentReaderTests {
         // Not a manifest: the viewer goes, and the field says why, an error
         // that blocks the form for this URL.
         try await source.fill(fixtures.baseURL + "/not-a-manifest.json")
-        try await expect(message).toHaveText("This isn't a readable IIIF manifest.")
+        try await expect(message).toHaveText("The source URL can't be read.")
         try await expect(source).toHaveAttribute("aria-invalid", "true")
         try await expect(reader).toBeHidden()
         try await expect(reader.locator(".testament-view")).toHaveCount(0)
 
         // Nothing answers: it could not be fetched.
         try await source.fill(fixtures.baseURL + "/gone.json")
-        try await expect(message).toHaveText("The manifest could not be fetched.")
+        try await expect(message).toHaveText("The source URL can't be read.")
         try await expect(reader).toBeHidden()
 
         // A manifest again: the error goes, the viewer comes back.
