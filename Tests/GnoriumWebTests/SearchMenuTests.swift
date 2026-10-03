@@ -10,7 +10,7 @@ import WebTestsTesting
 /// search menu on both tabs. A row is a link, never a dropdown option: a
 /// link's hover under the pointer, nothing left when it goes; the arrow
 /// keys make it the active row (aria-selected, the input's
-/// aria-activedescendant) in LinkView's keyboard focus ring, never filled;
+/// aria-activedescendant) in a field's ring, never filled;
 /// Enter follows it, Esc closes the menu.
 ///
 /// The records pages' sidebar search offers nothing under its bar: it filters
@@ -72,19 +72,19 @@ struct SearchMenuTests {
         try await Self.expectColor(title, "--color-link", "the title kept its hover color after the pointer left")
         try await Self.expectUnfilled(row)
         // Reached with the arrow keys: the active row, named by the input,
-        // in LinkView's keyboard focus ring, still unfilled; it stays so
+        // in a field's ring, still unfilled; it stays so
         // after the pointer crosses it and leaves.
         try await input.press("ArrowDown")
         try await expect(row).toHaveAttribute("aria-selected", "true")
         let rowID = try await row.getAttribute("id") ?? ""
         #expect(!rowID.isEmpty, "the active row has no id")
         try await expect(input).toHaveAttribute("aria-activedescendant", rowID)
-        try await Self.expectFocusRing(row)
+        try await Self.expectFieldRing(row)
         try await Self.expectUnfilled(row)
         try await row.hover()
         try await input.hover()
         try await expect(row).toHaveAttribute("aria-selected", "true")
-        try await Self.expectFocusRing(row)
+        try await Self.expectFieldRing(row)
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
         // Enter follows the active row.
@@ -161,11 +161,10 @@ struct SearchMenuTests {
     }
   }
 
-  /// A sort after a live search keeps the search. The lexico list sorts on
-  /// the server: its header goes to the page's own path with what is typed,
-  /// the field, the sort and page one, and the list stays filtered; a second
-  /// click turns it descending. The biblio list sorts in the browser: the
-  /// address and the filtered rows stay as they are.
+  /// A sort after a live search keeps the search. Both lists sort on the
+  /// server: the header goes to the page's own path with what is typed, the
+  /// field, the sort and page one, and the list stays filtered; a second
+  /// click turns it descending.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func sortingKeepsTheLiveSearch(engine: BrowserEngine, layout: Layout) async throws {
     try await Self.withScratch { work, word in
@@ -177,9 +176,9 @@ struct SearchMenuTests {
     async throws
   {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-      for (index, parameter, field, column, serverSorted, name) in [
-        ("/lexico-records", "title", "title", "title", true, word.title),
-        ("/biblio-records", "q", "title", "title", false, work.title),
+      for (index, parameter, field, column, name) in [
+        ("/lexico-records", "title", "title", "title", word.title),
+        ("/biblio-records", "q", "title", "title", work.title),
       ] {
         try await page.openHydrated(index)
         if layout == .phone {
@@ -205,24 +204,20 @@ struct SearchMenuTests {
 
         let header = page.locator(".records-results-view .table-sort-button[data-column-id='\(column)']")
         try await header.click()
-        if serverSorted {
-          try await Self.expectAddress(
-            page, index, searched.merging(["sort": column, "order": "asc", "page": "1"]) { $1 })
-          try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
-          try await page.locator(".records-results-view .table-sort-button[data-column-id='\(column)']").click()
-          try await Self.expectAddress(
-            page, index, searched.merging(["sort": column, "order": "desc", "page": "1"]) { $1 })
-          try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
-          // The reloaded sidebar still holds the search.
-          if layout == .phone {
-            try await page.locator(".sidebar-menu-btn").click()
-          }
-          try await expect(
-            page.locator("[data-records-search='true']").filter(visible: true).first.locator(".search-bar-input")
-          ).toHaveValue(name)
-        } else {
-          try await Self.expectAddress(page, index, searched)
+        try await Self.expectAddress(
+          page, index, searched.merging(["sort": column, "order": "asc", "page": "1"]) { $1 })
+        try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
+        try await page.locator(".records-results-view .table-sort-button[data-column-id='\(column)']").click()
+        try await Self.expectAddress(
+          page, index, searched.merging(["sort": column, "order": "desc", "page": "1"]) { $1 })
+        try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
+        // The reloaded sidebar still holds the search.
+        if layout == .phone {
+          try await page.locator(".sidebar-menu-btn").click()
         }
+        try await expect(
+          page.locator("[data-records-search='true']").filter(visible: true).first.locator(".search-bar-input")
+        ).toHaveValue(name)
         try await expect(count).toHaveText(filtered)
         let named = try await page.evaluate(
           """
@@ -301,14 +296,15 @@ struct SearchMenuTests {
     #expect(unfilled.bool == true, "the row is filled or its text inverted, as a dropdown option")
   }
 
-  /// LinkView's keyboard focus ring: a thick solid outline in the blue
-  /// border token, 2px inside.
-  private static func expectFocusRing(_ row: Locator) async throws {
+  /// A field's ring (SearchMenuView, 2026-09-30): the row's own border blue
+  /// and a base-width solid outline of the same blue just inside it, two
+  /// pixels of blue in all, never a box-shadow.
+  private static func expectFieldRing(_ row: Locator) async throws {
     let ring = try await row.evaluate(
       """
       async (el) => {
         const probe = document.createElement('span');
-        probe.style.outline = 'var(--border-width-thick) solid var(--border-color-blue)';
+        probe.style.outline = 'var(--border-width-base) solid var(--border-color-blue)';
         document.body.appendChild(probe);
         const want = getComputedStyle(probe);
         const color = want.outlineColor, width = want.outlineWidth;
@@ -316,11 +312,11 @@ struct SearchMenuTests {
         return \(settled)(() => {
           const s = getComputedStyle(el);
           return s.outlineStyle === 'solid' && s.outlineColor === color && s.outlineWidth === width
-            && s.outlineOffset === '-2px';
+            && s.outlineOffset === '-2px' && s.borderTopColor === color && s.boxShadow === 'none';
         });
       }
       """)
-    #expect(ring.bool == true, "the active row does not wear LinkView's focus ring")
+    #expect(ring.bool == true, "the active row does not wear a field's ring")
   }
 
   /// What the search answers first for `name`: its language, its
