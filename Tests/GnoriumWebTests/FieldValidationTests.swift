@@ -138,7 +138,7 @@ struct FieldValidationTests {
 
       try await expect(page.locator("#full-name-validation-message")).toHaveText("Enter your full name.")
       try await expect(page.locator("#full-name")).toBeFocused()
-      try await expect(page.locator("#username-validation-message")).toHaveText("A username is 3–20 characters.")
+      try await expect(page.locator("#username-validation-message")).toHaveText("3–20 characters, using lowercase letters, digits, and underscores.")
       try await expect(page.locator("#email-validation-message")).toHaveText("Enter a valid email address.")
       try await expect(page.locator("#confirmPassword-validation-message")).toHaveText("The passwords don't match.")
       try await expect(page.locator("#terms-and-policy-validation-message")).toHaveText(
@@ -151,7 +151,7 @@ struct FieldValidationTests {
       // The username's other rule.
       try await page.locator("#username").fill("Ab!")
       try await expect(page.locator("#username-validation-message")).toHaveText(
-        "Use lowercase letters, digits, and underscores only.")
+        "3–20 characters, using lowercase letters, digits, and underscores.")
 
       try await expect(page.locator(".register-alerts .alert-view")).toHaveCount(0)
       try await page.expectNoErrors()
