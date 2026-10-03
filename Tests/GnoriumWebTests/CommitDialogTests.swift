@@ -1,0 +1,64 @@
+import Foundation
+import Testing
+import WebTests
+import WebTestsTesting
+
+/// Committing a Disputorium object (user, 2026-10-03): no inline panel, no
+/// levels, fields or argument. An overture's one way is a Commit button that
+/// opens a confirmation dialog naming it; a hallmark's two ways are a Commit
+/// menu, which opens nothing but itself until a way is picked, and then that
+/// way's dialog. Every dialog is cancelled: a commit is costly and never run
+/// here. A throwaway admin owns the scratch objects (`ScratchCommit`).
+@Suite("Commit dialog", .serialized)
+struct CommitDialogTests {
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func commitAsksFirst(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let scratch = try ScratchCommit(owner: admin)
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
+        // One way: a button, and its dialog.
+        try await page.openHydrated(scratch.overturePath)
+        try await expect(page.locator(".commit-view-menu")).toHaveCount(0)
+        let dialog = page.locator(".commit-view-dialog")
+        try await expect(dialog).toHaveCount(1)
+        try await expect(dialog).toHaveAttribute("data-open", "false")
+        for gone in ["Levels to attribute", "Fields to attribute", "Argument"] {
+          try await expect(page.getByText(gone, exact: true)).toHaveCount(0)
+        }
+        try await page.locator(".commit-view-trigger").click()
+        try await expect(dialog).toHaveAttribute("data-open", "true")
+        try await expect(dialog.locator(".dialog-header-title")).toHaveText("Commit this overture for attribution?")
+        try await expect(dialog.locator(".dialog-primary-button")).toContainText("Commit")
+        try await dialog.locator(".dialog-default-button button").click()
+        try await expect(dialog).toHaveAttribute("data-open", "false")
+        try await page.expectNoErrors()
+
+        // Two ways: a menu, and nothing opens until a way is picked.
+        try await page.openHydrated(scratch.hallmarkPath)
+        try await expect(page.locator(".commit-view-trigger")).toHaveCount(0)
+        let menu = page.locator(".commit-view-menu")
+        let dialogs = page.locator(".commit-view-dialog[data-open='true']")
+        try await menu.locator(".menu-button-trigger button").click()
+        try await expect(menu.locator(".menu-button-menu")).toHaveAttribute("data-open", "true")
+        try await expect(dialogs).toHaveCount(0)
+        try await expect(menu.locator("[data-menu-item='true']")).toHaveTexts(["Attribution", "Recognition"])
+        try await menu.locator("[data-menu-item='true'][data-value='recognition']").click()
+        try await expect(dialogs).toHaveCount(1)
+        try await expect(dialogs.locator(".dialog-header-title")).toHaveText("Commit this hallmark for recognition?")
+        try await dialogs.locator(".dialog-default-button button").click()
+        try await expect(dialogs).toHaveCount(0)
+        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoErrors()
+      }
+      #expect(try scratch.stillPending(), "a cancelled dialog committed nothing")
+    } catch {
+      scratch.remove()
+      try await admin.remove(after: error)
+    }
+    scratch.remove()
+    try await admin.remove()
+  }
+}
