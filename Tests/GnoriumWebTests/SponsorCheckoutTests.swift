@@ -74,13 +74,19 @@ struct SponsorCheckoutTests {
       #expect(confirm.contains("pay_fixture"))
       #expect(confirm.contains("order_fixture"))
       #expect(!confirm.contains("grossUSD") && !confirm.contains("netUSD"))
-      _ = try await page.evaluate("""
-        (() => { document.querySelector('[name=frequency]').value='monthly'; return true; })();
-        """, as: Bool.self)
+      // Exercise the actual control: setting its hidden input bypasses broken menus.
+      try await page.locator("#sponsor-frequency[role=combobox]").click()
+      try await expect(page.locator("#sponsor-frequency")).toHaveAttribute("aria-expanded", "true")
+      try await page.locator(".select-view [role=option][data-value=monthly]").click()
+      try await expect(page.locator("#sponsor-frequency .select-label")).toContainText("Monthly")
+      try await expect(page.locator("#sponsor-frequency")).toHaveAttribute("aria-expanded", "false")
+      #expect(try await page.evaluate("document.querySelector('[name=frequency]').value === 'monthly'", as: Bool.self))
       try await page.locator("#sponsor-checkout-form button[type=submit]").click()
       try await expect(page.locator("#sponsor-checkout-receipt a")).toHaveAttribute("href", "/sponsor-gnorium/receipts/fixture?token=fixture-token")
       _ = try await page.evaluate("(async () => { for(let i=0;i<100 && window.__razorpayOptions.subscription_id!=='sub_fixture';i++) await new Promise(r=>setTimeout(r,10)); return true; })()", as: Bool.self)
       #expect(try await page.evaluate("window.__razorpayOptions.subscription_id === 'sub_fixture'", as: Bool.self))
+      #expect(try await page.evaluate("window.__sponsorCalls[2].body.frequency === 'monthly'", as: Bool.self),
+        "A genuine Monthly selection must reach the checkout request")
       _ = try await page.evaluate("window.__razorpayOptions.modal.ondismiss(); window.__checkoutFailure=true; true;", as: Bool.self)
       try await page.locator("#sponsor-checkout-form button[type=submit]").click()
       try await expect(page.locator("#sponsor-checkout-status")).toContainText("Please try again")
