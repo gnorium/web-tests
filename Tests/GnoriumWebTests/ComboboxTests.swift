@@ -225,17 +225,16 @@ struct ComboboxTests {
     }
   }
 
-  /// A voice's name suggests, as it is typed, the voices already on works
-  /// (the server's, fetched as typed): chosen, a proper-noun sentiment's
-  /// suggestion links the voice—its name shown, the link posted with it —;
-  /// a name typed and not chosen is stored unlinked, and so is a chosen one
-  /// edited after. Chrome, phone and desktop; a scratch work voiced by a
-  /// linked author, removed after.
+  /// A voice's name suggests, as it is typed, the names already on works'
+  /// voices (the server's, fetched as typed): chosen, a suggestion is its
+  /// name, plain text, never a link (user, 2026-10-03), and a name typed and
+  /// not chosen is stored as typed. Chrome, phone and desktop; a scratch
+  /// work voiced by a typed author, removed after.
   @Test(arguments: gnorium.engines, Layout.allCases)
-  func aVoiceNameSuggestsTheVoicesOnWorks(engine: BrowserEngine, layout: Layout) async throws {
+  func aVoiceNameSuggestsTheNamesOnWorks(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let work = try ScratchWork(owner: admin, linked: true)
+    let work = try ScratchWork(owner: admin)
     let path = "/web-tests-combobox-voice-\(work.suffix)/manifest.json"
     let fixtures = try await FixtureServer.manifest(at: path)
     defer { fixtures.stop() }
@@ -262,28 +261,27 @@ struct ComboboxTests {
         let value = voice.locator("input[type='hidden']")
         try await expect(field).toHaveCount(1)
 
-        // Typed, the server's suggestions: the linked author among them, by
-        // its record's language and name.
+        // Typed, the server's suggestions: the scratch work's author among
+        // them, by name, with how many works they voice.
         try await field.type(work.suffix)
-        let option = voice.locator(".combobox-option[data-value$='#\(work.sentimentID)']")
+        let option = voice.locator(".combobox-option[data-value='\(work.author)']")
         try await expect(option, timeout: .seconds(10)).toBeVisible()
         try await expect(option).toHaveAttribute("role", "option")
         try await expect(option).toHaveAttribute("data-display", work.author)
-        try await expect(option).toContainText("English")
+        try await expect(option).toContainText("1 work")
         // Not chosen, the text is the name as typed.
         try await expect(value).toHaveValue(work.suffix)
-        // Chosen by the keys: the name shown, the link held.
+        // Chosen by the keys: the name, and nothing else.
         while try await option.getAttribute("aria-selected") != "true" {
           try await page.keyboard.press("ArrowDown")
         }
         try await page.keyboard.press("Enter")
         try await expect(field).toHaveValue(work.author)
-        let link = try await value.inputValue()
-        #expect(link.hasSuffix("#\(work.sentimentID)"), "\(link)")
+        try await expect(value).toHaveValue(work.author)
         try await page.expectNoHorizontalOverflow()
 
-        // Submitted, the voice is linked: its record and sentiment posted
-        // with its name.
+        // Submitted, the voice is its name and role: no record, no
+        // sentiment.
         _ = try await page.evaluate(
           """
           (() => {
@@ -310,17 +308,17 @@ struct ComboboxTests {
         let stored = try TestAdmin.query(
           "SELECT voices_json FROM bibliographic_evidences WHERE source_url = '\(source)';"
         ).trimmingCharacters(in: .whitespacesAndNewlines)
-        #expect(stored.contains(work.sentimentID), "\(stored)")
         #expect(stored.contains(work.author), "\(stored)")
+        #expect(!stored.contains("lexicoRecord") && !stored.contains("sentiment"), "\(stored)")
 
-        // Chosen, then edited: typed again, unlinked.
+        // Chosen, then edited: the edited text, as typed.
         try await page.openHydrated(Self.form)
         let again = page.locator(".submit-testament-form \(rows) .combobox-view").first
         let againField = again.getByRole(.combobox, name: "Voice name")
         try await againField.type(work.suffix)
-        let againOption = again.locator(".combobox-option[data-value$='#\(work.sentimentID)']")
+        let againOption = again.locator(".combobox-option[data-value='\(work.author)']")
         try await againOption.click()
-        try await expect(again.locator("input[type='hidden']")).toHaveValue(link)
+        try await expect(again.locator("input[type='hidden']")).toHaveValue(work.author)
         try await againField.type(" Jr.")
         try await expect(again.locator("input[type='hidden']")).toHaveValue("\(work.author) Jr.")
         // The fixture manifest's page images are nowhere: the viewer's asks for them fail.
