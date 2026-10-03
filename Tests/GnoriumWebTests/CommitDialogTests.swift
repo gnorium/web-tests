@@ -21,6 +21,22 @@ struct CommitDialogTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         // One way: a button, and its dialog.
         try await page.openHydrated(scratch.overturePath)
+        // Hold substantial live Swift memory while callbacks open/close the
+        // dialog. The JS bridge must never write into an arbitrary heap address.
+        let allocationReady = try await page.evaluate(
+          """
+          (() => {
+            const exports = window.wasmInstance.exports;
+            const resolve = name => exports[name] ?? Object.entries(exports).find(([key, fn]) => typeof fn === 'function' && key.includes(name))?.[1];
+            const length = 16 * 1024 * 1024;
+            const pointer = resolve('allocateBridgeBuffer')(length);
+            new Uint8Array(exports.memory.buffer, pointer, length).fill(90);
+            window.__commitHeapProbe = { pointer, length };
+            for (let i = 0; i < 32; i++) invokeWasmCallback(-1, 'bridge-probe-' + 'x'.repeat(4096));
+            return true;
+          })()
+          """, as: Bool.self)
+        #expect(allocationReady)
         try await expect(page.locator(".commit-view-menu")).toHaveCount(0)
         let dialog = page.locator(".commit-view-dialog")
         try await expect(dialog).toHaveCount(1)
@@ -34,6 +50,19 @@ struct CommitDialogTests {
         try await expect(dialog.locator(".dialog-primary-button")).toContainText("Commit")
         try await dialog.locator(".dialog-default-button button").click()
         try await expect(dialog).toHaveAttribute("data-open", "false")
+        let heapIntact = try await page.evaluate(
+          """
+          (() => {
+            const exports = window.wasmInstance.exports;
+            const { pointer, length } = window.__commitHeapProbe;
+            const intact = new Uint8Array(exports.memory.buffer, pointer, length).every(byte => byte === 90);
+            const release = exports.releaseBridgeBuffer ?? Object.entries(exports).find(([key, fn]) => typeof fn === 'function' && key.includes('releaseBridgeBuffer'))?.[1];
+            release(pointer);
+            delete window.__commitHeapProbe;
+            return intact;
+          })()
+          """, as: Bool.self)
+        #expect(heapIntact, "Callback marshalling must preserve live Swift allocations")
         try await page.expectNoErrors()
 
         // Two ways: a menu, and nothing opens until a way is picked.
