@@ -76,7 +76,7 @@ struct OperationsLayoutTests {
           const line = document.querySelector('.intervention-thread-event-line');
           const css = getComputedStyle(line);
           return css.marginTop === '0px' && css.marginBottom === '0px'
-            && line.innerText.includes('fixture-admin created Bibliographic proposal.');
+            && line.innerText.includes('fixture-admin created Bibliographic notation.');
         })()
         """, as: Bool.self)
       #expect(events, "Creation is one timeline entry with normal sentence spacing and no paragraph margins")

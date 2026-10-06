@@ -136,7 +136,7 @@ struct TEILayoutTests {
 
   /// A figure keeps its box through submission (user, 2026-09-29; FIGURES.md
   /// phase 2): a zone of the document's facsimile, named by the figure's
-  /// facs, cut from the page's IIIF image as a crop in the proposal's
+  /// facs, cut from the page's IIIF image as a crop in the notation's
   /// transcript, its description as its alternative text and caption.
   static let figureTEI = #"""
     <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader>

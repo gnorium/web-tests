@@ -3,10 +3,10 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// The citation graph (user, 2026-09-28). A proposal's Citations list every
+/// The citation graph (user, 2026-09-28). A notation's Citations list every
 /// reference its text makes to another work and every word it cites as a
 /// word, where each is and what it links to, as the recognition placed it
-/// (a work's record, chosen by its session and kept with the proposal by the
+/// (a work's record, chosen by its session and kept with the notation by the
 /// `<bibl>`'s `xml:id`; the TEI holds the work's identity only); a
 /// signed-in reader suggests another link as a modification, which an admin
 /// accepts, and the link is then a person's. A cited work's page says how
@@ -33,18 +33,18 @@ struct CitationsTests {
   }
 
   /// The record its recognition chose for the page's `bibl-1`, kept with the
-  /// proposal (`citation_placements_json`), as a recognition session leaves it.
+  /// notation (`citation_placements_json`), as a recognition session leaves it.
   static func place(_ reading: ScratchReading, at work: ScratchWork, canvas: String) throws {
     _ = try TestAdmin.query(
       """
-      UPDATE bibliographic_proposals SET citation_placements_json =
+      UPDATE bibliographic_notations SET citation_placements_json =
         '[{"canvasID":"\(canvas)","citation":"bibl-1","recordID":"\(work.recordID)"}]'
-      WHERE id = '\(reading.proposalID)';
+      WHERE id = '\(reading.notationID)';
       """)
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aProposalListsItsCitationsAndAPersonsLinkIsSuggestedThenAccepted(engine: BrowserEngine, layout: Layout)
+  func aNotationListsItsCitationsAndAPersonsLinkIsSuggestedThenAccepted(engine: BrowserEngine, layout: Layout)
     async throws
   {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -54,7 +54,7 @@ struct CitationsTests {
     let reading = try ScratchReading(owner: admin, tei: Self.tei(citing: cited))
     try Self.place(reading, at: cited, canvas: "https://example.org/iiif/web-tests-citations")
     func cleanUp() async throws {
-      _ = try? TestAdmin.query("DELETE FROM modifications WHERE modifiable_id = '\(reading.proposalID)';")
+      _ = try? TestAdmin.query("DELETE FROM modifications WHERE modifiable_id = '\(reading.notationID)';")
       reading.remove()
       cited.remove()
       try await admin.remove()
@@ -62,12 +62,12 @@ struct CitationsTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(reading.path)
-        let citations = page.locator(".proposal-citations-view")
-        try await expect(citations.locator(".proposal-citations-view-count")).toHaveText("2 citations")
+        let citations = page.locator(".notation-citations-view")
+        try await expect(citations.locator(".notation-citations-view-count")).toHaveText("2 citations")
         try await citations.locator(".accordion-summary").first.click()
         // Pending: read from its transcript, held at Permit, as its Entries.
-        try await expect(citations.locator(".proposal-citations-view-note")).toContainText("held once it is permitted")
-        let rows = citations.locator(".proposal-citation")
+        try await expect(citations.locator(".notation-citations-view-note")).toContainText("held once it is permitted")
+        let rows = citations.locator(".notation-citation")
         try await expect(rows).toHaveCount(2)
         // The reference, placed by its recognition: the cited work.
         let reference = rows.nth(0)
@@ -82,7 +82,7 @@ struct CitationsTests {
         try await expect(rows.nth(1)).toContainText("placement")
         // Its record field is asked for once in view, the placed record chosen.
         _ = try await reference.evaluate("(el) => el.scrollIntoView({block: 'center'})")
-        let field = reference.locator(".proposal-citations-view-record .origin-record-field-view")
+        let field = reference.locator(".notation-citations-view-record .origin-record-field-view")
         try await expect(field).toHaveCount(1)
         try await expect(field).toContainText("Cited record")
         try await page.expectNoHorizontalOverflow()
@@ -96,21 +96,21 @@ struct CitationsTests {
         // Pressed on the element itself: a coordinate click could land on
         // the record field's popover as it settles.
         _ = try await submit.evaluate("(b) => b.click()")
-        // Back on the proposal, its thread says so.
+        // Back on the notation, its thread says so.
         let thread = page.locator(".intervention-thread-view")
         try await expect(thread).toContainText("the citation “Web … \(cited.suffix)”")
         try await page.waitForLoadState()
         // Accepted, the link is a person's.
         let modification = try TestAdmin.query(
-          "SELECT upper(id::text) FROM modifications WHERE modifiable_id = '\(reading.proposalID)' AND target = 'citation';"
+          "SELECT upper(id::text) FROM modifications WHERE modifiable_id = '\(reading.notationID)' AND target = 'citation';"
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(!modification.isEmpty)
         try await thread.locator("form[action$='/modifications/\(modification)/accept'] button").first.click()
         try await expect(page.locator(".intervention-thread-view")).toContainText("accepted by")
         try await page.waitForLoadState()
-        let accepted = page.locator(".proposal-citations-view")
+        let accepted = page.locator(".notation-citations-view")
         try await accepted.locator(".accordion-summary").first.click()
-        try await expect(accepted.locator(".proposal-citation").nth(0)).toContainText("A person, by a modification accepted here")
+        try await expect(accepted.locator(".notation-citation").nth(0)).toContainText("A person, by a modification accepted here")
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
@@ -183,7 +183,7 @@ struct CitationsTests {
   }
 }
 
-/// A proposal's Entries (user, 2026-09-29): a pending proposal's headed
+/// A notation's Entries (user, 2026-09-29): a pending notation's headed
 /// entries, previewed from its own transcript (the utterances service's
 /// `/entries/preview`, nothing stored; its body says so, no header chip—user,
 /// 2026-09-30) and listed above Citations, each with the
@@ -205,7 +205,7 @@ struct EntryLinksTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aProposalListsItsEntriesAndAPersonsLinkIsSuggestedThenAccepted(engine: BrowserEngine, layout: Layout)
+  func aNotationListsItsEntriesAndAPersonsLinkIsSuggestedThenAccepted(engine: BrowserEngine, layout: Layout)
     async throws
   {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -215,7 +215,7 @@ struct EntryLinksTests {
     let reading = try ScratchReading(owner: admin, tei: Self.tei(listing: target))
     try CitationsTests.place(reading, at: target, canvas: "https://example.org/iiif/web-tests-entries")
     func cleanUp() async throws {
-      _ = try? TestAdmin.query("DELETE FROM modifications WHERE modifiable_id = '\(reading.proposalID)';")
+      _ = try? TestAdmin.query("DELETE FROM modifications WHERE modifiable_id = '\(reading.notationID)';")
       reading.remove()
       target.remove()
       try await admin.remove()
@@ -223,17 +223,17 @@ struct EntryLinksTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(reading.path)
-        let entries = page.locator(".proposal-entries-view")
-        try await expect(entries.locator(".proposal-entries-view-count")).toHaveText("1 entry")
-        try await expect(entries.locator(".proposal-entries-view-heading .info-chip-view")).toHaveCount(0)
+        let entries = page.locator(".notation-entries-view")
+        try await expect(entries.locator(".notation-entries-view-count")).toHaveText("1 entry")
+        try await expect(entries.locator(".notation-entries-view-heading .info-chip-view")).toHaveCount(0)
         // Entries always come above Citations.
         let order = try await page.evaluate(
-          "(() => { const e = document.querySelector('.proposal-entries-view'), c = document.querySelector('.proposal-citations-view'); return e && c && (e.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) ? 'above' : 'not above'; })()"
+          "(() => { const e = document.querySelector('.notation-entries-view'), c = document.querySelector('.notation-citations-view'); return e && c && (e.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) ? 'above' : 'not above'; })()"
         ).string
         #expect(order == "above")
         try await entries.locator(".accordion-summary").first.click()
-        try await expect(entries.locator(".proposal-entries-view-note")).toContainText("held once it is permitted")
-        let row = entries.locator(".proposal-entry")
+        try await expect(entries.locator(".notation-entries-view-note")).toContainText("held once it is permitted")
+        let row = entries.locator(".notation-entry")
         try await expect(row).toHaveCount(1)
         try await expect(row).toContainText("Heading")
         try await expect(row).toContainText(target.title)
@@ -241,7 +241,7 @@ struct EntryLinksTests {
         try await expect(row.locator("a[href='/users/gnorium']")).toHaveCount(1)
         // Its record field is asked for once in view, the placed record chosen; no node.
         _ = try await row.evaluate("(el) => el.scrollIntoView({block: 'center'})")
-        let field = row.locator(".proposal-entries-view-record .origin-record-field-view")
+        let field = row.locator(".notation-entries-view-record .origin-record-field-view")
         try await expect(field).toHaveCount(1)
         try await expect(field).toContainText("Entry for")
         try await expect(row.locator("input[name='entry-record-0']")).toHaveValue(target.recordID)
@@ -255,18 +255,18 @@ struct EntryLinksTests {
         try await expect(thread).toContainText("the entry “")
         try await page.waitForLoadState()
         let modification = try TestAdmin.query(
-          "SELECT upper(id::text) FROM modifications WHERE modifiable_id = '\(reading.proposalID)' AND target = 'entry';"
+          "SELECT upper(id::text) FROM modifications WHERE modifiable_id = '\(reading.notationID)' AND target = 'entry';"
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(!modification.isEmpty)
         try await thread.locator("form[action$='/modifications/\(modification)/accept'] button").first.click()
         try await expect(page.locator(".intervention-thread-view")).toContainText("accepted by")
         try await page.waitForLoadState()
-        // Accepted: the proposal holds the person's link, fixed.
-        let accepted = page.locator(".proposal-entries-view")
+        // Accepted: the notation holds the person's link, fixed.
+        let accepted = page.locator(".notation-entries-view")
         try await accepted.locator(".accordion-summary").first.click()
-        try await expect(accepted.locator(".proposal-entry").nth(0)).toContainText("A person, by a modification accepted here")
+        try await expect(accepted.locator(".notation-entry").nth(0)).toContainText("A person, by a modification accepted here")
         let links = try TestAdmin.query(
-          "SELECT entry_links_json FROM bibliographic_proposals WHERE id = '\(reading.proposalID)';")
+          "SELECT entry_links_json FROM bibliographic_notations WHERE id = '\(reading.notationID)';")
         #expect(links.lowercased().contains(target.recordID.lowercased()))
         #expect(links.lowercased().contains(modification.lowercased()))
         try await page.expectNoHorizontalOverflow()
@@ -298,10 +298,10 @@ struct EntryLinksTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(scratch.reading.path)
-        let entries = page.locator(".proposal-entries-view")
-        try await expect(entries.locator(".proposal-entries-view-count")).toHaveText("—")
-        try await expect(entries.locator(".proposal-entries-view-body")).toContainText("Not read yet")
-        try await expect(entries.locator(".proposal-entries-view-note")).toHaveCount(0)
+        let entries = page.locator(".notation-entries-view")
+        try await expect(entries.locator(".notation-entries-view-count")).toHaveText("—")
+        try await expect(entries.locator(".notation-entries-view-body")).toContainText("Not read yet")
+        try await expect(entries.locator(".notation-entries-view-note")).toHaveCount(0)
         // Read, with none.
         _ = try TestAdmin.query(
           """
@@ -309,7 +309,7 @@ struct EntryLinksTests {
             VALUES ('\(UUID().uuidString.lowercased())', '\(scratch.versionID)', 0, now());
           """)
         try await page.openHydrated(scratch.reading.path)
-        try await expect(entries.locator(".proposal-entries-view-count")).toHaveText("0 entries")
+        try await expect(entries.locator(".notation-entries-view-count")).toHaveText("0 entries")
         try await page.expectNoHorizontalOverflow()
       }
     } catch {

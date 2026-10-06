@@ -11,7 +11,7 @@ import WebTestsTesting
 /// the German word under the sentiment's Translations ("broader sense"), and
 /// the German record lists the English one back under its own Translations,
 /// read from its side ("narrower sense"). The translation's page lists its
-/// session per sentiment, and the Madrigals register's Lexicographic tab
+/// session per sentiment, and the Postludes register's Lexicographic tab
 /// lists the translation. Phone and desktop, nothing scrolling sideways.
 @Suite("Lexicographic translation", .serialized)
 struct LexicographicTranslationTests {
@@ -108,8 +108,8 @@ struct LexicographicTranslationTests {
         try await expect(page.locator(".session-view").getByText("propose_equivalent").first).toBeAttached()
         try await expect(page.locator(".session-view").getByText("German, broader; no other language.")).toBeAttached()
 
-        // Listed on the Madrigals register's Lexicographic tab, and the epilogue on Epilogues' Lexicographic tab.
-        try await page.openHydrated("/mission-control/madrigals?tab=lexicographic")
+        // Listed on the Postludes register's Lexicographic tab, and the epilogue on Epilogues' Lexicographic tab.
+        try await page.openHydrated("/mission-control/postludes?tab=lexicographic")
         try await expect(page.locator("a[href='/mission-control/translations/lexicographic/\(translation.uppercased())']"))
           .toBeAttached()
         try await page.openHydrated("/mission-control/epilogues?tab=lexicographic")

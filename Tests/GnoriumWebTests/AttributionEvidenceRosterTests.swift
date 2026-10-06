@@ -20,9 +20,9 @@ struct AttributionEvidenceRosterTests {
     do { reading = try ScratchReading(owner: admin, tei: tei) }
     catch { try await admin.remove(after: error) }
     let epilogue = UUID().uuidString.lowercased()
-    let madrigal = UUID().uuidString.lowercased()
+    let postlude = UUID().uuidString.lowercased()
     defer {
-      _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_madrigals WHERE id = '\(madrigal)';")
+      _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_postludes WHERE id = '\(postlude)';")
       reading.remove()
     }
     do {
@@ -41,15 +41,15 @@ struct AttributionEvidenceRosterTests {
           WHERE id = (SELECT o.bibliographic_evidence_id FROM bibliographic_overtures o
             JOIN bibliographic_hallmarks h ON h.bibliographic_overture_id = o.id
             WHERE h.id = '\(reading.work.hallmarkID.lowercased())');
-        UPDATE bibliographic_proposals SET metadata_json =
+        UPDATE bibliographic_notations SET metadata_json =
           (metadata_json::jsonb || '{"language":"ita","sourceUrl":"\(fixture.baseURL)/manifest.json"}'::jsonb)::text
-          WHERE id = '\(reading.proposalID)';
-        INSERT INTO bibliographic_madrigals (id, bibliographic_proposal_id, target_language, semblance_service_ids_json, requested_by_user_id, processing_status)
-          VALUES ('\(madrigal)', '\(reading.proposalID)', 'eng', '[]', '\(user)', 'submitted');
-        INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_madrigal_id, proposed_content_json, metadata_json, translation_json, processing_status)
-          SELECT '\(epilogue)', '\(epilogue)', h.bibliographic_overture_id, '\(madrigal)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
-          FROM bibliographic_proposals p JOIN bibliographic_antiphons a ON a.id = p.bibliographic_antiphon_id
-          JOIN bibliographic_hallmarks h ON h.id = a.bibliographic_hallmark_id WHERE p.id = '\(reading.proposalID)';
+          WHERE id = '\(reading.notationID)';
+        INSERT INTO bibliographic_postludes (id, bibliographic_notation_id, target_language, semblance_service_ids_json, requested_by_user_id, processing_status)
+          VALUES ('\(postlude)', '\(reading.notationID)', 'eng', '[]', '\(user)', 'submitted');
+        INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_postlude_id, proposed_content_json, metadata_json, translation_json, processing_status)
+          SELECT '\(epilogue)', '\(epilogue)', h.bibliographic_overture_id, '\(postlude)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
+          FROM bibliographic_notations p JOIN bibliographic_antiphons a ON a.id = p.bibliographic_antiphon_id
+          JOIN bibliographic_hallmarks h ON h.id = a.bibliographic_hallmark_id WHERE p.id = '\(reading.notationID)';
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -126,11 +126,11 @@ struct AttributionEvidenceRosterTests {
       #expect(try TestAdmin.query("SELECT processing_status FROM bibliographic_epilogues WHERE id = '\(epilogue)'") == "pending")
     } catch {
       // Release the account only after its scratch foreign-key dependants.
-      _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_madrigals WHERE id = '\(madrigal)';")
+      _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_postludes WHERE id = '\(postlude)';")
       reading.remove()
       try await admin.remove(after: error)
     }
-    _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_madrigals WHERE id = '\(madrigal)';")
+    _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_postludes WHERE id = '\(postlude)';")
     reading.remove()
     try await admin.remove()
   }
