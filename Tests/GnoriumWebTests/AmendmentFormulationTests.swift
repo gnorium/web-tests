@@ -3,11 +3,11 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// Amendment metadata remains editable after field-attribution ticks are retired.
+/// Amendment metadata remains editable after field-formulation ticks are retired.
 @Suite("Amendment metadata", .serialized)
-struct AmendmentAttributionTests {
+struct AmendmentFormulationTests {
   @Test(arguments: gnorium.engines, Layout.allCases)
-  func editingWithoutAttributionTicks(engine: BrowserEngine, layout: Layout) async throws {
+  func editingWithoutFormulationTicks(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let scratch = try ScratchWork(owner: admin)

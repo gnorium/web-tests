@@ -338,7 +338,7 @@ struct GraphTests {
           try await expect(page.locator("meta[name='robots']")).toHaveAttribute("content", "index, follow")
           try await expect(page.locator("aside .sidebar-search-container")).not.toHaveCount(0)
           try await expect(page.locator("aside a[href='/graph']")).toHaveCount(0)
-          try await page.openHydrated("\(list)?treatment=attributed")
+          try await page.openHydrated("\(list)?treatment=formulated")
           try await expect(page.locator("meta[name='robots']")).toHaveAttribute("content", "noindex, follow")
         }
       }

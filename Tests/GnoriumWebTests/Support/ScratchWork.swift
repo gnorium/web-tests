@@ -1,13 +1,13 @@
 import Foundation
 
-/// A work with one attributed version whose tree holds one edition and its
+/// A work with one formulated version whose tree holds one edition and its
 /// manifest, owned by the test's account. Every row by its own id, removed
 /// in the order the foreign keys allow.
 ///
-/// With `references`, its hallmark carries a concerto's attributions for
+/// With `references`, its hallmark carries a concerto's formulations for
 /// the values the version still has, which the hallmark's page lists under
 /// each field (the record's page lists none): one catalog page for the
-/// language, the title and the manifest's attribution statement, a second
+/// language, the title and the manifest's formulation statement, a second
 /// page for the title too, and a third for the edition.
 ///
 /// Its author is a typed name, as every voice is.
@@ -57,25 +57,25 @@ struct ScratchWork {
       """
     // Each value as the concerto wrote it, and as the version still has it
     // (`ConcertoLabel.display`), with its references.
-    func attribution(_ field: String, _ value: String, _ urls: String...) -> String {
+    func formulation(_ field: String, _ value: String, _ urls: String...) -> String {
       let referencesJSON =
         "["
         + urls.map {
           #"{"kind":"url","quote":"\#(value)","retrievedAt":"2026-09-01T00:00:00Z","url":"\#($0)","verified":true}"#
         }.joined(separator: ",") + "]"
       return """
-        INSERT INTO field_attributions (id, bibliographic_concerto_id, bibliographic_hallmark_id, field, value, reasoning, references_json, created_at)
+        INSERT INTO field_references (id, bibliographic_concerto_id, bibliographic_hallmark_id, field, value, reasoning, references_json, created_at)
           VALUES ('\(UUID().uuidString.lowercased())', '\(ids["concerto"]!)', '\(ids["hallmark"]!)', '\(field)', '\(value)', 'Read there.', '\(referencesJSON)', now());
         """
     }
-    let attributions =
+    let formulations =
       references
       ? [
-        attribution("language", "English", "https://catalogue.example.org/web-tests"),
-        attribution(
+        formulation("language", "English", "https://catalogue.example.org/web-tests"),
+        formulation(
           "title", title, "https://catalogue.example.org/web-tests", "https://titles.example.org/web-tests"),
-        attribution("edition", "First edition", "https://editions.example.org/web-tests"),
-        attribution("attribution", "Courtesy of the web tests", "https://catalogue.example.org/web-tests"),
+        formulation("edition", "First edition", "https://editions.example.org/web-tests"),
+        formulation("attribution", "Courtesy of the web tests", "https://catalogue.example.org/web-tests"),
       ].joined(separator: "\n") : ""
     let voice = """
       INSERT INTO biblio_record_voices (id, biblio_record_id, name, role, position)
@@ -97,7 +97,7 @@ struct ScratchWork {
       \(voice)
       INSERT INTO bibliographic_hallmarks (id, thread_id, bibliographic_overture_id, bibliographic_concerto_id, biblio_record_id, metadata_json, processing_status, permitted_by_user_id, permitted_at)
         VALUES ('\(ids["hallmark"]!)', '\(ids["hallmark"]!)', '\(ids["overture"]!)', '\(ids["concerto"]!)', '\(ids["record"]!)', '\(metadata)', 'permitted', '\(user)', now());
-      \(attributions)
+      \(formulations)
       INSERT INTO biblio_record_versions (id, biblio_record_id, bibliographic_hallmark_id, metadata_json, shape_json, treatment, created_at)
         VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["hallmark"]!)', '\(metadata)', '\(shape)', 1, now());
       COMMIT;
@@ -109,7 +109,7 @@ struct ScratchWork {
       """
       BEGIN;
       DELETE FROM biblio_record_versions WHERE id = '\(ids["version"]!)';
-      DELETE FROM field_attributions WHERE bibliographic_hallmark_id = '\(ids["hallmark"]!)';
+      DELETE FROM field_references WHERE bibliographic_hallmark_id = '\(ids["hallmark"]!)';
       DELETE FROM bibliographic_hallmarks WHERE id = '\(ids["hallmark"]!)';
       DELETE FROM bibliographic_concertos WHERE id = '\(ids["concerto"]!)';
       DELETE FROM url_histories WHERE entity_id = '\(ids["record"]!)';

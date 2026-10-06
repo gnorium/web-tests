@@ -3,7 +3,7 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// An amendment inserts a level as attribution does (user, 2026-10-03): a
+/// An amendment inserts a level as formulation does (user, 2026-10-03): a
 /// node's "+ Testament" adds a new child at the next level after the ones it
 /// has (an impression under an edition holding its copy: 1.2), and the copy
 /// is moved into it by the outline's own moves. The new node's "−
@@ -17,7 +17,7 @@ struct AmendmentInsertionTests {
   @Test(arguments: gnorium.engines, Layout.allCases)
   func anImpressionIsInsertedUnderAnEdition(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
-    let fixture = try await FixtureServer.attributionManifest()
+    let fixture = try await FixtureServer.formulationManifest()
     defer { fixture.stop() }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)

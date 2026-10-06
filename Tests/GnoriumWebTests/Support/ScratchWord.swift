@@ -1,6 +1,6 @@
 import Foundation
 
-/// A lexico-record with one attributed version whose snapshot holds a
+/// A lexico-record with one formulated version whose snapshot holds a
 /// branch sentiment and a leaf under it, owned by the test's account: the
 /// record's own reference (beside its title, in its closed Metadata) and the
 /// leaf's (beside its definition, in its row's heading). Every row by its own

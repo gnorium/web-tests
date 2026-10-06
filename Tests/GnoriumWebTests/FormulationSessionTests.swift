@@ -3,12 +3,12 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// Attribution is one evidence-bound session per concerto (user,
+/// Formulation is one evidence-bound session per concerto (user,
 /// 2026-09-29): its page lists no stages, heads the session with its stage's
 /// name alone, and shows the session's trace—the canvases it looked at and
 /// the fields it recorded.
-@Suite("Attribution sessions", .serialized)
-struct AttributionSessionTests {
+@Suite("Formulation sessions", .serialized)
+struct FormulationSessionTests {
   static func trace() throws -> String {
     let blocks: [[String: String]] = [
       ["type": "thinking", "content": "The title page should give the imprint."],
@@ -25,7 +25,7 @@ struct AttributionSessionTests {
       ],
       ["type": "field", "field": "date", "content": "{}"],
       ["type": "text", "content": "The date is from the title page; the author stays unknown."],
-      ["type": "attributions", "content": "[]"],
+      ["type": "formulations", "content": "[]"],
     ]
     return String(decoding: try JSONSerialization.data(withJSONObject: blocks), as: UTF8.self)
       .replacingOccurrences(of: "'", with: "''")
@@ -41,15 +41,15 @@ struct AttributionSessionTests {
     do {
       _ = try TestAdmin.query(
         """
-        INSERT INTO attribution_stage_runs (id, bibliographic_concerto_id, stage, attempt, provider, model, output, result, duration_ms, created_at)
-          VALUES ('\(runID)', '\(work.concertoID)', 'attribution', 1, 'DeepSeek', 'deepseek-flash', '\(try Self.trace())', 'passed', 1200, now());
+        INSERT INTO formulation_stage_runs (id, bibliographic_concerto_id, stage, attempt, provider, model, output, result, duration_ms, created_at)
+          VALUES ('\(runID)', '\(work.concertoID)', 'formulation', 1, 'DeepSeek', 'deepseek-flash', '\(try Self.trace())', 'passed', 1200, now());
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/concertos/bibliographic/\(work.concertoID)")
         try await expect(page.locator(".stages-view")).toHaveCount(0)
         try await expect(page.locator("a[href*='stage=']")).toHaveCount(0)
-        try await expect(page.locator(".computorium-core-stage-title")).toHaveText("Attribution")
-        try await expect(page.locator(".pipeline-container")).toHaveAttribute("data-active-stage", "attribution")
+        try await expect(page.locator(".computorium-core-stage-title")).toHaveText("Formulation")
+        try await expect(page.locator(".pipeline-container")).toHaveAttribute("data-active-stage", "formulation")
         let session = page.locator(".session-view")
         try await expect(session.getByText("view_canvas").first).toBeAttached()
         try await expect(session.getByText("record_field").first).toBeAttached()
@@ -65,7 +65,7 @@ struct AttributionSessionTests {
 
   private func remove(runIDs: [String], work: ScratchWork) {
     _ = try? TestAdmin.query(
-      "DELETE FROM attribution_stage_runs WHERE id IN (\(runIDs.map { "'\($0)'" }.joined(separator: ", ")));")
+      "DELETE FROM formulation_stage_runs WHERE id IN (\(runIDs.map { "'\($0)'" }.joined(separator: ", ")));")
     work.remove()
   }
 }

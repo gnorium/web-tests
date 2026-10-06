@@ -5,11 +5,11 @@ import WebTestsTesting
 
 /// OED-style credits (user, 2026-09-28): a record page, and a record
 /// version's page, credit no sources—no References, no list, no mark—and
-/// the version links to the attribution object that does. The object
+/// the version links to the formulation object that does. The object
 /// numbers each field's sources: its page's title (else host and path)
 /// linked, its host. A fact with no fetched source is marked Unsourced.
 /// Nothing scrolls sideways. A throwaway admin owns a scratch work whose
-/// hallmark carries attributions, and a scratch word with research
+/// hallmark carries formulations, and a scratch word with research
 /// references, made by SQL and removed after.
 @Suite("References", .serialized)
 struct ReferencesTests {

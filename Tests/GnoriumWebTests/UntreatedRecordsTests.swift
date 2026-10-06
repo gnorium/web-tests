@@ -71,7 +71,7 @@ struct UntreatedRecordsTests {
         try await page.openHydrated(citing.path)
         let treated = try await page.locator("meta[name='robots']").getAttribute("content")
         #expect(treated == "index, follow")
-        try await expect(page.locator(".record-sidebar-view").first.locator(".record-sidebar-treatment")).toHaveText("Attributed.")
+        try await expect(page.locator(".record-sidebar-view").first.locator(".record-sidebar-treatment")).toHaveText("Formulated.")
         try await expect(page.locator(".record-sidebar-view").first.locator(".record-provenance-view")).toHaveCount(0)
       }
     } catch {

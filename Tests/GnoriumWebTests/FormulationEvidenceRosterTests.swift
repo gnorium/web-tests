@@ -5,13 +5,13 @@ import WebTestsTesting
 
 /// No paid commit: intercept form.submit after exercising the real dialog,
 /// checkbox, cloned phone sidebar, and artifact navigation.
-@Suite("Attribution evidence roster", .serialized)
-struct AttributionEvidenceRosterTests {
+@Suite("Formulation evidence roster", .serialized)
+struct FormulationEvidenceRosterTests {
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func translationScopeMatchesSelectedPreview(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
-    let fixture = try await FixtureServer.attributionManifest()
+    let fixture = try await FixtureServer.formulationManifest()
     defer { fixture.stop() }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let service = fixture.baseURL + "/page-1"
@@ -139,7 +139,7 @@ struct AttributionEvidenceRosterTests {
   func scopeIsExplicitAndRecognitionIndependent(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
-    let fixture = try await FixtureServer.attributionManifest()
+    let fixture = try await FixtureServer.formulationManifest()
     defer { fixture.stop() }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let scratch = try ScratchCommit(owner: admin, sourceURL: fixture.baseURL + "/manifest.json")
@@ -176,11 +176,11 @@ struct AttributionEvidenceRosterTests {
 
             // Warm the explicit recognition URL, then hold the other treatment's
             // response while returning to that cached preview. No job is sent.
-            let attribution = page.locator(".pipeline-selection-toggle[data-pipeline='attribution']")
+            let formulation = page.locator(".pipeline-selection-toggle[data-pipeline='formulation']")
             let recognition = page.locator(".pipeline-selection-toggle[data-pipeline='recognition']")
-            try await attribution.click()
-            try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "attribution")
-            try await attribution.press("ArrowRight")
+            try await formulation.click()
+            try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "formulation")
+            try await formulation.press("ArrowRight")
             try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "recognition")
             try await expect(recognition).toBeFocused()
             _ = try await page.evaluate("""
@@ -188,7 +188,7 @@ struct AttributionEvidenceRosterTests {
               window.__releasePrompt = null;
               window.fetch = function(input, options) {
                 const url = new URL(typeof input === 'string' ? input : input.url, location.href);
-                if (url.searchParams.get('pipeline') === 'attribution') {
+                if (url.searchParams.get('pipeline') === 'formulation') {
                   document.body.setAttribute('data-prompt-request-held', 'true');
                   return new Promise(resolve => {
                     window.__releasePrompt = () => resolve(window.__originalPromptFetch(input, options));
@@ -198,7 +198,7 @@ struct AttributionEvidenceRosterTests {
               };
               true;
               """, as: Bool.self)
-            try await attribution.click()
+            try await formulation.click()
             try await expect(page.locator("body")).toHaveAttribute("data-prompt-request-held", "true")
             try await expect(page.locator(".commit-view-trigger")).toBeDisabled()
             try await recognition.click()
@@ -211,12 +211,12 @@ struct AttributionEvidenceRosterTests {
               window.__releasePrompt();
               true;
               """, as: Bool.self)
-            // The next treatment (Recognition) is first; Attribution is last.
+            // The next treatment (Recognition) is first; Formulation is last.
             // Home/End keep focus when the fragment replaces the selector DOM.
             try await recognition.press("End")
-            try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "attribution")
-            try await expect(attribution).toBeFocused()
-            try await attribution.press("Home")
+            try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "formulation")
+            try await expect(formulation).toBeFocused()
+            try await formulation.press("Home")
             try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "recognition")
             try await expect(recognition).toBeFocused()
           }
@@ -231,9 +231,9 @@ struct AttributionEvidenceRosterTests {
           let rosterRoot: String
           if layout == .phone {
             try await page.locator(".sidebar-menu-btn").click()
-            rosterRoot = "#navbar-slide-sidebar-slot .attribution-evidence-roster"
+            rosterRoot = "#navbar-slide-sidebar-slot .formulation-evidence-roster"
           } else {
-            rosterRoot = ".mission-control-sidebar-view .attribution-evidence-roster"
+            rosterRoot = ".mission-control-sidebar-view .formulation-evidence-roster"
           }
           // Scope remains empty at first; an identical printed title page can
           // still be selected by its own canonical ID.
@@ -246,8 +246,8 @@ struct AttributionEvidenceRosterTests {
           try await expect(page.locator("#artifact-page-input")).toHaveValue("2")
           if path == scratch.hallmarkPath {
             try await expect(page.locator(".prompt-instance-body").nth(0).locator(".prompt-instance-context")).toContainText("Semblance 2:")
-            try await page.locator(".pipeline-selection-toggle[data-pipeline='attribution']").click()
-            try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "attribution")
+            try await page.locator(".pipeline-selection-toggle[data-pipeline='formulation']").click()
+            try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "formulation")
             try await expect(page.locator(".prompt-instance-body").nth(0).locator(".prompt-instance-context")).toContainText("1 selected")
             let task = try await page.locator(".prompt-instance-body").nth(0).locator(".prompt-text-source").nth(1).textContent()
             let evidence = try await page.locator(".prompt-instance-body").nth(0)
@@ -257,7 +257,7 @@ struct AttributionEvidenceRosterTests {
           }
           _ = try await page.evaluate("document.querySelectorAll(\"input[name='evidence_canvas[]']\").forEach(input => input.checked = false); true", as: Bool.self)
           try await page.locator(".commit-view-trigger").click()
-          let dialog = page.locator(".commit-view-option[data-pipeline='attribution'] .commit-view-dialog")
+          let dialog = page.locator(".commit-view-option[data-pipeline='formulation'] .commit-view-dialog")
           try await dialog.locator(".dialog-primary-button button").click()
           try await expect(dialog.locator(".commit-evidence-warning")).toHaveAttribute("data-visible", "true")
           let blocked = try await page.evaluate("window.__evidenceSubmit === null", as: Bool.self)
@@ -295,8 +295,8 @@ struct AttributionEvidenceRosterTests {
           })()
           """, as: Bool.self)
         #expect(oneRow, "Public treatment choices remain one row and one exclusive group")
-        try await page.locator(".pipeline-selection-toggle[data-pipeline='attribution']").click()
-        try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "attribution")
+        try await page.locator(".pipeline-selection-toggle[data-pipeline='formulation']").click()
+        try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "formulation")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
         try await expect(page.locator("input[name='evidence_canvas[]']")).toHaveCount(0)

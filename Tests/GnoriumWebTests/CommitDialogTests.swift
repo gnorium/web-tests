@@ -41,12 +41,12 @@ struct CommitDialogTests {
         let dialog = page.locator(".commit-view-dialog")
         try await expect(dialog).toHaveCount(1)
         try await expect(dialog).toHaveAttribute("data-open", "false")
-        for gone in ["Levels to attribute", "Fields to attribute", "Argument"] {
+        for gone in ["Levels to attribute", "Fields to fill", "Argument"] {
           try await expect(page.getByText(gone, exact: true)).toHaveCount(0)
         }
         try await page.locator(".commit-view-trigger").click()
         try await expect(dialog).toHaveAttribute("data-open", "true")
-        try await expect(dialog.locator(".dialog-header-title")).toHaveText("Commit this overture for attribution?")
+        try await expect(dialog.locator(".dialog-header-title")).toHaveText("Commit this overture for formulation?")
         try await expect(dialog.locator(".dialog-primary-button")).toContainText("Commit")
         try await dialog.locator(".dialog-default-button button").click()
         try await expect(dialog).toHaveAttribute("data-open", "false")
@@ -73,7 +73,7 @@ struct CommitDialogTests {
         try await menu.locator(".menu-button-trigger button").click()
         try await expect(menu.locator(".menu-button-menu")).toHaveAttribute("data-open", "true")
         try await expect(dialogs).toHaveCount(0)
-        try await expect(menu.locator("[data-menu-item='true']")).toHaveTexts(["Attribution", "Recognition"])
+        try await expect(menu.locator("[data-menu-item='true']")).toHaveTexts(["Formulation", "Recognition"])
         try await menu.locator("[data-menu-item='true'][data-value='recognition']").click()
         try await expect(dialogs).toHaveCount(1)
         try await expect(dialogs.locator(".dialog-header-title")).toHaveText("Commit this hallmark for recognition?")
