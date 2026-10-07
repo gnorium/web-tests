@@ -125,6 +125,83 @@ struct SentimentFormTests {
     }
   }
 
+  /// A refresh the typed title asks for, landing while the record field's
+  /// dropdown is open, waits for it to close: redrawing the field closed the
+  /// menu mid-choice. The slot is busy until the waiting answer is put in.
+  @Test(arguments: gnorium.engines)
+  func aRefreshWaitsForTheOpenDropdown(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    do {
+      try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine), cookies: [admin.cookie]) {
+        page in
+        try await page.openHydrated(Self.path)
+        let field = page.locator(".submit-sentiment-form .record-choice-field-view")
+        let slot = field.locator(".record-choice-field-slot")
+        let dropdown = field.locator(".dropdown-view")
+        try await expect(slot, timeout: .seconds(20)).toHaveAttribute("aria-busy", "false")
+        // The field as drawn now, marked; each record-choice answer counted
+        // once its callback has run.
+        _ = try await slot.evaluate(
+          """
+          (slot) => {
+            slot.firstElementChild.dataset.drawn = 'before';
+            window.recordChoiceAnswers = 0;
+            const fetched = window.fetch;
+            window.fetch = (...args) => fetched(...args).then((response) => {
+              if (!String(args[0]).includes('record-choice')) return response;
+              const text = response.text.bind(response);
+              response.text = () => text().then((html) => {
+                setTimeout(() => { window.recordChoiceAnswers += 1; }, 0);
+                return html;
+              });
+              return response;
+            });
+            return true;
+          }
+          """)
+        try await dropdown.locator(".dropdown-trigger").click()
+        let menu = dropdown.locator(".dropdown-menu")
+        try await expect(menu).toHaveAttribute("data-open", "true")
+        // Typed with no click, which would close the menu.
+        _ = try await page.evaluate(
+          """
+          (() => {
+            const title = document.querySelector(".submit-sentiment-form input[name='title']");
+            title.value = 'refreshwhileopen';
+            title.dispatchEvent(new Event('input', { bubbles: true }));
+          })()
+          """)
+        try await expect(slot).toHaveAttribute("aria-busy", "true")
+        let landed = try await slot.evaluate(
+          """
+          () => new Promise((resolve) => {
+            const started = Date.now();
+            const poll = () => {
+              if (window.recordChoiceAnswers > 0) return setTimeout(() => resolve(true), 200);
+              if (Date.now() - started > 20000) return resolve(false);
+              setTimeout(poll, 50);
+            };
+            poll();
+          })
+          """, timeout: .seconds(25)).bool
+        #expect(landed == true, "The typed title's answer landed")
+        // Landed and waiting: the menu open, the field as it was, still busy.
+        try await expect(menu).toHaveAttribute("data-open", "true")
+        try await expect(slot.locator(":scope > [data-drawn='before']")).toHaveCount(1)
+        try await expect(slot).toHaveAttribute("aria-busy", "true")
+        // Closed: the waiting answer is put in, and the slot is no longer busy.
+        try await dropdown.locator(".dropdown-trigger").click()
+        try await expect(slot).toHaveAttribute("aria-busy", "false")
+        try await expect(slot.locator(":scope > [data-drawn='before']")).toHaveCount(0)
+        try await expect(field.locator(".dropdown-menu")).toHaveAttribute("data-open", "false")
+      }
+    } catch {
+      try await admin.remove(after: error)
+    }
+    try await admin.remove()
+  }
+
   private func shoot(_ page: Page, _ name: String, _ layout: Layout) async throws {
     guard let directory = ProcessInfo.processInfo.environment["GNORIUM_SCREENSHOT_DIR"] else { return }
     try await page.screenshot(to: URL(fileURLWithPath: directory).appendingPathComponent("sentiment-\(layout)-\(name).png"))
