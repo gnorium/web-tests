@@ -217,6 +217,13 @@ struct SubmissionTests {
     try await manifest.locator(".combobox-view:has(input[name='provider-dropdown']) .text-input-input")
       .fill("British Library")
     try await manifest.locator("input[name='source-url']").fill("\(source)/new")
+    // Clicked once the page has stopped growing: the record field's answer
+    // to the work typed adds its note over the tree, and the testament the
+    // Source URL names opens over Submit, each moving what is under them.
+    try await expect(field.locator(".record-choice-field-slot"), timeout: .seconds(20))
+      .toHaveAttribute("aria-busy", "false")
+    try await expect(form.locator(".record-choice-note")).toHaveCount(1)
+    try await expect(form.locator(".submit-testament-reader .artifact-view"), timeout: .seconds(20)).toBeVisible()
 
     // Printed again, the impression and issue the manuscript took come back
     // in their places; each is taken out by its own −, the nodes under it
