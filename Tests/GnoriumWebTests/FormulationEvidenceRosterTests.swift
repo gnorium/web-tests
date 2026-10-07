@@ -17,7 +17,7 @@ struct FormulationEvidenceRosterTests {
     let service = fixture.baseURL + "/page-1"
     let tei = "<TEI><text><body><pb n=\"1\" facs=\"\(service)/full/max/0/default.jpg\"/><p>Regola del tre</p><pb n=\"2\" facs=\"\(fixture.baseURL)/page-2/full/max/0/default.jpg\"/><p>Somma</p></body></text></TEI>"
     let reading: ScratchReading
-    do { reading = try ScratchReading(owner: admin, tei: tei) }
+    do { reading = try ScratchReading(owner: admin, tei: tei, sourceURL: fixture.baseURL + "/manifest.json") }
     catch { try await admin.remove(after: error) }
     let epilogue = UUID().uuidString.lowercased()
     let postlude = UUID().uuidString.lowercased()
@@ -37,19 +37,15 @@ struct FormulationEvidenceRosterTests {
         .replacingOccurrences(of: "'", with: "''")
       _ = try TestAdmin.query("""
         BEGIN;
-        UPDATE bibliographic_evidences SET source_url = '\(fixture.baseURL)/manifest.json'
-          WHERE id = (SELECT o.bibliographic_evidence_id FROM bibliographic_overtures o
-            JOIN bibliographic_hallmarks h ON h.bibliographic_overture_id = o.id
-            WHERE h.id = '\(reading.work.hallmarkID.lowercased())');
         UPDATE bibliographic_notations SET metadata_json =
           (metadata_json::jsonb || '{"language":"ita","sourceUrl":"\(fixture.baseURL)/manifest.json"}'::jsonb)::text
           WHERE id = '\(reading.notationID)';
         INSERT INTO bibliographic_postludes (id, bibliographic_notation_id, target_language, semblance_service_ids_json, requested_by_user_id, processing_status)
           VALUES ('\(postlude)', '\(reading.notationID)', 'eng', '[]', '\(user)', 'submitted');
-        INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_postlude_id, proposed_content_json, metadata_json, translation_json, processing_status)
-          SELECT '\(epilogue)', '\(epilogue)', h.bibliographic_overture_id, '\(postlude)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
+        INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_baseline_id, bibliographic_postlude_id, proposed_content_json, metadata_json, translation_json, processing_status)
+          SELECT '\(epilogue)', '\(epilogue)', h.bibliographic_baseline_id, '\(postlude)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
           FROM bibliographic_notations p JOIN bibliographic_antiphons a ON a.id = p.bibliographic_antiphon_id
-          JOIN bibliographic_hallmarks h ON h.id = a.bibliographic_hallmark_id WHERE p.id = '\(reading.notationID)';
+          JOIN bibliographic_overtures h ON h.id = a.bibliographic_overture_id WHERE p.id = '\(reading.notationID)';
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -145,7 +141,7 @@ struct FormulationEvidenceRosterTests {
     let scratch = try ScratchCommit(owner: admin, sourceURL: fixture.baseURL + "/manifest.json")
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        for path in [scratch.overturePath, scratch.hallmarkPath] {
+        for path in [scratch.baselinePath, scratch.overturePath] {
           try await page.openHydrated(path)
           try await expect(page.locator("#artifact-page-total")).toHaveText("3")
           try await expect(page.locator(".prompt-instances-view")).toHaveCount(1)
@@ -167,7 +163,7 @@ struct FormulationEvidenceRosterTests {
             """, as: Bool.self)
           #expect(sectionSpacing, "Record sections have 24px spacing; tree rows remain 8px apart")
 
-          if path == scratch.hallmarkPath {
+          if path == scratch.overturePath {
             let context = page.locator(".prompt-instance-body").nth(0).locator(".prompt-instance-context")
             try await expect(context).toContainText("Semblance 1:")
             let task = try await page.locator(".prompt-instance-body").nth(0).locator(".prompt-text-source").nth(1).textContent()
@@ -244,7 +240,7 @@ struct FormulationEvidenceRosterTests {
           #expect(selected == 1)
           if layout == .phone { try await page.locator(".navbar-slide-close-btn").click() }
           try await expect(page.locator("#artifact-page-input")).toHaveValue("2")
-          if path == scratch.hallmarkPath {
+          if path == scratch.overturePath {
             try await expect(page.locator(".prompt-instance-body").nth(0).locator(".prompt-instance-context")).toContainText("Semblance 2:")
             try await page.locator(".pipeline-selection-toggle[data-pipeline='formulation']").click()
             try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "formulation")
@@ -279,7 +275,7 @@ struct FormulationEvidenceRosterTests {
       // A second isolated browser context has no account cookie. Reading the
       // concrete inputs does not grant dispatch privileges.
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-        try await page.openHydrated(scratch.hallmarkPath)
+        try await page.openHydrated(scratch.overturePath)
         try await expect(page.locator(".prompt-instances-view")).toHaveCount(1)
         try await expect(page.locator(".prompt-instance-body").nth(0).locator(".prompt-instance-context")).toContainText("Semblance 1:")
         try await expect(page.locator(".commit-view-trigger")).toHaveCount(0)

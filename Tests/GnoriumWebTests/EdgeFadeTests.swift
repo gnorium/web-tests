@@ -20,7 +20,7 @@ struct EdgeFadeTests {
   /// The main pages, as a reader first meets them.
   static let pages = [
     "/", "/biblio-records", "/lexico-records", "/mission-control/lifecycles", "/mission-control/contributors",
-    "/mission-control/concertos", "/mission-control/notations", "/mission-control/evidences",
+    "/mission-control/madrigals", "/mission-control/notations", "/mission-control/instances",
     "/mission-control/interventions",
   ]
   static let tables = ["/biblio-records", "/lexico-records", "/mission-control/lifecycles"]
@@ -270,8 +270,8 @@ struct EdgeFadeTests {
   }
 
   /// The page's own crumb stays after its chevron, on the same line, long
-  /// title or short, shallow trail or deep; a long one fades at the line's
-  /// end (and on a phone opens on a tap), a short one does not.
+  /// title or short, shallow trail or deep; a long one is never faded but
+  /// wraps whole (2026-10-04), its title its full text.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func theCurrentCrumbStaysOnItsChevronsLine(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -294,7 +294,7 @@ struct EdgeFadeTests {
       let cases: [(String, String, String, Bool)] = [
         (titlePage, "breadcrumb", title, true),
         (shortTitlePage, "breadcrumb-short", short.title, false),
-        ("\(long.path)/versions", "breadcrumb-deep", "Versions", false),
+        ("\(long.path)/snapshots", "breadcrumb-deep", "Snapshots", false),
       ]
       for (path, name, text, overflows) in cases {
         try await page.openHydrated(path)
@@ -304,9 +304,11 @@ struct EdgeFadeTests {
         let report = try await Self.settledReport(page, trail)
         #expect(report.ellipses.isEmpty, "\(path): text-overflow: ellipsis on \(report.ellipses)")
         #expect(report.wrong.isEmpty, "\(path): the fade disagrees with the overflow on \(report.wrong)")
+        // The page's own crumb is never faded: shown whole, it wraps in its
+        // room (2026-10-04); only an ancestor's label fades.
+        try await expect(current).not.toHaveAttribute("data-edge-fade")
         if overflows {
           try await expect(current).toHaveAttribute("title", title)
-          try await expect(current).toHaveAttribute("data-overflowing", "true")
         }
         let placed = try await Self.trailLayout(page, trail)
         #expect(abs(placed.currentTop - placed.chevronTop) < 2,
@@ -316,15 +318,9 @@ struct EdgeFadeTests {
         try await Self.screenshots(page, name, layout)
         if layout == .desktop {
           #expect(report.buttons == 0, "\(path): \(report.buttons) crumbs expand at 1400 wide")
-        } else if overflows {
-          // The page's own crumb is no link: a tap anywhere on it opens it.
-          try await current.tap()
-          try await expect(current).toHaveAttribute("aria-expanded", "true")
-          try await current.tap()
-          try await expect(current).toHaveAttribute("aria-expanded", "false")
-          try await current.press("Enter")
-          try await expect(current).toHaveAttribute("aria-expanded", "true")
         }
+        // Shown whole, it has nothing to open.
+        try await expect(current).not.toHaveAttribute("aria-expanded")
       }
     }
   }

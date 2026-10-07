@@ -85,7 +85,7 @@ struct LexicographicTranslationTests {
         try await page.locator("button[form='lexicographic-epilogue-permit']").click()
         try await expect(page.locator(".disputorium-core-header-status-chip")).toHaveText("Permitted")
         try await expect(page.locator("button[form='lexicographic-epilogue-permit']")).toHaveCount(0)
-        try await expect(page.getByText("Permitted version")).toBeAttached()
+        try await expect(page.getByText("Permitted snapshot")).toBeAttached()
 
         // The English record lists the German word under the sentiment's Translations.
         try await page.openHydrated(english.path)

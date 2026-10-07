@@ -35,11 +35,10 @@ struct ComboboxTests {
       _ = try? TestAdmin.query(
         """
         BEGIN;
-        DELETE FROM bibliographic_overtures WHERE bibliographic_evidence_id IN
-          (SELECT id FROM bibliographic_evidences WHERE source_url = '\(source)');
-        DELETE FROM submissions WHERE id IN
-          (SELECT batch_id FROM bibliographic_evidences WHERE source_url = '\(source)');
-        DELETE FROM bibliographic_evidences WHERE source_url = '\(source)';
+        DELETE FROM bibliographic_baselines WHERE bibliographic_instance_id IN
+          (SELECT id FROM bibliographic_instances WHERE source_url = '\(source)');
+        UPDATE bibliographic_instances SET deleted_at = now(), deleted_by = '\(admin.username)'
+          WHERE source_url = '\(source)' AND deleted_at IS NULL;
         COMMIT;
         """)
     }
@@ -210,7 +209,7 @@ struct ComboboxTests {
     let row = try TestAdmin.query(
       """
       SELECT coalesce(provider, '') || '|' || coalesce(holding_institution, '') || '|' || coalesce(genres_json, '')
-        FROM bibliographic_evidences WHERE source_url = '\(source)';
+        FROM bibliographic_instances WHERE source_url = '\(source)';
       """
     ).trimmingCharacters(in: .whitespacesAndNewlines)
     #expect(row == "\(typedProvider)|\(typedHolding)|[\"\(typedGenre)\"]", "\(row)")
@@ -243,11 +242,10 @@ struct ComboboxTests {
       _ = try? TestAdmin.query(
         """
         BEGIN;
-        DELETE FROM bibliographic_overtures WHERE bibliographic_evidence_id IN
-          (SELECT id FROM bibliographic_evidences WHERE source_url = '\(source)');
-        DELETE FROM submissions WHERE id IN
-          (SELECT batch_id FROM bibliographic_evidences WHERE source_url = '\(source)');
-        DELETE FROM bibliographic_evidences WHERE source_url = '\(source)';
+        DELETE FROM bibliographic_baselines WHERE bibliographic_instance_id IN
+          (SELECT id FROM bibliographic_instances WHERE source_url = '\(source)');
+        UPDATE bibliographic_instances SET deleted_at = now(), deleted_by = '\(admin.username)'
+          WHERE source_url = '\(source)' AND deleted_at IS NULL;
         COMMIT;
         """)
     }
@@ -306,7 +304,7 @@ struct ComboboxTests {
           $0.path == "/mission-control"
         }
         let stored = try TestAdmin.query(
-          "SELECT voices_json FROM bibliographic_evidences WHERE source_url = '\(source)';"
+          "SELECT voices_json FROM bibliographic_instances WHERE source_url = '\(source)';"
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(stored.contains(work.author), "\(stored)")
         #expect(!stored.contains("lexicoRecord") && !stored.contains("sentiment"), "\(stored)")

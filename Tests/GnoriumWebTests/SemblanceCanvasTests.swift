@@ -6,33 +6,28 @@ import WebTestsTesting
 /// A testament's reader holds one semblance per page, each a canvas, in its
 /// viewer's canvas slot (user, 2026-09-28): only the page on screen is shown
 /// and only its canvas holds tiles; a canvas paged away lets go of them, and
-/// its transcript pages with it. The manifest is a data URL, so no IIIF
-/// server is asked for anything but the images, which need not load.
+/// its transcript pages with it. The manifest and its pages' images are
+/// served on this machine (`FixtureServer.formulationManifest`): the server
+/// reads a source URL over https, or http to loopback for the tests, never a
+/// data URL.
 ///
 /// The page images are off until the reader asks for them (user,
 /// 2026-09-29): the transcript takes the whole width and no image is
-/// fetched; the header's Semblance switch (a chevron: left beside the text,
-/// up on a phone, where the panes stack) shows them, and the choice holds
+/// fetched; the header's Semblance switch (the image icon alone, distinct
+/// from the pager's arrows, 2026-10-03) shows them, and the choice holds
 /// across the reader's pages and the site's navigation for the browser
 /// session (sessionStorage), and is off again in a new one.
 @Suite("Semblance canvas", .serialized)
 struct SemblanceCanvasTests {
-  static let services = (1...3).map { "/web-tests-iiif/semblance-\($0)" }
+  /// The fixture's three pages' image services.
+  static func services(_ fixture: FixtureServer) -> [String] { (1...3).map { "\(fixture.baseURL)/page-\($0)" } }
 
-  static let tei = """
+  static func tei(_ fixture: FixtureServer) -> String {
+    """
     <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
-    \(services.enumerated().map { #"<pb n="\#($0.offset + 1)" facs="\#($0.element)/full/1300,/0/default.jpg"/><p>Page \#($0.offset + 1).</p>"# }.joined(separator: "\n"))
+    \(services(fixture).enumerated().map { #"<pb n="\#($0.offset + 1)" facs="\#($0.element)/full/1300,/0/default.jpg"/><p>Page \#($0.offset + 1).</p>"# }.joined(separator: "\n"))
     </body></text></TEI>
     """
-
-  /// A IIIF v3 manifest of the three pages, as a data URL.
-  static var manifestURL: String {
-    let canvases = services.enumerated().map { index, service in
-      #"{"type":"Canvas","width":1000,"height":1400,"label":{"none":["p\#(index + 1)"]},"items":[{"items":[{"body":{"id":"\#(service)/full/max/0/default.jpg","service":[{"id":"\#(service)"}]}}]}]}"#
-    }
-    let manifest = #"{"type":"Manifest","label":{"none":["Web tests"]},"items":[\#(canvases.joined(separator: ","))]}"#
-    return "data:application/json,"
-      + (manifest.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? manifest)
   }
 
   /// Per canvas: whether it is shown, and how many tile images it holds.
@@ -47,20 +42,19 @@ struct SemblanceCanvasTests {
     """
 
   /// The image requests made so far for the fixture's pages.
-  static let imageRequestsScript = """
-    performance.getEntriesByType('resource').filter(e => e.name.includes('/web-tests-iiif/')).length
-    """
+  static func imageRequestsScript(_ fixture: FixtureServer) -> String {
+    "performance.getEntriesByType('resource').filter(e => e.name.startsWith('\(fixture.baseURL)/page-')).length"
+  }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func pageImagesAreOffUntilAskedForAndHoldForTheSession(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
+    let fixture = try await FixtureServer.formulationManifest()
+    defer { fixture.stop() }
+    let services = Self.services(fixture)
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let reading = try ScratchReading(owner: admin, tei: Self.tei)
-    _ = try TestAdmin.query(
-      """
-      UPDATE bibliographic_evidences SET source_url = '\(Self.manifestURL)' WHERE title = '\(reading.work.title)';
-      """)
+    let reading = try ScratchReading(owner: admin, tei: Self.tei(fixture), sourceURL: fixture.baseURL + "/manifest.json")
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(reading.path)
@@ -85,7 +79,8 @@ struct SemblanceCanvasTests {
         try await expect(find).toHaveAccessibleName("Find in this testament")
         try await expect(find).toHaveText("")
         // Find and the semblance switch are the pager's mini chevrons' size,
-        // their icons the chevrons' size: one row of mini controls.
+        // their icons' long edge the chevrons' (icons are tight to their
+        // glyph, 2026-10-01): one row of mini controls.
         let chevron = try #require(try await viewer.locator(".pagination-prev").first.boundingBox())
         let chevronIcon = try #require(try await viewer.locator(".pagination-prev svg").first.boundingBox())
         for (name, control, icon) in [
@@ -95,20 +90,16 @@ struct SemblanceCanvasTests {
           let box = try #require(try await control.boundingBox())
           let iconBox = try #require(try await icon.boundingBox())
           #expect(abs(box.width - chevron.width) < 1 && abs(box.height - chevron.height) < 1, "\(name) is not the pager's size")
-          #expect(abs(iconBox.width - chevronIcon.width) < 1, "\(name)'s icon is not the chevrons' size")
+          #expect(
+            abs(max(iconBox.width, iconBox.height) - max(chevronIcon.width, chevronIcon.height)) < 1,
+            "\(name)'s icon is not the chevrons' size")
         }
-        // The switch's chevron points where the semblance opens: to the end
-        // side beside the text, up where the panes stack on a phone.
-        let turn = try await page.evaluate(
-          "getComputedStyle(document.querySelector('.artifact-canvas-toggle .button-icon')).transform"
-        ).string
-        #expect(turn == (layout == .phone ? "matrix(0, 1, -1, 0, 0, 0)" : "none"), "the chevron's turn: \(turn ?? "—")")
 
         // Off: the transcript alone, the whole width, and no image asked for.
-        // The switch is the left chevron alone, named "Semblance".
+        // The switch is the image icon alone, named "Semblance".
         try await expect(toggle).toHaveAccessibleName("Semblance")
         try await expect(viewer.locator(".artifact-canvas-toggle .toggle-button-label")).toHaveCount(0)
-        try await expect(toggle.locator("svg.previous-icon-view")).toHaveCount(1)
+        try await expect(toggle.locator("svg.image-icon-view")).toHaveCount(1)
         try await expect(toggle).toHaveAttribute("aria-pressed", "false")
         try await expect(viewer).toHaveAttribute("data-canvas-shown", "false")
         try await expect(object).toBeHidden()
@@ -117,8 +108,8 @@ struct SemblanceCanvasTests {
         #expect(abs(transcript.width - container.width) < 2, "the transcript takes the whole width")
         try await viewer.locator(".pagination-next").first.click()
         try await expect(viewer.locator(".artifact-transcript .tei-transcript[data-active='true']"))
-          .toHaveAttribute("data-service-id", Self.services[1])
-        #expect(try await page.evaluate(Self.imageRequestsScript).double == 0, "an image was fetched while off")
+          .toHaveAttribute("data-service-id", services[1])
+        #expect(try await page.evaluate(Self.imageRequestsScript(fixture)).double == 0, "an image was fetched while off")
 
         // On: the page on screen's canvas, beside the transcript.
         try await toggle.click()
@@ -127,13 +118,13 @@ struct SemblanceCanvasTests {
         try await expect(viewer.locator(".semblance-view[data-active='true'] .canvas-view-tile-image").first)
           .toHaveCount(1)
         try await expect(viewer.locator(".semblance-view[data-active='true']"))
-          .toHaveAttribute("data-service-id", Self.services[1])
+          .toHaveAttribute("data-service-id", services[1])
 
         // Across the reader's pages.
         try await viewer.locator(".pagination-next").first.click()
         try await expect(toggle).toHaveAttribute("aria-pressed", "true")
         try await expect(viewer.locator(".semblance-view[data-active='true']"))
-          .toHaveAttribute("data-service-id", Self.services[2])
+          .toHaveAttribute("data-service-id", services[2])
         try await expect(viewer.locator(".semblance-view[data-active='true'] .canvas-view-tile-image").first)
           .toHaveCount(1)
 
@@ -155,7 +146,7 @@ struct SemblanceCanvasTests {
         try await expect(viewer.locator("#artifact-page-total")).toHaveText("3")
         try await expect(viewer.locator(".artifact-canvas-toggle button")).toHaveAttribute("aria-pressed", "false")
         try await expect(viewer.locator(".artifact-object")).toBeHidden()
-        #expect(try await page.evaluate(Self.imageRequestsScript).double == 0, "an image was fetched while off")
+        #expect(try await page.evaluate(Self.imageRequestsScript(fixture)).double == 0, "an image was fetched while off")
       }
     } catch {
       reading.remove()
@@ -169,12 +160,11 @@ struct SemblanceCanvasTests {
   func onlyThePageOnScreenReadsItsImage(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
+    let fixture = try await FixtureServer.formulationManifest()
+    defer { fixture.stop() }
+    let services = Self.services(fixture)
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let reading = try ScratchReading(owner: admin, tei: Self.tei)
-    _ = try TestAdmin.query(
-      """
-      UPDATE bibliographic_evidences SET source_url = '\(Self.manifestURL)' WHERE title = '\(reading.work.title)';
-      """)
+    let reading = try ScratchReading(owner: admin, tei: Self.tei(fixture), sourceURL: fixture.baseURL + "/manifest.json")
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(reading.path)
@@ -201,7 +191,7 @@ struct SemblanceCanvasTests {
           }
           try await expect(
             viewer.locator(".artifact-transcript .tei-transcript[data-active='true']")
-          ).toHaveAttribute("data-service-id", Self.services[index])
+          ).toHaveAttribute("data-service-id", services[index])
         }
 
         try await expectShown(0)

@@ -19,13 +19,13 @@ struct AmendmentRemovalTests {
     let work = try ScratchWork(owner: admin)
     let record = work.recordID.lowercased()
     func clean() {
+      // Its amendment Instances are submitted input, frozen: they stay.
       _ = try? TestAdmin.query(
         """
         BEGIN;
         DELETE FROM modifications WHERE modifiable_id IN
-          (SELECT id FROM bibliographic_hallmarks WHERE biblio_record_id = '\(record)' AND id <> '\(work.hallmarkID.lowercased())');
-        DELETE FROM bibliographic_hallmarks WHERE biblio_record_id = '\(record)' AND id <> '\(work.hallmarkID.lowercased())';
-        DELETE FROM bibliographic_rebuttals WHERE biblio_record_id = '\(record)';
+          (SELECT id FROM bibliographic_overtures WHERE biblio_record_id = '\(record)' AND id <> '\(work.overtureID.lowercased())');
+        DELETE FROM bibliographic_overtures WHERE biblio_record_id = '\(record)' AND id <> '\(work.overtureID.lowercased())';
         COMMIT;
         """)
     }
@@ -102,13 +102,13 @@ struct AmendmentRemovalTests {
 
         try await page.locator("#amendment-rationale").fill("Web tests: this testament is not the work's.")
         try await page.locator(".record-actions button[type='submit']").click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the reopened hallmark") {
-          $0.path.hasPrefix("/mission-control/hallmarks/bibliographic/")
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the reopened overture") {
+          $0.path.hasPrefix("/mission-control/overtures/bibliographic/")
         }
         let stored = try TestAdmin.query(
           """
-          SELECT shape_json FROM bibliographic_hallmarks
-            WHERE biblio_record_id = '\(record)' AND id <> '\(work.hallmarkID.lowercased())';
+          SELECT shape_json FROM bibliographic_overtures
+            WHERE biblio_record_id = '\(record)' AND id <> '\(work.overtureID.lowercased())';
           """
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(stored.contains("\"work\"") && !stored.contains("edition-") && !stored.contains("manifest-"), "\(stored)")

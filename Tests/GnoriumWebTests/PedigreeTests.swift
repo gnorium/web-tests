@@ -6,7 +6,7 @@ import WebTestsTesting
 /// A Pedigree can run to tens of thousands of rows (a large work's line):
 /// its rows are capped at `size256` tall, as a thinking block is
 /// (`capHeight`, HeightCap.swift), and scroll inside, so the page does not
-/// grow with it. A throwaway admin owns a scratch line of 60 hallmarks, made
+/// grow with it. A throwaway admin owns a scratch line of 60 overtures, made
 /// by SQL and removed after.
 @Suite("Pedigree", .serialized)
 struct PedigreeTests {
@@ -46,7 +46,7 @@ struct PedigreeTests {
             }
           })()
           """, as: Box.self)
-        // Evidence, overture, and a concerto and a hallmark per link.
+        // Instance, baseline, and a madrigal and an overture per link.
         #expect(box.groups == 122)
         #expect(box.maxHeight == "256px")
         #expect(box.overflowY == "auto")

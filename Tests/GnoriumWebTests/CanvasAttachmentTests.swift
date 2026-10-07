@@ -52,10 +52,10 @@ struct CanvasAttachmentTests {
     let name = "canvas-live-\(UUID().uuidString).html"
     let file = URL(fileURLWithPath: "/Users/Madhavik/Downloads/Gnorium/gnorium-web/Public").appendingPathComponent(name)
     do {
-      _ = try TestAdmin.query("INSERT INTO formulation_stage_runs (id,bibliographic_concerto_id,stage,attempt,provider,model,output,result,duration_ms,created_at) VALUES ('\(runID)','\(work.concertoID)','formulation',1,'fixture','fixture','[{\"type\":\"thinking\",\"content\":\"Preparing the canvas fixture.\"}]','passed',1,now());")
+      _ = try TestAdmin.query("INSERT INTO formulation_stage_runs (id,bibliographic_madrigal_id,stage,attempt,provider,model,output,result,duration_ms,created_at) VALUES ('\(runID)','\(work.madrigalID)','formulation',1,'fixture','fixture','[{\"type\":\"thinking\",\"content\":\"Preparing the canvas fixture.\"}]','passed',1,now());")
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-        try await page.openHydrated("/mission-control/concertos/bibliographic/\(work.concertoID)")
-        let original = try await page.evaluate("fetch('/mission-control/concertos/bibliographic/\(work.concertoID)').then(r=>r.text())", as: String.self)
+        try await page.openHydrated("/mission-control/madrigals/bibliographic/\(work.madrigalID)")
+        let original = try await page.evaluate("fetch('/mission-control/madrigals/bibliographic/\(work.madrigalID)').then(r=>r.text())", as: String.self)
         let mock = """
           <script>
           window.__canvasMock='installed';

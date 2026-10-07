@@ -37,14 +37,14 @@ struct RecognitionSessionsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_hallmark_id, requested_by_user_id, semblance_service_ids_json, processing_status)
-          VALUES ('\(antiphonID)', '\(work.hallmarkID.lowercased())', '\(user)', '[]', 'submitted');
+        INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, semblance_service_ids_json, processing_status)
+          VALUES ('\(antiphonID)', '\(work.overtureID.lowercased())', '\(user)', '[]', 'submitted');
         INSERT INTO recognition_stage_runs (id, submission_id, stage, semblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)',
-            (SELECT e.batch_id FROM bibliographic_evidences e
-               JOIN bibliographic_overtures o ON o.bibliographic_evidence_id = e.id
-               JOIN bibliographic_hallmarks h ON h.bibliographic_overture_id = o.id
-              WHERE h.id = '\(work.hallmarkID.lowercased())'),
+            (SELECT e.batch_id FROM bibliographic_instances e
+               JOIN bibliographic_baselines o ON o.bibliographic_instance_id = e.id
+               JOIN bibliographic_overtures h ON h.bibliographic_baseline_id = o.id
+              WHERE h.id = '\(work.overtureID.lowercased())'),
             'recognition', 'Pages 1–2', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),
             '\(antiphonID)', 1200, now());
         COMMIT;
@@ -74,10 +74,12 @@ struct RecognitionSessionsTests {
   }
 
   /// A zoom's card shows its detail (user, 2026-09-29): the region as the
-  /// model was sent it, and the page with the region's box outlined where
-  /// the call asked (x 100, y 250, width 300, height 200 of 1000).
+  /// model was sent it, a preview that expands, and its source and sent
+  /// pixels beside the tool's other datums (the page thumbnail and its
+  /// outlined box went with the read-only metadata's simplification,
+  /// 2026-10-04).
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aZoomCardShowsItsDetailAndTheOutlinedBox(engine: BrowserEngine, layout: Layout) async throws {
+  func aZoomCardShowsItsDetail(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -109,14 +111,14 @@ struct RecognitionSessionsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_hallmark_id, requested_by_user_id, semblance_service_ids_json, processing_status)
-          VALUES ('\(antiphonID)', '\(work.hallmarkID.lowercased())', '\(user)', '[]', 'submitted');
+        INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, semblance_service_ids_json, processing_status)
+          VALUES ('\(antiphonID)', '\(work.overtureID.lowercased())', '\(user)', '[]', 'submitted');
         INSERT INTO recognition_stage_runs (id, submission_id, stage, semblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)',
-            (SELECT e.batch_id FROM bibliographic_evidences e
-               JOIN bibliographic_overtures o ON o.bibliographic_evidence_id = e.id
-               JOIN bibliographic_hallmarks h ON h.bibliographic_overture_id = o.id
-              WHERE h.id = '\(work.hallmarkID.lowercased())'),
+            (SELECT e.batch_id FROM bibliographic_instances e
+               JOIN bibliographic_baselines o ON o.bibliographic_instance_id = e.id
+               JOIN bibliographic_overtures h ON h.bibliographic_baseline_id = o.id
+              WHERE h.id = '\(work.overtureID.lowercased())'),
             'recognition', 'Page 1', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),
             '\(antiphonID)', 1200, now());
         COMMIT;
@@ -127,22 +129,11 @@ struct RecognitionSessionsTests {
         try await card.locator(".accordion-summary").first.click()
         let detail = card.locator(".detail-view")
         try await expect(detail).toBeVisible()
-        try await expect(detail.locator(".detail-view-image")).toBeVisible()
-        try await expect(detail.locator(".detail-view-image")).toHaveAttribute("src", detailURL)
-        try await expect(detail.locator(".datum-view")).toContainText("1200 × 800")
-        // The box sits on the page where the region is: 10% in, 25% down,
-        // 30% wide and 20% high—once the page, lazily loaded, has come in.
-        let pageImage = detail.locator(".detail-view-page-image")
-        for _ in 0..<50 {
-          if try await pageImage.evaluate("el => el.complete && el.naturalHeight > 0") == .bool(true) { break }
-          try await Task.sleep(for: .milliseconds(100))
-        }
-        let frame = try #require(try await detail.locator(".detail-view-page-image").boundingBox())
-        let box = try #require(try await detail.locator(".detail-view-box").boundingBox())
-        #expect(abs((box.x - frame.x) / frame.width - 0.10) < 0.02)
-        #expect(abs((box.y - frame.y) / frame.height - 0.25) < 0.02)
-        #expect(abs(box.width / frame.width - 0.30) < 0.02)
-        #expect(abs(box.height / frame.height - 0.20) < 0.02)
+        let preview = detail.locator(".expandable-attachment-image-preview")
+        try await expect(preview).toBeVisible()
+        try await expect(preview).toHaveAttribute("src", detailURL)
+        try await expect(card).toContainText("1200 × 800")
+        try await expect(card).toContainText("600 × 400")
         // The card fits the phone: no sideways scroll.
         let overflow = try await page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
         #expect(overflow == .bool(false))

@@ -22,7 +22,7 @@ struct SponsorLayoutTests {
       try await expect(page.locator(".sponsor-content h2").first).toHaveText("Shared Sponsorship Pool")
       try await expect(page.locator(".sponsor-content")).toContainText("Online sponsorship is not available yet")
       try await expect(page.locator(".sponsor-content")).toContainText("$12.50")
-      try await expect(page.locator(".sponsor-content a[href='/mission-control/concertos/bibliographic/fixture-run']")).toHaveText("Bibliographic concerto")
+      try await expect(page.locator(".sponsor-content a[href='/mission-control/madrigals/bibliographic/fixture-run']")).toHaveText("Bibliographic madrigal")
       let readable = try await page.evaluate("""
         (() => {
           const main = document.querySelector('main.sponsor-content');

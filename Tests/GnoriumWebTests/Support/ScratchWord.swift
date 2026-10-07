@@ -4,14 +4,15 @@ import Foundation
 /// branch sentiment and a leaf under it, owned by the test's account: the
 /// record's own reference (beside its title, in its closed Metadata) and the
 /// leaf's (beside its definition, in its row's heading). Every row by its own
-/// id, removed in the order the foreign keys allow. With a `distinction`,
+/// id, removed in the order the foreign keys allow—except its submission and
+/// Instance, which are submitted input and frozen, so they stay. With a `distinction`,
 /// the leaf's TEI holds it as its `<note type="usage" subtype="distinction">`
 /// (a `{branch}` in it a `<ptr>` to the branch). With an `anchor` (a
 /// testament's record, version and page, and the utterance's passage and
 /// word there), the leaf is attested by an utterance in that testament.
 struct ScratchWord {
-  /// Its hallmark's and its version's ids, as the server writes them.
-  let hallmarkID: String
+  /// Its overture's and its version's ids, as the server writes them.
+  let overtureID: String
   let versionID: String
   /// The scratch record's title.
   let title: String
@@ -38,10 +39,10 @@ struct ScratchWord {
   init(owner: TestAdmin, distinction: String? = nil, anchor: Anchor? = nil, language: String = "eng") throws {
     let user = try owner.column("id")
     var ids: [String: String] = [:]
-    for name in ["submission", "evidence", "overture", "concerto", "lemma", "record", "hallmark", "version"] {
+    for name in ["submission", "instance", "baseline", "madrigal", "lemma", "record", "overture", "version"] {
       ids[name] = UUID().uuidString.lowercased()
     }
-    hallmarkID = ids["hallmark"]!.uppercased()
+    overtureID = ids["overture"]!.uppercased()
     versionID = ids["version"]!.uppercased()
     self.ids = ids
     recordID = ids["record"]!.uppercased()
@@ -68,6 +69,10 @@ struct ScratchWord {
       "sources":[{"locator":"sense 2","title":"Web tests senses","url":"https://senses.example.org/web-tests"}],\
       "tei":"<sense><def>A leaf sense.</def>\(note)</sense>"}]}
       """
+    // Its title form as the Submit Sentiment form writes one: a submitted
+    // Instance is frozen and stays, so it must be one the Instances list can
+    // read (an empty form fails the whole list).
+    let titleForm = #"{"title":"\#(title)","languageCode":"\#(language)","partOfSpeech":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
     _ = try TestAdmin.query(
       """
       BEGIN;
@@ -76,14 +81,14 @@ struct ScratchWord {
         VALUES ('\(ids["lemma"]!)', '\(title)', '\(title)', '\(title)', (SELECT id FROM languages WHERE iso639_3 = '\(language)'), 1, now(), now());
       INSERT INTO lexico_records (id, lemma_id, title, language_code, version, type)
         VALUES ('\(ids["record"]!)', '\(ids["lemma"]!)', '\(title)', '\(language)', 1, 'noun');
-      INSERT INTO lexicographic_evidences (id, batch_id, language, title_form_json, anchors_json)
-        VALUES ('\(ids["evidence"]!)', '\(ids["submission"]!)', '\(language)', '{}', '[]');
-      INSERT INTO lexicographic_overtures (id, lexicographic_evidence_id, title_form_json, anchors_json)
-        VALUES ('\(ids["overture"]!)', '\(ids["evidence"]!)', '{}', '[]');
-      INSERT INTO lexicographic_hallmarks (id, thread_id, lexicographic_overture_id, lexicographic_concerto_id, lexico_record_id, record_json, processing_status, permitted_by_user_id, permitted_at)
-        VALUES ('\(ids["hallmark"]!)', '\(ids["hallmark"]!)', '\(ids["overture"]!)', '\(ids["concerto"]!)', '\(ids["record"]!)', '\(snapshot)', 'permitted', '\(user)', now());
-      INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_hallmark_id, treatment, record_json, created_at)
-        VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["hallmark"]!)', 1, '\(snapshot)', now());
+      INSERT INTO lexicographic_instances (id, batch_id, language, title_form_json, anchors_json)
+        VALUES ('\(ids["instance"]!)', '\(ids["submission"]!)', '\(language)', '\(titleForm)', '[]');
+      INSERT INTO lexicographic_baselines (id, lexicographic_instance_id, title_form_json, anchors_json)
+        VALUES ('\(ids["baseline"]!)', '\(ids["instance"]!)', '\(titleForm)', '[]');
+      INSERT INTO lexicographic_overtures (id, thread_id, lexicographic_baseline_id, lexicographic_madrigal_id, lexico_record_id, record_json, processing_status, permitted_by_user_id, permitted_at)
+        VALUES ('\(ids["overture"]!)', '\(ids["overture"]!)', '\(ids["baseline"]!)', '\(ids["madrigal"]!)', '\(ids["record"]!)', '\(snapshot)', 'permitted', '\(user)', now());
+      INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_overture_id, treatment, record_json, created_at)
+        VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["overture"]!)', 1, '\(snapshot)', now());
       COMMIT;
       """)
   }
@@ -93,13 +98,11 @@ struct ScratchWord {
       """
       BEGIN;
       DELETE FROM lexico_record_versions WHERE id = '\(ids["version"]!)';
-      DELETE FROM lexicographic_hallmarks WHERE id = '\(ids["hallmark"]!)';
       DELETE FROM lexicographic_overtures WHERE id = '\(ids["overture"]!)';
-      DELETE FROM lexicographic_evidences WHERE id = '\(ids["evidence"]!)';
+      DELETE FROM lexicographic_baselines WHERE id = '\(ids["baseline"]!)';
       DELETE FROM url_histories WHERE entity_id = '\(ids["record"]!)';
       DELETE FROM lexico_records WHERE id = '\(ids["record"]!)';
       DELETE FROM lemmas WHERE id = '\(ids["lemma"]!)';
-      DELETE FROM submissions WHERE id = '\(ids["submission"]!)';
       COMMIT;
       """)
   }

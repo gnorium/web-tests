@@ -12,13 +12,14 @@ import WebTests
 ///
 /// `remove()` never touches the event log, which is history: its rows name
 /// their user, and `event_logs.user_id` is ON DELETE RESTRICT (server
-/// migration 0385). An account the log doesn't name is deleted outright (one
-/// DELETE of its row, as the dev database's owner; its sessions go by
-/// cascade). An account the log names is deleted the way its owner deletes
-/// it, through Delete account with its password (`AccountDeletion`: private
-/// data erased, the row kept for the username, as for every deleted
-/// account). Either way a failure throws; nothing is left behind silently.
-/// The leftovers of killed runs are swept in `create` by the same rule.
+/// migration 0385). Submitted input is history too: a submission's user is
+/// frozen, so an account that submitted can't lose its row either. An
+/// account neither names is deleted outright (one DELETE of its row, as the
+/// dev database's owner; its sessions go by cascade). An account either
+/// names is deleted the way its owner deletes it, through Delete account
+/// with its password (`AccountDeletion`: private data erased, the row kept
+/// for the username, as for every deleted account). Either way a failure
+/// throws; nothing is left behind silently. The leftovers of killed runs are swept in `create` by the same rule.
 ///
 /// `GNORIUM_DATABASE_URL` overrides the dev database; `GNORIUM_PSQL` the
 /// psql binary.
@@ -52,9 +53,18 @@ struct TestAdmin: Sendable {
     let email = "\(username)@gnorium.test"
     let password = randomPassword()
 
+    // Registration needs a proof that the mailbox is owned: the row the
+    // emailed link would have verified, written here already verified, and
+    // its completion token sent as the cookie the link would have set
+    // (`RegistrationProof`). The token is held in memory only.
+    let proof = randomHex(bytes: 32)
+    try runSQL(
+      "INSERT INTO registration_challenges (id, email, token_hash, completion_hash, verified_at, expires_at, created_at) VALUES (gen_random_uuid(), '\(email)', encode(sha256(convert_to('\(randomHex(bytes: 32))', 'UTF8')), 'hex'), encode(sha256(convert_to('\(proof)', 'UTF8')), 'hex'), now(), now() + interval '15 minutes', now());"
+    )
     let (registered, _) = try await post(
       baseURL.appendingPathComponent("auth/register"),
-      ["full-name": "Web Tests", "email": email, "username": username, "password": password])
+      ["full-name": "Web Tests", "email": email, "username": username, "password": password],
+      cookie: Cookie(name: "registration_proof", value: proof, url: baseURL))
     guard registered.statusCode == 201 else {
       throw WebTestError("Registering the test admin failed with HTTP \(registered.statusCode).")
     }
@@ -86,12 +96,13 @@ struct TestAdmin: Sendable {
   }
 
   /// Deletes this account and only this one (see the type's note): its row
-  /// when the event log doesn't name it, otherwise through Delete account.
+  /// when neither the event log nor a submission names it, otherwise through
+  /// Delete account.
   /// An account a test already deleted through the site is left as it is.
   /// Throws when the account isn't gone.
   func remove() async throws {
     let state = try Self.query(
-      "SELECT (deleted_at IS NOT NULL)::text || ' ' || EXISTS (SELECT 1 FROM event_logs WHERE event_logs.user_id = users.id)::text FROM users WHERE username = '\(username)';"
+      "SELECT (deleted_at IS NOT NULL)::text || ' ' || (EXISTS (SELECT 1 FROM event_logs WHERE event_logs.user_id = users.id) OR EXISTS (SELECT 1 FROM submissions WHERE submissions.user_id = users.id))::text FROM users WHERE username = '\(username)';"
     )
     switch state {
     case "":

@@ -1,11 +1,12 @@
 import Foundation
 
 /// Two Disputorium objects waiting on a commit, owned by the test's
-/// account: a pending overture, with one way to commit, and a pending
-/// hallmark (its own overture committed, its concerto submitted), with
+/// account: a pending baseline, with one way to commit, and a pending
+/// overture (its own baseline committed, its madrigal submitted), with
 /// two. Every row by its own id, removed in the order the foreign keys
-/// allow. Nothing here is ever committed: a test only opens and cancels.
-/// The hallmark's metadata holds what the witness's fields require (its
+/// allow—except its submission and Instance, which are submitted input and
+/// frozen: the Instance is soft-deleted, as the site deletes one. Nothing here is ever committed: a test only opens and cancels.
+/// The overture's metadata holds what the witness's fields require (its
 /// page decodes them): the language, the source URL and its kind.
 struct ScratchCommit {
   /// A IIIF manifest no one serves: `.invalid` never resolves, so the
@@ -14,60 +15,61 @@ struct ScratchCommit {
   static let sourceURL = "https://web-tests.invalid/manifest.json"
 
   private let submissionID: String
-  private let evidenceID: String
-  private let pendingOvertureID: String
-  private let committedOvertureID: String
-  private let concertoID: String
-  private let hallmarkID: String
+  private let instanceID: String
+  private let pendingBaselineID: String
+  private let committedBaselineID: String
+  private let madrigalID: String
+  private let overtureID: String
+  private let owner: String
 
-  var overturePath: String { "/mission-control/overtures/bibliographic/\(pendingOvertureID)" }
-  var hallmarkPath: String { "/mission-control/hallmarks/bibliographic/\(hallmarkID)" }
+  var baselinePath: String { "/mission-control/baselines/bibliographic/\(pendingBaselineID)" }
+  var overturePath: String { "/mission-control/overtures/bibliographic/\(overtureID)" }
 
   init(owner: TestAdmin, sourceURL: String = ScratchCommit.sourceURL) throws {
     let user = try owner.column("id")
+    self.owner = owner.username
     func id() -> String { UUID().uuidString.lowercased() }
     submissionID = id()
-    evidenceID = id()
-    pendingOvertureID = id()
-    committedOvertureID = id()
-    concertoID = id()
-    hallmarkID = id()
+    instanceID = id()
+    pendingBaselineID = id()
+    committedBaselineID = id()
+    madrigalID = id()
+    overtureID = id()
     _ = try TestAdmin.query(
       """
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(submissionID)', '\(user)');
-      INSERT INTO bibliographic_evidences (id, batch_id, source_url, language, processing_status, title, type)
-        VALUES ('\(evidenceID)', '\(submissionID)', '\(sourceURL)', 'eng', 'pending', 'Web tests commit \(evidenceID.prefix(8))', 'report');
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_evidence_id, source_url, language, processing_status)
-        VALUES ('\(pendingOvertureID)', '\(submissionID)', '\(evidenceID)', '\(sourceURL)', 'eng', 'pending');
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_evidence_id, source_url, language, processing_status, committed_by_user_id, committed_at)
-        VALUES ('\(committedOvertureID)', '\(submissionID)', '\(evidenceID)', '\(sourceURL)', 'eng', 'pending', '\(user)', now());
-      INSERT INTO bibliographic_concertos (id, bibliographic_overture_id, requested_by_user_id, processing_status)
-        VALUES ('\(concertoID)', '\(committedOvertureID)', '\(user)', 'submitted');
-      INSERT INTO bibliographic_hallmarks (id, thread_id, bibliographic_overture_id, bibliographic_concerto_id, metadata_json, processing_status)
-        VALUES ('\(hallmarkID)', '\(hallmarkID)', '\(committedOvertureID)', '\(concertoID)', '{"language":"eng","sourceUrl":"\(sourceURL)","sourceKind":"iiif-manifest"}', 'pending');
+      INSERT INTO bibliographic_instances (id, batch_id, source_url, language, processing_status, title, type)
+        VALUES ('\(instanceID)', '\(submissionID)', '\(sourceURL)', 'eng', 'pending', 'Web tests commit \(instanceID.prefix(8))', 'report');
+      INSERT INTO bibliographic_baselines (id, batch_id, bibliographic_instance_id, source_url, language, processing_status)
+        VALUES ('\(pendingBaselineID)', '\(submissionID)', '\(instanceID)', '\(sourceURL)', 'eng', 'pending');
+      INSERT INTO bibliographic_baselines (id, batch_id, bibliographic_instance_id, source_url, language, processing_status, committed_by_user_id, committed_at)
+        VALUES ('\(committedBaselineID)', '\(submissionID)', '\(instanceID)', '\(sourceURL)', 'eng', 'pending', '\(user)', now());
+      INSERT INTO bibliographic_madrigals (id, bibliographic_baseline_id, requested_by_user_id, processing_status)
+        VALUES ('\(madrigalID)', '\(committedBaselineID)', '\(user)', 'submitted');
+      INSERT INTO bibliographic_overtures (id, thread_id, bibliographic_baseline_id, bibliographic_madrigal_id, metadata_json, processing_status)
+        VALUES ('\(overtureID)', '\(overtureID)', '\(committedBaselineID)', '\(madrigalID)', '{"language":"eng","sourceUrl":"\(sourceURL)","sourceKind":"iiif-manifest"}', 'pending');
       COMMIT;
       """)
   }
 
   /// Whether both objects are still uncommitted.
   func stillPending() throws -> Bool {
+    let baseline = try TestAdmin.query(
+      "SELECT committed_at IS NULL FROM bibliographic_baselines WHERE id = '\(pendingBaselineID)'")
     let overture = try TestAdmin.query(
-      "SELECT committed_at IS NULL FROM bibliographic_overtures WHERE id = '\(pendingOvertureID)'")
-    let hallmark = try TestAdmin.query(
-      "SELECT processing_status FROM bibliographic_hallmarks WHERE id = '\(hallmarkID)'")
-    return overture == "t" && hallmark == "pending"
+      "SELECT processing_status FROM bibliographic_overtures WHERE id = '\(overtureID)'")
+    return baseline == "t" && overture == "pending"
   }
 
   func remove() {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      DELETE FROM bibliographic_hallmarks WHERE id = '\(hallmarkID)';
-      DELETE FROM bibliographic_concertos WHERE id = '\(concertoID)';
-      DELETE FROM bibliographic_overtures WHERE id IN ('\(pendingOvertureID)', '\(committedOvertureID)');
-      DELETE FROM bibliographic_evidences WHERE id = '\(evidenceID)';
-      DELETE FROM submissions WHERE id = '\(submissionID)';
+      DELETE FROM bibliographic_overtures WHERE id = '\(overtureID)';
+      DELETE FROM bibliographic_madrigals WHERE id = '\(madrigalID)';
+      DELETE FROM bibliographic_baselines WHERE id IN ('\(pendingBaselineID)', '\(committedBaselineID)');
+      UPDATE bibliographic_instances SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(instanceID)';
       COMMIT;
       """)
   }

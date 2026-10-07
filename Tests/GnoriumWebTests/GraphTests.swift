@@ -82,8 +82,9 @@ struct GraphTests {
         // A card as the filter bar's, and no sidebar.
         try await expect(page.locator("form.graph-view-query.query-card-view")).toHaveCount(1)
         try await expect(page.locator("aside")).toHaveCount(0)
-        // The swap icon: the two arrows one directly above the other, the
-        // same size, a clear gap between them, centered in the box.
+        // The swap icon (2026-10-03): the two arrows one above the other,
+        // the same size, a clear gap between them, offset to fill a square,
+        // centered in the box together.
         let stacked = try await page.evaluate(
           """
           (() => {
@@ -91,13 +92,13 @@ struct GraphTests {
             const [a, b] = [...svg.querySelectorAll('path')].map(p => p.getBoundingClientRect());
             const box = svg.getBoundingClientRect();
             const middle = r => r.left + r.width / 2;
-            return Math.abs(middle(a) - middle(b)) < 0.5 && Math.abs(a.width - b.width) < 0.5
+            return Math.abs(a.width - b.width) < 0.5
               && Math.abs(a.height - b.height) < 0.5 && b.top - a.bottom >= 1.5
-              && Math.abs(middle(a) - middle(box)) < 0.5
+              && Math.abs((a.left + b.right) / 2 - middle(box)) < 0.5
               && Math.abs((a.top + b.bottom) / 2 - (box.top + box.height / 2)) < 0.5;
           })()
           """)
-        #expect(stacked == .bool(true), "The swap arrows sit directly above each other, centered.")
+        #expect(stacked == .bool(true), "The swap arrows sit one above the other, centered together.")
         let relations = query.locator(".graph-relation [data-dropdown-option='true']")
         try await expect(relations.first).toHaveAttribute("data-display", "Citations")
         for plural in [

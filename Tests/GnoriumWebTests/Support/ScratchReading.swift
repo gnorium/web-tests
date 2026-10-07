@@ -1,6 +1,6 @@
 import Foundation
 
-/// A scratch work's text: a pending notation recognized from its hallmark,
+/// A scratch work's text: a pending notation recognized from its overture,
 /// holding `tei` (one page, its facsimile on example.org), owned by the
 /// test's account. Every row by its own id, removed before the work.
 struct ScratchReading {
@@ -9,8 +9,8 @@ struct ScratchReading {
   private let antiphonID: String
   let notationID: String
 
-  init(owner: TestAdmin, tei: String) throws {
-    work = try ScratchWork(owner: owner)
+  init(owner: TestAdmin, tei: String, sourceURL: String = "https://example.org/web-tests") throws {
+    work = try ScratchWork(owner: owner, sourceURL: sourceURL)
     let user = try owner.column("id")
     antiphonID = UUID().uuidString.lowercased()
     notationID = UUID().uuidString.lowercased()
@@ -21,8 +21,8 @@ struct ScratchReading {
     _ = try TestAdmin.query(
       """
       BEGIN;
-      INSERT INTO bibliographic_antiphons (id, bibliographic_hallmark_id, requested_by_user_id, semblance_service_ids_json, processing_status)
-        VALUES ('\(antiphonID)', (SELECT bibliographic_hallmark_id FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())'),
+      INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, semblance_service_ids_json, processing_status)
+        VALUES ('\(antiphonID)', (SELECT bibliographic_overture_id FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())'),
           '\(user)', '[]', 'submitted');
       INSERT INTO bibliographic_notations (id, proposed_content_json, processing_status, biblio_record_id, bibliographic_antiphon_id, thread_id, metadata_json)
         VALUES ('\(notationID)', '\(content)', 'pending', '\(work.recordID.lowercased())', '\(antiphonID)', '\(notationID)',

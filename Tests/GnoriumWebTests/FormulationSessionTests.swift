@@ -3,7 +3,7 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// Formulation is one evidence-bound session per concerto (user,
+/// Formulation is one evidence-bound session per madrigal (user,
 /// 2026-09-29): its page lists no stages, heads the session with its stage's
 /// name alone, and shows the session's trace—the canvases it looked at and
 /// the fields it recorded.
@@ -32,7 +32,7 @@ struct FormulationSessionTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aConcertoIsOneSessionWithNoStages(engine: BrowserEngine, layout: Layout) async throws {
+  func aMadrigalIsOneSessionWithNoStages(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -41,11 +41,11 @@ struct FormulationSessionTests {
     do {
       _ = try TestAdmin.query(
         """
-        INSERT INTO formulation_stage_runs (id, bibliographic_concerto_id, stage, attempt, provider, model, output, result, duration_ms, created_at)
-          VALUES ('\(runID)', '\(work.concertoID)', 'formulation', 1, 'DeepSeek', 'deepseek-flash', '\(try Self.trace())', 'passed', 1200, now());
+        INSERT INTO formulation_stage_runs (id, bibliographic_madrigal_id, stage, attempt, provider, model, output, result, duration_ms, created_at)
+          VALUES ('\(runID)', '\(work.madrigalID)', 'formulation', 1, 'DeepSeek', 'deepseek-flash', '\(try Self.trace())', 'passed', 1200, now());
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        try await page.openHydrated("/mission-control/concertos/bibliographic/\(work.concertoID)")
+        try await page.openHydrated("/mission-control/madrigals/bibliographic/\(work.madrigalID)")
         try await expect(page.locator(".stages-view")).toHaveCount(0)
         try await expect(page.locator("a[href*='stage=']")).toHaveCount(0)
         try await expect(page.locator(".computorium-core-stage-title")).toHaveText("Formulation")

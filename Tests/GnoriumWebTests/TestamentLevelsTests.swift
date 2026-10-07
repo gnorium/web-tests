@@ -18,7 +18,7 @@ import WebTestsTesting
 /// typed, never refused. On Submit Testament nothing is submitted (the
 /// submit event is dispatched by hand, which runs the form's script but
 /// never posts); the modify test posts a modification of its own scratch
-/// overture and removes both. Needs a signed-in account, made for the test
+/// baseline and removes both. Needs a signed-in account, made for the test
 /// and removed after.
 ///
 /// `GNORIUM_SCREENSHOT_DIR` set, it saves what it sees there.
@@ -182,23 +182,22 @@ struct TestamentLevelsTests {
     }
   }
 
-  /// A manuscript's overture, modified: no edition, its Production shown
+  /// A manuscript's baseline, modified: no edition, its Production shown
   /// and posted as it stands, its Acquisition shown and posted.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func aModifiedManuscriptKeepsItsProductionAndItsAcquisition(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let submission = UUID().uuidString.lowercased()
-    let evidence = UUID().uuidString.lowercased()
-    let overture = UUID().uuidString.lowercased()
+    let instance = UUID().uuidString.lowercased()
+    let baseline = UUID().uuidString.lowercased()
     func remove() {
       _ = try? TestAdmin.query(
         """
         BEGIN;
-        DELETE FROM modifications WHERE modifiable_id = '\(overture)';
-        DELETE FROM bibliographic_overtures WHERE id = '\(overture)';
-        DELETE FROM bibliographic_evidences WHERE id = '\(evidence)';
-        DELETE FROM submissions WHERE id = '\(submission)';
+        DELETE FROM modifications WHERE modifiable_id = '\(baseline)';
+        DELETE FROM bibliographic_baselines WHERE id = '\(baseline)';
+        UPDATE bibliographic_instances SET deleted_at = now(), deleted_by = '\(admin.username)' WHERE id = '\(instance)';
         COMMIT;
         """)
     }
@@ -211,19 +210,19 @@ struct TestamentLevelsTests {
         """
         BEGIN;
         INSERT INTO submissions (id, user_id) VALUES ('\(submission)', '\(user)');
-        INSERT INTO bibliographic_evidences (id, batch_id, source_url, language, processing_status, title, type, year)
-          VALUES ('\(evidence)', '\(submission)', 'https://example.org/web-tests/levels', 'eng', 'pending',
-            'Web tests levels \(overture.prefix(8))', 'manuscript', 1623);
-        INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_evidence_id, source_url, language, processing_status, title, type,
+        INSERT INTO bibliographic_instances (id, batch_id, source_url, language, processing_status, title, type, year)
+          VALUES ('\(instance)', '\(submission)', 'https://example.org/web-tests/levels', 'eng', 'pending',
+            'Web tests levels \(baseline.prefix(8))', 'manuscript', 1623);
+        INSERT INTO bibliographic_baselines (id, batch_id, bibliographic_instance_id, source_url, language, processing_status, title, type,
           year_qualifier, era, year, provider, holding_institution, copy_label, call_number_json, activity_statements_json, carrier)
-          VALUES ('\(overture)', '\(submission)', '\(evidence)', 'https://example.org/web-tests/levels', 'eng', 'pending',
-            'Web tests levels \(overture.prefix(8))', 'manuscript', 'exact', 'anno_domini', 1623, 'folger_shakespeare_library',
-            'folger_shakespeare_library', 'Web tests copy 9', '{"scheme":"stc","value":"22273"}', '\(statements)', 'manuscript');
+          VALUES ('\(baseline)', '\(submission)', '\(instance)', 'https://example.org/web-tests/levels', 'eng', 'pending',
+            'Web tests levels \(baseline.prefix(8))', 'manuscript', 'exact', 'anno_domini', 1623, 'folger_shakespeare_library',
+            'folger_shakespeare_library', 'Web tests copy 9', '{"scheme":"stc","identifier":"22273"}', '\(statements)', 'manuscript');
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        try await page.openHydrated("/mission-control/overtures/bibliographic/\(overture)/modify")
-        let form = page.locator(".modify-bibliographic-overture-form")
+        try await page.openHydrated("/mission-control/baselines/bibliographic/\(baseline)/modify")
+        let form = page.locator(".modify-bibliographic-baseline-form")
         let copy = form.locator(".activity-statement-view[data-as-namespace='production']")
         // One stack, no card, no heading: the manuscript's Production shows,
         // its Publication does not.
@@ -250,11 +249,11 @@ struct TestamentLevelsTests {
         #expect(left, "The modification was not posted.")
       }
       let content = try TestAdmin.query(
-        "SELECT content_json FROM modifications WHERE modifiable_id = '\(overture)' ORDER BY created_at DESC LIMIT 1")
+        "SELECT content_json FROM modifications WHERE modifiable_id = '\(baseline)' ORDER BY created_at DESC LIMIT 1")
       let json = try JSONSerialization.jsonObject(with: Data(content.utf8)) as? [String: Any] ?? [:]
       #expect(json["copyLabel"] as? String == "Web tests copy 10", "Its copy label is posted and kept.")
       #expect(json["holdingInstitution"] as? String == "folger_shakespeare_library")
-      #expect((json["callNumber"] as? [String: Any])?["value"] as? String == "22273")
+      #expect((json["callNumber"] as? [String: Any])?["identifier"] as? String == "22273")
       let kept = (json["activityStatements"] as? [[String: Any]] ?? []).first { $0["kind"] as? String == "production" }
       #expect(kept?["place"] as? String == "Web tests scriptorium", "Its production is posted as it stands.")
       #expect(kept?["year"] as? Int == 1601)

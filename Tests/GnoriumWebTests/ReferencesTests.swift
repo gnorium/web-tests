@@ -9,20 +9,20 @@ import WebTestsTesting
 /// numbers each field's sources: its page's title (else host and path)
 /// linked, its host. A fact with no fetched source is marked Unsourced.
 /// Nothing scrolls sideways. A throwaway admin owns a scratch work whose
-/// hallmark carries formulations, and a scratch word with research
+/// overture carries formulations, and a scratch word with research
 /// references, made by SQL and removed after.
 @Suite("References", .serialized)
 struct ReferencesTests {
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aWorkIsCreditedOnItsHallmarkNotItsRecord(engine: BrowserEngine, layout: Layout) async throws {
+  func aWorkIsCreditedOnItsOvertureNotItsRecord(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin, references: true)
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        let hallmark = "/mission-control/hallmarks/bibliographic/\(work.hallmarkID)"
-        for path in [work.path, "\(work.path)/versions/\(work.versionID)"] {
+        let overture = "/mission-control/overtures/bibliographic/\(work.overtureID)"
+        for path in [work.path, "\(work.path)/snapshots/\(work.versionID)"] {
           try await page.openHydrated(path)
           try await expect(page.locator("#record-references, #references, .sources-view")).toHaveCount(0)
           try await expect(page.locator(".field-references-view, .reference-credit-view")).toHaveCount(0)
@@ -30,19 +30,22 @@ struct ReferencesTests {
           try await page.expectNoHorizontalOverflow()
           try await page.expectNoErrors()
         }
-        // The version links to the hallmark that credits it (in its pedigree).
-        try await expect(page.locator("a[href='\(hallmark)']")).not.toHaveCount(0)
+        // The version links to the overture that credits it (in its pedigree).
+        try await expect(page.locator("a[href='\(overture)']")).not.toHaveCount(0)
 
-        try await page.openHydrated(hallmark)
+        try await page.openHydrated(overture)
         // The record drawn as a tree (user, 2026-10-03): the work's fields in
-        // its root's closed Metadata; under the title, its two sources,
-        // numbered, in the order cited.
-        let metadata = page.locator("#record-row-work #record-metadata-work")
-        try await page.locator("#record-metadata-work > .accordion-summary").click()
+        // the record's own Metadata (open where the overture makes the record
+        // new); under the title, its two sources, numbered, in the order cited.
+        let metadata = page.locator("#record-metadata")
+        if try await metadata.getAttribute("data-open-finished") != "true" {
+          try await page.locator("#record-metadata > .accordion-summary").click()
+        }
         try await expect(metadata).toHaveAttribute("data-open-finished", "true")
-        let title = page.locator("#work-work-field-references-title")
+        let title = metadata.locator("[id$='field-references-title']")
+        try await expect(title).toHaveCount(1)
         try await expect(title).not.toHaveAttribute("open")
-        try await page.locator("#work-work-field-references-title > .accordion-summary").click()
+        try await title.locator(":scope > .accordion-summary").click()
         try await expect(title).toHaveAttribute("data-open-finished", "true")
         let items = title.locator("ol.field-references-list > li")
         try await expect(items).toHaveCount(2)
@@ -63,19 +66,19 @@ struct ReferencesTests {
     try await admin.remove()
   }
 
-  /// A word: its record and version pages credit nothing; its hallmark's
+  /// A word: its record and version pages credit nothing; its overture's
   /// Sources number each fact's, and the branch sentiment, which rests on
   /// nothing, is Unsourced.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aWordIsCreditedOnItsHallmarkNotItsRecord(engine: BrowserEngine, layout: Layout) async throws {
+  func aWordIsCreditedOnItsOvertureNotItsRecord(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let word = try ScratchWord(owner: admin)
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        let hallmark = "/mission-control/hallmarks/lexicographic/\(word.hallmarkID)"
-        for path in [word.path, "\(word.path)/versions/\(word.versionID)"] {
+        let overture = "/mission-control/overtures/lexicographic/\(word.overtureID)"
+        for path in [word.path, "\(word.path)/snapshots/\(word.versionID)"] {
           try await page.openHydrated(path)
           try await expect(page.locator("#record-references, #references, .sources-view")).toHaveCount(0)
           try await expect(page.locator(".reference-credit-view")).toHaveCount(0)
@@ -84,9 +87,9 @@ struct ReferencesTests {
           try await page.expectNoHorizontalOverflow()
           try await page.expectNoErrors()
         }
-        try await expect(page.locator("a[href='\(hallmark)']")).not.toHaveCount(0)
+        try await expect(page.locator("a[href='\(overture)']")).not.toHaveCount(0)
 
-        try await page.openHydrated(hallmark)
+        try await page.openHydrated(overture)
         let sources = page.locator("#object-sources")
         try await expect(sources).not.toHaveAttribute("open")
         try await page.locator("#object-sources > .accordion-summary").click()

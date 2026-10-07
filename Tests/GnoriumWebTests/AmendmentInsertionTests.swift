@@ -20,18 +20,18 @@ struct AmendmentInsertionTests {
     let fixture = try await FixtureServer.formulationManifest()
     defer { fixture.stop() }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let work = try ScratchWork(owner: admin)
+    let work = try ScratchWork(owner: admin, sourceURL: fixture.baseURL + "/manifest.json")
     let record = work.recordID.lowercased()
     func clean() {
+      // Its amendment Instances are submitted input, frozen: they stay.
       _ = try? TestAdmin.query(
         """
         BEGIN;
         DELETE FROM inferred_citation_jobs WHERE record_id = '\(record)';
         DELETE FROM biblio_record_versions WHERE biblio_record_id = '\(record)' AND id <> '\(work.versionID.lowercased())';
         DELETE FROM modifications WHERE modifiable_id IN
-          (SELECT id FROM bibliographic_hallmarks WHERE biblio_record_id = '\(record)' AND id <> '\(work.hallmarkID.lowercased())');
-        DELETE FROM bibliographic_hallmarks WHERE biblio_record_id = '\(record)' AND id <> '\(work.hallmarkID.lowercased())';
-        DELETE FROM bibliographic_rebuttals WHERE biblio_record_id = '\(record)';
+          (SELECT id FROM bibliographic_overtures WHERE biblio_record_id = '\(record)' AND id <> '\(work.overtureID.lowercased())');
+        DELETE FROM bibliographic_overtures WHERE biblio_record_id = '\(record)' AND id <> '\(work.overtureID.lowercased())';
         COMMIT;
         """)
     }
@@ -40,15 +40,13 @@ struct AmendmentInsertionTests {
       // for it, and its copy hangs from its edition.
       let stood = try TestAdmin.query(
         "SELECT shape_json FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())';")
-      let evidence = try #require(
+      let instance = try #require(
         stood.firstMatch(of: /"edition-([0-9A-Fa-f-]+)"/).map { String($0.1) }, "\(stood)")
       _ = try TestAdmin.query(
         """
-        UPDATE bibliographic_evidences SET source_url = '\(fixture.baseURL)/manifest.json' WHERE id = '\(evidence.lowercased())';
-        UPDATE bibliographic_overtures SET source_url = '\(fixture.baseURL)/manifest.json' WHERE bibliographic_evidence_id = '\(evidence.lowercased())';
         UPDATE biblio_record_versions
           SET metadata_json = replace(replace(metadata_json, 'https://example.org/web-tests', '\(fixture.baseURL)/manifest.json'), '"category":"report"', '"category":"report","carrier":"printed","copyLabel":"Copy 1"'),
-            shape_json = '{"copy-\(evidence)":{"parent":"edition-\(evidence)","position":0},"edition-\(evidence)":{"parent":"work","position":0},"manifest-\(evidence)":{"parent":"copy-\(evidence)","position":0},"work":{"parent":null,"position":0}}'
+            shape_json = '{"copy-\(instance)":{"parent":"edition-\(instance)","position":0},"edition-\(instance)":{"parent":"work","position":0},"manifest-\(instance)":{"parent":"copy-\(instance)","position":0},"work":{"parent":null,"position":0}}'
           WHERE id = '\(work.versionID.lowercased())';
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -150,13 +148,13 @@ struct AmendmentInsertionTests {
         #expect(atomic.contains("\"issue-new\""))
         try await page.expectNoHorizontalOverflow()
         try await page.locator(".record-actions button[type='submit']").click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the reopened hallmark") {
-          $0.path.hasPrefix("/mission-control/hallmarks/bibliographic/")
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the reopened overture") {
+          $0.path.hasPrefix("/mission-control/overtures/bibliographic/")
         }
         let stored = try TestAdmin.query(
           """
-          SELECT shape_json FROM bibliographic_hallmarks
-            WHERE biblio_record_id = '\(record)' AND id <> '\(work.hallmarkID.lowercased())';
+          SELECT shape_json FROM bibliographic_overtures
+            WHERE biblio_record_id = '\(record)' AND id <> '\(work.overtureID.lowercased())';
           """
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(stored.contains("\"impression-\(witness)\":{\"parent\":\"work\""), "\(stored)")
@@ -166,14 +164,14 @@ struct AmendmentInsertionTests {
         let filed = try TestAdmin.query(
           """
           SELECT content_json FROM modifications WHERE modifiable_id IN
-            (SELECT id FROM bibliographic_hallmarks WHERE biblio_record_id = '\(record)' AND id <> '\(work.hallmarkID.lowercased())');
+            (SELECT id FROM bibliographic_overtures WHERE biblio_record_id = '\(record)' AND id <> '\(work.overtureID.lowercased())');
           """)
         #expect(filed.contains("\"impression\":\"Second impression\""), "\(filed)")
         #expect(filed.contains("\"issue\":\"Library issue\""), "\(filed)")
-        let modification = try TestAdmin.query("SELECT upper(id::text) FROM modifications WHERE modifiable_id IN (SELECT id FROM bibliographic_hallmarks WHERE biblio_record_id = '\(record)' AND id <> '\(work.hallmarkID.lowercased())');").trimmingCharacters(in: .whitespacesAndNewlines)
+        let modification = try TestAdmin.query("SELECT upper(id::text) FROM modifications WHERE modifiable_id IN (SELECT id FROM bibliographic_overtures WHERE biblio_record_id = '\(record)' AND id <> '\(work.overtureID.lowercased())');").trimmingCharacters(in: .whitespacesAndNewlines)
         try await page.locator(".intervention-thread-view form[action$='/modifications/\(modification)/accept'] button").first.click()
         try await page.waitForLoadState()
-        try await page.locator("button[form='hallmark-permit']").click()
+        try await page.locator("button[form='overture-permit']").click()
         try await expect(page.locator(".mission-control-object-header-status-chip"), timeout: .seconds(15)).toHaveText("Permitted")
         let published = try TestAdmin.query("SELECT shape_json FROM biblio_record_versions WHERE biblio_record_id = '\(record)' ORDER BY created_at DESC LIMIT 1;").trimmingCharacters(in: .whitespacesAndNewlines)
         let publishedShape = try JSONSerialization.jsonObject(with: Data(published.utf8)) as? NSDictionary

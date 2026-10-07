@@ -46,11 +46,11 @@ struct ExplicationSessionsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO lexicographic_antiphons (id, lexicographic_evidence_id, lexicographic_hallmark_id, requested_by_user_id,
+        INSERT INTO lexicographic_antiphons (id, lexicographic_instance_id, lexicographic_overture_id, requested_by_user_id,
           processing_status, processing_error, language, sentence, created_at, updated_at)
-          VALUES ('\(antiphon)', (SELECT o.lexicographic_evidence_id FROM lexicographic_overtures o
-            JOIN lexicographic_hallmarks h ON h.lexicographic_overture_id = o.id WHERE h.id = '\(word.hallmarkID)'),
-            '\(word.hallmarkID)', '\(user)', 'failed', 'Needs a person: web tests', 'eng', '\(word.title)', now(), now());
+          VALUES ('\(antiphon)', (SELECT o.lexicographic_instance_id FROM lexicographic_baselines o
+            JOIN lexicographic_overtures h ON h.lexicographic_baseline_id = o.id WHERE h.id = '\(word.overtureID)'),
+            '\(word.overtureID)', '\(user)', 'failed', 'Needs a person: web tests', 'eng', '\(word.title)', now(), now());
         INSERT INTO utterance_clusterings (id, lexicographic_antiphon_id, method, threshold, model, model_version,
           dimensions, recipe, utterance_ids_json)
           VALUES ('\(clustering)', '\(antiphon)', 'agglomerative-average-cosine-v1', 0.35, 'test/embedding',

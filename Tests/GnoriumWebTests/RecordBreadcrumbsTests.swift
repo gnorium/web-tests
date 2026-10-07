@@ -60,34 +60,31 @@ struct RecordBreadcrumbsTests {
     }
   }
 
-  /// A qualified record's Versions page walks the record's address, then its
-  /// own crumb. With the footer's home that is seven crumbs, one past the
-  /// fold: the middle (the language) folds into the overflow menu, as a link
-  /// that still goes to its page; home, the list, the record and the page
-  /// stay in sight.
+  /// A qualified record's Snapshots page walks the record's address, then
+  /// its own crumb. With the footer's home that is seven crumbs, every one in
+  /// sight (no overflow menu, 2026-10-04): the language a link that goes to
+  /// its page.
   @Test(arguments: gnorium.engines, Layout.allCases)
-  func aVersionsPageWalksItsRecordsPath(engine: BrowserEngine, layout: Layout) async throws {
+  func aSnapshotsPageWalksItsRecordsPath(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let (work, namesake) = try ScratchRecord.pair()
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-        try await page.openHydrated("\(work.path)/versions")
+        try await page.openHydrated("\(work.path)/snapshots")
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
         let trail = page.locator("footer .footer-breadcrumbs")
-        try await expect(trail.locator(".breadcrumb-item")).toHaveCount(6)
-        try await expect(trail.locator(".breadcrumb-current")).toHaveText("Versions")
+        try await expect(trail.locator(".breadcrumb-item")).toHaveCount(7)
+        try await expect(trail.locator(".breadcrumb-current")).toHaveText("Snapshots")
         let titleSlug = work.path.split(separator: "/")[2]
         for href in [
-          "/", "/biblio-records", "/biblio-records/eng/\(titleSlug)", "/biblio-records/eng/\(titleSlug)/report",
+          "/", "/biblio-records", "/biblio-records/eng", "/biblio-records/eng/\(titleSlug)", "/biblio-records/eng/\(titleSlug)/report",
           work.path,
         ] {
           try await expect(trail.locator(".breadcrumb-item > a[href='\(href)']")).toBeVisible()
         }
-        // The folded language: a link in the overflow menu.
-        try await trail.locator(".breadcrumb-overflow button").click()
-        let english = trail.locator(".breadcrumb-overflow a[href='/biblio-records/eng']")
-        try await expect(english).toBeVisible()
+        try await expect(trail.locator(".breadcrumb-overflow")).toHaveCount(0)
+        let english = trail.locator(".breadcrumb-item > a[href='/biblio-records/eng']")
         try await expect(english).toHaveText("English")
         try await english.click()
         try await expect(page).toHaveURL("/biblio-records/eng") { url in url.path == "/biblio-records/eng" }
