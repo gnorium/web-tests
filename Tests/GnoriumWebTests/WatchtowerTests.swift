@@ -33,7 +33,7 @@ struct WatchtowerTests {
         // The process the link filters by (its `status`), as the filter
         // names it: a permit link is named by what it lists ("biblio-record").
         let status = try #require(
-          URLComponents(string: href)?.queryItems?.first { $0.name == "status" }?.value, "\(phrase) filters no process")
+          URLComponents(string: href)?.queryItems?.first { $0.name == "status" }?.value, "\(phrase) filters no status")
         let row = try await Self.statusRow(page)
         let selected = row.locator(".filter-bar-value-select .dropdown-selected-text")
         try await expect(selected).not.toHaveText("")
@@ -60,7 +60,7 @@ struct WatchtowerTests {
     }
   }
 
-  static let statusLabels = ["Process", "Pipelines"]
+  static let statusLabels = ["Status"]
 
   static func statusRow(_ page: Page) async throws -> Locator {
     let rows = page.locator(".filter-bar-row")
