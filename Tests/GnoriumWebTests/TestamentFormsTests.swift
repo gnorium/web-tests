@@ -37,7 +37,7 @@ struct TestamentFormsTests {
 
   /// A record page shows each node's Forms read-only, after its description
   /// fields: the work's from the citations linked to the record alone, the
-  /// edition's from those a person linked to it, each with its testaments
+  /// edition's from those its explication placed at it, each with its testaments
   /// linked and no date; a work naming itself counts. Chrome headless.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aRecordPageShowsItsDerivedForms(engine: BrowserEngine, layout: Layout) async throws {
@@ -56,10 +56,10 @@ struct TestamentFormsTests {
       """
       INSERT INTO citations (id, biblio_record_version_id, biblio_record_id, testament_id, permitted_at, canvas_id, page,
         start_line, start_word, start_surface, end_line, end_word, end_surface, element, kind, surface, parts_json,
-        language_code, status, decided_by, cited_biblio_record_id, cited_node_id, resolved_at,
+        language_code, status, cited_biblio_record_id, cited_node_id, resolved_at,
         created_at, entry_head)
         VALUES ('\(id)', '\(version)', '\(record)', '\(version)', now(), 'c', 1, 1, \(word), 'w', 1, \(word), 'w',
-          'bibl', 'work', '\(surface)', '{}', 'eng', 'resolved', 'person', '\(record)', \(node.map { "'\($0)'" } ?? "NULL"),
+          'bibl', 'work', '\(surface)', '{}', 'eng', 'resolved', '\(record)', \(node.map { "'\($0)'" } ?? "NULL"),
           now(), now(), false);
       """
     }

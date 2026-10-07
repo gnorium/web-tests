@@ -18,14 +18,14 @@ struct CodePanelTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(reading.path)
-        try await page.locator("#madrigal-raw-xml .accordion-summary").click()
-        try await expect(page.locator(".madrigal-raw-xml-body .code-view")).toBeVisible()
+        try await page.locator("#tei-document .accordion-summary").click()
+        try await expect(page.locator(".tei-document-body .code-view")).toBeVisible()
         // Wait on geometry, not an arbitrary animation delay.
         let coherent = try await page.evaluate("""
           new Promise(resolve => {
             let attempts = 0;
             function check() {
-              const pane = document.querySelector('.madrigal-raw-xml-body');
+              const pane = document.querySelector('.tei-document-body');
               if (pane.getBoundingClientRect().height > 100 || attempts++ > 90) return resolve(true);
               requestAnimationFrame(check);
             }
@@ -35,7 +35,7 @@ struct CodePanelTests {
         #expect(coherent)
         let geometry = try await page.evaluate("""
           (() => {
-            const pane = document.querySelector('.madrigal-raw-xml-body');
+            const pane = document.querySelector('.tei-document-body');
             const code = pane.querySelector('.code-view');
             const gutter = code.querySelector('.code-gutter');
             const ps = getComputedStyle(pane), cs = getComputedStyle(code), gs = getComputedStyle(gutter);
@@ -48,7 +48,7 @@ struct CodePanelTests {
           """, as: Bool.self)
         #expect(geometry, "one scroll owner clips rounded, consistently colored code and gutter")
         let intact = try await page.evaluate("""
-          document.querySelector('.madrigal-raw-xml-body .code-code').textContent.includes('\(longText)')
+          document.querySelector('.tei-document-body .code-code').textContent.includes('\(longText)')
           """, as: Bool.self)
         #expect(intact, "long XML identifiers are preserved; they scroll without wrapping or truncation")
         try await page.expectNoHorizontalOverflow()

@@ -12,8 +12,9 @@ import WebTestsTesting
 /// and a digitization's agents and date before its place, a Production's
 /// event as an imprint gives it (place, agents, date); the carrier saying which of
 /// Publication and Production shows; no card, no level or group named, no
-/// Creation, no type check. A whole witness's modify form is the same
-/// stack. A level dated before the
+/// Creation, no type check. An overture's Modify page is its record as its
+/// page draws it, each testament's row open on those fields. A level dated
+/// before the
 /// work is warned of as it is
 /// typed, never refused. On Submit Testament nothing is submitted (the
 /// submit event is dispatched by hand, which runs the form's script but
@@ -222,11 +223,11 @@ struct TestamentLevelsTests {
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/overtures/bibliographic/\(overture)/modify")
-        let form = page.locator(".modify-bibliographic-form")
+        // The overture's record as its page draws it, its testaments' rows
+        // open on their fields: the manuscript's Production shows, its
+        // Publication does not.
+        let form = page.locator(".modify-bibliographic-object")
         let copy = form.locator(".activity-statement-view[data-as-namespace='production']")
-        // One stack, no card, no heading: the manuscript's Production shows,
-        // its Publication does not.
-        try await expect(form.locator(".framed-accordion-view, .metadata-group-title")).toHaveCount(0)
         try await expect(copy).toBeVisible()
         try await expect(form.locator(".activity-statement-view[data-as-namespace='publication']")).toBeHidden()
         let acquisition = form.locator(".testament-metadata-acquisition")
@@ -239,7 +240,7 @@ struct TestamentLevelsTests {
         try await shoot(page, "modify-manuscript", layout)
         try await label.fill("Web tests copy 10")
 
-        try await form.locator("button[type='submit']").first.click()
+        try await form.locator(".modification-form button[type='submit']").click()
         // The post answers with a redirect off the form.
         var left = false
         for _ in 0..<60 where !left {

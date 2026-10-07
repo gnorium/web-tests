@@ -107,8 +107,11 @@ struct UtteranceTests {
         let boxBottom = box.y + box.height
         #expect(box.y <= mark.y)
         #expect(markBottom <= boxBottom)
-        let scrolled = try await utterance.evaluate("box => box.scrollTop")
-        if case .number(let top) = scrolled { #expect(top > 0) } else { Issue.record("No scrollTop") }
+        // Scrolled to the sentence only where the passage overflows its box:
+        // reflowed at every width (user, 2026-10-07), a short one fits.
+        let scrolled = try await utterance.evaluate(
+          "box => box.scrollHeight > box.clientHeight + 1 ? box.scrollTop : -1")
+        if case .number(let top) = scrolled { #expect(top != 0) } else { Issue.record("No scrollTop") }
 
         // The link opens the testament's page at the utterance's page.
         let landed = try await page.evaluate(

@@ -44,7 +44,7 @@ struct BibliographicExplicationSessionsTests {
             (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1–2', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),
             '\(antiphonID)', 1200, now());
-        SAVE;
+        COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)")
@@ -115,7 +115,7 @@ struct BibliographicExplicationSessionsTests {
             (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),
             '\(antiphonID)', 1200, now());
-        SAVE;
+        COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)")
@@ -151,7 +151,7 @@ struct BibliographicExplicationSessionsTests {
       BEGIN;
       DELETE FROM bibliographic_explication_stage_runs WHERE id = '\(runID)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
-      SAVE;
+      COMMIT;
       """)
     work.remove()
   }

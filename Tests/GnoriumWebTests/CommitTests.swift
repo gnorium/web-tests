@@ -77,8 +77,10 @@ struct CommitTests {
         try await expect(page).toHaveURL("the address keeps the process") { $0.query?.contains("process=translation") == true }
         try await page.locator(".commit-trigger").click()
         #expect(try await Self.posted(page).pipeline == "bibliographic_translation")
+        // Modify is the object's alone, whichever process is chosen: its
+        // prompts are suggested on their process's page.
         try await expect(page.locator(".mission-control-object-header-view a[data-value='modify']"))
-          .toHaveAttribute("href", "\(scratch.madrigalPath.uppercased().replacingOccurrences(of: "/MISSION-CONTROL/MADRIGALS/BIBLIOGRAPHIC/", with: "/mission-control/madrigals/bibliographic/"))/modify?process=translation")
+          .toHaveAttribute("href", "\(scratch.madrigalPath.uppercased().replacingOccurrences(of: "/MISSION-CONTROL/MADRIGALS/BIBLIOGRAPHIC/", with: "/mission-control/madrigals/bibliographic/"))/modify")
 
         // A reload keeps it, before any script runs.
         try await page.openHydrated(scratch.madrigalPath + "?process=translation")

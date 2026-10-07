@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// Translation is one session per chunk of pages (user, 2026-09-29): a
-/// postlude's page lists its chunks as sessions ("1–2"), shows the
+/// serenade's page lists its chunks as sessions ("1–2"), shows the
 /// focused one's trace—each page opened, translated and committed, its
 /// last words—and no stages.
 @Suite("Translation sessions", .serialized)
@@ -31,14 +31,14 @@ struct TranslationSessionsTests {
   static let tei = #"{"teiXml":"<TEI><text><body><pb n=\"1\" facs=\"https://example.org/iiif/wt1/full/1300,/0/default.jpg\"/><p>Regola del tre</p><pb n=\"2\" facs=\"https://example.org/iiif/wt2/full/1300,/0/default.jpg\"/><p>Somma</p></body></text></TEI>"}"#
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aPostludeIsOneSessionPerChunk(engine: BrowserEngine, layout: Layout) async throws {
+  func aSerenadeIsOneSessionPerChunk(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
     let antiphon = UUID().uuidString.lowercased()
     let madrigal = UUID().uuidString.lowercased()
-    let postlude = UUID().uuidString.lowercased()
+    let serenade = UUID().uuidString.lowercased()
     do {
       let user = try admin.column("id")
       // Failed: no worker takes it up, nothing is spent.
@@ -51,17 +51,17 @@ struct TranslationSessionsTests {
           metadata_json, processing_status)
           VALUES ('\(madrigal)', '\(madrigal)', '\(antiphon)', '\(work.recordID.lowercased())', '\(Self.tei)',
             (SELECT metadata_json FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())'), 'committed');
-        INSERT INTO bibliographic_postludes (id, bibliographic_madrigal_id, target_language, requested_by_user_id,
+        INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, requested_by_user_id,
           processing_status, processing_error)
-          VALUES ('\(postlude)', '\(madrigal)', 'eng', '\(user)', 'failed', 'Web tests');
-        INSERT INTO bibliographic_translation_stage_runs (id, bibliographic_postlude_id, stage, chunk, attempt, provider, model, output,
+          VALUES ('\(serenade)', '\(madrigal)', 'eng', '\(user)', 'failed', 'Web tests');
+        INSERT INTO bibliographic_translation_stage_runs (id, bibliographic_serenade_id, stage, chunk, attempt, provider, model, output,
           result, duration_ms, created_at)
-          VALUES (gen_random_uuid(), '\(postlude)', 'translation', '1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
+          VALUES (gen_random_uuid(), '\(serenade)', 'translation', '1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
             '\(try Self.trace())', 'passed', 1200, now());
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        try await page.openHydrated("/mission-control/postludes/bibliographic/\(postlude)")
+        try await page.openHydrated("/mission-control/serenades/bibliographic/\(serenade)")
         let pipeline = page.locator(".pipeline-container")
         try await expect(pipeline).toHaveAttribute("data-active-stage", "translation")
         try await expect(page.locator(".stages-view")).toHaveCount(0)
@@ -73,19 +73,19 @@ struct TranslationSessionsTests {
         try await expect(session.getByText("Two pages of arithmetic, translated.")).toBeAttached()
       }
     } catch {
-      remove(antiphon: antiphon, madrigal: madrigal, postlude: postlude, work: work)
+      remove(antiphon: antiphon, madrigal: madrigal, serenade: serenade, work: work)
       try await admin.remove(after: error)
     }
-    remove(antiphon: antiphon, madrigal: madrigal, postlude: postlude, work: work)
+    remove(antiphon: antiphon, madrigal: madrigal, serenade: serenade, work: work)
     try await admin.remove()
   }
 
-  private func remove(antiphon: String, madrigal: String, postlude: String, work: ScratchWork) {
+  private func remove(antiphon: String, madrigal: String, serenade: String, work: ScratchWork) {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      DELETE FROM bibliographic_translation_stage_runs WHERE bibliographic_postlude_id = '\(postlude)';
-      DELETE FROM bibliographic_postludes WHERE id = '\(postlude)';
+      DELETE FROM bibliographic_translation_stage_runs WHERE bibliographic_serenade_id = '\(serenade)';
+      DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';
       DELETE FROM bibliographic_madrigals WHERE id = '\(madrigal)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphon)';
       COMMIT;

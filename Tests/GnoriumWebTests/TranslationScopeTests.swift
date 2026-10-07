@@ -20,9 +20,9 @@ struct TranslationScopeTests {
     do { reading = try ScratchReading(owner: admin, tei: tei, sourceURL: fixture.baseURL + "/manifest.json") }
     catch { try await admin.remove(after: error) }
     let epilogue = UUID().uuidString.lowercased()
-    let postlude = UUID().uuidString.lowercased()
+    let serenade = UUID().uuidString.lowercased()
     defer {
-      _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_postludes WHERE id = '\(postlude)';")
+      _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';")
       reading.remove()
     }
     do {
@@ -40,10 +40,10 @@ struct TranslationScopeTests {
         UPDATE bibliographic_madrigals SET metadata_json =
           (metadata_json::jsonb || '{"language":"ita","sourceUrl":"\(fixture.baseURL)/manifest.json"}'::jsonb)::text
           WHERE id = '\(reading.madrigalID)';
-        INSERT INTO bibliographic_postludes (id, bibliographic_madrigal_id, target_language, semblance_service_ids_json, requested_by_user_id, processing_status)
-          VALUES ('\(postlude)', '\(reading.madrigalID)', 'eng', '[]', '\(user)', 'submitted');
-        INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_postlude_id, proposed_content_json, metadata_json, translation_json, processing_status)
-          SELECT '\(epilogue)', '\(epilogue)', '\(reading.work.overtureID.lowercased())', '\(postlude)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
+        INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, semblance_service_ids_json, requested_by_user_id, processing_status)
+          VALUES ('\(serenade)', '\(reading.madrigalID)', 'eng', '[]', '\(user)', 'submitted');
+        INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id, proposed_content_json, metadata_json, translation_json, processing_status)
+          SELECT '\(epilogue)', '\(epilogue)', '\(reading.work.overtureID.lowercased())', '\(serenade)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
           FROM bibliographic_madrigals p WHERE p.id = '\(reading.madrigalID)';
         COMMIT;
         """)
@@ -98,11 +98,11 @@ struct TranslationScopeTests {
       #expect(try TestAdmin.query("SELECT processing_status FROM bibliographic_epilogues WHERE id = '\(epilogue)'") == "pending")
     } catch {
       // Release the account only after its scratch foreign-key dependants.
-      _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_postludes WHERE id = '\(postlude)';")
+      _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';")
       reading.remove()
       try await admin.remove(after: error)
     }
-    _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_postludes WHERE id = '\(postlude)';")
+    _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';")
     reading.remove()
     try await admin.remove()
   }
