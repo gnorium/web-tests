@@ -104,19 +104,18 @@ struct TableResizeTests {
     }
   }
 
+  /// The records' Process column fits its heading. It is the table's last
+  /// column, so it has no resize handle: its right edge is the box's own.
   @Test(arguments: gnorium.engines)
-  func aColumnThatFitsItsHeadingIsDraggedWiderAndFitsBack(engine: BrowserEngine) async throws {
+  func theLastColumnFitsItsHeadingWithNoHandle(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine)) { page in
       for path in ["/biblio-records", "/lexico-records"] {
         try await page.openHydrated(path)
         try await page.expectNoErrors()
-        try await expect(page.locator("main th[data-table-column-id='treatment']")).toHaveAttribute("data-fits-header", "true")
-        let before = try await Self.width(page, "treatment")
-        try await Self.drag(page, "treatment", by: 120)
-        let dragged = try await Self.width(page, "treatment")
-        #expect(dragged > before + 100, "\(path): Operation dragged 120 wider, \(before) became \(dragged)")
-        try await Self.fit(page, "treatment")
-        let fitted = try await Self.width(page, "treatment")
+        let column = page.locator("main th[data-table-column-id='treatment']")
+        try await expect(column).toHaveAttribute("data-fits-header", "true")
+        try await expect(column.locator(".table-resizer")).toBeHidden()
+        let width = try await Self.width(page, "treatment")
         let heading = try await page.evaluate(
           """
           (() => {
@@ -127,8 +126,7 @@ struct TableResizeTests {
           })()
           """, as: Width.self
         ).width
-        #expect(fitted < dragged - 20, "\(path): a double-click left Operation \(fitted) (dragged to \(dragged))")
-        #expect(abs(fitted - heading) < 4, "\(path): Operation fits to \(fitted), its heading is \(heading)")
+        #expect(abs(width - heading) < 4, "\(path): Process is \(width) wide, its heading \(heading)")
       }
     }
   }
@@ -246,14 +244,15 @@ struct TableResizeTests {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       for kind in ["bibliographic", "lexicographic"] {
         try await page.openHydrated("/mission-control/\(kind)")
-        let link = page.locator(".mission-control-workers-table a[href='/mission-control/workers']")
+        // One row per worker of the shared pool, each to its own page.
+        let link = page.locator(".mission-control-workers-table a[href='/mission-control/workers/1']")
         try await expect(link).toHaveCount(1)
         try await expect(link).toHaveText("Worker 1")
         try await expect(page.locator(".mission-control-workers-table th[data-table-column-id='pipeline']")).toHaveCount(0)
         if layout == .phone { try await link.tap() }
         else { try await link.click() }
-        try await expect(page.locator("h1")).toHaveText("Workers")
-        try await expect(page.locator(".mission-control-worker-settings .datum-view")).toHaveCount(6)
+        try await expect(page.locator("h1")).toHaveText("Worker 1")
+        try await expect(page.locator(".mission-control-worker-data .datum-view")).toHaveCount(3)
         try await expect(page.locator("main input[name='count'], main input[name='enabled']")).toHaveCount(0)
         let breadcrumb = try await page.evaluate("document.querySelector('.breadcrumb-list')?.textContent || ''", as: String.self)
         #expect(breadcrumb.contains("Workers"))

@@ -77,7 +77,7 @@ struct CanvasAttachmentTests {
               window.__canvasMock='emitted';
               this.emit('start','{}');
               const src='data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="3000" height="4000"><rect width="3000" height="4000" fill="#e7dec7"/></svg>');
-              this.emit('chunk',JSON.stringify({type:'tool',name:'view_canvas',arguments:'{"label":"1"}',result:JSON.stringify({ok:true,canvas:'1',page_url:src,detail_url:src,source_width:3000,source_height:4000,sent_width:900,sent_height:1200}),status:'ok',call_id:'late-canvas'}));
+              this.emit('chunk',JSON.stringify({type:'tool',semblance:'Page 1',name:'view_canvas',arguments:'{"label":"1"}',result:JSON.stringify({ok:true,canvas:'1',page_url:src,detail_url:src,source_width:3000,source_height:4000,sent_width:900,sent_height:1200}),status:'ok',call_id:'late-canvas'}));
             },500); }
             addEventListener(name,fn) { (this.handlers[name]??=[]).push(fn); }
             emit(name,data) { window.__canvasMockHandlers=Object.keys(this.handlers); for(const fn of this.handlers[name]??[])fn({data}); }
