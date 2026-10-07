@@ -50,11 +50,17 @@ struct WatchtowerFigureLinksTests {
     try await withPage(engine, gnorium) { page in
       try await page.openHydrated("/")
       let figures = try await Self.figures(page)
-      try #require(figures.count >= 58, "the Watchtower shows \(figures.count) figure links")
-      try #require(figures.filter { $0.href.contains("show=runs") }.count == 12, "every stage has three run links")
+      try #require(figures.count >= 38, "the Watchtower shows \(figures.count) figure links")
+      try #require(figures.filter { $0.href.contains("show=runs") }.count == 6, "every stage has three run links")
       for figure in figures {
         let count = try #require(Int(figure.text.prefix { $0.isNumber }))
-        let listed = try await Self.listed(page, figure.href)
+        // Explication's figures count both kinds' runs: the list they open
+        // and the same list on the other kind's tab.
+        var listed = try await Self.listed(page, figure.href)
+        if figure.href.contains("stage=explication") {
+          listed += try await Self.listed(
+            page, figure.href.replacingOccurrences(of: "/lifecycles/bibliographic", with: "/lifecycles/lexicographic"))
+        }
         #expect(listed == count, "\(figure.text) opens \(listed) rows: \(figure.href)")
       }
     }
@@ -94,10 +100,15 @@ struct WatchtowerFigureLinksTests {
       // A run its worker lost is failed, not a status of its own.
       let stalled = try await page.evaluate("document.body.innerHTML.includes('Stalled')", as: Bool.self)
       #expect(!stalled, "the runs list offers a Stalled status")
-      if count == 0 {
+      // The figure counts both kinds' explication runs: this list, and the
+      // same list on the Lexicographic tab, which keeps the filters.
+      let lexicographic = href.replacingOccurrences(of: "/lifecycles/bibliographic", with: "/lifecycles/lexicographic")
+      try await expect(page.locator("a[href='\(lexicographic)']").first).toBeAttached()
+      let bibliographic = count - (try await Self.listed(page, lexicographic))
+      if bibliographic == 0 {
         try await expect(page.locator(".mission-control-core-empty")).toBeVisible()
       } else {
-        try await expect(page.locator(".bibliographic-runs-table")).toHaveAttribute("data-total-items", "\(count)")
+        try await expect(page.locator(".bibliographic-runs-table")).toHaveAttribute("data-total-items", "\(bibliographic)")
       }
     }
   }

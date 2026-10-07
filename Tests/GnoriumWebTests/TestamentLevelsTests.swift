@@ -222,7 +222,7 @@ struct TestamentLevelsTests {
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/overtures/bibliographic/\(overture)/modify")
-        let form = page.locator(".modify-bibliographic-overture-form")
+        let form = page.locator(".modify-bibliographic-form")
         let copy = form.locator(".activity-statement-view[data-as-namespace='production']")
         // One stack, no card, no heading: the manuscript's Production shows,
         // its Publication does not.

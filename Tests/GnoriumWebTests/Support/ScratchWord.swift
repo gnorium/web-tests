@@ -40,7 +40,12 @@ struct ScratchWord {
   }
 
   /// `language` is the record's (ISO 639-3): English unless named.
-  init(owner: TestAdmin, distinction: String? = nil, anchor: Anchor? = nil, language: String = "eng") throws {
+  /// `submitted` leaves its notation awaiting its verdict (submitted, not
+  /// yet permitted), as a Modify page needs it.
+  init(
+    owner: TestAdmin, distinction: String? = nil, anchor: Anchor? = nil, language: String = "eng",
+    submitted: Bool = false
+  ) throws {
     let user = try owner.column("id")
     var ids: [String: String] = [:]
     for name in ["submission", "instance", "overture", "antiphon", "notation", "lemma", "record", "version"] {
@@ -93,7 +98,7 @@ struct ScratchWord {
       INSERT INTO lexicographic_antiphons (id, lexicographic_instance_id, lexicographic_overture_id, requested_by_user_id, processing_status, language, sentence, title_form_json)
         VALUES ('\(ids["antiphon"]!)', '\(ids["instance"]!)', '\(ids["overture"]!)', '\(user)', 'submitted', '\(language)', '\(title)', '\(titleForm)');
       INSERT INTO lexicographic_notations (id, lexicographic_antiphon_id, lexico_record_id, proposed_content_json, processing_status, permitted_by_user_id, permitted_at)
-        VALUES ('\(ids["notation"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"record":\(snapshot),"homographFlags":[],"evidenceRequests":[],"reasoning":"Web tests."}', 'permitted', '\(user)', now());
+        VALUES ('\(ids["notation"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"record":\(snapshot),"homographFlags":[],"evidenceRequests":[],"reasoning":"Web tests."}', \(submitted ? "'submitted', NULL, NULL" : "'permitted', '\(user)', now()"));
       INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_notation_id, treatment, record_json, created_at)
         VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["notation"]!)', 1, '\(snapshot)', now());
       COMMIT;
