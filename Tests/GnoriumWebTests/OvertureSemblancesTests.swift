@@ -43,7 +43,9 @@ struct OvertureSemblancesTests {
         try await page.openHydrated(scratch.overturePath)
         let viewer = page.locator(".disputorium-core-work .artifact-view").first
         try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
-        try await expect(viewer.locator("#artifact-page-total")).toHaveText("3")
+        // The manifest is fetched after hydration: slow while the full run
+        // loads the server, so waited for in full.
+        try await expect(viewer.locator("#artifact-page-total"), timeout: .seconds(20)).toHaveText("3")
         let roster = page.locator(".overture-semblances").first
         let rows = roster.locator(".roster-row")
         try await expect(rows).toHaveCount(3)
@@ -53,7 +55,8 @@ struct OvertureSemblancesTests {
 
         // The preview is the page on screen's, never a notice.
         let task = page.locator(".prompt-instance-task .prompt-text-source").first
-        try await expect(page.locator(".prompt-instances-slot")).toHaveAttribute("aria-busy", "false")
+        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+          .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".prompt-instances-notice")).toHaveCount(0)
         try await expect(page.locator(".prompt-instances-content .accordion-view")).toHaveCount(2)
         try await expect(task).toContainText("Title page")
@@ -112,6 +115,10 @@ struct OvertureSemblancesTests {
         try await translation.click()
         try await expect(translation).toHaveAttribute("aria-pressed", "true")
         try await expect(explication).toHaveAttribute("aria-pressed", "false")
+        // The translation's prompts are asked for as it is pressed: their
+        // answer waited for in full.
+        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+          .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "bibliographic_translation")
         try await Self.settle()
         #expect(Self.sameBox(try #require(try await pill.boundingBox()), try #require(try await translation.boundingBox())),

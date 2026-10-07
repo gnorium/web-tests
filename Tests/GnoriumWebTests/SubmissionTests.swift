@@ -567,11 +567,15 @@ struct SubmissionTests {
     let field = form.locator(".record-choice-field-view")
     let dropdown = field.locator(".dropdown-view")
     let tree = form.locator(".submit-sentiment-tree")
+    // Picked once the field's first answer has redrawn it.
+    try await expect(field.locator(".record-choice-field-slot"), timeout: .seconds(20))
+      .toHaveAttribute("aria-busy", "false")
     try await dropdown.locator(".dropdown-trigger").click()
     try await dropdown.locator(".dropdown-search-input").fill(word.title)
-    try await dropdown.locator(
-      ".dropdown-options-list[data-dropdown-results='true'] .dropdown-option[data-value='\(word.recordID)']"
-    ).click()
+    let found = dropdown.locator(
+      ".dropdown-options-list[data-dropdown-results='true'] .dropdown-option[data-value='\(word.recordID)']")
+    try await expect(found, timeout: .seconds(20)).toBeVisible()
+    try await found.click()
     try await expect(field.locator("input[name='lexico-record']")).toHaveValue(word.recordID)
     try await expect(tree.locator(".outliner-view"), timeout: .seconds(15)).toHaveCount(1)
     let apparatus = form.locator(".submit-sentiment-apparatus")

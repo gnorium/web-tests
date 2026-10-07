@@ -45,6 +45,40 @@ struct WatchtowerFigureLinksTests {
       """, as: Int.self)
   }
 
+  /// The figure the Watchtower shows for `href`, as the server renders it
+  /// now (the page's own figures follow a live stream whose figures are
+  /// held for a tick).
+  static func figure(_ page: Page, _ href: String) async throws -> Int? {
+    try await page.evaluate(
+      """
+      fetch('/').then(r => r.text()).then(html => {
+        const doc = new DOMParser().parseFromString(html, 'text/html')
+        const link = [...doc.querySelectorAll(\(jsString(figureLinks)))]
+          .find(a => a.getAttribute('href') === \(jsString(href)))
+        const count = link && /^\\d+/.exec(link.textContent.trim())
+        return count ? Number(count[0]) : null
+      })
+      """, as: Int?.self)
+  }
+
+  /// A figure and the length of its list, read again until they agree:
+  /// other suites create and commit objects while this one reads, so a
+  /// figure read a moment before its list can be one behind it. A real
+  /// disagreement outlasts the 30 seconds and is returned as read last.
+  static func agreeing(
+    _ page: Page, _ href: String, figure count: Int, listed: () async throws -> Int
+  ) async throws -> (figure: Int, listed: Int) {
+    var figure = count
+    var rows = try await listed()
+    let deadline = ContinuousClock.now + .seconds(30)
+    while rows != figure, ContinuousClock.now < deadline {
+      try await Task.sleep(for: .milliseconds(500))
+      figure = try await Self.figure(page, href) ?? figure
+      rows = try await listed()
+    }
+    return (figure, rows)
+  }
+
   @Test(arguments: gnorium.engines)
   func everyFigureIsTheLengthOfItsList(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium) { page in
@@ -56,12 +90,15 @@ struct WatchtowerFigureLinksTests {
         let count = try #require(Int(figure.text.prefix { $0.isNumber }))
         // Explication's figures count both kinds' runs: the list they open
         // and the same list on the other kind's tab.
-        var listed = try await Self.listed(page, figure.href)
-        if figure.href.contains("stage=explication") {
-          listed += try await Self.listed(
-            page, figure.href.replacingOccurrences(of: "/lifecycles/bibliographic", with: "/lifecycles/lexicographic"))
+        let (shown, listed) = try await Self.agreeing(page, figure.href, figure: count) {
+          var listed = try await Self.listed(page, figure.href)
+          if figure.href.contains("stage=explication") {
+            listed += try await Self.listed(
+              page, figure.href.replacingOccurrences(of: "/lifecycles/bibliographic", with: "/lifecycles/lexicographic"))
+          }
+          return listed
         }
-        #expect(listed == count, "\(figure.text) opens \(listed) rows: \(figure.href)")
+        #expect(listed == shown, "\(figure.text) (now \(shown)) opens \(listed) rows: \(figure.href)")
       }
     }
   }
@@ -123,7 +160,7 @@ struct WatchtowerFigureLinksTests {
         try await page.openHydrated("/")
         let link = page.locator(".watchtower-object-figures-view a[href='\(href)']").first
         let phrase = try await link.textContent()
-        let count = try #require(Int(phrase.prefix { $0.isNumber }), "\(href) reads \(phrase)")
+        let shown = try #require(Int(phrase.prefix { $0.isNumber }), "\(href) reads \(phrase)")
         try await link.click()
         try await expect(page, timeout: .seconds(15)).toHaveURL(href)
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
@@ -141,8 +178,23 @@ struct WatchtowerFigureLinksTests {
         #expect(placeholders == 0, "\(href): \(placeholders) filter rows show a placeholder")
 
         // The rows, after hydration, are the filtered ones: as many as the
-        // figure, each a lifecycle holding the object in that status.
+        // figure, each a lifecycle holding the object in that status. The
+        // list is opened again until it and the figure agree (see
+        // `agreeing`).
         let table = page.locator(".\(tab)-lifecycles-table")
+        var reopened = false
+        let (count, total) = try await Self.agreeing(page, href, figure: shown) {
+          if reopened { try await page.openHydrated(href) }
+          reopened = true
+          return try await page.evaluate(
+            """
+            (() => {
+              const table = document.querySelector('.\(tab)-lifecycles-table')
+              return table ? Number(table.getAttribute('data-total-items')) : 0
+            })()
+            """, as: Int.self)
+        }
+        #expect(total == count, "\(href): the list holds \(total) for the figure's \(count)")
         if count == 0 {
           try await expect(page.locator(".mission-control-core-empty")).toBeVisible()
         } else {

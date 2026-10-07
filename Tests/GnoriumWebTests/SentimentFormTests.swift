@@ -87,10 +87,16 @@ struct SentimentFormTests {
       try await form.locator("input[name='title']").fill("\(word.title)s")
       let field = form.locator(".record-choice-field-view")
       let dropdown = field.locator(".dropdown-view")
+      // The typed title redraws the field once its answer is in: picked
+      // only after, so the answer does not close the menu or drop the
+      // choice. The search's answer is waited for in full.
+      try await expect(field.locator(".record-choice-field-slot"), timeout: .seconds(20))
+        .toHaveAttribute("aria-busy", "false")
       try await dropdown.locator(".dropdown-trigger").click()
       try await dropdown.locator(".dropdown-search-input").fill(word.title)
       let found = dropdown.locator(
         ".dropdown-options-list[data-dropdown-results='true'] .dropdown-option[data-value='\(word.recordID)']")
+      try await expect(found, timeout: .seconds(20)).toBeVisible()
       try await found.click()
       try await expect(field.locator("input[name='lexico-record']")).toHaveValue(word.recordID)
       let tree = form.locator(".submit-sentiment-tree")

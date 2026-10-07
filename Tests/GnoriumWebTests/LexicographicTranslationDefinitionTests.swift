@@ -38,7 +38,7 @@ struct LexicographicTranslationDefinitionTests {
         UPDATE lexico_record_versions SET record_json = jsonb_set(record_json::jsonb, '{senses,1,labels,grammar}',
             '["in seafaring use"]')::text
           WHERE id = '\(word.versionID.lowercased())';
-        -- The Arabic record translated: a version (status 3) permitted
+        -- The Arabic record translated: a version (status 2) permitted
         -- from a lexicographic epilogue, as the antecedent check requires.
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition, target,
             status, submitted_by_user_id, summary, definition_translation_json, evaluated_at, evaluated_by_user_id)
