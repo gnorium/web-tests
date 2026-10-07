@@ -91,7 +91,7 @@ struct ModifyPagesTests {
         // The thread says who suggested it and its size, and links it.
         try await page.openHydrated(commit.madrigalPath)
         let event = page.locator("#modification-\(id)")
-        try await expect(event).toContainText("suggested a modification")
+        try await expect(event).toContainText("suggested modification")
         try await expect(event.locator(".intervention-thread-event-added")).toBeVisible()
 
         // Its page draws each diff where it is made: the record's tree,
@@ -100,7 +100,8 @@ struct ModifyPagesTests {
         try await expect(page.locator(".testament-tree-diff-view")).toHaveCount(1)
         try await expect(page.getByText("Ordinance of semblance 1").first).toBeVisible()
         try await expect(page.locator(".testament-diff[data-edited='true'] .tooltip-view").first).toBeAttached()
-        try await expect(page.getByText("Explication Prompts").first).toBeAttached()
+        // The prompts as an object's read, the one changed open on its diff.
+        try await expect(page.locator(".prompt-change-view .diff-view").first).toBeVisible()
         try await expect(page.getByText("Web tests suggestion.").first).toBeAttached()
         try await page.expectNoHorizontalOverflow()
         _ = try await page.evaluate(
