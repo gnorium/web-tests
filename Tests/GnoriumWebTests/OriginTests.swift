@@ -74,17 +74,17 @@ struct OriginTests {
       let block = form.locator(".origin-field-view")
       try await expect(block).toHaveCount(1)
       // No heading; one row to start, as the voices have.
-      try await expect(block.locator(".origin-field-view-heading")).toHaveCount(0)
+      try await expect(block.locator(".origin-field-heading")).toHaveCount(0)
       // A step's card in a list of the tree: the top level's, or a step's own.
       let cards = ":scope > .outliner-item > .outliner-row > .outliner-node > [data-origin-row='true']"
-      let top = block.locator(".origin-field-view-steps > .outliner-scroll > .outliner-list")
+      let top = block.locator(".origin-field-steps > .outliner-scroll > .outliner-list")
       let rows = top.locator(cards)
       try await expect(rows).toHaveCount(1)
       // A step's own "+ Origin" / "− Origin": its node's last row, after
       // the steps under it (user, 2026-10-01).
       let items = top.locator(":scope > .outliner-item")
       func controls(_ item: Locator) -> Locator {
-        item.locator(":scope > .outliner-footer > .origin-field-view-actions")
+        item.locator(":scope > .outliner-footer > .origin-field-actions")
       }
 
       // The row: its relation (a plain noun), its record field, its typed
@@ -94,7 +94,7 @@ struct OriginTests {
       // noun, the words for assistive technology (user, 2026-10-01).
       let first = rows.first
       try await expect(first.locator(".origin-record-field-view")).toHaveCount(1)
-      try await expect(first.locator(".origin-field-view-actions")).toHaveCount(0)
+      try await expect(first.locator(".origin-field-actions")).toHaveCount(0)
       let actions = controls(items.first)
       try await expect(actions.locator(".origin-add-own-btn")).toHaveAttribute("aria-label", "Add Origin")
       try await expect(actions.locator(".origin-add-own-btn")).toHaveText("Origin")
@@ -147,9 +147,9 @@ struct OriginTests {
       try await certainty.locator(".dropdown-trigger").click()
       try await certainty.locator(".dropdown-option[data-value='probable']").click()
       try await expect(certainty.locator(".dropdown-selected-text")).toHaveText("Probable")
-      let record = first.locator(".origin-field-view-record .origin-record-field-view")
+      let record = first.locator(".origin-field-record .origin-record-field-view")
       try await expect(record.locator("legend")).toContainText("Record")
-      let typedFields = first.locator(".origin-field-view-typed")
+      let typedFields = first.locator(".origin-field-typed")
       try await expect(typedFields).toBeVisible()
 
       // Pick the original's record: the typed fields go; its testaments
@@ -173,7 +173,7 @@ struct OriginTests {
 
       // A second row, typed: its own "+ Origin" gives it an origin of its
       // own.
-      try await block.locator(".origin-field-view-add .origin-add-btn").click()
+      try await block.locator(".origin-field-add .origin-add-btn").click()
       try await expect(rows).toHaveCount(2)
       let second = rows.nth(1)
       // Its record field is asked for once it is on the page: settled, the
@@ -191,7 +191,7 @@ struct OriginTests {
         "(a) => [...a.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')).join('|')"
       ).string
       #expect(named == "Add Origin|Remove Origin", "add first, then remove: \(named ?? "")")
-      try await expect(block.locator(".origin-field-view-add .origin-add-btn")).toHaveText("Origin")
+      try await expect(block.locator(".origin-field-add .origin-add-btn")).toHaveText("Origin")
       if viewport.width < 768 {
         let stacked = try await secondActions.evaluate(
           "(a) => { const [x, y] = a.querySelectorAll('button'); const r = (b) => b.getBoundingClientRect(); const cs = getComputedStyle(a); const w = a.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight); return r(x).bottom <= r(y).top && Math.abs(r(x).width - w) < 2 && Math.abs(r(y).width - w) < 2 }"
@@ -229,7 +229,7 @@ struct OriginTests {
       try await secondType.locator(".dropdown-trigger").click()
       try await secondType.locator(".dropdown-search-input").fill("Treatise")
       try await secondType.locator(".dropdown-option[data-value='treatise']").filter(visible: true).first.click()
-      let secondDate = second.locator(".origin-field-view-typed > .form-date-view")
+      let secondDate = second.locator(".origin-field-typed > .form-date-view")
       try await expect(secondDate).toHaveCount(1)
       let yearEnd = secondDate.locator("input[name='\(secondKey)-year-end']")
       try await expect(yearEnd).toBeHidden()
@@ -240,7 +240,7 @@ struct OriginTests {
       try await secondDate.locator("input[name='\(secondKey)-year']").fill("1560")
       try await yearEnd.fill("1565")
       // Its voices a row each, as the work's own: a role and a name.
-      let voiceList = second.locator(".origin-field-view-typed > .form-items-view")
+      let voiceList = second.locator(".origin-field-typed > .form-items-view")
       let voiceRows = voiceList.locator("[data-item-section='true']:not([data-item-template] *)")
       try await expect(voiceRows).toHaveCount(1)
       try await voiceRows.first.locator(".text-input-input").fill("Ann Author")
@@ -279,7 +279,7 @@ struct OriginTests {
           // before its script writes the JSON: this reads the script alone.
           form.removeAttribute('novalidate');
           form.dispatchEvent(new Event('submit', { cancelable: true }));
-          return form.querySelector('.origin-field-view-json').value;
+          return form.querySelector('.origin-field-json').value;
         }
         """
       ).string ?? ""
@@ -317,7 +317,7 @@ struct OriginTests {
       try await expect(first.locator(".origin-record-field-view")).not.toContainText("Testament")
       try await expect(typedFields).toBeVisible()
       // A step with a step under it asks before it goes: Cancel keeps both.
-      let removeDialog = block.locator(".origin-field-view-remove-dialog")
+      let removeDialog = block.locator(".origin-field-remove-dialog")
       try await controls(secondItem).locator(".origin-remove-btn").click()
       try await expect(removeDialog).toHaveAttribute("data-open", "true")
       try await removeDialog.locator(".dialog-default-button button").click()
@@ -445,21 +445,21 @@ struct OriginTests {
         "data-display", "Calque")
       try await wordRelation.locator(".dropdown-trigger").click()
       try await wordRelation.locator(".dropdown-option[data-value='coinage']").click()
-      try await expect(wordRow.locator(".origin-field-view-record")).toBeHidden()
-      try await expect(wordRow.locator(".origin-field-view-typed")).toBeHidden()
+      try await expect(wordRow.locator(".origin-field-record")).toBeHidden()
+      try await expect(wordRow.locator(".origin-field-typed")).toBeHidden()
       // Unchosen, and another chosen: the fields come back.
       try await wordRelation.locator(".dropdown-option[data-value='coinage']").click()
       try await wordRelation.locator(".dropdown-option[data-value='eponym_of']").click()
       try await wordRelation.locator(".dropdown-trigger").click()
-      try await expect(wordRow.locator(".origin-field-view-record")).toBeVisible()
-      try await expect(wordRow.locator(".origin-field-view-typed")).toBeVisible()
+      try await expect(wordRow.locator(".origin-field-record")).toBeVisible()
+      try await expect(wordRow.locator(".origin-field-typed")).toBeVisible()
       // A word's typed step: its word class from the closed list, and its
       // date as every date of ours.
       let wordKey = try await wordRow.getAttribute("data-origin-key") ?? ""
       let wordType = wordRow.locator(".dropdown-view:has(#\(wordKey)-type)")
       try await expect(wordType.locator(".dropdown-option[data-value='verb']")).toHaveCount(1)
       try await expect(wordType.locator(".dropdown-option[data-value='other']")).toHaveCount(0)
-      try await expect(wordRow.locator(".origin-field-view-typed > .form-date-view")).toHaveCount(1)
+      try await expect(wordRow.locator(".origin-field-typed > .form-date-view")).toHaveCount(1)
     }
   }
 }

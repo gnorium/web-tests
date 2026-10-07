@@ -63,10 +63,10 @@ struct CitationsTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(reading.path)
         let citations = page.locator(".madrigal-citations-view")
-        try await expect(citations.locator(".madrigal-citations-view-count")).toHaveText("2 citations")
+        try await expect(citations.locator(".madrigal-citations-count")).toHaveText("2 citations")
         try await citations.locator(".accordion-summary").first.click()
         // Pending: read from its transcript, held at Permit, as its Entries.
-        try await expect(citations.locator(".madrigal-citations-view-note")).toContainText("held once it is permitted")
+        try await expect(citations.locator(".madrigal-citations-note")).toContainText("held once it is permitted")
         let rows = citations.locator(".madrigal-citation")
         try await expect(rows).toHaveCount(2)
         // The reference, placed by its explication: the cited work.
@@ -82,7 +82,7 @@ struct CitationsTests {
         try await expect(rows.nth(1)).toContainText("placement")
         // Its record field is asked for once in view, the placed record chosen.
         _ = try await reference.evaluate("(el) => el.scrollIntoView({block: 'center'})")
-        let field = reference.locator(".madrigal-citations-view-record .origin-record-field-view")
+        let field = reference.locator(".madrigal-citations-record .origin-record-field-view")
         try await expect(field).toHaveCount(1)
         try await expect(field).toContainText("Cited record")
         try await page.expectNoHorizontalOverflow()
@@ -159,9 +159,9 @@ struct CitationsTests {
         // Its Citations: the citing work, with how many.
         let citations = page.locator("#record-citations")
         try await citations.locator(".accordion-summary").first.click()
-        let row = citations.locator(".citations-view-work")
+        let row = citations.locator(".citations-work")
         try await expect(row.locator("a[href='\(citing.path)']")).toHaveCount(1)
-        try await expect(row.locator(".citations-view-count")).toHaveText("1 citation")
+        try await expect(row.locator(".citations-count")).toHaveText("1 citation")
         let metadata = page.locator("#record-metadata")
         try await metadata.locator(".accordion-summary").first.click()
         let datum = metadata.locator(".datum-view").filter(hasText: "Citations")
@@ -224,15 +224,15 @@ struct EntryLinksTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(reading.path)
         let entries = page.locator(".madrigal-entries-view")
-        try await expect(entries.locator(".madrigal-entries-view-count")).toHaveText("1 entry")
-        try await expect(entries.locator(".madrigal-entries-view-heading .info-chip-view")).toHaveCount(0)
+        try await expect(entries.locator(".madrigal-entries-count")).toHaveText("1 entry")
+        try await expect(entries.locator(".madrigal-entries-heading .info-chip-view")).toHaveCount(0)
         // Entries always come above Citations.
         let order = try await page.evaluate(
           "(() => { const e = document.querySelector('.madrigal-entries-view'), c = document.querySelector('.madrigal-citations-view'); return e && c && (e.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) ? 'above' : 'not above'; })()"
         ).string
         #expect(order == "above")
         try await entries.locator(".accordion-summary").first.click()
-        try await expect(entries.locator(".madrigal-entries-view-note")).toContainText("held once it is permitted")
+        try await expect(entries.locator(".madrigal-entries-note")).toContainText("held once it is permitted")
         let row = entries.locator(".madrigal-entry")
         try await expect(row).toHaveCount(1)
         try await expect(row).toContainText("Heading")
@@ -241,7 +241,7 @@ struct EntryLinksTests {
         try await expect(row.locator("a[href='/users/gnorium']")).toHaveCount(1)
         // Its record field is asked for once in view, the placed record chosen; no node.
         _ = try await row.evaluate("(el) => el.scrollIntoView({block: 'center'})")
-        let field = row.locator(".madrigal-entries-view-record .origin-record-field-view")
+        let field = row.locator(".madrigal-entries-record .origin-record-field-view")
         try await expect(field).toHaveCount(1)
         try await expect(field).toContainText("Entry for")
         try await expect(row.locator("input[name='entry-record-0']")).toHaveValue(target.recordID)
@@ -299,9 +299,9 @@ struct EntryLinksTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(scratch.reading.path)
         let entries = page.locator(".madrigal-entries-view")
-        try await expect(entries.locator(".madrigal-entries-view-count")).toHaveText("—")
-        try await expect(entries.locator(".madrigal-entries-view-body")).toContainText("Not read yet")
-        try await expect(entries.locator(".madrigal-entries-view-note")).toHaveCount(0)
+        try await expect(entries.locator(".madrigal-entries-count")).toHaveText("—")
+        try await expect(entries.locator(".madrigal-entries-body")).toContainText("Not read yet")
+        try await expect(entries.locator(".madrigal-entries-note")).toHaveCount(0)
         // Read, with none.
         _ = try TestAdmin.query(
           """
@@ -309,7 +309,7 @@ struct EntryLinksTests {
             VALUES ('\(UUID().uuidString.lowercased())', '\(scratch.versionID)', 0, now());
           """)
         try await page.openHydrated(scratch.reading.path)
-        try await expect(entries.locator(".madrigal-entries-view-count")).toHaveText("0 entries")
+        try await expect(entries.locator(".madrigal-entries-count")).toHaveText("0 entries")
         try await page.expectNoHorizontalOverflow()
       }
     } catch {

@@ -46,11 +46,11 @@ struct CommitTests {
         // One process: no toggle, no dialog; Commit posts explication.
         try await page.openHydrated(scratch.overturePath)
         try await expect(page.locator(".process-toggle-view")).toHaveCount(0)
-        try await expect(page.locator(".commit-view-dialog, .commit-view-menu")).toHaveCount(0)
+        try await expect(page.locator(".commit-dialog, .commit-menu")).toHaveCount(0)
         let overtureActions = page.locator(".mission-control-object-header-action-buttons > *")
         try await expect(overtureActions).toHaveTexts(["Modify", "Commit", "Delete"])
         #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
-        try await page.locator(".commit-view-trigger").click()
+        try await page.locator(".commit-trigger").click()
         try await expect(page.locator("body")).toBeAttached()
         let one = try await Self.posted(page)
         #expect(one.pipeline == "bibliographic_explication")
@@ -71,11 +71,11 @@ struct CommitTests {
         try await expect(buttons).toHaveTexts(["Explication", "Translation"])
         try await expect(buttons.nth(0)).toHaveAttribute("aria-pressed", "true")
         #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
-        try await page.locator(".commit-view-trigger").click()
+        try await page.locator(".commit-trigger").click()
         #expect(try await Self.posted(page).pipeline == "bibliographic_explication")
         try await buttons.nth(1).click()
         try await expect(page).toHaveURL("the address keeps the process") { $0.query?.contains("process=translation") == true }
-        try await page.locator(".commit-view-trigger").click()
+        try await page.locator(".commit-trigger").click()
         #expect(try await Self.posted(page).pipeline == "bibliographic_translation")
         try await expect(page.locator(".mission-control-object-header-view a[data-value='modify']"))
           .toHaveAttribute("href", "\(scratch.madrigalPath.uppercased().replacingOccurrences(of: "/MISSION-CONTROL/MADRIGALS/BIBLIOGRAPHIC/", with: "/mission-control/madrigals/bibliographic/"))/modify?process=translation")
@@ -83,7 +83,7 @@ struct CommitTests {
         // A reload keeps it, before any script runs.
         try await page.openHydrated(scratch.madrigalPath + "?process=translation")
         try await expect(buttons.nth(1)).toHaveAttribute("aria-pressed", "true")
-        try await expect(page.locator(".commit-view-pipeline")).toHaveAttribute("value", "bibliographic_translation")
+        try await expect(page.locator(".commit-pipeline")).toHaveAttribute("value", "bibliographic_translation")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }

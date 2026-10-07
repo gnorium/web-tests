@@ -119,7 +119,7 @@ struct TestamentLevelsTests {
       try await expect(form.locator(".section-legend").filter(hasText: "Provision")).toHaveCount(0)
 
       // The copy's Acquisition, whatever the carrier.
-      let acquisition = draft.locator(".testament-metadata-view-acquisition")
+      let acquisition = draft.locator(".testament-metadata-acquisition")
       try await expect(acquisition).toBeVisible()
       try await expect(form.locator("#testament-copy-label")).toBeVisible()
       try await expect(acquisition.locator("input[name='holding-institution-dropdown']")).toHaveCount(1)
@@ -229,7 +229,7 @@ struct TestamentLevelsTests {
         try await expect(form.locator(".framed-accordion-view, .metadata-group-title")).toHaveCount(0)
         try await expect(copy).toBeVisible()
         try await expect(form.locator(".activity-statement-view[data-as-namespace='publication']")).toBeHidden()
-        let acquisition = form.locator(".testament-metadata-view-acquisition")
+        let acquisition = form.locator(".testament-metadata-acquisition")
         let label = form.locator("#testament-copy-label")
         try await expect(label).toBeVisible()
         try await expect(label).toHaveValue("Web tests copy 9")

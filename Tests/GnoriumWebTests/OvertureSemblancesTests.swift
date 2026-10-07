@@ -122,7 +122,7 @@ struct OvertureSemblancesTests {
         let actions = page.locator(".mission-control-object-header-grouped-actions")
         let row = try #require(try await actions.boundingBox())
         let modify = try #require(try await actions.locator(".button-group-button[data-value='modify']").boundingBox())
-        let commit = try #require(try await actions.locator(".commit-view-trigger").boundingBox())
+        let commit = try #require(try await actions.locator(".commit-trigger").boundingBox())
         let permit = try #require(try await actions.locator(".button-group-button[data-value='madrigal-permit']").boundingBox())
         if layout == .phone {
           // A phone: the toggle a full-width row of its own, its segments

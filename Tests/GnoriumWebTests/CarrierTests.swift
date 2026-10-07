@@ -95,7 +95,7 @@ struct CarrierTests {
       let gaps = try await page.evaluate(
         """
         (() => {
-          const typed = document.querySelector('.origin-field-view-row .origin-field-view-typed');
+          const typed = document.querySelector('.origin-field-row .origin-field-typed');
           const last = [...typed.children].filter((c) => getComputedStyle(c).display !== 'none').pop();
           return {
             typedEnd: Math.round(typed.getBoundingClientRect().bottom - last.getBoundingClientRect().bottom),
@@ -168,7 +168,7 @@ struct CarrierTests {
       let container = publication.locator(".container-field-view")
       try await expect(container.locator("legend").first).toHaveText("Container")
       try await expect(container.locator(".origin-record-field-view legend")).toContainText("Record")
-      try await expect(container.locator(".container-field-view-typed")).toBeVisible()
+      try await expect(container.locator(".container-field-typed")).toBeVisible()
       for name in ["container-volume", "container-issue", "container-pages"] {
         try await expect(container.locator("input[name='\(name)']")).toHaveCount(1)
       }
@@ -180,7 +180,7 @@ struct CarrierTests {
       try await found.click()
       // A host chosen: its testaments to name one by, no typed host.
       try await expect(container.locator(".origin-record-field-view")).toContainText("Testament")
-      try await expect(container.locator(".container-field-view-typed")).toBeHidden()
+      try await expect(container.locator(".container-field-typed")).toBeHidden()
 
       // The work's Domains, a row each, as its Genres: the Library of
       // Congress Classification's classes.

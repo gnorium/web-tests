@@ -85,10 +85,10 @@ struct WordDetailsTests {
         try await expect(dialog).toBeVisible()
         try await expect(dialog.locator(".dialog-header-title")).toHaveText("scratchwords")
         let details = dialog.locator(".word-details-view")
-        try await expect(details.locator(".word-details-view-word .datum-label")).toHaveTexts([
+        try await expect(details.locator(".word-details-word .datum-label")).toHaveTexts([
           "Lemma", "Type", "Morphology",
         ])
-        try await expect(details.locator(".word-details-view-word .datum-value")).toHaveTexts([
+        try await expect(details.locator(".word-details-word .datum-value")).toHaveTexts([
           "scratchword", "Noun", "Number: Plural",
         ])
         // The record at a glance.
@@ -107,7 +107,7 @@ struct WordDetailsTests {
         let translation = details.locator(".lexicographic-translations-view a").filter(hasText: german.title)
         try await expect(translation).toBeVisible()
         try await expect(translation).toHaveAttribute("href", "\(german.path)#record-row-s-1-1")
-        let recordLink = details.locator(".word-details-view-link a")
+        let recordLink = details.locator(".word-details-link a")
         try await expect(recordLink).toHaveText("View English \(english.title) (Noun)")
         try await expect(recordLink).toHaveAttribute("href", english.path)
         // As large as the screen inside the backdrop's margin, on a phone and
@@ -136,7 +136,7 @@ struct WordDetailsTests {
         try await page.keyboard.press("Enter")
         try await expect(dialog).toBeVisible()
         try await expect(dialog.locator(".dialog-header-title")).toHaveText("stood")
-        try await expect(details.locator(".word-details-view-word .datum-value")).toHaveTexts([
+        try await expect(details.locator(".word-details-word .datum-value")).toHaveTexts([
           "stand", "Verb", "Tense: Past",
         ])
         try await expect(details.locator(".record-view")).toHaveCount(0)

@@ -77,7 +77,7 @@ struct TranslationScopeTests {
         #expect(task.contains("Translate these pages from Italian into English: Pages 1–2."))
         // Commit translates the stale pages while none is ticked, and the
         // pages ticked once some are.
-        let commit = page.locator(".commit-view-trigger")
+        let commit = page.locator(".commit-trigger")
         let submitted = { () async throws -> String in
           try await page.evaluate("JSON.stringify(window.__translationSubmit)", as: String.self)
         }

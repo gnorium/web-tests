@@ -197,7 +197,7 @@ struct SubmissionTests {
     try await expect(row(tree, "copy").locator("#testament-carrier")).toHaveCount(1)
     try await expect(controls(tree, "copy").locator(".testament-draft-remove-level")).toBeHidden()
     try await expect(
-      row(tree, "copy").locator(".testament-metadata-view-citations[data-citations-slot='production'] \(citations)")
+      row(tree, "copy").locator(".testament-metadata-citations[data-citations-slot='production'] \(citations)")
     ).toBeVisible()
     // Printed: its edition back, the carrier and publication there; the
     // copy's making gone; the edition named as it is typed.
@@ -359,7 +359,7 @@ struct SubmissionTests {
     try await grip.press("Enter")
     try await expect(number).toHaveText("1.2")
     try await expect(row(tree, "manifest").locator(".record-row-number").first).toHaveText("1.2.1")
-    try await expect(copy.locator(".testament-metadata-view-acquisition")).toBeVisible()
+    try await expect(copy.locator(".testament-metadata-acquisition")).toBeVisible()
     try await expect(row(tree, "manifest").locator(".activity-statement-view[data-as-namespace='digitization']"))
       .toBeVisible()
     try await expect(tree.locator("#new-testament-carrier")).toBeDisabled()

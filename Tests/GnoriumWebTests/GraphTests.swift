@@ -74,13 +74,13 @@ struct GraphTests {
         // The empty page: indexed; one relation to choose, by its plural, "of" a record.
         try await page.openHydrated("/graph")
         try await expect(page.locator("meta[name='robots']")).toHaveAttribute("content", "index, follow")
-        try await expect(page.locator(".graph-view-title")).toHaveText("Graph")
-        let query = page.locator("form.graph-view-query")
+        try await expect(page.locator(".graph-title")).toHaveText("Graph")
+        let query = page.locator("form.graph-query")
         try await expect(query.locator(".graph-relation")).toHaveCount(1)
-        try await expectTexts(query.locator(".graph-view-word"), ["of"])
+        try await expectTexts(query.locator(".graph-word"), ["of"])
         try await expect(query.getByRole(.combobox, name: "Record")).toHaveCount(1)
         // A card as the filter bar's, and no sidebar.
-        try await expect(page.locator("form.graph-view-query.query-card-view")).toHaveCount(1)
+        try await expect(page.locator("form.graph-query.query-card-view")).toHaveCount(1)
         try await expect(page.locator("aside")).toHaveCount(0)
         // The swap icon (2026-10-03): the two arrows one above the other,
         // the same size, a clear gap between them, offset to fill a square,
@@ -88,7 +88,7 @@ struct GraphTests {
         let stacked = try await page.evaluate(
           """
           (() => {
-            const svg = document.querySelector('form.graph-view-query svg.swap-icon-view');
+            const svg = document.querySelector('form.graph-query svg.swap-icon-view');
             const [a, b] = [...svg.querySelectorAll('path')].map(p => p.getBoundingClientRect());
             const box = svg.getBoundingClientRect();
             const middle = r => r.left + r.width / 2;
@@ -114,7 +114,7 @@ struct GraphTests {
         try await expect(query.locator(".graph-relation .dropdown-menu")).toBeVisible()
         let broken = try await page.evaluate(
           """
-          [...document.querySelectorAll("form.graph-view-query .graph-relation .dropdown-option-display-text")].flatMap(el => {
+          [...document.querySelectorAll("form.graph-query .graph-relation .dropdown-option-display-text")].flatMap(el => {
             const text = el.firstChild; const out = []; let at = 0;
             for (const word of text.data.split(' ')) {
               const range = document.createRange(); range.setStart(text, at); range.setEnd(text, at + word.length);
@@ -125,7 +125,7 @@ struct GraphTests {
           """)
         #expect(broken == .array([]), "Words broken over lines: \(broken)")
         let inside = try await page.evaluate(
-          "(() => { const m = document.querySelector('form.graph-view-query .graph-relation .dropdown-menu').getBoundingClientRect(); return m.left >= 0 && m.right <= window.innerWidth + 1 })()")
+          "(() => { const m = document.querySelector('form.graph-query .graph-relation .dropdown-menu').getBoundingClientRect(); return m.left >= 0 && m.right <= window.innerWidth + 1 })()")
         #expect(inside == .bool(true), "The open list stays inside the viewport.")
         await shoot(page, "relations", layout)
         try await page.keyboard.press("Escape")
@@ -142,14 +142,14 @@ struct GraphTests {
         try await page.openHydrated(Self.query(["citation-of"], record: cited.path))
         try await expect(page.locator("meta[name='robots']")).toHaveAttribute("content", "noindex, follow")
         try await expect(page.locator(".records-count-view")).toContainText("1 citation")
-        let row = page.locator(".graph-view-table tbody tr")
+        let row = page.locator(".graph-table tbody tr")
         try await expect(row).toHaveCount(1)
         // The record the site's way: "Language › Title" over its type.
         let listed = row.locator(".graph-record-view").first
         try await expect(listed.locator("a[href='\(citing.path)'] .breadcrumb-label-context")).toHaveText("English")
         try await expect(listed.locator("a[href='\(citing.path)'] .breadcrumb-label-text")).toHaveText(citing.title)
         try await expect(listed.locator(".record-type-view")).toHaveCount(1)
-        let count = row.locator("a.graph-view-count")
+        let count = row.locator("a.graph-count")
         try await expect(count).toHaveText("3 citations")
         try await expect(count).toHaveAttribute(
           "href", "\(cited.path)/citations?work=\(citing.recordID)&direction=citations")
@@ -170,26 +170,26 @@ struct GraphTests {
         try await expect(filters.getByText("All", exact: true)).toHaveCount(0)
         await shoot(page, "citations-of", layout)
         try await count.click()
-        try await expect(page.locator(".record-citations-view-citation")).toHaveCount(3)
+        try await expect(page.locator(".record-citations-citation")).toHaveCount(3)
 
         // A filter narrows the records listed.
         try await page.openHydrated(Self.query(["citation-of"], record: cited.path, extra: "&language=eng"))
-        try await expect(page.locator(".graph-view-table tbody tr a[href='\(citing.path)']")).toHaveCount(1)
+        try await expect(page.locator(".graph-table tbody tr a[href='\(citing.path)']")).toHaveCount(1)
         try await page.openHydrated(Self.query(["citation-of"], record: cited.path, extra: "&language=fra"))
         try await expect(page.locator(".records-count-view")).toContainText("0 citations")
-        try await expect(page.locator(".graph-view-empty-message")).toHaveText("No citations.")
+        try await expect(page.locator(".graph-empty-message")).toHaveText("No citations.")
 
         // None: said in words, no drawing.
         try await page.openHydrated(Self.query(["container-of"], record: cited.path))
         try await expect(page.locator(".records-count-view")).toContainText("0 containers")
-        try await expect(page.locator(".graph-view-empty-message")).toHaveText("No containers.")
+        try await expect(page.locator(".graph-empty-message")).toHaveText("No containers.")
         try await expect(page.locator(".relation-graph-view")).toHaveCount(0)
 
         // No record: every pair, the record each is of in its own column.
         try await page.openHydrated(Self.query(["translation-of"], record: ""))
         try await expect(page.locator(".records-count-view")).toContainText("pair")
         try await expect(page.locator(".filter-bar-view.query-card-view")).toHaveCount(1)
-        let pair = page.locator(".graph-view-table tbody tr").filter(hasText: translation.title)
+        let pair = page.locator(".graph-table tbody tr").filter(hasText: translation.title)
         try await expect(pair).toHaveCount(1)
         try await expect(pair.locator("a[href='\(citing.path)']")).toHaveCount(1)
         // Each end's column named after the relation: subjects by the
@@ -198,46 +198,46 @@ struct GraphTests {
 
         // "+" adds a hop: "Translations of citations of [the cited work]".
         try await page.openHydrated(Self.query(["translation-of"], record: cited.path))
-        try await expect(page.locator(".graph-view-empty-message")).toHaveText("No translations.")
-        try await page.locator("form.graph-view-query button[aria-label='Add a relation']").click()
-        let second = page.locator("form.graph-view-query .graph-view-hop").nth(1)
+        try await expect(page.locator(".graph-empty-message")).toHaveText("No translations.")
+        try await page.locator("form.graph-query button[aria-label='Add a relation']").click()
+        let second = page.locator("form.graph-query .graph-hop").nth(1)
         try await expect(second).toBeVisible()
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
-        try await expect(page.locator("form.graph-view-query input[name='record']")).toHaveValue(cited.path)
+        try await expect(page.locator("form.graph-query input[name='record']")).toHaveValue(cited.path)
         try await second.locator(".dropdown-trigger").click()
         try await second.locator(".dropdown-option[data-value='citation-of']").click()
-        try await page.locator("form.graph-view-query button[type='submit']").filter(hasText: "Search").click()
+        try await page.locator("form.graph-query button[type='submit']").filter(hasText: "Search").click()
         try await expect(page.locator(".records-count-view")).toContainText("1 translation")
-        let chained = page.locator(".graph-view-table tbody tr")
+        let chained = page.locator(".graph-table tbody tr")
         try await expect(chained).toHaveCount(1)
         try await expect(chained.locator("a[href='\(translation.path)']")).toHaveCount(1)
-        try await expect(chained.locator(".graph-view-via a[href='\(citing.path)']")).toHaveCount(1)
+        try await expect(chained.locator(".graph-via a[href='\(citing.path)']")).toHaveCount(1)
         // "Translations of / citations of / [record]", laid out as the
         // filter bar: each word on its control's line, + on the first hop
         // and − on the second; a phone stacks the rest at full width, swap
         // and Search last; a desktop ends the first hop's line with + and
         // the actions and the second's with −.
-        try await expectTexts(page.locator("form.graph-view-query .graph-view-word"), ["of", "of"])
+        try await expectTexts(page.locator("form.graph-query .graph-word"), ["of", "of"])
         // Icon-only: the Codex add and subtract icons, no "+"/"−" character.
-        try await expect(page.locator("form.graph-view-query .graph-view-add")).toHaveText("")
-        try await expect(page.locator("form.graph-view-query .graph-view-add svg.add-icon-view")).toHaveCount(1)
-        try await expect(page.locator("form.graph-view-query .graph-view-add")).toHaveAttribute("aria-label", "Add a relation")
-        try await expect(page.locator("form.graph-view-query .graph-view-remove")).toHaveText("")
-        try await expect(page.locator("form.graph-view-query .graph-view-remove svg.subtract-icon-view")).toHaveCount(1)
+        try await expect(page.locator("form.graph-query .graph-add")).toHaveText("")
+        try await expect(page.locator("form.graph-query .graph-add svg.add-icon-view")).toHaveCount(1)
+        try await expect(page.locator("form.graph-query .graph-add")).toHaveAttribute("aria-label", "Add a relation")
+        try await expect(page.locator("form.graph-query .graph-remove")).toHaveText("")
+        try await expect(page.locator("form.graph-query .graph-remove svg.subtract-icon-view")).toHaveCount(1)
         let laidOut = try await page.evaluate(
           """
           (() => {
-            const q = document.querySelector('form.graph-view-query');
+            const q = document.querySelector('form.graph-query');
             const r = s => q.querySelector(s).getBoundingClientRect();
             const [first, second] = [...q.querySelectorAll('.graph-relation')].map(e => e.getBoundingClientRect());
-            const [of1, of2] = [...q.querySelectorAll('.graph-view-word')].map(e => e.getBoundingClientRect());
-            const add = r('.graph-view-add'), remove = r('a.graph-view-remove'), record = r('.graph-record');
-            const swap = r('.graph-view-swap'), search = r('.graph-view-search');
+            const [of1, of2] = [...q.querySelectorAll('.graph-word')].map(e => e.getBoundingClientRect());
+            const add = r('.graph-add'), remove = r('a.graph-remove'), record = r('.graph-record');
+            const swap = r('.graph-swap'), search = r('.graph-search');
             const middle = b => (b.top + b.bottom) / 2;
             const worded = Math.abs(middle(of1) - middle(first)) < 2 && of1.left > first.right
               && Math.abs(middle(of2) - middle(second)) < 2 && of2.left > second.right;
             if (window.innerWidth <= 768) {
-              return worded && [add, remove, record, swap, search].every(b => Math.abs(b.width - q.querySelector('.graph-view-grid').getBoundingClientRect().width) < 1)
+              return worded && [add, remove, record, swap, search].every(b => Math.abs(b.width - q.querySelector('.graph-grid').getBoundingClientRect().width) < 1)
                 && add.top >= first.bottom && second.top >= add.bottom && remove.top >= second.bottom
                 && record.top >= remove.bottom && swap.top >= record.bottom && search.top >= swap.bottom;
             }
@@ -248,19 +248,19 @@ struct GraphTests {
           })()
           """)
         #expect(laidOut == .bool(true), "The query is laid out as the filter bar (\(layout)).")
-        try await expect(page.locator("form.graph-view-query a.graph-view-remove[data-weight='subtle']")).toHaveCount(1)
-        try await expect(page.locator("form.graph-view-query button.graph-view-add[data-weight='subtle']")).toHaveCount(1)
+        try await expect(page.locator("form.graph-query a.graph-remove[data-weight='subtle']")).toHaveCount(1)
+        try await expect(page.locator("form.graph-query button.graph-add[data-weight='subtle']")).toHaveCount(1)
         try await expectHeaders(page, listed: "Translations", last: nil)
         try await expectTexts(
           page.locator(".relation-graph-view .relation-graph-title"), [cited.title, citing.title, translation.title])
         try await expectTexts(page.locator(".relation-graph-view .relation-graph-label"), ["citation of", "translation of"])
         await shoot(page, "chain", layout)
         // Every hop after the first removable, by its −.
-        let removes = page.locator("form.graph-view-query a[aria-label='Remove this relation']")
+        let removes = page.locator("form.graph-query a[aria-label='Remove this relation']")
         try await expect(removes).toHaveCount(1)
         try await removes.click()
-        try await expect(page.locator("form.graph-view-query .graph-view-hop")).toHaveCount(1)
-        try await expect(page.locator(".graph-view-empty-message")).toHaveText("No translations.")
+        try await expect(page.locator("form.graph-query .graph-hop")).toHaveCount(1)
+        try await expect(page.locator(".graph-empty-message")).toHaveText("No translations.")
 
         // A work's Origin opens the record-first form: "[this work] is
         // translation of" → what it translates, the arrow from it.
@@ -269,19 +269,19 @@ struct GraphTests {
         try await expect(fromOrigin).toHaveText("View in graph")
         try await fromOrigin.click()
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
-        let sentence = page.locator("form.graph-view-query")
+        let sentence = page.locator("form.graph-query")
         try await expect(sentence.locator("input[name='record']")).toHaveValue(translation.path)
         // "[record] is / [translation] of" (user, 2026-09-30): "of" beside
         // the dropdown, as "is" beside the record, never in its options.
-        try await expectTexts(sentence.locator(".graph-view-word"), ["is", "of"])
+        try await expectTexts(sentence.locator(".graph-word"), ["is", "of"])
         try await expect(sentence.locator(".graph-relation .dropdown-selected-text")).toHaveText("translation")
         try await expect(sentence.locator(".graph-relation [data-display='adaptation']")).toHaveCount(1)
         try await expect(sentence.locator(".graph-relation [data-display$=' of']")).toHaveCount(0)
         let worded = try await page.evaluate(
           """
           (() => {
-            const q = document.querySelector('form.graph-view-query');
-            const [is, of] = [...q.querySelectorAll('.graph-view-word')].map(e => e.getBoundingClientRect());
+            const q = document.querySelector('form.graph-query');
+            const [is, of] = [...q.querySelectorAll('.graph-word')].map(e => e.getBoundingClientRect());
             const record = q.querySelector('.graph-record').getBoundingClientRect();
             const relation = q.querySelector('.graph-relation').getBoundingClientRect();
             const middle = b => (b.top + b.bottom) / 2;
@@ -293,10 +293,10 @@ struct GraphTests {
           """)
         #expect(worded == .bool(true), "Each word on its control's line, in one column (\(layout)).")
         try await expect(page.locator(".records-count-view")).toContainText("1 record")
-        let translated = page.locator(".graph-view-table tbody tr")
+        let translated = page.locator(".graph-table tbody tr")
         try await expect(translated).toHaveCount(1)
         try await expect(translated.locator("a[href='\(citing.path)']")).toHaveCount(1)
-        try await expect(translated.locator("a.graph-view-count")).toHaveAttribute("href", "\(translation.path)#origin")
+        try await expect(translated.locator("a.graph-count")).toHaveAttribute("href", "\(translation.path)#origin")
         // The objects listed, named by the noun: "Translation of".
         try await expectHeaders(page, listed: "Translation of", last: nil)
         try await expectTexts(page.locator(".relation-graph-title"), [translation.title, citing.title])
@@ -310,27 +310,27 @@ struct GraphTests {
         let swap = sentence.locator("button[aria-label='Put the relation first']")
         try await expect(swap.locator("svg.swap-icon-view")).toHaveCount(1)
         try await swap.click()
-        try await expectTexts(page.locator("form.graph-view-query .graph-view-word"), ["of"])
-        try await expect(page.locator("form.graph-view-query input[name='record']")).toHaveValue(translation.path)
-        try await expect(page.locator(".graph-view-empty-message")).toHaveText("No translations.")
+        try await expectTexts(page.locator("form.graph-query .graph-word"), ["of"])
+        try await expect(page.locator("form.graph-query input[name='record']")).toHaveValue(translation.path)
+        try await expect(page.locator(".graph-empty-message")).toHaveText("No translations.")
 
         // Chained, each hop's row "[noun] of".
         try await page.openHydrated(
           Self.query(["translation-of", "citation-of"], record: translation.path, extra: "&form=sentence"))
-        try await expectTexts(page.locator("form.graph-view-query .graph-view-word"), ["is", "of", "of"])
+        try await expectTexts(page.locator("form.graph-query .graph-word"), ["is", "of", "of"])
         try await expectTexts(
-          page.locator("form.graph-view-query .graph-relation .dropdown-selected-text"), ["translation", "citation"])
+          page.locator("form.graph-query .graph-relation .dropdown-selected-text"), ["translation", "citation"])
         try await expectTexts(page.locator(".relation-graph-view .relation-graph-label"), ["translation of", "citation of"])
 
         // "Citations of [the cited work]", as its Citations open it.
         try await page.openHydrated(cited.path)
         try await page.locator("#record-citations .accordion-summary").first.click()
-        let fromCitations = page.locator("#record-citations a.citations-view-graph")
+        let fromCitations = page.locator("#record-citations a.citations-graph")
         try await expect(fromCitations).toHaveText("View in graph")
         // Opened by its address: the accordion is still opening under a tap.
         try await page.goto(try await fromCitations.getAttribute("href") ?? "")
-        try await expect(page.locator("form.graph-view-query input[name='record']")).toHaveValue(cited.path)
-        try await expect(page.locator(".graph-view-table tbody tr a[href='\(citing.path)']")).toHaveCount(1)
+        try await expect(page.locator("form.graph-query input[name='record']")).toHaveValue(cited.path)
+        try await expect(page.locator(".graph-table tbody tr a[href='\(citing.path)']")).toHaveCount(1)
 
         // The records sidebars do not link it; the bare list is indexed, a
         // filtered one not.
@@ -354,8 +354,8 @@ struct GraphTests {
 
   /// The listed column's header, and the other end's (nil: no such column).
   private func expectHeaders(_ page: Page, listed: String, last: String?) async throws {
-    try await expect(page.locator(".graph-view-table th#col-listed .table-header-label")).toHaveText(listed)
-    let lastHeader = page.locator(".graph-view-table th#col-last .table-header-label")
+    try await expect(page.locator(".graph-table th#col-listed .table-header-label")).toHaveText(listed)
+    let lastHeader = page.locator(".graph-table th#col-last .table-header-label")
     if let last {
       try await expect(lastHeader).toHaveText(last)
     } else {

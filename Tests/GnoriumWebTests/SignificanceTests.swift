@@ -66,10 +66,10 @@ struct SignificanceTests {
         // The admins' page: every utterance of the title, why each was chosen.
         _ = try await page.goto(
           "/mission-control/lexicographic/significance?language=eng&title=\(scratchWord.title)&type=noun")
-        let view = page.locator(".significant-utterances-view-content")
+        let view = page.locator(".significant-utterances-content")
         try await expect(view.locator("h1")).toHaveText("Significant utterances")
-        try await expect(view.locator(".significant-utterances-view-summary")).toContainText("1 of 2")
-        let items = view.locator(".significant-utterances-view-item")
+        try await expect(view.locator(".significant-utterances-summary")).toContainText("1 of 2")
+        let items = view.locator(".significant-utterances-item")
         try await expect(items).toHaveCount(2)
         // In reading order: page 1's line first, then the word on page 3.
         try await expect(items.first).toContainText("Not selected")

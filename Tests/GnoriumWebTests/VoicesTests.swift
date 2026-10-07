@@ -77,7 +77,7 @@ struct VoicesTests {
       try await expect(remove).toHaveAttribute("aria-label", "Remove Voice")
       try await expect(remove.locator("svg.subtract-icon-view")).toHaveCount(1)
       let ownLine = try await rows.nth(2).evaluate(
-        "(r) => { const b = r.querySelector(':scope > .form-actions-view > .item-remove-btn').getBoundingClientRect(); const f = r.querySelector(':scope > .form-items-view-fields').getBoundingClientRect(); const n = r.querySelector('[id$=\\'-text-input\\']').closest('.combobox-view, .text-input-view').getBoundingClientRect(); return b.top >= n.bottom && b.top >= f.bottom && Math.abs(b.left - f.left) < 2 && b.width <= f.width + 1 }"
+        "(r) => { const b = r.querySelector(':scope > .form-actions-view > .item-remove-btn').getBoundingClientRect(); const f = r.querySelector(':scope > .form-items-fields').getBoundingClientRect(); const n = r.querySelector('[id$=\\'-text-input\\']').closest('.combobox-view, .text-input-view').getBoundingClientRect(); return b.top >= n.bottom && b.top >= f.bottom && Math.abs(b.left - f.left) < 2 && b.width <= f.width + 1 }"
       ).bool
       #expect(ownLine == true, "the row's − Remove voice should sit on its own line under its fields, at the start")
       // A phone: every add/remove button full width, stacked; wider,

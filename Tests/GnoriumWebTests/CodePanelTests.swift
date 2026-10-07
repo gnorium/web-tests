@@ -37,7 +37,7 @@ struct CodePanelTests {
           (() => {
             const pane = document.querySelector('.madrigal-raw-xml-body');
             const code = pane.querySelector('.code-view');
-            const gutter = code.querySelector('.code-view-gutter');
+            const gutter = code.querySelector('.code-gutter');
             const ps = getComputedStyle(pane), cs = getComputedStyle(code), gs = getComputedStyle(gutter);
             return ps.backgroundColor === cs.backgroundColor && cs.backgroundColor === gs.backgroundColor
               && parseFloat(ps.borderRadius) > 0 && parseFloat(ps.paddingLeft) === 16
@@ -48,7 +48,7 @@ struct CodePanelTests {
           """, as: Bool.self)
         #expect(geometry, "one scroll owner clips rounded, consistently colored code and gutter")
         let intact = try await page.evaluate("""
-          document.querySelector('.madrigal-raw-xml-body .code-view-code').textContent.includes('\(longText)')
+          document.querySelector('.madrigal-raw-xml-body .code-code').textContent.includes('\(longText)')
           """, as: Bool.self)
         #expect(intact, "long XML identifiers are preserved; they scroll without wrapping or truncation")
         try await page.expectNoHorizontalOverflow()

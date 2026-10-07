@@ -37,7 +37,7 @@ struct SemblanceCanvasTests {
     (viewer) => JSON.stringify([...viewer.querySelectorAll('.semblance-view')].map(s => ({
       service: s.dataset.serviceId,
       shown: getComputedStyle(s).display !== 'none',
-      tiles: s.querySelectorAll('.canvas-view-tile-image').length,
+      tiles: s.querySelectorAll('.canvas-tile-image').length,
     })))
     """
 
@@ -115,7 +115,7 @@ struct SemblanceCanvasTests {
         try await toggle.click()
         try await expect(toggle).toHaveAttribute("aria-pressed", "true")
         try await expect(object).toBeVisible()
-        try await expect(viewer.locator(".semblance-view[data-active='true'] .canvas-view-tile-image").first)
+        try await expect(viewer.locator(".semblance-view[data-active='true'] .canvas-tile-image").first)
           .toHaveCount(1)
         try await expect(viewer.locator(".semblance-view[data-active='true']"))
           .toHaveAttribute("data-service-id", services[1])
@@ -125,7 +125,7 @@ struct SemblanceCanvasTests {
         try await expect(toggle).toHaveAttribute("aria-pressed", "true")
         try await expect(viewer.locator(".semblance-view[data-active='true']"))
           .toHaveAttribute("data-service-id", services[2])
-        try await expect(viewer.locator(".semblance-view[data-active='true'] .canvas-view-tile-image").first)
+        try await expect(viewer.locator(".semblance-view[data-active='true'] .canvas-tile-image").first)
           .toHaveCount(1)
 
         // Across navigation in the session.
@@ -134,7 +134,7 @@ struct SemblanceCanvasTests {
         try await expect(again).toHaveAttribute("data-artifact-hydrated", "true")
         try await expect(again.locator(".artifact-canvas-toggle button")).toHaveAttribute("aria-pressed", "true")
         try await expect(again.locator(".artifact-object")).toBeVisible()
-        try await expect(again.locator(".semblance-view[data-active='true'] .canvas-view-tile-image").first)
+        try await expect(again.locator(".semblance-view[data-active='true'] .canvas-tile-image").first)
           .toHaveCount(1)
         try await page.expectNoHorizontalOverflow()
       }
@@ -181,7 +181,7 @@ struct SemblanceCanvasTests {
         }
         func expectShown(_ index: Int) async throws {
           // The backdrop is drawn once the image service's format is probed.
-          try await expect(viewer.locator(".semblance-view[data-active='true'] .canvas-view-tile-image").first)
+          try await expect(viewer.locator(".semblance-view[data-active='true'] .canvas-tile-image").first)
             .toHaveCount(1)
           let read = try await canvases()
           #expect(read.map(\.shown) == (0..<3).map { $0 == index }, "only page \(index + 1) is shown")

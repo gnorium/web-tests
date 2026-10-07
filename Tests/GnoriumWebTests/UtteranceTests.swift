@@ -62,7 +62,7 @@ struct UtteranceTests {
         // Its first attestation against the margin, in the house style.
         try await expect(row.locator(".record-row-date").first).toHaveText("AD 1901")
         // Closed, its utterance is not fetched.
-        try await expect(row.locator(".attestation-view-utterance")).toHaveAttribute("data-loaded", "false")
+        try await expect(row.locator(".attestation-utterance")).toHaveAttribute("data-loaded", "false")
         let fetchedBefore = try await page.evaluate(
           "performance.getEntriesByType('resource').filter(e => e.name.includes('/utterance?')).length")
         #expect(fetchedBefore == .number(0))
@@ -71,7 +71,7 @@ struct UtteranceTests {
         try await expect(row).toHaveAttribute("data-open-finished", "true")
         // Its testament, named and dated, linked to the testament at its page; its
         // page, line and word are data, never shown.
-        try await expect(attestation.locator(".attestation-view-testament")).toHaveText(
+        try await expect(attestation.locator(".attestation-testament")).toHaveText(
           "Web tests testament · AD 1901")
         let utterance = attestation.locator(".utterance-view")
         try await expect(utterance).toHaveCount(1)
@@ -113,7 +113,7 @@ struct UtteranceTests {
         // The link opens the testament's page at the utterance's page.
         let landed = try await page.evaluate(
           """
-          fetch(document.querySelector('#record-row-s-1-1 .attestation-view-testament a').href)
+          fetch(document.querySelector('#record-row-s-1-1 .attestation-testament a').href)
             .then(r => (r.ok ? '' : 'HTTP ' + r.status + ' ') + new URL(r.url).pathname + new URL(r.url).search)
           """)
         #expect(landed == .string("\(scratch.reading.work.path)/snapshots/\(scratch.versionID)?semblance=2"))

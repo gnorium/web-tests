@@ -56,7 +56,7 @@ struct PromptSnapshotComparisonTests {
       #expect(try await page.evaluate(enabledAppearance, as: Bool.self))
       try await button.click()
       try await expect(page.locator(".prompt-compare-content")).toBeVisible()
-      try await expect(page.locator(".diff-view-changed").first).toBeAttached()
+      try await expect(page.locator(".diff-changed").first).toBeAttached()
       try await expect(page.locator(".prompt-compare-unchanged")).toHaveText("Unchanged task {page}")
       let styled = try await page.evaluate("""
         (() => {
@@ -76,10 +76,10 @@ struct PromptSnapshotComparisonTests {
       try await expect(page.locator(".page-heading")).toHaveText("Compare Prompt Snapshots")
       #expect(try await page.evaluate("""
         (() => {
-          const box = document.querySelector('.diff-view-box');
+          const box = document.querySelector('.diff-box');
           const unchanged = document.querySelector('.prompt-compare-unchanged');
-          const removed = document.querySelector('.diff-view-row[data-diff-line="removed"] .diff-view-changed');
-          const inserted = document.querySelector('.diff-view-row[data-diff-line="inserted"] .diff-view-changed');
+          const removed = document.querySelector('.diff-row[data-diff-line="removed"] .diff-changed');
+          const inserted = document.querySelector('.diff-row[data-diff-line="inserted"] .diff-changed');
           const rgb = node => { const canvas=document.createElement('canvas');canvas.width=canvas.height=1;const ctx=canvas.getContext('2d');ctx.fillStyle=getComputedStyle(node).color;ctx.fillRect(0,0,1,1);return ctx.getImageData(0,0,1,1).data; };
           const red = rgb(removed), green = rgb(inserted);
           return box.textContent.includes('Unchanged context line 40')

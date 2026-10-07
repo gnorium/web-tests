@@ -62,17 +62,17 @@ struct WordPhraseTests {
         try await expect(dialog).toBeVisible()
         try await expect(dialog.locator(".dialog-header-title")).toHaveText("kicked the bucket")
         let details = dialog.locator(".word-details-view")
-        try await expect(details.locator(".word-details-view-word").first.locator(".datum-value")).toHaveTexts([
+        try await expect(details.locator(".word-details-word").first.locator(".datum-value")).toHaveTexts([
           "Idiom", "kick the bucket",
         ])
         try await expect(details.locator(".record-title")).toHaveText(word.title)
         try await expect(details.locator(".record-row-title[data-current='true']")).toHaveText("A leaf sense.")
         // Its words, the one opened expanded.
-        let rows = details.locator(".word-details-view-word-row")
+        let rows = details.locator(".word-details-word-row")
         try await expect(rows).toHaveCount(3)
         try await expect(rows.locator(".accordion-summary")).toHaveTexts(["kicked", "the", "bucket"])
-        try await expect(rows.nth(1).locator(".word-details-view-word")).toBeVisible()
-        try await expect(rows.nth(0).locator(".word-details-view-word")).toBeHidden()
+        try await expect(rows.nth(1).locator(".word-details-word")).toBeVisible()
+        try await expect(rows.nth(0).locator(".word-details-word")).toBeHidden()
         try await expect(rows.nth(1).locator(".datum-value")).toHaveTexts(["the", "Article", "—", "—"])
         try await page.expectNoHorizontalOverflow()
         try await page.keyboard.press("Escape")

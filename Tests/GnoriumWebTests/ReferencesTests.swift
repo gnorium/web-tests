@@ -72,16 +72,16 @@ struct ReferencesTests {
         try await expect(sources).not.toHaveAttribute("open")
         try await page.locator("#object-sources > .accordion-summary").click()
         try await expect(sources).toHaveAttribute("data-open-finished", "true")
-        let fields = sources.locator(".sources-view-field")
+        let fields = sources.locator(".sources-field")
         let title = fields.filter(hasText: "Title").first
-        try await expect(title.locator("ol.sources-view-list > li")).toHaveCount(1)
-        try await expect(title.locator(".reference-credit-view-place a"))
+        try await expect(title.locator("ol.sources-list > li")).toHaveCount(1)
+        try await expect(title.locator(".reference-credit-place a"))
           .toHaveAttribute("href", "https://dictionary.example.org/web-tests")
-        try await expect(title.locator(".reference-credit-view-source")).toHaveText("dictionary.example.org")
+        try await expect(title.locator(".reference-credit-source")).toHaveText("dictionary.example.org")
         let branch = fields.filter(hasText: "Sentiment 1").first
         try await expect(branch.locator(".info-chip-view")).toHaveText("Unsourced")
         let leaf = fields.filter(hasText: "Sentiment 1.1").first
-        try await expect(leaf.locator(".reference-credit-view-place a"))
+        try await expect(leaf.locator(".reference-credit-place a"))
           .toHaveAttribute("href", "https://senses.example.org/web-tests")
         try await expect(leaf.locator(".info-chip-view")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()

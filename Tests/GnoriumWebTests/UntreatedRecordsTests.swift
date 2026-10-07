@@ -63,8 +63,8 @@ struct UntreatedRecordsTests {
         // Its Citations: the work that made it.
         let citations = page.locator("#record-citations")
         try await citations.locator(".accordion-summary").first.click()
-        try await expect(citations.locator(".citations-view-work")).toHaveCount(1)
-        try await expect(citations.locator(".citations-view-count")).toHaveText("2 citations")
+        try await expect(citations.locator(".citations-work")).toHaveCount(1)
+        try await expect(citations.locator(".citations-count")).toHaveText("2 citations")
         try await page.expectNoHorizontalOverflow()
 
         // A treated record is indexed and says what it has undergone.

@@ -115,7 +115,7 @@ struct EntriesAndCitationsTests {
         // Its entries in canons: the catalog's, referred to as a record is.
         let entries = page.locator("#record-entries")
         try await entries.locator(".accordion-summary").first.click()
-        let row = entries.locator(".entries-view-entry")
+        let row = entries.locator(".entries-entry")
         try await expect(row).toHaveCount(1)
         try await expect(row).toContainText("English")
         try await expect(row.locator("a[href='\(catalogPath)']")).toHaveCount(1)
@@ -126,12 +126,12 @@ struct EntriesAndCitationsTests {
         // The works citing it in running text, one row each with how many.
         let citations = page.locator("#record-citations")
         try await citations.locator(".accordion-summary").first.click()
-        let rows = citations.locator(".citations-view-work")
+        let rows = citations.locator(".citations-work")
         try await expect(rows).toHaveCount(2)
         try await expect(citations.locator(".filter-bar-view")).toHaveCount(1)
         let lettersRow = rows.filter(hasText: letters.title)
-        try await expect(lettersRow.locator(".citations-view-count")).toHaveText("3 citations")
-        try await expect(rows.filter(hasText: catalog.title).locator(".citations-view-count")).toHaveText("1 citation")
+        try await expect(lettersRow.locator(".citations-count")).toHaveText("3 citations")
+        try await expect(rows.filter(hasText: catalog.title).locator(".citations-count")).toHaveText("1 citation")
         // Its Metadata counts them.
         let metadata = page.locator("#record-metadata")
         try await metadata.locator(".accordion-summary").first.click()
@@ -141,21 +141,21 @@ struct EntriesAndCitationsTests {
 
         // Filtered by type: the catalog alone.
         try await page.openHydrated("\(cited.path)?type=catalog#record-citations")
-        try await expect(page.locator("#record-citations .citations-view-work")).toHaveCount(1)
-        try await expect(page.locator("#record-citations .citations-view-work")).toContainText(catalog.title)
+        try await expect(page.locator("#record-citations .citations-work")).toHaveCount(1)
+        try await expect(page.locator("#record-citations .citations-work")).toContainText(catalog.title)
 
         // The pair's page: every citation between the two, the catalog's in the entry it stands in.
         try await page.openHydrated(
           "\(cited.path)/citations?work=\(catalog.recordID.lowercased())&direction=citations")
         try await expect(page.locator("h1")).toHaveText("Citations in \(catalog.title)")
-        let table = page.locator(".record-citations-view-table")
+        let table = page.locator(".record-citations-table")
         try await expect(table).toContainText("ANOTHER HEADING")
         try await expect(table).toContainText("Cited 1")
         try await expect(table.locator("th[data-table-column-id='testament']")).toHaveText("Testament")
         try await expect(table.locator("a[href='\(cited.path)#record-row-\(targetNode)']")).toHaveCount(1)
         try await expect(table).toContainText("Inferred: surrounding sentence; similarity 0.750 (not a probability); separation 0.250")
         let inferenceSize = try await page.evaluate(
-          "getComputedStyle(document.querySelector('.record-citations-view-placement small')).fontSize"
+          "getComputedStyle(document.querySelector('.record-citations-placement small')).fontSize"
         ).string
         #expect(inferenceSize == "12px")
         // Machine work needs no mark: no column says who linked it.
@@ -203,15 +203,15 @@ struct EntriesAndCitationsTests {
         #expect(order == "above", "Entries always come above Citations.")
         let entries = page.locator("#record-entries")
         try await entries.locator(".accordion-summary").first.click()
-        let row = entries.locator(".entries-view-entry")
+        let row = entries.locator(".entries-entry")
         try await expect(row).toHaveCount(1)
         try await expect(row.locator("a[href='\(dictionaryPath)']")).toHaveCount(1)
         try await expect(row).toContainText("Dictionary")
         try await expect(row).toContainText(word.title.uppercased())
         let citations = page.locator("#record-citations")
         try await citations.locator(".accordion-summary").first.click()
-        try await expect(citations.locator(".citations-view-work")).toHaveCount(1)
-        try await expect(citations.locator(".citations-view-count")).toHaveText("2 citations")
+        try await expect(citations.locator(".citations-work")).toHaveCount(1)
+        try await expect(citations.locator(".citations-count")).toHaveText("2 citations")
         try await page.expectNoHorizontalOverflow()
 
         // The biblio-records sidebar's Canons: the list filtered to the reference types.

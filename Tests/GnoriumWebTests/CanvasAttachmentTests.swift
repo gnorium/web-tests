@@ -30,7 +30,7 @@ struct CanvasAttachmentTests {
           return visibleImages.length===1 && r.height>0 && r.height<=innerHeight*.64+1
             && r.left>=b.left-1 && r.right<=b.right+1 && r.top>=b.top-1 && r.bottom<=b.bottom+1
             && Math.abs(r.width/r.height-.75)<.01 && !box.querySelector('.datum-view')
-            && !document.querySelector('.detail-view-page-image');
+            && !document.querySelector('.detail-page-image');
         })()
         """, as: Bool.self)
       #expect(geometry, "Exactly one bounded image belongs inside the white output surface; metadata stays outside")
