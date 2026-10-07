@@ -3,8 +3,8 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-@Suite("Prompt version comparison", .serialized)
-struct PromptVersionComparisonTests {
+@Suite("Prompt snapshot comparison", .serialized)
+struct PromptSnapshotComparisonTests {
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func checkboxSelectionEnablesBlueCompareAndNavigatesToStyledDiff(engine: BrowserEngine, layout: Layout) async throws {
     guard gnorium.engines.contains(engine), ["localhost", "127.0.0.1"].contains(gnorium.baseURL.host ?? "") else { return }
@@ -18,7 +18,7 @@ struct PromptVersionComparisonTests {
       """)
     defer { _ = try? TestAdmin.query("DELETE FROM prompt_templates WHERE id IN ('\(old)','\(new)')") }
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-      try await page.openHydrated("/mission-control/prompts/versions?tab=bibliographic&treatment=recognition")
+      try await page.openHydrated("/mission-control/prompts/bibliographic/recognition/snapshots")
       let button = page.locator(".compare-button")
       #expect(try await page.evaluate("document.querySelector('.compare-button').disabled", as: Bool.self))
       try await page.locator("input[name='row-selection'][value='\(old)']").click()
@@ -61,16 +61,19 @@ struct PromptVersionComparisonTests {
       let styled = try await page.evaluate("""
         (() => {
           const content = document.querySelector('.prompt-compare-content');
-          const header = content.querySelector('.version-header');
+          const header = content.querySelector('.snapshot-header');
           return getComputedStyle(content).display === 'flex'
             && getComputedStyle(header).flexWrap === 'wrap'
             && getComputedStyle(header).justifyContent === 'center'
             && getComputedStyle(header).textAlign === 'center'
-            && [...header.querySelectorAll('a')].every(a => a.classList.contains('link-view'));
+            && [...header.querySelectorAll('a')].every(a => a.classList.contains('link-view'))
+            && [...header.querySelectorAll('.snapshot-identity')].length === 2
+            && [...header.querySelectorAll('.snapshot-identity')].every(side => side.querySelector('.local-time-view')
+              && getComputedStyle(side).alignItems === 'center');
         })()
         """, as: Bool.self)
       #expect(styled)
-      try await expect(page.locator(".page-heading")).toHaveText("Compare Prompt Versions")
+      try await expect(page.locator(".page-heading")).toHaveText("Compare Prompt Snapshots")
       #expect(try await page.evaluate("""
         (() => {
           const box = document.querySelector('.diff-view-box');
