@@ -51,7 +51,7 @@ struct TranslationScopeTests {
         try await page.openHydrated("/mission-control/epilogues/bibliographic/\(epilogue)")
         try await expect(page.locator(".pipeline-selection-toggle[data-pipeline='translation']")).toHaveCount(1)
         try await page.locator(".pipeline-selection-toggle[data-pipeline='translation']").click()
-        try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "translation")
+        try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "bibliographic_translation")
         _ = try await page.evaluate("""
           window.__translationSubmit = null;
           HTMLFormElement.prototype.submit = function() {
@@ -61,7 +61,7 @@ struct TranslationScopeTests {
           const original = window.fetch;
           window.fetch = function(input, options) {
             const url = new URL(typeof input === 'string' ? input : input.url, location.href);
-            if (url.searchParams.get('pipeline') === 'translation') {
+            if (url.searchParams.get('pipeline') === 'bibliographic_translation') {
               document.body.setAttribute('data-preview-scope', url.searchParams.get('scope'));
               document.body.setAttribute('data-preview-services', JSON.stringify(url.searchParams.getAll('service[]')));
             }

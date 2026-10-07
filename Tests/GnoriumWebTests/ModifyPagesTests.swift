@@ -38,13 +38,13 @@ struct ModifyPagesTests {
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition,
             target, status, submitted_by_user_id, summary)
           VALUES ('\(epilogue)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', 's-1-1',
-            'A leaf sense.', 'translations', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.');
+            'A leaf sense.', 'definition', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.');
         """)
       let objects: [(path: String, slot: String, title: String, fields: Bool)] = [
         (commit.notationPath, "bibliographic_explication", "Prompts: Explication", true),
         ("/mission-control/notations/lexicographic/\(word.notationID)", "lexicographic_explication",
          "Prompts: Explication", true),
-        ("/mission-control/epilogues/lexicographic/\(epilogue)", "equivalents", "Prompts: Translation", false),
+        ("/mission-control/epilogues/lexicographic/\(epilogue)", "lexicographic_translation", "Prompts: Translation", false),
       ]
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         for object in objects {
@@ -129,7 +129,7 @@ struct ModifyPagesTests {
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition,
             target, status, submitted_by_user_id, summary, definition_translation_json)
           VALUES ('\(epilogue)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', 's-1-1',
-            'A leaf sense.', 'translations', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.',
+            'A leaf sense.', 'definition', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.',
             '{"language_code":"fra","definition":"Un sens feuille.","labels":[],"confidence":"clear","reason":"Web tests."}');
         """)
       let notationPath = "/mission-control/notations/lexicographic/\(word.notationID)"

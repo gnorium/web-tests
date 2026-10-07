@@ -54,7 +54,7 @@ struct TranslationSessionsTests {
         INSERT INTO bibliographic_postludes (id, bibliographic_notation_id, target_language, requested_by_user_id,
           processing_status, processing_error)
           VALUES ('\(postlude)', '\(notation)', 'eng', '\(user)', 'failed', 'Web tests');
-        INSERT INTO translation_stage_runs (id, bibliographic_postlude_id, stage, chunk, attempt, provider, model, output,
+        INSERT INTO bibliographic_translation_stage_runs (id, bibliographic_postlude_id, stage, chunk, attempt, provider, model, output,
           result, duration_ms, created_at)
           VALUES (gen_random_uuid(), '\(postlude)', 'translation', 'Pages 1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
             '\(try Self.trace())', 'passed', 1200, now());
@@ -84,7 +84,7 @@ struct TranslationSessionsTests {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      DELETE FROM translation_stage_runs WHERE bibliographic_postlude_id = '\(postlude)';
+      DELETE FROM bibliographic_translation_stage_runs WHERE bibliographic_postlude_id = '\(postlude)';
       DELETE FROM bibliographic_postludes WHERE id = '\(postlude)';
       DELETE FROM bibliographic_notations WHERE id = '\(notation)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphon)';

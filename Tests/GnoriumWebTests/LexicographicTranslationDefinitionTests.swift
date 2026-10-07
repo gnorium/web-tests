@@ -3,9 +3,9 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// Lexicographic translation is one pipeline (user, 2026-09-29): for a record not in
-/// English, the sentiment's session also writes its definition and free-text
-/// labels in the record's language, filed in the same amendment. The
+/// Lexicographic translation is only English ↔ the record's own language (user,
+/// 2026-10-07): for a record not in English, the sentiment's session writes its
+/// definition and free-text labels in the record's language, filed as its epilogue. The
 /// amendment's page shows the definition in German with its label,
 /// confidence and reason; permitted, the record is Translated and its row carries the
 /// record-level English toggle, selected initially, switching definitions and labels. An Arabic definition reads right to left.
@@ -43,7 +43,7 @@ struct LexicographicTranslationDefinitionTests {
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition, target,
             status, submitted_by_user_id, summary, definition_translation_json, evaluated_at, evaluated_by_user_id)
           VALUES ('\(arabicAmendment)', '\(arabic.recordID.lowercased())', '\(arabic.versionID.lowercased())', 's-1-1',
-            'A leaf sense.', 'translations', 'permitted', (SELECT id FROM users WHERE username = 'gnorium'),
+            'A leaf sense.', 'definition', 'permitted', (SELECT id FROM users WHERE username = 'gnorium'),
             'Wrote the Arabic definition.', '{"language_code":"ara","definition":"\(Self.arabic)"}', now(),
             (SELECT id FROM users WHERE username = 'gnorium'));
         INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_epilogue_id, treatment, record_json, created_at)
@@ -55,8 +55,8 @@ struct LexicographicTranslationDefinitionTests {
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition, target,
             status, submitted_by_user_id, summary, definition_translation_json)
           VALUES ('\(amendment)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', 's-1-1',
-            'A leaf sense.', 'translations', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'),
-            'Wrote the German definition; no other language.', '\(definition)');
+            'A leaf sense.', 'definition', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'),
+            'Wrote the German definition.', '\(definition)');
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
