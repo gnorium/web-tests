@@ -67,13 +67,14 @@ struct WatchtowerFigureLinksTests {
   /// reads the figure between two reads of its list, and they agree when
   /// the figure is the list's length at either: the list stood at that
   /// length while the figure was counted. A real disagreement outlasts the
-  /// minute and is returned as read last.
+  /// two minutes (the full parallel run writes for minutes on end) and is
+  /// returned as read last.
   static func agreeing(
     _ page: Page, _ href: String, figure count: Int, listed: () async throws -> Int
   ) async throws -> (figure: Int, listed: Int) {
     var figure = count
     var last = try await listed()
-    let deadline = ContinuousClock.now + .seconds(60)
+    let deadline = ContinuousClock.now + .seconds(120)
     while figure != last, ContinuousClock.now < deadline {
       try await Task.sleep(for: .milliseconds(500))
       let before = try await listed()
