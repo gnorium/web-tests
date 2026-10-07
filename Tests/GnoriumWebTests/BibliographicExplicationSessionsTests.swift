@@ -133,6 +133,21 @@ struct BibliographicExplicationSessionsTests {
         try await expect(box).toContainText("1200")
         try await expect(box).toContainText("sent_width")
         try await expect(box).toContainText("600")
+        // Every other key too (user, 2026-10-07): the region as sent, its
+        // URLs, and `image`, whose datum holds the detail itself.
+        func labels(_ selector: String) async throws -> String {
+          try await page.evaluate(
+            "[...document.querySelectorAll('#session-tool-call_zoom \(selector) .datum-label')].map(l => l.textContent.trim()).join(' ')",
+            as: String.self)
+        }
+        let resultLabels = try await labels(".session-tool-call-result-box")
+        #expect(
+          resultLabels == "detail_url image ok page page_url region sent_height sent_width source_height source_width tool",
+          "Every key the zoom returned: \(resultLabels)")
+        try await expect(box).toContainText("[100, 250, 300, 200]")
+        // The arguments as sent, each its own datum.
+        let argumentLabels = try await labels(".session-tool-call-args")
+        #expect(argumentLabels == "height width x y", "Every argument: \(argumentLabels)")
         // The card fits the phone: no sideways scroll.
         let overflow = try await page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
         #expect(overflow == .bool(false))

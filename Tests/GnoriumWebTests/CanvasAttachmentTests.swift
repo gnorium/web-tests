@@ -96,10 +96,10 @@ struct CanvasAttachmentTests {
         }
         try await page.locator("#session-tool-late-canvas summary").click()
         // The detail in place: in the result box with every field the model
-        // received, its image the box's width and no taller than the bound,
+        // received, its image its `image` datum's width and no taller than the bound,
         // no chip and no lightbox (user, 2026-10-07).
         let parity = try await page.evaluate("""
-          (()=>{const card=document.querySelector('#session-tool-late-canvas');const box=card.querySelector('.session-tool-call-result-box');const view=box&&box.querySelector('.expandable-attachment-view[data-presentation="inline"]');const vp=view&&view.querySelector('.expandable-attachment-image-viewport');const r=vp?vp.getBoundingClientRect():{height:0,width:0};const b=box?box.getBoundingClientRect():{width:0};return !!view && view.dataset.attachmentHydrated==='true' && r.height>0 && r.height<=innerHeight*.64+1 && r.width>b.width*.8 && !card.querySelector('.expandable-attachment-dialog') && box.textContent.includes('source_width') && box.textContent.includes('sent_width');})()
+          (()=>{const card=document.querySelector('#session-tool-late-canvas');const box=card.querySelector('.session-tool-call-result-box');const view=box&&box.querySelector('.expandable-attachment-view[data-presentation="inline"]');const vp=view&&view.querySelector('.expandable-attachment-image-viewport');const r=vp?vp.getBoundingClientRect():{height:0,width:0};const v=view&&view.closest('.datum-value');const cs=v?getComputedStyle(v):null;const w=v?v.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight):Infinity;return !!view && view.dataset.attachmentHydrated==='true' && r.height>0 && r.height<=innerHeight*.64+1 && r.width>=w-1 && !card.querySelector('.expandable-attachment-dialog') && box.textContent.includes('source_width') && box.textContent.includes('sent_width');})()
           """, as:Bool.self)
         #expect(parity,"A late SSE tool's zoom is in place in its result box with its fields")
         try await page.expectNoHorizontalOverflow()
