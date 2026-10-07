@@ -32,11 +32,13 @@ struct WatchtowerFigureLinksTests {
     "'" + text.replacingOccurrences(of: "'", with: "\\'") + "'"
   }
 
-  /// The rows a list page shows, read from its HTML as the server sent it.
+  /// The rows a list page shows, read from its HTML as the server sent it;
+  /// -1, never a length, when the server could not answer.
   static func listed(_ page: Page, _ href: String) async throws -> Int {
     try await page.evaluate(
       """
-      fetch(\(jsString(href))).then(r => r.text()).then(html => {
+      fetch(\(jsString(href))).then(r => r.ok ? r.text() : null).then(html => {
+        if (html === null) return -1
         const doc = new DOMParser().parseFromString(html, 'text/html')
         const table = doc.querySelector('[data-total-items]')
         if (table) return Number(table.getAttribute('data-total-items'))
@@ -51,7 +53,7 @@ struct WatchtowerFigureLinksTests {
   static func figure(_ page: Page, _ href: String) async throws -> Int? {
     try await page.evaluate(
       """
-      fetch('/').then(r => r.text()).then(html => {
+      fetch('/').then(r => r.ok ? r.text() : '').then(html => {
         const doc = new DOMParser().parseFromString(html, 'text/html')
         const link = [...doc.querySelectorAll(\(jsString(figureLinks)))]
           .find(a => a.getAttribute('href') === \(jsString(href)))
@@ -78,7 +80,11 @@ struct WatchtowerFigureLinksTests {
     while figure != last, ContinuousClock.now < deadline {
       try await Task.sleep(for: .milliseconds(500))
       let before = try await listed()
-      figure = try await Self.figure(page, href) ?? figure
+      // A Watchtower that could not be drawn (a busy server) names no
+      // figure: asked again, never compared as it last stood.
+      guard let fresh = try await Self.figure(page, href) else { continue }
+      guard before >= 0 else { continue }
+      figure = fresh
       last = try await listed()
       if figure == before { return (figure, before) }
     }
@@ -97,12 +103,11 @@ struct WatchtowerFigureLinksTests {
         // Explication's figures count both kinds' runs: the list they open
         // and the same list on the other kind's tab.
         let (shown, listed) = try await Self.agreeing(page, figure.href, figure: count) {
-          var listed = try await Self.listed(page, figure.href)
-          if figure.href.contains("stage=explication") {
-            listed += try await Self.listed(
-              page, figure.href.replacingOccurrences(of: "/lifecycles/bibliographic", with: "/lifecycles/lexicographic"))
-          }
-          return listed
+          let listed = try await Self.listed(page, figure.href)
+          guard listed >= 0, figure.href.contains("stage=explication") else { return listed }
+          let other = try await Self.listed(
+            page, figure.href.replacingOccurrences(of: "/lifecycles/bibliographic", with: "/lifecycles/lexicographic"))
+          return other < 0 ? -1 : listed + other
         }
         #expect(listed == shown, "\(figure.text) (now \(shown)) opens \(listed) rows: \(figure.href)")
       }
