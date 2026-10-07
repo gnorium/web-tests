@@ -49,71 +49,49 @@ struct TranslationScopeTests {
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/epilogues/bibliographic/\(epilogue)")
-        try await expect(page.locator(".pipeline-selection-group .toggle-button-group-button[data-value$='translation']")).toHaveCount(1)
-        try await page.locator(".pipeline-selection-group .toggle-button-group-button[data-value$='translation']").click()
+        // Two processes: the header's toggle chooses whose prompts show and
+        // what Commit commits for.
+        let toggle = page.locator(".mission-control-object-header-view .process-toggle-view")
+        try await expect(page.locator(".prompt-instances-heading")).toHaveText("Prompts")
+        try await expect(toggle.locator(".toggle-button-group-button").first).toHaveAttribute("data-value", "bibliographic_explication")
+        try await toggle.locator(".toggle-button-group-button[data-value$='translation']").click()
         try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "bibliographic_translation")
         _ = try await page.evaluate("""
           window.__translationSubmit = null;
-          HTMLFormElement.prototype.submit = function() {
-            const data = new FormData(this);
+          window.addEventListener('submit', event => {
+            if (event.target.id !== 'commit-form') return;
+            event.preventDefault();
+            const data = new FormData(event.target);
             window.__translationSubmit = { pipeline: data.get('pipeline'), scope: data.get('scope'), services: data.getAll('semblance[]') };
-          };
-          const original = window.fetch;
-          window.fetch = function(input, options) {
-            const url = new URL(typeof input === 'string' ? input : input.url, location.href);
-            if (url.searchParams.get('pipeline') === 'bibliographic_translation') {
-              document.body.setAttribute('data-preview-scope', url.searchParams.get('scope'));
-              document.body.setAttribute('data-preview-services', JSON.stringify(url.searchParams.getAll('service[]')));
-            }
-            return original(input, options);
-          };
-          document.querySelectorAll(".mission-control-sidebar-view input[name='semblance[]']")[1].checked = true;
+          });
           true;
           """, as: Bool.self)
-        // Page 1 is stale; page 2 is fresh and ticked. Keeping page 2 visible
-        // makes an ignored scope observable without relying on neighbor prose.
+        // Page 2 on screen: the translation preview is the chunk holding it,
+        // every page translated.
         try await page.locator("#artifact-page-input").fill("2")
         try await page.locator("#artifact-page-input").press("Enter")
         try await expect(page.locator("#artifact-page-input")).toHaveValue("2")
-        for scope in ["stale", "all", "ticked"] {
-          _ = try await page.evaluate("""
-            (() => {
-              const scope = document.querySelector('.commit-translation-scope');
-              scope.value = '\(scope)';
-              scope.dispatchEvent(new Event('change', { bubbles: true }));
-              return true;
-            })();
-            """, as: Bool.self)
-          try await expect(page.locator("body")).toHaveAttribute("data-preview-scope", scope)
-          try await expect(page.locator(".prompt-instances-slot")).toHaveAttribute("aria-busy", "false")
-          if scope == "stale" {
-            try await expect(page.locator(".prompt-instance-task")).toHaveCount(0)
-            try await expect(page.locator(".prompt-instances-notice")).toContainText("Prompts for this page could not be built.")
-          } else {
-            try await expect(page.locator(".prompt-instance-task")).toHaveCount(1)
-            let chunk = scope == "all" ? "Pages 1–2" : "Page 2"
-            // Runtime opens the text through open_page. Its concrete task
-            // identifies the assigned chunk and each page's segment count.
-            let task = try await page.locator(".prompt-instance-task .prompt-text-source").first.textContent()
-            #expect(task.contains("Translate these pages from Italian into English: \(chunk)."))
-            let pageSummaries = task.components(separatedBy: "Pages:").last?
-              .components(separatedBy: "The glossary so far:").first?
-              .split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
-            #expect(pageSummaries == (scope == "all" ? "- 1: 1 segment - 2: 1 segment" : "- 2: 1 segment"))
-          }
-          if scope == "ticked" {
-            let selected = try await page.locator("body").getAttribute("data-preview-services")
-            #expect(selected == "[\"\(fixture.baseURL)/page-2\"]")
-          }
-          try await page.locator(".commit-view-trigger").click()
-          let dialog = page.locator(".commit-view-option[data-value$='translation-\(scope)'] .commit-view-dialog")
-          try await dialog.locator(".dialog-primary-button button").click()
-          let payload = try await page.evaluate("JSON.stringify(window.__translationSubmit)", as: String.self)
-          #expect(payload.range(of: #""pipeline":"(bibliographic_)?translation""#, options: .regularExpression) != nil)
-          #expect(payload.contains("\"scope\":\"\(scope)\""))
-          #expect(payload.contains("\"services\":[\"\(fixture.baseURL)/page-2\"]"))
-          try await dialog.locator(".dialog-default-button button").click()
+        try await expect(page.locator(".prompt-instances-slot")).toHaveAttribute("aria-busy", "false")
+        try await expect(page.locator(".prompt-instance-task")).toHaveCount(1)
+        let task = try await page.locator(".prompt-instance-task .prompt-text-source").first.textContent()
+        #expect(task.contains("Translate these pages from Italian into English: Pages 1–2."))
+        // Commit translates the stale pages while none is ticked, and the
+        // pages ticked once some are.
+        let commit = page.locator(".commit-view-trigger")
+        let submitted = { () async throws -> String in
+          try await page.evaluate("JSON.stringify(window.__translationSubmit)", as: String.self)
         }
+        try await commit.click()
+        var payload = try await submitted()
+        #expect(payload.contains("\"pipeline\":\"bibliographic_translation\""))
+        #expect(payload.contains("\"scope\":\"stale\""))
+        _ = try await page.evaluate("""
+          document.querySelectorAll(".mission-control-sidebar-view input[name='semblance[]']")[1].checked = true; true
+          """, as: Bool.self)
+        try await commit.click()
+        payload = try await submitted()
+        #expect(payload.contains("\"scope\":\"ticked\""))
+        #expect(payload.contains("\"services\":[\"\(fixture.baseURL)/page-2\"]"))
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }

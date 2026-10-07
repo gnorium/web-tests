@@ -44,15 +44,19 @@ struct ModifyPagesTests {
         (commit.notationPath, "bibliographic_explication", "Prompts: Explication", true),
         ("/mission-control/notations/lexicographic/\(word.notationID)", "lexicographic_explication",
          "Prompts: Explication", true),
-        ("/mission-control/epilogues/lexicographic/\(epilogue)", "lexicographic_translation", "Prompts: Translation", false),
+        // An epilogue's Modify edits the prompts of the process its page's
+        // toggle chose (`?process=`), explication when none is named.
+        ("/mission-control/epilogues/lexicographic/\(epilogue)", "lexicographic_translation",
+         "Prompts: Translation", false),
       ]
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
+        func process(_ slot: String) -> String { slot.hasSuffix("translation") ? "?process=translation" : "" }
         for object in objects {
-          try await page.openHydrated(object.path)
-          let modify = page.locator("a[href$='/modify']")
+          try await page.openHydrated(object.path + process(object.slot))
+          let modify = page.locator("a[href*='/modify']")
           try await expect(modify).toHaveCount(1)
           try await expect(modify).toHaveText("Modify")
-          try await page.openHydrated("\(object.path)/modify")
+          try await page.openHydrated(try #require(try await modify.getAttribute("href")))
           try await expect(page.locator("form[data-modify-form] input[name='promptSlot']"))
             .toHaveAttribute("value", object.slot)
           try await expect(page.getByText(object.title)).toBeAttached()
@@ -62,7 +66,7 @@ struct ModifyPagesTests {
 
         // A prompt change suggested from each lexicographic object's page.
         for (object, kind) in [("notation", objects[1]), ("epilogue", objects[2])] {
-          try await page.openHydrated("\(kind.path)/modify")
+          try await page.openHydrated("\(kind.path)/modify" + process(kind.slot))
           _ = try await page.evaluate(
             """
             (() => {
