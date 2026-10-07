@@ -3,12 +3,12 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A page read as the image sets it (user, 2026-09-27): every <lb/> a line
-/// on a wide screen, never reflowed; each block's alignment and indent from
-/// its rend; a page number and a running head set on one line a row, each
-/// in its place; a right-aligned catchword at the right. On a phone the text
-/// reflows: a block's lines run on as one paragraph, a break inside a word
-/// joining it with no space. The page, from the Wikisource example the user
+/// A page read as the image sets it (user, 2026-09-27): each block's
+/// alignment and indent from its rend; a page number and a running head set
+/// on one line a row, each in its place; a right-aligned catchword at the
+/// right. At every width the text reflows (user, 2026-10-07): a block's
+/// lines run on as one paragraph, a break inside a word joining it with no
+/// space. The page, from the Wikisource example the user
 /// gave ("On the Goodness of the Supreme Being", 1756, p. 10), encoded as the
 /// explication now writes it.
 @Suite("TEI layout", .serialized)
@@ -52,21 +52,11 @@ struct TEILayoutTests {
         let lines = block.locator(".tei-line")
         try await expect(lines).toHaveCount(3)
         let first = try #require(try await lines.nth(0).boundingBox())
-        let second = try #require(try await lines.nth(1).boundingBox())
-        switch layout {
-        case .desktop:
-          // One line to a line, as the image has them.
-          try await expect(block).toHaveCSS("display", "flex")
-          #expect(second.y > first.y + 4)
-          try await expect(lines.nth(0)).toHaveText("The migh-")
-          try await expect(lines.nth(1)).toHaveText("ty Power")
-        case .phone:
-          // Reflowed: the lines run on, the word broken inside joined.
-          try await expect(block).toHaveCSS("display", "block")
-          try await expect(lines.nth(0)).toHaveCSS("display", "inline")
-          let flowed = try await block.innerText()
-          #expect(flowed.contains("The migh-ty Power that form'd the world"))
-        }
+        // Reflowed: the lines run on, the word broken inside joined.
+        try await expect(block).toHaveCSS("display", "block")
+        try await expect(lines.nth(0)).toHaveCSS("display", "inline")
+        let flowed = try await block.innerText()
+        #expect(flowed.contains("The migh-ty Power that form'd the world"))
         let blockBox = try #require(try await block.boundingBox())
         let textBox = try #require(try await text.boundingBox())
         #expect(first.x >= blockBox.x)

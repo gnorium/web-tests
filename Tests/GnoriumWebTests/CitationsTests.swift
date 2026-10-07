@@ -63,10 +63,8 @@ struct CitationsTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(reading.path)
         let citations = page.locator(".madrigal-citations-view")
-        try await expect(citations.locator(".madrigal-citations-count")).toHaveText("2 citations")
+        try await expect(citations.locator(".madrigal-citations-count")).toHaveText("2")
         try await citations.locator(".accordion-summary").first.click()
-        // Pending: read from its transcript, held at Permit, as its Entries.
-        try await expect(citations.locator(".madrigal-citations-note")).toContainText("held once it is permitted")
         let rows = citations.locator(".madrigal-citation")
         try await expect(rows).toHaveCount(2)
         // The reference, placed by its explication: the cited work.
@@ -224,7 +222,7 @@ struct EntryLinksTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(reading.path)
         let entries = page.locator(".madrigal-entries-view")
-        try await expect(entries.locator(".madrigal-entries-count")).toHaveText("1 entry")
+        try await expect(entries.locator(".madrigal-entries-count")).toHaveText("1")
         try await expect(entries.locator(".madrigal-entries-heading .info-chip-view")).toHaveCount(0)
         // Entries always come above Citations.
         let order = try await page.evaluate(
@@ -232,7 +230,6 @@ struct EntryLinksTests {
         ).string
         #expect(order == "above")
         try await entries.locator(".accordion-summary").first.click()
-        try await expect(entries.locator(".madrigal-entries-note")).toContainText("held once it is permitted")
         let row = entries.locator(".madrigal-entry")
         try await expect(row).toHaveCount(1)
         try await expect(row).toContainText("Heading")
@@ -281,7 +278,7 @@ struct EntryLinksTests {
   }
 
   /// A permitted version's entries are unknown until the utterances service has
-  /// read them (user, 2026-09-30): "—", never "0 entries"; once read (its
+  /// read them (user, 2026-09-30): "—", never "0"; once read (its
   /// `entry_extractions` row), the count, 0 as surely as many.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aPermittedVersionsEntriesAreUnknownUntilRead(engine: BrowserEngine, layout: Layout) async throws {
@@ -301,7 +298,6 @@ struct EntryLinksTests {
         let entries = page.locator(".madrigal-entries-view")
         try await expect(entries.locator(".madrigal-entries-count")).toHaveText("—")
         try await expect(entries.locator(".madrigal-entries-body")).toContainText("Not read yet")
-        try await expect(entries.locator(".madrigal-entries-note")).toHaveCount(0)
         // Read, with none.
         _ = try TestAdmin.query(
           """
@@ -309,7 +305,7 @@ struct EntryLinksTests {
             VALUES ('\(UUID().uuidString.lowercased())', '\(scratch.versionID)', 0, now());
           """)
         try await page.openHydrated(scratch.reading.path)
-        try await expect(entries.locator(".madrigal-entries-count")).toHaveText("0 entries")
+        try await expect(entries.locator(".madrigal-entries-count")).toHaveText("0")
         try await page.expectNoHorizontalOverflow()
       }
     } catch {

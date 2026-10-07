@@ -75,7 +75,8 @@ struct SemblanceCanvasTests {
         #expect(abs(row.y - pager.y) < pager.height, "the pager left the header's row")
         try await page.expectNoHorizontalOverflow()
         // Find is the search icon alone.
-        let find = viewer.locator(".testament-find-button")
+        // A toggle, as the semblance switch is: its button holds the name.
+        let find = viewer.locator(".testament-find-button button")
         try await expect(find).toHaveAccessibleName("Find in this testament")
         try await expect(find).toHaveText("")
         // Find and the semblance switch are the pager's mini chevrons' size,
