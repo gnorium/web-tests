@@ -67,7 +67,8 @@ struct SignificanceTests {
         _ = try await page.goto(
           "/mission-control/lexicographic/significance?language=eng&title=\(scratchWord.title)&type=noun")
         let view = page.locator(".significant-utterances-content")
-        try await expect(view.locator("h1")).toHaveText("Significant utterances")
+        try await expect(view.locator("h1")).toHaveText("Significant Utterances of \(scratchWord.title)")
+        try await expect(page).toHaveTitle("Significant Utterances of \(scratchWord.title) | Mission Control | Gnorium")
         try await expect(view.locator(".significant-utterances-summary")).toContainText("1 of 2")
         let items = view.locator(".significant-utterances-item")
         try await expect(items).toHaveCount(2)
