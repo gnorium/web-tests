@@ -63,20 +63,25 @@ struct WatchtowerFigureLinksTests {
 
   /// A figure and the length of its list, read again until they agree:
   /// other suites create and commit objects while this one reads, so a
-  /// figure read a moment before its list can be one behind it. A real
-  /// disagreement outlasts the 30 seconds and is returned as read last.
+  /// figure read a moment before its list can be behind it. Each retry
+  /// reads the figure between two reads of its list, and they agree when
+  /// the figure is the list's length at either: the list stood at that
+  /// length while the figure was counted. A real disagreement outlasts the
+  /// minute and is returned as read last.
   static func agreeing(
     _ page: Page, _ href: String, figure count: Int, listed: () async throws -> Int
   ) async throws -> (figure: Int, listed: Int) {
     var figure = count
-    var rows = try await listed()
-    let deadline = ContinuousClock.now + .seconds(30)
-    while rows != figure, ContinuousClock.now < deadline {
+    var last = try await listed()
+    let deadline = ContinuousClock.now + .seconds(60)
+    while figure != last, ContinuousClock.now < deadline {
       try await Task.sleep(for: .milliseconds(500))
+      let before = try await listed()
       figure = try await Self.figure(page, href) ?? figure
-      rows = try await listed()
+      last = try await listed()
+      if figure == before { return (figure, before) }
     }
-    return (figure, rows)
+    return (figure, last)
   }
 
   @Test(arguments: gnorium.engines)
@@ -177,34 +182,30 @@ struct WatchtowerFigureLinksTests {
           """, as: Int.self)
         #expect(placeholders == 0, "\(href): \(placeholders) filter rows show a placeholder")
 
-        // The rows, after hydration, are the filtered ones: as many as the
-        // figure, each a lifecycle holding the object in that status. The
-        // list is opened again until it and the figure agree (see
-        // `agreeing`).
-        let table = page.locator(".\(tab)-lifecycles-table")
-        var reopened = false
-        let (count, total) = try await Self.agreeing(page, href, figure: shown) {
-          if reopened { try await page.openHydrated(href) }
-          reopened = true
-          return try await page.evaluate(
-            """
-            (() => {
-              const table = document.querySelector('.\(tab)-lifecycles-table')
-              return table ? Number(table.getAttribute('data-total-items')) : 0
-            })()
-            """, as: Int.self)
+        // The figure is the length of the list it opens (read again until
+        // they agree, see `agreeing`). The rows, after hydration, are the
+        // filtered ones, each a lifecycle holding the object in that status.
+        let (count, listed) = try await Self.agreeing(page, href, figure: shown) {
+          try await Self.listed(page, href)
         }
-        #expect(total == count, "\(href): the list holds \(total) for the figure's \(count)")
-        if count == 0 {
+        #expect(listed == count, "\(href): the list holds \(listed) for the figure's \(count)")
+        let table = page.locator(".\(tab)-lifecycles-table")
+        let total = try await page.evaluate(
+          """
+          (() => {
+            const table = document.querySelector('.\(tab)-lifecycles-table')
+            return table ? Number(table.getAttribute('data-total-items')) : 0
+          })()
+          """, as: Int.self)
+        if total == 0 {
           try await expect(page.locator(".mission-control-core-empty")).toBeVisible()
         } else {
-          try await expect(table).toHaveAttribute("data-total-items", "\(count)")
           let headers = try await page.evaluate(
             """
             [...document.querySelectorAll('.\(tab)-lifecycles-table tbody tr[data-row-id]')]
               .filter(r => !r.classList.contains('table-group-child')).length
             """, as: Int.self)
-          #expect(headers == min(count, 25), "\(href): \(headers) lifecycles shown for \(count)")
+          #expect(headers == min(total, 25), "\(href): \(headers) lifecycles shown for \(total)")
           let unfiltered = try await page.evaluate(
             """
             [...document.querySelectorAll('.\(tab)-lifecycles-table tbody tr[data-row-id]')]

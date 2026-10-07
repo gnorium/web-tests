@@ -55,6 +55,10 @@ struct TranslationScopeTests {
         try await expect(page.locator(".prompt-instances-heading")).toHaveText("Prompts")
         try await expect(toggle.locator(".toggle-button-group-button").first).toHaveAttribute("data-value", "bibliographic_explication")
         try await toggle.locator(".toggle-button-group-button[data-value$='translation']").click()
+        // The translation's prompts are asked for as it is pressed: their
+        // answer waited for in full.
+        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+          .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "bibliographic_translation")
         _ = try await page.evaluate("""
           window.__translationSubmit = null;
