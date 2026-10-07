@@ -92,10 +92,10 @@ struct OvertureSemblancesTests {
         // the header's actions, explication first, one always chosen, its
         // pill gliding to the one pressed; the prompts follow it.
         _ = try TestAdmin.query("""
-          UPDATE bibliographic_notations SET metadata_json =
-            (metadata_json::jsonb || '{"language":"ita"}'::jsonb)::text WHERE id = '\(scratch.notationID)'
+          UPDATE bibliographic_madrigals SET metadata_json =
+            (metadata_json::jsonb || '{"language":"ita"}'::jsonb)::text WHERE id = '\(scratch.madrigalID)'
           """)
-        try await page.openHydrated(scratch.notationPath)
+        try await page.openHydrated(scratch.madrigalPath)
         try await expect(page.locator(".prompt-instances-heading")).toHaveText("Prompts")
         let processes = page.locator(".mission-control-object-header-view .process-toggle-view")
         try await expect(processes).toHaveAttribute("data-mode", "slider")
@@ -123,7 +123,7 @@ struct OvertureSemblancesTests {
         let row = try #require(try await actions.boundingBox())
         let modify = try #require(try await actions.locator(".button-group-button[data-value='modify']").boundingBox())
         let commit = try #require(try await actions.locator(".commit-view-trigger").boundingBox())
-        let permit = try #require(try await actions.locator(".button-group-button[data-value='notation-permit']").boundingBox())
+        let permit = try #require(try await actions.locator(".button-group-button[data-value='madrigal-permit']").boundingBox())
         if layout == .phone {
           // A phone: the toggle a full-width row of its own, its segments
           // sharing it, then each action a full-width row, in order.

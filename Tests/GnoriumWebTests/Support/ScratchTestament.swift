@@ -1,7 +1,7 @@
 import Foundation
 
 /// A scratch work's testament: its text (`tei`) as a permitted version, a
-/// notation's, owned by the test's account, so an utterance can be anchored
+/// madrigal's, owned by the test's account, so an utterance can be anchored
 /// in it and read there. Every row by its own id, removed before the work.
 struct ScratchTestament {
   let reading: ScratchReading
@@ -15,10 +15,10 @@ struct ScratchTestament {
     _ = try TestAdmin.query(
       """
       BEGIN;
-      UPDATE bibliographic_notations SET processing_status = 'permitted', permitted_by_user_id = '\(user)', permitted_at = now()
-        WHERE id = '\(reading.notationID)';
-      INSERT INTO biblio_record_versions (id, biblio_record_id, bibliographic_notation_id, metadata_json, shape_json, treatment, created_at)
-        SELECT '\(versionID)', biblio_record_id, '\(reading.notationID)', metadata_json, shape_json, 1, now()
+      UPDATE bibliographic_madrigals SET processing_status = 'permitted', permitted_by_user_id = '\(user)', permitted_at = now()
+        WHERE id = '\(reading.madrigalID)';
+      INSERT INTO biblio_record_versions (id, biblio_record_id, bibliographic_madrigal_id, metadata_json, shape_json, treatment, created_at)
+        SELECT '\(versionID)', biblio_record_id, '\(reading.madrigalID)', metadata_json, shape_json, 1, now()
         FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())';
       COMMIT;
       """)

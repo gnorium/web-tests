@@ -57,8 +57,8 @@ struct CanvasAttachmentTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_notation_id, requested_by_user_id, semblance_service_ids_json, processing_status)
-          VALUES ('\(antiphonID)', '\(work.notationID.lowercased())', '\(user)', '[]', 'submitted');
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, semblance_service_ids_json, processing_status)
+          VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_stage_runs (id, submission_id, stage, semblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', 'Page 1', 1, 'fixture', 'fixture', '[{"type":"thinking","content":"Preparing the canvas fixture."}]', 'passed',

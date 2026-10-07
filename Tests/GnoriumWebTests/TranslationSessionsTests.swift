@@ -37,7 +37,7 @@ struct TranslationSessionsTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
     let antiphon = UUID().uuidString.lowercased()
-    let notation = UUID().uuidString.lowercased()
+    let madrigal = UUID().uuidString.lowercased()
     let postlude = UUID().uuidString.lowercased()
     do {
       let user = try admin.column("id")
@@ -45,15 +45,15 @@ struct TranslationSessionsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_notation_id, requested_by_user_id, semblance_service_ids_json, processing_status)
-          VALUES ('\(antiphon)', '\(work.notationID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_notations (id, thread_id, bibliographic_antiphon_id, biblio_record_id, proposed_content_json,
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, semblance_service_ids_json, processing_status)
+          VALUES ('\(antiphon)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
+        INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, biblio_record_id, proposed_content_json,
           metadata_json, processing_status)
-          VALUES ('\(notation)', '\(notation)', '\(antiphon)', '\(work.recordID.lowercased())', '\(Self.tei)',
+          VALUES ('\(madrigal)', '\(madrigal)', '\(antiphon)', '\(work.recordID.lowercased())', '\(Self.tei)',
             (SELECT metadata_json FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())'), 'committed');
-        INSERT INTO bibliographic_postludes (id, bibliographic_notation_id, target_language, requested_by_user_id,
+        INSERT INTO bibliographic_postludes (id, bibliographic_madrigal_id, target_language, requested_by_user_id,
           processing_status, processing_error)
-          VALUES ('\(postlude)', '\(notation)', 'eng', '\(user)', 'failed', 'Web tests');
+          VALUES ('\(postlude)', '\(madrigal)', 'eng', '\(user)', 'failed', 'Web tests');
         INSERT INTO bibliographic_translation_stage_runs (id, bibliographic_postlude_id, stage, chunk, attempt, provider, model, output,
           result, duration_ms, created_at)
           VALUES (gen_random_uuid(), '\(postlude)', 'translation', 'Pages 1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
@@ -73,20 +73,20 @@ struct TranslationSessionsTests {
         try await expect(session.getByText("Two pages of arithmetic, translated.")).toBeAttached()
       }
     } catch {
-      remove(antiphon: antiphon, notation: notation, postlude: postlude, work: work)
+      remove(antiphon: antiphon, madrigal: madrigal, postlude: postlude, work: work)
       try await admin.remove(after: error)
     }
-    remove(antiphon: antiphon, notation: notation, postlude: postlude, work: work)
+    remove(antiphon: antiphon, madrigal: madrigal, postlude: postlude, work: work)
     try await admin.remove()
   }
 
-  private func remove(antiphon: String, notation: String, postlude: String, work: ScratchWork) {
+  private func remove(antiphon: String, madrigal: String, postlude: String, work: ScratchWork) {
     _ = try? TestAdmin.query(
       """
       BEGIN;
       DELETE FROM bibliographic_translation_stage_runs WHERE bibliographic_postlude_id = '\(postlude)';
       DELETE FROM bibliographic_postludes WHERE id = '\(postlude)';
-      DELETE FROM bibliographic_notations WHERE id = '\(notation)';
+      DELETE FROM bibliographic_madrigals WHERE id = '\(madrigal)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphon)';
       COMMIT;
       """)

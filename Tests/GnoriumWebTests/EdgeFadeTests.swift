@@ -20,7 +20,7 @@ struct EdgeFadeTests {
   /// The main pages, as a reader first meets them.
   static let pages = [
     "/", "/biblio-records", "/lexico-records", "/mission-control/lifecycles/bibliographic", "/mission-control/contributors",
-    "/mission-control/antiphons/bibliographic", "/mission-control/notations/bibliographic", "/mission-control/instances/bibliographic",
+    "/mission-control/antiphons/bibliographic", "/mission-control/madrigals/bibliographic", "/mission-control/instances/bibliographic",
     "/mission-control/interventions",
   ]
   static let tables = ["/biblio-records", "/lexico-records", "/mission-control/lifecycles/bibliographic"]

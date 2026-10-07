@@ -6,17 +6,17 @@ import Foundation
 /// leaf's (beside its definition, in its row's heading). Every row by its own
 /// id, removed in the order the foreign keys allow—except its submission and
 /// Instance, which are submitted input and frozen, so they stay. Its
-/// overture is committed, its antiphon submitted, and the notation that
+/// overture is committed, its antiphon submitted, and the madrigal that
 /// antiphon made permitted. With a `distinction`,
 /// the leaf's TEI holds it as its `<note type="usage" subtype="distinction">`
 /// (a `{branch}` in it a `<ptr>` to the branch). With an `anchor` (a
 /// testament's record, version and page, and the utterance's passage and
 /// word there), the leaf is attested by an utterance in that testament.
 struct ScratchWord {
-  /// Its overture's, its notation's and its version's ids, as the server
+  /// Its overture's, its madrigal's and its version's ids, as the server
   /// writes them.
   let overtureID: String
-  let notationID: String
+  let madrigalID: String
   let versionID: String
   /// The scratch record's title.
   let title: String
@@ -40,7 +40,7 @@ struct ScratchWord {
   }
 
   /// `language` is the record's (ISO 639-3): English unless named.
-  /// `submitted` leaves its notation awaiting its verdict (submitted, not
+  /// `submitted` leaves its madrigal awaiting its verdict (submitted, not
   /// yet permitted), as a Modify page needs it.
   init(
     owner: TestAdmin, distinction: String? = nil, anchor: Anchor? = nil, language: String = "eng",
@@ -48,11 +48,11 @@ struct ScratchWord {
   ) throws {
     let user = try owner.column("id")
     var ids: [String: String] = [:]
-    for name in ["submission", "instance", "overture", "antiphon", "notation", "lemma", "record", "version"] {
+    for name in ["submission", "instance", "overture", "antiphon", "madrigal", "lemma", "record", "version"] {
       ids[name] = UUID().uuidString.lowercased()
     }
     overtureID = ids["overture"]!.uppercased()
-    notationID = ids["notation"]!.uppercased()
+    madrigalID = ids["madrigal"]!.uppercased()
     versionID = ids["version"]!.uppercased()
     self.ids = ids
     recordID = ids["record"]!.uppercased()
@@ -97,10 +97,10 @@ struct ScratchWord {
         VALUES ('\(ids["overture"]!)', '\(ids["instance"]!)', '\(titleForm)', '[]', '\(user)', now());
       INSERT INTO lexicographic_antiphons (id, lexicographic_instance_id, lexicographic_overture_id, requested_by_user_id, processing_status, language, sentence, title_form_json)
         VALUES ('\(ids["antiphon"]!)', '\(ids["instance"]!)', '\(ids["overture"]!)', '\(user)', 'submitted', '\(language)', '\(title)', '\(titleForm)');
-      INSERT INTO lexicographic_notations (id, lexicographic_antiphon_id, lexico_record_id, proposed_content_json, processing_status, permitted_by_user_id, permitted_at)
-        VALUES ('\(ids["notation"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"record":\(snapshot),"homographFlags":[],"evidenceRequests":[],"reasoning":"Web tests."}', \(submitted ? "'submitted', NULL, NULL" : "'permitted', '\(user)', now()"));
-      INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_notation_id, treatment, record_json, created_at)
-        VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["notation"]!)', 1, '\(snapshot)', now());
+      INSERT INTO lexicographic_madrigals (id, lexicographic_antiphon_id, lexico_record_id, proposed_content_json, processing_status, permitted_by_user_id, permitted_at)
+        VALUES ('\(ids["madrigal"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"record":\(snapshot),"homographFlags":[],"evidenceRequests":[],"reasoning":"Web tests."}', \(submitted ? "'submitted', NULL, NULL" : "'permitted', '\(user)', now()"));
+      INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_madrigal_id, treatment, record_json, created_at)
+        VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["madrigal"]!)', 1, '\(snapshot)', now());
       COMMIT;
       """)
   }
@@ -110,7 +110,7 @@ struct ScratchWord {
       """
       BEGIN;
       DELETE FROM lexico_record_versions WHERE id = '\(ids["version"]!)';
-      DELETE FROM lexicographic_notations WHERE id = '\(ids["notation"]!)';
+      DELETE FROM lexicographic_madrigals WHERE id = '\(ids["madrigal"]!)';
       DELETE FROM lexicographic_antiphons WHERE id = '\(ids["antiphon"]!)';
       DELETE FROM lexicographic_overtures WHERE id = '\(ids["overture"]!)';
       DELETE FROM url_histories WHERE entity_id = '\(ids["record"]!)';

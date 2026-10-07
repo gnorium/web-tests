@@ -37,14 +37,14 @@ struct TranslationScopeTests {
         .replacingOccurrences(of: "'", with: "''")
       _ = try TestAdmin.query("""
         BEGIN;
-        UPDATE bibliographic_notations SET metadata_json =
+        UPDATE bibliographic_madrigals SET metadata_json =
           (metadata_json::jsonb || '{"language":"ita","sourceUrl":"\(fixture.baseURL)/manifest.json"}'::jsonb)::text
-          WHERE id = '\(reading.notationID)';
-        INSERT INTO bibliographic_postludes (id, bibliographic_notation_id, target_language, semblance_service_ids_json, requested_by_user_id, processing_status)
-          VALUES ('\(postlude)', '\(reading.notationID)', 'eng', '[]', '\(user)', 'submitted');
+          WHERE id = '\(reading.madrigalID)';
+        INSERT INTO bibliographic_postludes (id, bibliographic_madrigal_id, target_language, semblance_service_ids_json, requested_by_user_id, processing_status)
+          VALUES ('\(postlude)', '\(reading.madrigalID)', 'eng', '[]', '\(user)', 'submitted');
         INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_postlude_id, proposed_content_json, metadata_json, translation_json, processing_status)
           SELECT '\(epilogue)', '\(epilogue)', '\(reading.work.overtureID.lowercased())', '\(postlude)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
-          FROM bibliographic_notations p WHERE p.id = '\(reading.notationID)';
+          FROM bibliographic_madrigals p WHERE p.id = '\(reading.madrigalID)';
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in

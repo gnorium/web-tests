@@ -3,17 +3,17 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// Notations and epilogues, both kinds, are modified as overtures are
+/// Madrigals and epilogues, both kinds, are modified as overtures are
 /// (user, 2026-10-07): while one awaits its verdict, its page offers Modify
 /// to anyone signed in, and its Modify page carries the Prompts of the
-/// process its next run takes—Explication on a notation, Translation on an
+/// process its next run takes—Explication on a madrigal, Translation on an
 /// epilogue, of its own kind. A prompt change suggested there is a `prompt`
 /// modification of the object, listed on the kind's Modifications. All of
 /// it under a throwaway contributor's account; Chrome, desktop.
 @Suite("Modify pages", .serialized)
 struct ModifyPagesTests {
   @Test(arguments: [BrowserEngine.chrome])
-  func notationsAndEpiloguesOfBothKindsOfferTheirProcesssPrompts(engine: BrowserEngine) async throws {
+  func madrigalsAndEpiloguesOfBothKindsOfferTheirProcesssPrompts(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
@@ -41,8 +41,8 @@ struct ModifyPagesTests {
             'A leaf sense.', 'definition', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.');
         """)
       let objects: [(path: String, slot: String, title: String, fields: Bool)] = [
-        (commit.notationPath, "bibliographic_explication", "Prompts: Explication", true),
-        ("/mission-control/notations/lexicographic/\(word.notationID)", "lexicographic_explication",
+        (commit.madrigalPath, "bibliographic_explication", "Prompts: Explication", true),
+        ("/mission-control/madrigals/lexicographic/\(word.madrigalID)", "lexicographic_explication",
          "Prompts: Explication", true),
         // An epilogue's Modify edits the prompts of the process its page's
         // toggle chose (`?process=`), explication when none is named.
@@ -65,7 +65,7 @@ struct ModifyPagesTests {
         }
 
         // A prompt change suggested from each lexicographic object's page.
-        for (object, kind) in [("notation", objects[1]), ("epilogue", objects[2])] {
+        for (object, kind) in [("madrigal", objects[1]), ("epilogue", objects[2])] {
           try await page.openHydrated("\(kind.path)/modify" + process(kind.slot))
           _ = try await page.evaluate(
             """
@@ -98,10 +98,10 @@ struct ModifyPagesTests {
     try await contributor.remove()
   }
 
-  /// A lexicographic notation's Modify page offers what a bibliographic
+  /// A lexicographic madrigal's Modify page offers what a bibliographic
   /// one's does, in parallel (user, 2026-10-07): its record's identity and
   /// each sentiment's definition and labels. A change is a `form`
-  /// modification an admin accepts—written into the notation—and reverts.
+  /// modification an admin accepts—written into the madrigal—and reverts.
   /// An epilogue's definition in the record's language is modified the same
   /// way, the session's confidence cleared once a person changed it.
   @Test(arguments: [BrowserEngine.chrome])
@@ -125,7 +125,7 @@ struct ModifyPagesTests {
     }
     func content() throws -> String {
       try TestAdmin.query(
-        "SELECT proposed_content_json FROM lexicographic_notations WHERE id = '\(word.notationID.lowercased())'")
+        "SELECT proposed_content_json FROM lexicographic_madrigals WHERE id = '\(word.madrigalID.lowercased())'")
     }
     do {
       _ = try TestAdmin.query(
@@ -136,9 +136,9 @@ struct ModifyPagesTests {
             'A leaf sense.', 'definition', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.',
             '{"language_code":"fra","definition":"Un sens feuille.","labels":[],"confidence":"clear","reason":"Web tests."}');
         """)
-      let notationPath = "/mission-control/notations/lexicographic/\(word.notationID)"
+      let madrigalPath = "/mission-control/madrigals/lexicographic/\(word.madrigalID)"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        try await page.openHydrated("\(notationPath)/modify")
+        try await page.openHydrated("\(madrigalPath)/modify")
         // Every sentiment's fields, under its number.
         try await expect(page.locator("textarea[name='sentiment-0-definition']")).toHaveValue("A branch sense.")
         try await expect(page.locator("textarea[name='sentiment-1-definition']")).toHaveValue("A leaf sense.")
@@ -150,22 +150,22 @@ struct ModifyPagesTests {
         try await expect(page.locator("[data-diff-annotation][data-visible='true']").first).toBeAttached()
         try await page.locator("form[data-modify-form] button[type='submit']").click()
         try await expect(page, timeout: .seconds(15))
-          .toHaveURL("/mission-control/modifications/lexicographic?object=notation")
+          .toHaveURL("/mission-control/modifications/lexicographic?object=madrigal")
       }
       let id = try TestAdmin.query(
-        "SELECT id FROM modifications WHERE requested_by_user_id = '\(user)' AND modifiable_type = 'lexicographicNotation' AND target = 'form' AND status = 'pending'")
-      #expect(!id.isEmpty, "A form modification of the notation is filed")
-      #expect(try content().contains("A leaf sense.\""), "The notation stands until it is accepted")
+        "SELECT id FROM modifications WHERE requested_by_user_id = '\(user)' AND modifiable_type = 'lexicographicMadrigal' AND target = 'form' AND status = 'pending'")
+      #expect(!id.isEmpty, "A form modification of the madrigal is filed")
+      #expect(try content().contains("A leaf sense.\""), "The madrigal stands until it is accepted")
 
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
-        let modificationPath = "\(notationPath)/modifications/\(id.uppercased())"
+        let modificationPath = "\(madrigalPath)/modifications/\(id.uppercased())"
         try await page.openHydrated(modificationPath)
         try await expect(page.getByText("Sentiment 1.1").first).toBeAttached()
         try await expect(page.locator(".diff-view").first).toBeAttached()
         _ = try await page.evaluate("(() => { document.getElementById('modification-accept').submit(); return true })()", as: Bool.self)
         try await expect(page, timeout: .seconds(15))
-          .toHaveURL("/mission-control/modifications/lexicographic?object=notation")
-        #expect(try content().contains("A leaf sense, as a person reads it."), "Accepted, it is written into the notation")
+          .toHaveURL("/mission-control/modifications/lexicographic?object=madrigal")
+        #expect(try content().contains("A leaf sense, as a person reads it."), "Accepted, it is written into the madrigal")
         try await page.openHydrated(modificationPath)
         _ = try await page.evaluate("(() => { document.getElementById('modification-revert').submit(); return true })()", as: Bool.self)
         try await expect(page, timeout: .seconds(15)).toHaveURL(modificationPath)

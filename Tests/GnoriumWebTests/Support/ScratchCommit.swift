@@ -2,11 +2,11 @@ import Foundation
 
 /// Two Disputorium objects waiting on a commit, owned by the test's
 /// account: a pending overture, with one way to commit, and a pending
-/// notation (its own overture committed, its antiphon submitted), with
+/// madrigal (its own overture committed, its antiphon submitted), with
 /// two. Every row by its own id, removed in the order the foreign keys
 /// allow—except its submission and Instance, which are submitted input and
 /// frozen: the Instance is soft-deleted, as the site deletes one. Nothing here is ever committed: a test only opens and cancels.
-/// The notation's metadata holds what the witness's fields require (its
+/// The madrigal's metadata holds what the witness's fields require (its
 /// page decodes them): the language, the source URL and its kind.
 struct ScratchCommit {
   /// A IIIF manifest no one serves: `.invalid` never resolves, so the
@@ -19,11 +19,11 @@ struct ScratchCommit {
   private let pendingOvertureID: String
   private let committedOvertureID: String
   private let antiphonID: String
-  let notationID: String
+  let madrigalID: String
   private let owner: String
 
   var overturePath: String { "/mission-control/overtures/bibliographic/\(pendingOvertureID)" }
-  var notationPath: String { "/mission-control/notations/bibliographic/\(notationID)" }
+  var madrigalPath: String { "/mission-control/madrigals/bibliographic/\(madrigalID)" }
 
   init(owner: TestAdmin, sourceURL: String = ScratchCommit.sourceURL) throws {
     let user = try owner.column("id")
@@ -34,7 +34,7 @@ struct ScratchCommit {
     pendingOvertureID = id()
     committedOvertureID = id()
     antiphonID = id()
-    notationID = id()
+    madrigalID = id()
     _ = try TestAdmin.query(
       """
       BEGIN;
@@ -47,8 +47,8 @@ struct ScratchCommit {
         VALUES ('\(committedOvertureID)', '\(submissionID)', '\(instanceID)', '\(sourceURL)', 'eng', 'pending', '\(user)', now());
       INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, semblance_service_ids_json, processing_status)
         VALUES ('\(antiphonID)', '\(committedOvertureID)', '\(user)', '[]', 'submitted');
-      INSERT INTO bibliographic_notations (id, thread_id, bibliographic_antiphon_id, proposed_content_json, metadata_json, processing_status)
-        VALUES ('\(notationID)', '\(notationID)', '\(antiphonID)', '{"teiXml":""}', '{"language":"eng","sourceUrl":"\(sourceURL)","sourceKind":"iiif-manifest"}', 'pending');
+      INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, proposed_content_json, metadata_json, processing_status)
+        VALUES ('\(madrigalID)', '\(madrigalID)', '\(antiphonID)', '{"teiXml":""}', '{"language":"eng","sourceUrl":"\(sourceURL)","sourceKind":"iiif-manifest"}', 'pending');
       COMMIT;
       """)
   }
@@ -57,16 +57,16 @@ struct ScratchCommit {
   func stillPending() throws -> Bool {
     let overture = try TestAdmin.query(
       "SELECT committed_at IS NULL FROM bibliographic_overtures WHERE id = '\(pendingOvertureID)'")
-    let notation = try TestAdmin.query(
-      "SELECT processing_status FROM bibliographic_notations WHERE id = '\(notationID)'")
-    return overture == "t" && notation == "pending"
+    let madrigal = try TestAdmin.query(
+      "SELECT processing_status FROM bibliographic_madrigals WHERE id = '\(madrigalID)'")
+    return overture == "t" && madrigal == "pending"
   }
 
   func remove() {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      DELETE FROM bibliographic_notations WHERE id = '\(notationID)';
+      DELETE FROM bibliographic_madrigals WHERE id = '\(madrigalID)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
       DELETE FROM bibliographic_overtures WHERE id IN ('\(pendingOvertureID)', '\(committedOvertureID)');
       UPDATE bibliographic_instances SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(instanceID)';

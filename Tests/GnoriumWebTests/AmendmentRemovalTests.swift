@@ -24,8 +24,8 @@ struct AmendmentRemovalTests {
         """
         BEGIN;
         DELETE FROM modifications WHERE modifiable_id IN
-          (SELECT id FROM bibliographic_notations WHERE biblio_record_id = '\(record)' AND id <> '\(work.notationID.lowercased())');
-        DELETE FROM bibliographic_notations WHERE biblio_record_id = '\(record)' AND id <> '\(work.notationID.lowercased())';
+          (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');
+        DELETE FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())';
         COMMIT;
         """)
     }
@@ -102,13 +102,13 @@ struct AmendmentRemovalTests {
 
         try await page.locator("#amendment-rationale").fill("Web tests: this testament is not the work's.")
         try await page.locator(".record-actions button[type='submit']").click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the reopened notation") {
-          $0.path.hasPrefix("/mission-control/notations/bibliographic/")
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the reopened madrigal") {
+          $0.path.hasPrefix("/mission-control/madrigals/bibliographic/")
         }
         let stored = try TestAdmin.query(
           """
-          SELECT shape_json FROM bibliographic_notations
-            WHERE biblio_record_id = '\(record)' AND id <> '\(work.notationID.lowercased())';
+          SELECT shape_json FROM bibliographic_madrigals
+            WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())';
           """
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(stored.contains("\"work\"") && !stored.contains("edition-") && !stored.contains("manifest-"), "\(stored)")

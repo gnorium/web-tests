@@ -30,8 +30,8 @@ struct AmendmentInsertionTests {
         DELETE FROM inferred_citation_jobs WHERE record_id = '\(record)';
         DELETE FROM biblio_record_versions WHERE biblio_record_id = '\(record)' AND id <> '\(work.versionID.lowercased())';
         DELETE FROM modifications WHERE modifiable_id IN
-          (SELECT id FROM bibliographic_notations WHERE biblio_record_id = '\(record)' AND id <> '\(work.notationID.lowercased())');
-        DELETE FROM bibliographic_notations WHERE biblio_record_id = '\(record)' AND id <> '\(work.notationID.lowercased())';
+          (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');
+        DELETE FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())';
         COMMIT;
         """)
     }
@@ -148,13 +148,13 @@ struct AmendmentInsertionTests {
         #expect(atomic.contains("\"issue-new\""))
         try await page.expectNoHorizontalOverflow()
         try await page.locator(".record-actions button[type='submit']").click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the reopened notation") {
-          $0.path.hasPrefix("/mission-control/notations/bibliographic/")
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the reopened madrigal") {
+          $0.path.hasPrefix("/mission-control/madrigals/bibliographic/")
         }
         let stored = try TestAdmin.query(
           """
-          SELECT shape_json FROM bibliographic_notations
-            WHERE biblio_record_id = '\(record)' AND id <> '\(work.notationID.lowercased())';
+          SELECT shape_json FROM bibliographic_madrigals
+            WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())';
           """
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(stored.contains("\"impression-\(witness)\":{\"parent\":\"work\""), "\(stored)")
@@ -164,14 +164,14 @@ struct AmendmentInsertionTests {
         let filed = try TestAdmin.query(
           """
           SELECT content_json FROM modifications WHERE modifiable_id IN
-            (SELECT id FROM bibliographic_notations WHERE biblio_record_id = '\(record)' AND id <> '\(work.notationID.lowercased())');
+            (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');
           """)
         #expect(filed.contains("\"impression\":\"Second impression\""), "\(filed)")
         #expect(filed.contains("\"issue\":\"Library issue\""), "\(filed)")
-        let modification = try TestAdmin.query("SELECT upper(id::text) FROM modifications WHERE modifiable_id IN (SELECT id FROM bibliographic_notations WHERE biblio_record_id = '\(record)' AND id <> '\(work.notationID.lowercased())');").trimmingCharacters(in: .whitespacesAndNewlines)
+        let modification = try TestAdmin.query("SELECT upper(id::text) FROM modifications WHERE modifiable_id IN (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');").trimmingCharacters(in: .whitespacesAndNewlines)
         try await page.locator(".intervention-thread-view form[action$='/modifications/\(modification)/accept'] button").first.click()
         try await page.waitForLoadState()
-        try await page.locator("button[form='notation-permit']").click()
+        try await page.locator("button[form='madrigal-permit']").click()
         try await expect(page.locator(".mission-control-object-header-status-chip"), timeout: .seconds(15)).toHaveText("Permitted")
         let published = try TestAdmin.query("SELECT shape_json FROM biblio_record_versions WHERE biblio_record_id = '\(record)' ORDER BY created_at DESC LIMIT 1;").trimmingCharacters(in: .whitespacesAndNewlines)
         let publishedShape = try JSONSerialization.jsonObject(with: Data(published.utf8)) as? NSDictionary

@@ -2,7 +2,7 @@ import Foundation
 
 /// A work with one explicated version whose tree holds one edition and its
 /// manifest, owned by the test's account: its overture committed, its
-/// antiphon submitted, and the notation that antiphon made permitted. Every
+/// antiphon submitted, and the madrigal that antiphon made permitted. Every
 /// row by its own id, removed in the order the foreign keys allow—except
 /// its submission and Instance, which are submitted input and frozen: the
 /// Instance is soft-deleted, as the site deletes one, and both stay.
@@ -17,9 +17,9 @@ struct ScratchWork {
   let versionID: String
   /// Its overture's id (committed), as the server writes it: upper case.
   let overtureID: String
-  /// The notation its version was permitted from, as the server writes it:
+  /// The madrigal its version was permitted from, as the server writes it:
   /// upper case.
-  let notationID: String
+  let madrigalID: String
   let path: String
   private let ids: [String: String]
   private let owner: String
@@ -31,7 +31,7 @@ struct ScratchWork {
     let user = try owner.column("id")
     var ids: [String: String] = [:]
     for name in [
-      "submission", "instance", "overture", "antiphon", "record", "notation", "version", "authorship",
+      "submission", "instance", "overture", "antiphon", "record", "madrigal", "version", "authorship",
     ] {
       ids[name] = UUID().uuidString.lowercased()
     }
@@ -45,7 +45,7 @@ struct ScratchWork {
     recordID = ids["record"]!.uppercased()
     versionID = ids["version"]!.uppercased()
     overtureID = ids["overture"]!.uppercased()
-    notationID = ids["notation"]!.uppercased()
+    madrigalID = ids["madrigal"]!.uppercased()
     self.ids = ids
     let instance = ids["instance"]!.uppercased()
     let metadata = """
@@ -75,10 +75,10 @@ struct ScratchWork {
         VALUES ('\(ids["record"]!)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)',
           'report', 'eng', '[]', 1958, 'AD 1958');
       \(voice)
-      INSERT INTO bibliographic_notations (id, thread_id, bibliographic_antiphon_id, biblio_record_id, proposed_content_json, metadata_json, shape_json, processing_status, permitted_by_user_id, permitted_at)
-        VALUES ('\(ids["notation"]!)', '\(ids["notation"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"teiXml":""}', '\(metadata)', '\(shape)', 'permitted', '\(user)', now());
-      INSERT INTO biblio_record_versions (id, biblio_record_id, bibliographic_notation_id, metadata_json, shape_json, treatment, created_at)
-        VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["notation"]!)', '\(metadata)', '\(shape)', 1, now());
+      INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, biblio_record_id, proposed_content_json, metadata_json, shape_json, processing_status, permitted_by_user_id, permitted_at)
+        VALUES ('\(ids["madrigal"]!)', '\(ids["madrigal"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"teiXml":""}', '\(metadata)', '\(shape)', 'permitted', '\(user)', now());
+      INSERT INTO biblio_record_versions (id, biblio_record_id, bibliographic_madrigal_id, metadata_json, shape_json, treatment, created_at)
+        VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["madrigal"]!)', '\(metadata)', '\(shape)', 1, now());
       COMMIT;
       """)
   }
@@ -92,7 +92,7 @@ struct ScratchWork {
       """
       BEGIN;
       DELETE FROM biblio_record_versions WHERE id = '\(ids["version"]!)' AND NOT \(amended);
-      DELETE FROM bibliographic_notations WHERE id = '\(ids["notation"]!)' AND NOT \(amended);
+      DELETE FROM bibliographic_madrigals WHERE id = '\(ids["madrigal"]!)' AND NOT \(amended);
       DELETE FROM bibliographic_antiphons WHERE id = '\(ids["antiphon"]!)' AND NOT \(amended);
       DELETE FROM url_histories WHERE entity_id = '\(ids["record"]!)' AND NOT \(amended);
       DELETE FROM biblio_record_voices WHERE id = '\(ids["authorship"]!)' AND NOT \(amended);
