@@ -65,15 +65,20 @@ struct CommitDialogTests {
         #expect(heapIntact, "Callback marshalling must preserve live Swift allocations")
         try await page.expectNoErrors()
 
-        // Two ways: the operation is picked in the prompt preview's toolbar
-        // (explication first), and its one Commit opens that way's dialog.
+        // Two ways (an Italian witness is translated): the process is picked
+        // in the header's toggle (explication first), and its one Commit
+        // opens that way's dialog.
+        _ = try TestAdmin.query("""
+          UPDATE bibliographic_notations SET metadata_json =
+            (metadata_json::jsonb || '{"language":"ita"}'::jsonb)::text WHERE id = '\(scratch.notationID)'
+          """)
         try await page.openHydrated(scratch.notationPath)
         try await expect(page.locator(".commit-view-menu")).toHaveCount(0)
         let toolbar = page.locator(".disputorium-pipeline-toolbar")
         let dialogs = page.locator(".commit-view-dialog[data-open='true']")
         try await expect(toolbar).toBeVisible()
-        try await expect(toolbar.locator(".pipeline-selection-toggle[data-pipeline='translation']")).toHaveCount(1)
-        let explication = toolbar.locator(".pipeline-selection-toggle[data-pipeline='bibliographic_explication']")
+        try await expect(toolbar.locator(".pipeline-selection-group .toggle-button-group-button[data-value$='translation']")).toHaveCount(1)
+        let explication = toolbar.locator(".pipeline-selection-group .toggle-button-group-button[data-value='bibliographic_explication']")
         try await explication.click()
         try await expect(toolbar).toHaveAttribute("data-selected-pipeline", "bibliographic_explication")
         try await expect(dialogs).toHaveCount(0)

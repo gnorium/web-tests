@@ -19,7 +19,7 @@ struct ScratchCommit {
   private let pendingOvertureID: String
   private let committedOvertureID: String
   private let antiphonID: String
-  private let notationID: String
+  let notationID: String
   private let owner: String
 
   var overturePath: String { "/mission-control/overtures/bibliographic/\(pendingOvertureID)" }

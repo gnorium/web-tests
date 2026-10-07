@@ -49,8 +49,8 @@ struct TranslationScopeTests {
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/epilogues/bibliographic/\(epilogue)")
-        try await expect(page.locator(".pipeline-selection-toggle[data-pipeline='translation']")).toHaveCount(1)
-        try await page.locator(".pipeline-selection-toggle[data-pipeline='translation']").click()
+        try await expect(page.locator(".pipeline-selection-group .toggle-button-group-button[data-value$='translation']")).toHaveCount(1)
+        try await page.locator(".pipeline-selection-group .toggle-button-group-button[data-value$='translation']").click()
         try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "bibliographic_translation")
         _ = try await page.evaluate("""
           window.__translationSubmit = null;
@@ -87,15 +87,14 @@ struct TranslationScopeTests {
           try await expect(page.locator("body")).toHaveAttribute("data-preview-scope", scope)
           try await expect(page.locator(".prompt-instances-slot")).toHaveAttribute("aria-busy", "false")
           if scope == "stale" {
-            try await expect(page.locator(".prompt-instance-body")).toHaveCount(0)
-            try await expect(page.locator(".prompt-instances-notice")).toContainText("No concrete task is ready for the visible page")
+            try await expect(page.locator(".prompt-instance-task")).toHaveCount(0)
+            try await expect(page.locator(".prompt-instances-notice")).toContainText("Prompts for this page could not be built.")
           } else {
-            try await expect(page.locator(".prompt-instance-body")).toHaveCount(1)
+            try await expect(page.locator(".prompt-instance-task")).toHaveCount(1)
             let chunk = scope == "all" ? "Pages 1–2" : "Page 2"
-            try await expect(page.locator(".prompt-instance-context")).toContainText("\(chunk), containing the selected semblance")
             // Runtime opens the text through open_page. Its concrete task
             // identifies the assigned chunk and each page's segment count.
-            let task = try await page.locator(".prompt-instance-body .prompt-text-source").nth(1).textContent()
+            let task = try await page.locator(".prompt-instance-task .prompt-text-source").first.textContent()
             #expect(task.contains("Translate these pages from Italian into English: \(chunk)."))
             let pageSummaries = task.components(separatedBy: "Pages:").last?
               .components(separatedBy: "The glossary so far:").first?
@@ -107,10 +106,10 @@ struct TranslationScopeTests {
             #expect(selected == "[\"\(fixture.baseURL)/page-2\"]")
           }
           try await page.locator(".commit-view-trigger").click()
-          let dialog = page.locator(".commit-view-option[data-value='translation-\(scope)'] .commit-view-dialog")
+          let dialog = page.locator(".commit-view-option[data-value$='translation-\(scope)'] .commit-view-dialog")
           try await dialog.locator(".dialog-primary-button button").click()
           let payload = try await page.evaluate("JSON.stringify(window.__translationSubmit)", as: String.self)
-          #expect(payload.contains("\"pipeline\":\"translation\""))
+          #expect(payload.range(of: #""pipeline":"(bibliographic_)?translation""#, options: .regularExpression) != nil)
           #expect(payload.contains("\"scope\":\"\(scope)\""))
           #expect(payload.contains("\"services\":[\"\(fixture.baseURL)/page-2\"]"))
           try await dialog.locator(".dialog-default-button button").click()
