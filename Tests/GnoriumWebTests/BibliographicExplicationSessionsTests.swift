@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// An explication is one stage, the pipeline's own (user, 2026-09-29): no
 /// Sight, Proof or Vouch cards, and one session a chunk of pages—never a
-/// row a page—whose trace shows the tool calls it read and committed with.
+/// row a page—whose trace shows the tool calls it read and saved with.
 @Suite("Bibliographic explication sessions", .serialized)
 struct BibliographicExplicationSessionsTests {
   static let page = #"<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><pb n="1"/><p><s><w lemma="sea" type="noun">sea</w></s><lb/></p></body></text></TEI>"#
@@ -24,13 +24,13 @@ struct BibliographicExplicationSessionsTests {
         ["type": "image_url", "content": "https://example.org/iiif/web-tests/full/1300,/0/default.jpg"],
         ["type": "thinking", "content": "Reading the first page of the chunk."],
         [
-          "type": "tool", "name": "commit_page", "arguments": "{}",
-          "result": #"{"ok": true, "tool": "commit_page", "committed": "1", "findings_count": 0}"#,
+          "type": "tool", "name": "save_page", "arguments": "{}",
+          "result": #"{"ok": true, "tool": "save_page", "saved": "1", "findings_count": 0}"#,
           "status": "ok", "call_id": "call_1",
         ],
         ["type": "semblance_xml", "label": "1", "content": Self.page],
         ["type": "semblance_xml", "label": "2", "content": Self.page],
-        ["type": "text", "content": "Both pages of the chunk committed."],
+        ["type": "text", "content": "Both pages of the chunk saved."],
       ]
       let output = String(decoding: try JSONSerialization.data(withJSONObject: blocks), as: UTF8.self)
         .replacingOccurrences(of: "'", with: "''")
@@ -44,7 +44,7 @@ struct BibliographicExplicationSessionsTests {
             (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1–2', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),
             '\(antiphonID)', 1200, now());
-        COMMIT;
+        SAVE;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)")
@@ -58,9 +58,9 @@ struct BibliographicExplicationSessionsTests {
         let rows = page.locator(".computorium-core-sessions-slot").first.locator(".roster-row")
         try await expect(rows).toHaveCount(1)
         try await expect(rows.first).toHaveAttribute("data-session-label", "1–2")
-        // Its trace: the tool call it committed a page with, and its last word.
-        try await expect(page.locator(".session-view").getByText("commit_page").first).toBeAttached()
-        try await expect(page.locator(".session-view").getByText("Both pages of the chunk committed.")).toBeAttached()
+        // Its trace: the tool call it saved a page with, and its last word.
+        try await expect(page.locator(".session-view").getByText("save_page").first).toBeAttached()
+        try await expect(page.locator(".session-view").getByText("Both pages of the chunk saved.")).toBeAttached()
       }
     } catch {
       remove(runID: runID, antiphonID: antiphonID, work: work)
@@ -115,7 +115,7 @@ struct BibliographicExplicationSessionsTests {
             (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),
             '\(antiphonID)', 1200, now());
-        COMMIT;
+        SAVE;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)")
@@ -151,7 +151,7 @@ struct BibliographicExplicationSessionsTests {
       BEGIN;
       DELETE FROM bibliographic_explication_stage_runs WHERE id = '\(runID)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
-      COMMIT;
+      SAVE;
       """)
     work.remove()
   }
