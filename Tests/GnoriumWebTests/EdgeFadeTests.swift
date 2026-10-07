@@ -241,11 +241,8 @@ struct EdgeFadeTests {
     }
   }
 
-  /// Where a trail's crumbs sit: the page's own crumb on the line of the
-  /// chevron before it, and the trail inside its footer and the page.
+  /// Whether a trail sits inside its footer and the page.
   struct TrailLayout: Decodable {
-    let currentTop: Double
-    let chevronTop: Double
     let fits: Bool
   }
 
@@ -254,13 +251,8 @@ struct EdgeFadeTests {
       """
       (() => {
         const trail = document.querySelector('\(trail)')
-        const current = trail.querySelector('.breadcrumb-current')
-        const chevrons = [...trail.querySelectorAll('.breadcrumb-separator')]
-        const chevron = chevrons[chevrons.length - 1]
         const footer = trail.closest('footer') || trail.parentElement
         return {
-          currentTop: current.getBoundingClientRect().top + current.getBoundingClientRect().height / 2,
-          chevronTop: chevron.getBoundingClientRect().top + chevron.getBoundingClientRect().height / 2,
           fits: trail.getBoundingClientRect().right <= footer.getBoundingClientRect().right + 0.5
             && [...trail.querySelectorAll('*')].every((e) => e.getBoundingClientRect().right <= footer.getBoundingClientRect().right + 0.5 || e.closest('[data-overflowing]'))
             && document.documentElement.scrollWidth <= innerWidth,
@@ -269,11 +261,12 @@ struct EdgeFadeTests {
       """, as: TrailLayout.self)
   }
 
-  /// The page's own crumb stays after its chevron, on the same line, long
-  /// title or short, shallow trail or deep; a long one is never faded but
-  /// wraps whole (2026-10-04), its title its full text.
+  /// The page's own crumb is never faded, long title or short, shallow
+  /// trail or deep: it wraps whole (2026-10-04), its title its full text.
+  /// Crumbs wrap between each other like words; a chevron may end a line
+  /// (user, 2026-10-07).
   @Test(arguments: gnorium.engines, Layout.allCases)
-  func theCurrentCrumbStaysOnItsChevronsLine(engine: BrowserEngine, layout: Layout) async throws {
+  func theCurrentCrumbIsShownWhole(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let suffix = String(UUID().uuidString.lowercased().prefix(8))
     let title =
@@ -311,8 +304,6 @@ struct EdgeFadeTests {
           try await expect(current).toHaveAttribute("title", title)
         }
         let placed = try await Self.trailLayout(page, trail)
-        #expect(abs(placed.currentTop - placed.chevronTop) < 2,
-          "\(path): the page's crumb is not on its chevron's line (\(placed.currentTop) vs \(placed.chevronTop))")
         #expect(placed.fits, "\(path): the breadcrumb trail runs past its footer or the page")
         _ = try await current.evaluate("(e) => e.scrollIntoView({ block: 'center' })")
         try await Self.screenshots(page, name, layout)
