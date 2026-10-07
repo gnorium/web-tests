@@ -7,8 +7,8 @@ import WebTestsTesting
 /// the antiphon's page lists its clusters as sessions ("Cluster 1 of 2 · 2
 /// utterances"), shows the focused one's trace—each utterance read and
 /// assigned, its last words—and no stages.
-@Suite("Explication sessions", .serialized)
-struct ExplicationSessionsTests {
+@Suite("Lexicographic explication sessions", .serialized)
+struct LexicographicExplicationSessionsTests {
   static func trace() throws -> String {
     let blocks: [[String: String]] = [
       ["type": "thinking", "content": "The sentence speaks of a person adding by hand."],
@@ -56,7 +56,7 @@ struct ExplicationSessionsTests {
             'Test via Stub', 3, 'utterance-v1', '["u-1","u-2","u-3"]');
         INSERT INTO utterance_clusters (id, utterance_clustering_id, position, utterance_ids_json)
           VALUES ('\(clusters[0])', '\(clustering)', 0, '["u-1","u-2"]'), ('\(clusters[1])', '\(clustering)', 1, '["u-3"]');
-        INSERT INTO explication_stage_runs (id, lexicographic_antiphon_id, stage, attempt, provider, model, output, result,
+        INSERT INTO lexicographic_explication_stage_runs (id, lexicographic_antiphon_id, stage, attempt, provider, model, output, result,
           duration_ms, utterance_cluster_id, created_at)
           VALUES ('\(run)', '\(antiphon)', 'explication', 1, 'openrouter', 'qwen/qwen3.8-max-0902', '\(try Self.trace())',
             'passed', 1200, '\(clusters[0])', now());
@@ -87,7 +87,7 @@ struct ExplicationSessionsTests {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      DELETE FROM explication_stage_runs WHERE lexicographic_antiphon_id = '\(antiphon)';
+      DELETE FROM lexicographic_explication_stage_runs WHERE lexicographic_antiphon_id = '\(antiphon)';
       DELETE FROM utterance_clusterings WHERE lexicographic_antiphon_id = '\(antiphon)';
       DELETE FROM lexicographic_antiphons WHERE id = '\(antiphon)';
       COMMIT;

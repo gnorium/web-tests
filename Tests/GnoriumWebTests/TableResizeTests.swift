@@ -78,7 +78,7 @@ struct TableResizeTests {
   @Test(arguments: gnorium.engines)
   func aColumnIsDraggedWiderAndFitsOnADoubleClick(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine)) { page in
-      for (path, column) in [("/lexico-records", "language"), ("/biblio-records", "type"), ("/mission-control/lifecycles", nil)] {
+      for (path, column) in [("/lexico-records", "language"), ("/biblio-records", "type"), ("/mission-control/lifecycles/bibliographic", nil)] {
         try await page.openHydrated(path)
         try await page.expectNoErrors()
         let id: String
@@ -245,7 +245,7 @@ struct TableResizeTests {
     guard gnorium.engines.contains(engine) else { return }
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       for kind in ["bibliographic", "lexicographic"] {
-        try await page.openHydrated("/mission-control?tab=\(kind)")
+        try await page.openHydrated("/mission-control/\(kind)")
         let link = page.locator(".mission-control-workers-table a[href='/mission-control/workers']")
         try await expect(link).toHaveCount(1)
         try await expect(link).toHaveText("Worker 1")
@@ -257,7 +257,7 @@ struct TableResizeTests {
         try await expect(page.locator("main input[name='count'], main input[name='enabled']")).toHaveCount(0)
         let breadcrumb = try await page.evaluate("document.querySelector('.breadcrumb-list')?.textContent || ''", as: String.self)
         #expect(breadcrumb.contains("Workers"))
-        #expect(!breadcrumb.contains("Bibliographic") && !breadcrumb.contains("Lexicographic") && !breadcrumb.contains("Recognition"))
+        #expect(!breadcrumb.contains("Bibliographic") && !breadcrumb.contains("Lexicographic") && !breadcrumb.contains("Explication"))
         try await page.expectNoHorizontalOverflow()
       }
       try await page.expectNoErrors()

@@ -1,6 +1,6 @@
 import Foundation
 
-/// A scratch work's text: a pending notation recognized again from its
+/// A scratch work's text: a pending notation explicated again from its
 /// permitted one, holding `tei` (one page, its facsimile on example.org),
 /// owned by the test's account. Every row by its own id, removed before the work.
 struct ScratchReading {

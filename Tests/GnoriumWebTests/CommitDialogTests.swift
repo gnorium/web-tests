@@ -46,7 +46,7 @@ struct CommitDialogTests {
         }
         try await page.locator(".commit-view-trigger").click()
         try await expect(dialog).toHaveAttribute("data-open", "true")
-        try await expect(dialog.locator(".dialog-header-title")).toHaveText("Commit this overture for recognition?")
+        try await expect(dialog.locator(".dialog-header-title")).toHaveText("Commit this overture for explication?")
         try await expect(dialog.locator(".dialog-primary-button")).toContainText("Commit")
         try await dialog.locator(".dialog-default-button button").click()
         try await expect(dialog).toHaveAttribute("data-open", "false")
@@ -66,21 +66,21 @@ struct CommitDialogTests {
         try await page.expectNoErrors()
 
         // Two ways: the operation is picked in the prompt preview's toolbar
-        // (recognition first), and its one Commit opens that way's dialog.
+        // (explication first), and its one Commit opens that way's dialog.
         try await page.openHydrated(scratch.notationPath)
         try await expect(page.locator(".commit-view-menu")).toHaveCount(0)
         let toolbar = page.locator(".disputorium-pipeline-toolbar")
         let dialogs = page.locator(".commit-view-dialog[data-open='true']")
         try await expect(toolbar).toBeVisible()
         try await expect(toolbar.locator(".pipeline-selection-toggle[data-pipeline='translation']")).toHaveCount(1)
-        let recognition = toolbar.locator(".pipeline-selection-toggle[data-pipeline='recognition']")
-        try await recognition.click()
-        try await expect(toolbar).toHaveAttribute("data-selected-pipeline", "recognition")
+        let explication = toolbar.locator(".pipeline-selection-toggle[data-pipeline='bibliographic_explication']")
+        try await explication.click()
+        try await expect(toolbar).toHaveAttribute("data-selected-pipeline", "bibliographic_explication")
         try await expect(dialogs).toHaveCount(0)
         try await expect(toolbar.locator(".commit-view-trigger:not([disabled])")).toHaveCount(1)
         try await toolbar.locator(".commit-view-trigger").click()
         try await expect(dialogs).toHaveCount(1)
-        try await expect(dialogs.locator(".dialog-header-title")).toHaveText("Commit this notation for recognition?")
+        try await expect(dialogs.locator(".dialog-header-title")).toHaveText("Commit this notation for explication?")
         try await dialogs.locator(".dialog-default-button button").click()
         try await expect(dialogs).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()

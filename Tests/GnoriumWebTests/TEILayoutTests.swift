@@ -10,7 +10,7 @@ import WebTestsTesting
 /// reflows: a block's lines run on as one paragraph, a break inside a word
 /// joining it with no space. The page, from the Wikisource example the user
 /// gave ("On the Goodness of the Supreme Being", 1756, p. 10), encoded as the
-/// recognition now writes it.
+/// explication now writes it.
 @Suite("TEI layout", .serialized)
 struct TEILayoutTests {
   static let tei = #"""

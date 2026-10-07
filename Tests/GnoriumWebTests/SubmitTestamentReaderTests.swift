@@ -6,7 +6,7 @@ import WebTestsTesting
 /// Submit Testament reads the testament its Source URL names as the record
 /// page reads one (user, 2026-10-03): the server reads the IIIF manifest,
 /// and the record page's viewer shows its semblances, with no ordinance
-/// pane, since nothing is recognized yet. A URL cleared takes the viewer
+/// pane, since nothing is explicated yet. A URL cleared takes the viewer
 /// away, and the field's own validation asks for one. A manifest the server
 /// cannot read takes it away too, with an error under the field that blocks
 /// the form for that URL: the submit would be refused for it.

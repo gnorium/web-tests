@@ -42,7 +42,7 @@ struct EntriesAndCitationsTests {
         VALUES (gen_random_uuid(), '\(citing.versionID.lowercased())', '\(citing.recordID.lowercased())',
           '\(citing.recordID.lowercased())', now(), 'c', 2, \(line), 1, 'Cited', \(line), 1, 'Cited',
           '\(word == nil ? "bibl" : "mentioned")', '\(word == nil ? "work" : "word")', 'Cited \(line)', '{}', 'eng',
-          'resolved', 'recognition', \(work.map { "'\($0)'" } ?? "NULL"), \(word.map { "'\($0)'" } ?? "NULL"),
+          'resolved', 'explication', \(work.map { "'\($0)'" } ?? "NULL"), \(word.map { "'\($0)'" } ?? "NULL"),
           now(), now(), \(entry.map { "'\($0)'" } ?? "NULL"), false);
       """
     }.joined(separator: "\n")
@@ -56,7 +56,7 @@ struct EntriesAndCitationsTests {
       status, decided_by, lexico_record_id, biblio_record_id, resolved_at, created_at)
       VALUES (gen_random_uuid(), '\(canon.versionID.lowercased())', '\(canon.recordID.lowercased())',
         '\(canon.recordID.lowercased())', now(), 'c', 3, 1, 1, '\(heading)', 1, 1, '\(heading)',
-        '\(word == nil ? "bibliographic" : "lexicographic")', '\(heading)', '{}', 'eng', 'resolved', 'recognition',
+        '\(word == nil ? "bibliographic" : "lexicographic")', '\(heading)', '{}', 'eng', 'resolved', 'explication',
         \(word.map { "'\($0)'" } ?? "NULL"), \(work.map { "'\($0)'" } ?? "NULL"), now(), now());
     """
   }
@@ -92,7 +92,7 @@ struct EntriesAndCitationsTests {
           + Self.entry(in: catalog, heading: "WEB TESTS HEADING", work: citedID)
           + Self.cite(1, by: catalog, work: citedID, entry: "ANOTHER HEADING") + Self.cite(3, by: letters, work: citedID)
           + "\nCOMMIT;")
-      // A current inferred placement is separate from the untouched recognition decision.
+      // A current inferred placement is separate from the untouched explication decision.
       let targetNode = try TestAdmin.query(
         "SELECT key FROM biblio_record_versions, jsonb_object_keys(shape_json::jsonb) AS key WHERE id = '\(cited.versionID.lowercased())' AND key LIKE 'edition-%';"
       ).trimmingCharacters(in: .whitespacesAndNewlines)

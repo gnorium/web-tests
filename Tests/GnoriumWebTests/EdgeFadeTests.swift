@@ -19,11 +19,11 @@ import WebTestsTesting
 struct EdgeFadeTests {
   /// The main pages, as a reader first meets them.
   static let pages = [
-    "/", "/biblio-records", "/lexico-records", "/mission-control/lifecycles", "/mission-control/contributors",
-    "/mission-control/antiphons", "/mission-control/notations", "/mission-control/instances",
+    "/", "/biblio-records", "/lexico-records", "/mission-control/lifecycles/bibliographic", "/mission-control/contributors",
+    "/mission-control/antiphons/bibliographic", "/mission-control/notations/bibliographic", "/mission-control/instances/bibliographic",
     "/mission-control/interventions",
   ]
-  static let tables = ["/biblio-records", "/lexico-records", "/mission-control/lifecycles"]
+  static let tables = ["/biblio-records", "/lexico-records", "/mission-control/lifecycles/bibliographic"]
 
   struct Report: Decodable {
     /// Boxes that may fade, shown.

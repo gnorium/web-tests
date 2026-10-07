@@ -1,6 +1,6 @@
 import Foundation
 
-/// A work with one recognized version whose tree holds one edition and its
+/// A work with one explicated version whose tree holds one edition and its
 /// manifest, owned by the test's account: its overture committed, its
 /// antiphon submitted, and the notation that antiphon made permitted. Every
 /// row by its own id, removed in the order the foreign keys allow—except

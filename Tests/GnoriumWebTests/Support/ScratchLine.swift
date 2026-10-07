@@ -1,7 +1,7 @@
 import Foundation
 
 /// A long bibliographic line, owned by the test's account: an instance and
-/// its committed overture, then `links` notations, each recognized by an
+/// its committed overture, then `links` notations, each explicated by an
 /// antiphon from the one before it (the first, from the overture) and each
 /// committed to the next; the last one permitted. Its Pedigree lists every
 /// one of them, so it runs far past one screen. Every row by its own id,

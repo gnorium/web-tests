@@ -62,17 +62,17 @@ struct WatchtowerFigureLinksTests {
 
   /// The case that was broken: the sentiments' committed overtures.
   static let committedSentimentOvertures =
-    "/mission-control/lifecycles?tab=lexicographic&object=overture&status=committed&since=1w"
+    "/mission-control/lifecycles/lexicographic?object=overture&status=committed&since=1w"
   /// The testaments' pending overtures, whose list must be filtered on the
   /// first render, not only after Apply.
-  static let pendingTestamentOvertures = "/mission-control/lifecycles?tab=bibliographic&object=overture&status=pending"
+  static let pendingTestamentOvertures = "/mission-control/lifecycles/bibliographic?object=overture&status=pending"
 
   /// A stage's figure opens the runs list: its filter bar names the stage,
   /// the status and "Runs", with no placeholder, and it lists as many runs as
   /// the figure.
   @Test(arguments: enginesAndLayouts)
   func aStageFigureOpensItsRuns(engine: BrowserEngine, layout: Layout) async throws {
-    let href = "/mission-control/lifecycles?tab=bibliographic&status=failed&stage=recognition&since=1w&show=runs"
+    let href = "/mission-control/lifecycles/bibliographic?status=failed&stage=explication&since=1w&show=runs"
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/")
       let link = page.locator(".watchtower-stage-figures a[href='\(href)']").first
@@ -84,7 +84,7 @@ struct WatchtowerFigureLinksTests {
       let fields = try await page.locator(".filter-bar-field-picker .dropdown-selected-text").allTextContents()
       #expect(fields.contains("Stage") && fields.contains("Status") && fields.contains("Show"), "fields: \(fields)")
       let values = try await page.locator(".filter-bar-value-select .dropdown-selected-text").allTextContents()
-      #expect(values.contains("Recognition") && values.contains("Failed") && values.contains("Runs"), "values: \(values)")
+      #expect(values.contains("Explication") && values.contains("Failed") && values.contains("Runs"), "values: \(values)")
       let placeholders = try await page.evaluate(
         """
         [...document.querySelectorAll('.filter-bar-value-select .dropdown-selected-text')]

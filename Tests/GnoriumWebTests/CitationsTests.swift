@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// The citation graph (user, 2026-09-28). A notation's Citations list every
 /// reference its text makes to another work and every word it cites as a
-/// word, where each is and what it links to, as the recognition placed it
+/// word, where each is and what it links to, as the explication placed it
 /// (a work's record, chosen by its session and kept with the notation by the
 /// `<bibl>`'s `xml:id`; the TEI holds the work's identity only); a
 /// signed-in reader suggests another link as a modification, which an admin
@@ -14,7 +14,7 @@ import WebTestsTesting
 /// Chrome headless.
 @Suite("Citations", .serialized)
 struct CitationsTests {
-  /// Every word of `text` a <w>, as the recognition tags it.
+  /// Every word of `text` a <w>, as the explication tags it.
   static func words(_ text: String) -> String {
     text.split(separator: " ").map { "<w lemma=\"\($0.lowercased())\" type=\"proper_noun\">\($0)</w>" }
       .joined(separator: " ")
@@ -22,7 +22,7 @@ struct CitationsTests {
 
   /// A page quoting `work` and naming it by its author and title (words 4
   /// to 11), its `<bibl xml:id="bibl-1">` placed at that work by its
-  /// recognition, and citing "placement" as a word (word 15).
+  /// explication, and citing "placement" as a word (word 15).
   static func tei(citing work: ScratchWork) -> String {
     """
     <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
@@ -32,8 +32,8 @@ struct CitationsTests {
     """
   }
 
-  /// The record its recognition chose for the page's `bibl-1`, kept with the
-  /// notation (`citation_placements_json`), as a recognition session leaves it.
+  /// The record its explication chose for the page's `bibl-1`, kept with the
+  /// notation (`citation_placements_json`), as an explication session leaves it.
   static func place(_ reading: ScratchReading, at work: ScratchWork, canvas: String) throws {
     _ = try TestAdmin.query(
       """
@@ -69,7 +69,7 @@ struct CitationsTests {
         try await expect(citations.locator(".notation-citations-view-note")).toContainText("held once it is permitted")
         let rows = citations.locator(".notation-citation")
         try await expect(rows).toHaveCount(2)
-        // The reference, placed by its recognition: the cited work.
+        // The reference, placed by its explication: the cited work.
         let reference = rows.nth(0)
         try await expect(reference).toContainText("Reference")
         // Named by its words, never by where it is.
@@ -140,7 +140,7 @@ struct CitationsTests {
         start_line, start_word, start_surface, end_line, end_word, end_surface, element, kind, surface, parts_json,
         language_code, status, decided_by, cited_biblio_record_id, resolved_at, created_at)
         VALUES ('\(citation)', '\(citing.versionID.lowercased())', '\(citing.recordID.lowercased())', '\(citing.recordID.lowercased())',
-          now(), 'c', 1, 1, 1, 'Report', 1, 1, 'Report', 'bibl', 'work', 'Report', '{}', 'eng', 'resolved', 'recognition',
+          now(), 'c', 1, 1, 1, 'Report', 1, 1, 'Report', 'bibl', 'work', 'Report', '{}', 'eng', 'resolved', 'explication',
           '\(cited.recordID.lowercased())', now(), now());
       INSERT INTO citation_extractions (id, biblio_record_version_id, testament_id, permitted_at, citations_version, count, extracted_at)
         VALUES ('\(extraction)', '\(citing.versionID.lowercased())', '\(citing.recordID.lowercased())', now(), 'tei-bibl-ref-mentioned-v3', 1, now());
@@ -187,7 +187,7 @@ struct CitationsTests {
 /// entries, previewed from its own transcript (the utterances service's
 /// `/entries/preview`, nothing stored; its body says so, no header chip—user,
 /// 2026-09-30) and listed above Citations, each with the
-/// record it is the entry for as the recognition placed it; a signed-in reader
+/// record it is the entry for as the explication placed it; a signed-in reader
 /// suggests another record (or none) as a modification, which an admin
 /// accepts, and the entry's link is then a person's, fixed. Phone and
 /// desktop, Chrome headless.

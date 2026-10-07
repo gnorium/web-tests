@@ -88,7 +88,7 @@ await browser.close()
 |---|---|
 | `page.locator("nav a")` | CSS |
 | `page.getByRole(.button, name: "Save")` | explicit or implicit ARIA role; accessible name contains "Save" (case-insensitive), or equals it with `exact: true`; hidden elements left out |
-| `page.getByText("Recognized")` | the smallest elements whose text contains it |
+| `page.getByText("Explicated")` | the smallest elements whose text contains it |
 | `page.getByLabel("Email")` | controls labeled by `<label>`, `aria-labelledby` or `aria-label` |
 | `.locator(…)`, `.getByRole(…)` on a locator | within its matches |
 | `.nth(2)`, `.first`, `.last`, `.filter(hasText:)`, `.filter(visible:)` | narrowing |

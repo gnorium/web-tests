@@ -42,7 +42,7 @@ struct InstanceDeletionTests {
         COMMIT;
         """)
       let page = "/mission-control/instances/lexicographic/\(instance)"
-      let register = "/mission-control/instances?tab=lexicographic"
+      let register = "/mission-control/instances/lexicographic"
       try await withPage(engine, gnorium, cookies: [admin.cookie]) { tab in
         let status = tab.locator(".mission-control-object-header-status-chip")
         try await tab.openHydrated(page)

@@ -59,9 +59,9 @@ struct CanvasAttachmentTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_notation_id, requested_by_user_id, semblance_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.notationID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO recognition_stage_runs (id, submission_id, stage, semblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_stage_runs (id, submission_id, stage, semblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
-            'recognition', 'Page 1', 1, 'fixture', 'fixture', '[{"type":"thinking","content":"Preparing the canvas fixture."}]', 'passed',
+            'explication', 'Page 1', 1, 'fixture', 'fixture', '[{"type":"thinking","content":"Preparing the canvas fixture."}]', 'passed',
             gen_random_uuid(), '\(antiphonID)', 1, now());
         COMMIT;
         """)
@@ -107,12 +107,12 @@ struct CanvasAttachmentTests {
       }
     } catch {
       try? FileManager.default.removeItem(at:file)
-      _ = try? TestAdmin.query("DELETE FROM recognition_stage_runs WHERE id='\(runID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
+      _ = try? TestAdmin.query("DELETE FROM bibliographic_explication_stage_runs WHERE id='\(runID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
       work.remove()
       try await admin.remove(after:error)
     }
     try? FileManager.default.removeItem(at:file)
-    _ = try TestAdmin.query("DELETE FROM recognition_stage_runs WHERE id='\(runID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
+    _ = try TestAdmin.query("DELETE FROM bibliographic_explication_stage_runs WHERE id='\(runID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
     work.remove()
     try await admin.remove()
   }

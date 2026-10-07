@@ -65,7 +65,7 @@ struct SponsorCheckoutTests {
         (()=>{const label=document.querySelector('label[for=sponsor-profile]');
           return getComputedStyle(label).fontSize==='16px' && getComputedStyle(document.querySelector('#sponsor-amount')).fontSize==='16px'
             && [...document.querySelectorAll('main.sponsor-content > p')].every(p=>getComputedStyle(p).fontSize==='16px');})()
-        """, as: Bool.self), "Body, amount and recognition checkbox use consistent 16px text")
+        """, as: Bool.self), "Body, amount and explication checkbox use consistent 16px text")
       try await expect(page.locator("#sponsor-profile")).toBeChecked(false)
       try await page.locator("#sponsor-amount").fill("500")
       try await page.locator("#sponsor-profile").check()

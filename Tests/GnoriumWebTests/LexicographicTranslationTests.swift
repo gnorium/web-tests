@@ -109,10 +109,10 @@ struct LexicographicTranslationTests {
         try await expect(page.locator(".session-view").getByText("German, broader; no other language.")).toBeAttached()
 
         // Listed on the Postludes register's Lexicographic tab, and the epilogue on Epilogues' Lexicographic tab.
-        try await page.openHydrated("/mission-control/postludes?tab=lexicographic")
+        try await page.openHydrated("/mission-control/postludes/lexicographic")
         try await expect(page.locator("a[href='/mission-control/translations/lexicographic/\(translation.uppercased())']"))
           .toBeAttached()
-        try await page.openHydrated("/mission-control/epilogues?tab=lexicographic")
+        try await page.openHydrated("/mission-control/epilogues/lexicographic")
         try await expect(page.locator("a[href='/mission-control/epilogues/lexicographic/\(amendment)']")).toBeAttached()
         #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
       }
