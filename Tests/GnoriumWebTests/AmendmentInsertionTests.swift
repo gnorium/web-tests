@@ -3,7 +3,7 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// An amendment inserts a level as formulation does (user, 2026-10-03): a
+/// An amendment inserts a level as an overture's fields do (user, 2026-10-03): a
 /// node's "+ Testament" adds a new child at the next level after the ones it
 /// has (an impression under an edition holding its copy: 1.2), and the copy
 /// is moved into it by the outline's own moves. The new node's "−
@@ -17,7 +17,7 @@ struct AmendmentInsertionTests {
   @Test(arguments: gnorium.engines, Layout.allCases)
   func anImpressionIsInsertedUnderAnEdition(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
-    let fixture = try await FixtureServer.formulationManifest()
+    let fixture = try await FixtureServer.threePageManifest()
     defer { fixture.stop() }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin, sourceURL: fixture.baseURL + "/manifest.json")
@@ -30,8 +30,8 @@ struct AmendmentInsertionTests {
         DELETE FROM inferred_citation_jobs WHERE record_id = '\(record)';
         DELETE FROM biblio_record_versions WHERE biblio_record_id = '\(record)' AND id <> '\(work.versionID.lowercased())';
         DELETE FROM modifications WHERE modifiable_id IN
-          (SELECT id FROM bibliographic_overtures WHERE biblio_record_id = '\(record)' AND id <> '\(work.overtureID.lowercased())');
-        DELETE FROM bibliographic_overtures WHERE biblio_record_id = '\(record)' AND id <> '\(work.overtureID.lowercased())';
+          (SELECT id FROM bibliographic_notations WHERE biblio_record_id = '\(record)' AND id <> '\(work.notationID.lowercased())');
+        DELETE FROM bibliographic_notations WHERE biblio_record_id = '\(record)' AND id <> '\(work.notationID.lowercased())';
         COMMIT;
         """)
     }
@@ -148,13 +148,13 @@ struct AmendmentInsertionTests {
         #expect(atomic.contains("\"issue-new\""))
         try await page.expectNoHorizontalOverflow()
         try await page.locator(".record-actions button[type='submit']").click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the reopened overture") {
-          $0.path.hasPrefix("/mission-control/overtures/bibliographic/")
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the reopened notation") {
+          $0.path.hasPrefix("/mission-control/notations/bibliographic/")
         }
         let stored = try TestAdmin.query(
           """
-          SELECT shape_json FROM bibliographic_overtures
-            WHERE biblio_record_id = '\(record)' AND id <> '\(work.overtureID.lowercased())';
+          SELECT shape_json FROM bibliographic_notations
+            WHERE biblio_record_id = '\(record)' AND id <> '\(work.notationID.lowercased())';
           """
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(stored.contains("\"impression-\(witness)\":{\"parent\":\"work\""), "\(stored)")
@@ -164,14 +164,14 @@ struct AmendmentInsertionTests {
         let filed = try TestAdmin.query(
           """
           SELECT content_json FROM modifications WHERE modifiable_id IN
-            (SELECT id FROM bibliographic_overtures WHERE biblio_record_id = '\(record)' AND id <> '\(work.overtureID.lowercased())');
+            (SELECT id FROM bibliographic_notations WHERE biblio_record_id = '\(record)' AND id <> '\(work.notationID.lowercased())');
           """)
         #expect(filed.contains("\"impression\":\"Second impression\""), "\(filed)")
         #expect(filed.contains("\"issue\":\"Library issue\""), "\(filed)")
-        let modification = try TestAdmin.query("SELECT upper(id::text) FROM modifications WHERE modifiable_id IN (SELECT id FROM bibliographic_overtures WHERE biblio_record_id = '\(record)' AND id <> '\(work.overtureID.lowercased())');").trimmingCharacters(in: .whitespacesAndNewlines)
+        let modification = try TestAdmin.query("SELECT upper(id::text) FROM modifications WHERE modifiable_id IN (SELECT id FROM bibliographic_notations WHERE biblio_record_id = '\(record)' AND id <> '\(work.notationID.lowercased())');").trimmingCharacters(in: .whitespacesAndNewlines)
         try await page.locator(".intervention-thread-view form[action$='/modifications/\(modification)/accept'] button").first.click()
         try await page.waitForLoadState()
-        try await page.locator("button[form='overture-permit']").click()
+        try await page.locator("button[form='notation-permit']").click()
         try await expect(page.locator(".mission-control-object-header-status-chip"), timeout: .seconds(15)).toHaveText("Permitted")
         let published = try TestAdmin.query("SELECT shape_json FROM biblio_record_versions WHERE biblio_record_id = '\(record)' ORDER BY created_at DESC LIMIT 1;").trimmingCharacters(in: .whitespacesAndNewlines)
         let publishedShape = try JSONSerialization.jsonObject(with: Data(published.utf8)) as? NSDictionary

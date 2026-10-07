@@ -7,7 +7,7 @@ import WebTestsTesting
 /// viewer's canvas slot (user, 2026-09-28): only the page on screen is shown
 /// and only its canvas holds tiles; a canvas paged away lets go of them, and
 /// its transcript pages with it. The manifest and its pages' images are
-/// served on this machine (`FixtureServer.formulationManifest`): the server
+/// served on this machine (`FixtureServer.threePageManifest`): the server
 /// reads a source URL over https, or http to loopback for the tests, never a
 /// data URL.
 ///
@@ -50,7 +50,7 @@ struct SemblanceCanvasTests {
   func pageImagesAreOffUntilAskedForAndHoldForTheSession(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
-    let fixture = try await FixtureServer.formulationManifest()
+    let fixture = try await FixtureServer.threePageManifest()
     defer { fixture.stop() }
     let services = Self.services(fixture)
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -160,7 +160,7 @@ struct SemblanceCanvasTests {
   func onlyThePageOnScreenReadsItsImage(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
-    let fixture = try await FixtureServer.formulationManifest()
+    let fixture = try await FixtureServer.threePageManifest()
     defer { fixture.stop() }
     let services = Self.services(fixture)
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)

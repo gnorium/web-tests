@@ -1,8 +1,8 @@
 import Foundation
 
-/// A scratch work's text: a pending notation recognized from its overture,
-/// holding `tei` (one page, its facsimile on example.org), owned by the
-/// test's account. Every row by its own id, removed before the work.
+/// A scratch work's text: a pending notation recognized again from its
+/// permitted one, holding `tei` (one page, its facsimile on example.org),
+/// owned by the test's account. Every row by its own id, removed before the work.
 struct ScratchReading {
   let work: ScratchWork
   let path: String
@@ -21,9 +21,8 @@ struct ScratchReading {
     _ = try TestAdmin.query(
       """
       BEGIN;
-      INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, semblance_service_ids_json, processing_status)
-        VALUES ('\(antiphonID)', (SELECT bibliographic_overture_id FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())'),
-          '\(user)', '[]', 'submitted');
+      INSERT INTO bibliographic_antiphons (id, bibliographic_notation_id, requested_by_user_id, semblance_service_ids_json, processing_status)
+        VALUES ('\(antiphonID)', '\(work.notationID.lowercased())', '\(user)', '[]', 'submitted');
       INSERT INTO bibliographic_notations (id, proposed_content_json, processing_status, biblio_record_id, bibliographic_antiphon_id, thread_id, metadata_json)
         VALUES ('\(notationID)', '\(content)', 'pending', '\(work.recordID.lowercased())', '\(antiphonID)', '\(notationID)',
           (SELECT metadata_json FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())'));

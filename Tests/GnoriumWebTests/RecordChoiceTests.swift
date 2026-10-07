@@ -14,8 +14,8 @@ import WebTestsTesting
 /// record found by typing (by
 /// its title, never its author) and picked offers its amendment, the
 /// form's Submit waiting. Nothing is submitted (`SubmissionTests` submits). A throwaway
-/// admin owns a scratch work—its author, instance, baseline, madrigal,
-/// overture, record and formulated version, made by SQL—removed after.
+/// admin owns a scratch work—its author, instance, overture, antiphon,
+/// notation, record and recognized version, made by SQL—removed after.
 @Suite("Record choice", .serialized)
 struct RecordChoiceTests {
   static let form = "/mission-control/submit/bibliographic/evidence-testament"

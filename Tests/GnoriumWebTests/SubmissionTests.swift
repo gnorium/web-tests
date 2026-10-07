@@ -23,7 +23,7 @@ import WebTestsTesting
 /// its own, the new sentiment placed in it. A manuscript's citations are its
 /// copy's. A work's page offers its amendment; a word's, its submission
 /// with the record chosen; signed out, each says so in an alert. Each case
-/// is submitted, and its evidence and baseline read back from the database.
+/// is submitted, and its evidence and overture read back from the database.
 /// A throwaway admin owns the scratch records and every row submitted,
 /// removed after.
 @Suite("Submission", .serialized)
@@ -79,7 +79,7 @@ struct SubmissionTests {
       _ = try? TestAdmin.query(
         """
         BEGIN;
-        DELETE FROM bibliographic_baselines WHERE bibliographic_instance_id IN
+        DELETE FROM bibliographic_overtures WHERE bibliographic_instance_id IN
           (SELECT id FROM bibliographic_instances WHERE source_url LIKE '\(source)%');
         UPDATE bibliographic_instances SET deleted_at = now(), deleted_by = '\(admin.username)'
           WHERE source_url LIKE '\(source)%' AND deleted_at IS NULL;
@@ -149,7 +149,7 @@ struct SubmissionTests {
   /// A new record: its fields to fill in, its tree the new testament's
   /// nodes, each named as its fields are typed; the copy removed and put
   /// back, left empty refused; submitted without it, an evidence and its
-  /// baseline with no record chosen and no copy.
+  /// overture with no record chosen and no copy.
   private func newTestament(_ page: Page, suffix: String, source: String) async throws {
     try await page.openHydrated(Self.testamentForm)
     let form = page.locator(".submit-testament-form")
@@ -287,7 +287,7 @@ struct SubmissionTests {
       """
       SELECT e.title || '|' || coalesce(e.carrier, '') || '|' || coalesce(e.edition, '') || '|'
         || coalesce(e.copy_label, '') || '|' || coalesce(e.chosen_biblio_record_id::text, '') || '|' || count(o.id)
-        FROM bibliographic_instances e LEFT JOIN bibliographic_baselines o ON o.bibliographic_instance_id = e.id
+        FROM bibliographic_instances e LEFT JOIN bibliographic_overtures o ON o.bibliographic_instance_id = e.id
         WHERE e.source_url = '\(source)/new' GROUP BY e.id;
       """
     ).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -301,7 +301,7 @@ struct SubmissionTests {
   /// the edition's carrier, the copy removable (the digitization then under
   /// the edition, whose + puts it back); under a digitization it is refused.
   /// Submitted: the record's own fields, the inherited carrier and the
-  /// placement ride on the evidence and its baseline.
+  /// placement ride on the evidence and its overture.
   private func placedTestament(_ page: Page, work: ScratchWork, source: String) async throws {
     try await page.openHydrated(Self.testamentForm)
     let form = page.locator(".submit-testament-form")
@@ -392,7 +392,7 @@ struct SubmissionTests {
       """
       SELECT e.title || '|' || coalesce(e.carrier, '') || '|' || coalesce(e.copy_label, '') || '|'
         || coalesce(e.edition, '') || '|' || e.chosen_biblio_record_id::text || '|' || o.chosen_biblio_record_id::text
-        FROM bibliographic_instances e JOIN bibliographic_baselines o ON o.bibliographic_instance_id = e.id
+        FROM bibliographic_instances e JOIN bibliographic_overtures o ON o.bibliographic_instance_id = e.id
         WHERE e.source_url = '\(source)/placed';
       """
     ).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -499,7 +499,7 @@ struct SubmissionTests {
       _ = try? TestAdmin.query(
         """
         BEGIN;
-        DELETE FROM lexicographic_baselines WHERE lexicographic_instance_id IN
+        DELETE FROM lexicographic_overtures WHERE lexicographic_instance_id IN
           (SELECT id FROM lexicographic_instances WHERE sentiment_json LIKE '%\(definition)%');
         COMMIT;
         """)
@@ -523,7 +523,7 @@ struct SubmissionTests {
 
   /// A new record: its language, title and type typed, its tree the new
   /// sentiment alone, named by its definition as it is typed; submitted,
-  /// an evidence and its baseline with no record chosen.
+  /// an evidence and its overture with no record chosen.
   private func newSentiment(_ page: Page, suffix: String, definition: String) async throws {
     try await page.openHydrated(Self.sentimentForm)
     try await expect(page).toHaveTitle("Submit Sentiment | Mission Control | Gnorium")
@@ -542,14 +542,14 @@ struct SubmissionTests {
     try await draft.locator("#definition").fill(definition)
     try await expect(title).toHaveText(definition)
     try await form.locator(".record-actions button[type='submit']").click()
-    try await expect(page, timeout: .seconds(15)).toHaveURL("its baseline's page") {
-      $0.path.hasPrefix("/mission-control/baselines/lexicographic/")
+    try await expect(page, timeout: .seconds(15)).toHaveURL("its overture's page") {
+      $0.path.hasPrefix("/mission-control/overtures/lexicographic/")
     }
     let row = try TestAdmin.query(
       """
       SELECT (e.title_form_json::json ->> 'title') || '|' || coalesce(e.chosen_lexico_record_id::text, '') || '|'
         || count(o.id)
-        FROM lexicographic_instances e LEFT JOIN lexicographic_baselines o ON o.lexicographic_instance_id = e.id
+        FROM lexicographic_instances e LEFT JOIN lexicographic_overtures o ON o.lexicographic_instance_id = e.id
         WHERE e.sentiment_json LIKE '%\(definition)%' GROUP BY e.id;
       """
     ).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -560,7 +560,7 @@ struct SubmissionTests {
   /// editable ones; its tree its own (a branch and its leaf), the new
   /// sentiment after the branch; placed under the branch, after the leaf;
   /// under the leaf, refused. Submitted: the record's own title, the choice
-  /// and the placement ride on the evidence and its baseline.
+  /// and the placement ride on the evidence and its overture.
   private func placedSentiment(_ page: Page, word: ScratchWord, definition: String) async throws {
     try await page.openHydrated(Self.sentimentForm)
     let form = page.locator(".submit-sentiment-form")
@@ -596,14 +596,14 @@ struct SubmissionTests {
     try await draft.locator("#definition").fill("\(definition), placed")
     try await expect(draft.locator(".record-row-title").first).toHaveText("\(definition), placed")
     try await form.locator(".record-actions button[type='submit']").click()
-    try await expect(page, timeout: .seconds(15)).toHaveURL("its baseline's page") {
-      $0.path.hasPrefix("/mission-control/baselines/lexicographic/")
+    try await expect(page, timeout: .seconds(15)).toHaveURL("its overture's page") {
+      $0.path.hasPrefix("/mission-control/overtures/lexicographic/")
     }
     let row = try TestAdmin.query(
       """
       SELECT (e.title_form_json::json ->> 'title') || '|' || e.chosen_lexico_record_id::text || '|'
         || o.chosen_lexico_record_id::text || '|' || e.placement_json
-        FROM lexicographic_instances e JOIN lexicographic_baselines o ON o.lexicographic_instance_id = e.id
+        FROM lexicographic_instances e JOIN lexicographic_overtures o ON o.lexicographic_instance_id = e.id
         WHERE e.sentiment_json LIKE '%\(definition), placed%';
       """
     ).trimmingCharacters(in: .whitespacesAndNewlines)

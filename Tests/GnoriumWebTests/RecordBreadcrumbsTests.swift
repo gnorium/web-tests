@@ -109,23 +109,23 @@ struct RecordBreadcrumbsTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         let titlePrefix = work.path.split(separator: "/").prefix(3).joined(separator: "/")
-        try await page.openHydrated("/\(titlePrefix)?title=crumbs&field=title&treatment=formulated")
+        try await page.openHydrated("/\(titlePrefix)?title=crumbs&field=title&treatment=translated")
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
         let lexicoTab = page.locator(".records-tabs #tab-lexico-records")
         let biblioTab = page.locator(".records-tabs #tab-biblio-records")
         try await expect(lexicoTab).toBeVisible()
-        try await expect(biblioTab).toHaveAttribute("href", "/biblio-records/eng?treatment=formulated")
-        try await expect(lexicoTab).toHaveAttribute("href", "/lexico-records/eng?treatment=formulated")
+        try await expect(biblioTab).toHaveAttribute("href", "/biblio-records/eng?treatment=translated")
+        try await expect(lexicoTab).toHaveAttribute("href", "/lexico-records/eng?treatment=translated")
         try await lexicoTab.click()
-        try await expect(page).toHaveURL("/lexico-records/eng?treatment=formulated") { url in
-          url.path == "/lexico-records/eng" && url.query == "treatment=formulated"
+        try await expect(page).toHaveURL("/lexico-records/eng?treatment=translated") { url in
+          url.path == "/lexico-records/eng" && url.query == "treatment=translated"
         }
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
         try await expect(page.locator(".records-tabs #tab-biblio-records")).toHaveAttribute(
-          "href", "/biblio-records/eng?treatment=formulated")
+          "href", "/biblio-records/eng?treatment=translated")
         try await expect(page.locator(".records-tabs #tab-lexico-records")).toHaveAttribute("aria-selected", "true")
       }
     } catch {

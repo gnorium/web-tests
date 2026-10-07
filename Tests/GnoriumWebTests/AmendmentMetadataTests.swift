@@ -3,11 +3,11 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// Amendment metadata remains editable after field-formulation ticks are retired.
+/// Amendment metadata is edited directly: no field ticks.
 @Suite("Amendment metadata", .serialized)
-struct AmendmentFormulationTests {
+struct AmendmentMetadataTests {
   @Test(arguments: gnorium.engines, Layout.allCases)
-  func editingWithoutFormulationTicks(engine: BrowserEngine, layout: Layout) async throws {
+  func editingWithoutFieldTicks(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let scratch = try ScratchWork(owner: admin)

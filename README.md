@@ -88,7 +88,7 @@ await browser.close()
 |---|---|
 | `page.locator("nav a")` | CSS |
 | `page.getByRole(.button, name: "Save")` | explicit or implicit ARIA role; accessible name contains "Save" (case-insensitive), or equals it with `exact: true`; hidden elements left out |
-| `page.getByText("Formulated")` | the smallest elements whose text contains it |
+| `page.getByText("Recognized")` | the smallest elements whose text contains it |
 | `page.getByLabel("Email")` | controls labeled by `<label>`, `aria-labelledby` or `aria-label` |
 | `.locator(…)`, `.getByRole(…)` on a locator | within its matches |
 | `.nth(2)`, `.first`, `.last`, `.filter(hasText:)`, `.filter(visible:)` | narrowing |
@@ -166,9 +166,9 @@ Until then, Safari tests are skipped with these steps as the reason.
 - **Delete account**: a throwaway account reaches Delete Account from its menu; a wrong password and an unticked box delete nothing; then it deletes itself, and its row keeps only the username (email, password hash and names erased).
 - **Sign out**: the account menu's Sign Out is a POST form (no sign-out link anywhere), drawn like Delete Account beside it; submitting it signs the browser out and deletes that session on the server.
 - **Form item rows**: on the Submit Amendment form, removing a middle author renumbers the rows after it and the form serializes both remaining rows. Nothing is submitted.
-- **Amendment formulation**: on the Submit Amendment form, every field, row, date part and field of a creation statement has its own formulation box, ticked by editing that field alone. Nothing is submitted.
+- **Amendment metadata**: on the Submit Amendment form, a field is edited directly, with no field ticks or field boxes. Nothing is submitted.
 
-The date picker, form item rows, amendment formulation and change password tests need an admin. Each registers a throwaway account over HTTP with a random password that never leaves memory, makes it an admin with one `UPDATE` in the dev database (`GNORIUM_DATABASE_URL`, psql from `GNORIUM_PSQL` or Homebrew), signs it in over HTTP, sets the session cookie in the browser context, and deletes that account's row afterwards. No one's password is typed anywhere.
+The date picker, form item rows, amendment metadata and change password tests need an admin. Each registers a throwaway account over HTTP with a random password that never leaves memory, makes it an admin with one `UPDATE` in the dev database (`GNORIUM_DATABASE_URL`, psql from `GNORIUM_PSQL` or Homebrew), signs it in over HTTP, sets the session cookie in the browser context, and deletes that account's row afterwards. No one's password is typed anywhere.
 
 ## Design notes
 

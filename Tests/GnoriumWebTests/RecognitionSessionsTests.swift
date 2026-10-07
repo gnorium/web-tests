@@ -37,14 +37,11 @@ struct RecognitionSessionsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, semblance_service_ids_json, processing_status)
-          VALUES ('\(antiphonID)', '\(work.overtureID.lowercased())', '\(user)', '[]', 'submitted');
+        INSERT INTO bibliographic_antiphons (id, bibliographic_notation_id, requested_by_user_id, semblance_service_ids_json, processing_status)
+          VALUES ('\(antiphonID)', '\(work.notationID.lowercased())', '\(user)', '[]', 'submitted');
         INSERT INTO recognition_stage_runs (id, submission_id, stage, semblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)',
-            (SELECT e.batch_id FROM bibliographic_instances e
-               JOIN bibliographic_baselines o ON o.bibliographic_instance_id = e.id
-               JOIN bibliographic_overtures h ON h.bibliographic_baseline_id = o.id
-              WHERE h.id = '\(work.overtureID.lowercased())'),
+            (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'recognition', 'Pages 1–2', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),
             '\(antiphonID)', 1200, now());
         COMMIT;
@@ -111,14 +108,11 @@ struct RecognitionSessionsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, semblance_service_ids_json, processing_status)
-          VALUES ('\(antiphonID)', '\(work.overtureID.lowercased())', '\(user)', '[]', 'submitted');
+        INSERT INTO bibliographic_antiphons (id, bibliographic_notation_id, requested_by_user_id, semblance_service_ids_json, processing_status)
+          VALUES ('\(antiphonID)', '\(work.notationID.lowercased())', '\(user)', '[]', 'submitted');
         INSERT INTO recognition_stage_runs (id, submission_id, stage, semblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)',
-            (SELECT e.batch_id FROM bibliographic_instances e
-               JOIN bibliographic_baselines o ON o.bibliographic_instance_id = e.id
-               JOIN bibliographic_overtures h ON h.bibliographic_baseline_id = o.id
-              WHERE h.id = '\(work.overtureID.lowercased())'),
+            (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'recognition', 'Page 1', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),
             '\(antiphonID)', 1200, now());
         COMMIT;

@@ -45,8 +45,8 @@ struct TranslationSessionsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, semblance_service_ids_json, processing_status)
-          VALUES ('\(antiphon)', '\(work.overtureID.lowercased())', '\(user)', '[]', 'submitted');
+        INSERT INTO bibliographic_antiphons (id, bibliographic_notation_id, requested_by_user_id, semblance_service_ids_json, processing_status)
+          VALUES ('\(antiphon)', '\(work.notationID.lowercased())', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_notations (id, thread_id, bibliographic_antiphon_id, biblio_record_id, proposed_content_json,
           metadata_json, processing_status)
           VALUES ('\(notation)', '\(notation)', '\(antiphon)', '\(work.recordID.lowercased())', '\(Self.tei)',

@@ -49,13 +49,26 @@ struct CanvasAttachmentTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
     let runID = UUID().uuidString.lowercased()
+    let antiphonID = UUID().uuidString.lowercased()
     let name = "canvas-live-\(UUID().uuidString).html"
     let file = URL(fileURLWithPath: "/Users/Madhavik/Downloads/Gnorium/gnorium-web/Public").appendingPathComponent(name)
     do {
-      _ = try TestAdmin.query("INSERT INTO formulation_stage_runs (id,bibliographic_madrigal_id,stage,attempt,provider,model,output,result,duration_ms,created_at) VALUES ('\(runID)','\(work.madrigalID)','formulation',1,'fixture','fixture','[{\"type\":\"thinking\",\"content\":\"Preparing the canvas fixture.\"}]','passed',1,now());")
+      let user = try admin.column("id")
+      _ = try TestAdmin.query(
+        """
+        BEGIN;
+        INSERT INTO bibliographic_antiphons (id, bibliographic_notation_id, requested_by_user_id, semblance_service_ids_json, processing_status)
+          VALUES ('\(antiphonID)', '\(work.notationID.lowercased())', '\(user)', '[]', 'submitted');
+        INSERT INTO recognition_stage_runs (id, submission_id, stage, semblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          VALUES ('\(runID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
+            'recognition', 'Page 1', 1, 'fixture', 'fixture', '[{"type":"thinking","content":"Preparing the canvas fixture."}]', 'passed',
+            gen_random_uuid(), '\(antiphonID)', 1, now());
+        COMMIT;
+        """)
+      let antiphon = "/mission-control/antiphons/bibliographic/\(antiphonID)"
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-        try await page.openHydrated("/mission-control/madrigals/bibliographic/\(work.madrigalID)")
-        let original = try await page.evaluate("fetch('/mission-control/madrigals/bibliographic/\(work.madrigalID)').then(r=>r.text())", as: String.self)
+        try await page.openHydrated(antiphon)
+        let original = try await page.evaluate("fetch('\(antiphon)').then(r=>r.text())", as: String.self)
         let mock = """
           <script>
           window.__canvasMock='installed';
@@ -94,12 +107,12 @@ struct CanvasAttachmentTests {
       }
     } catch {
       try? FileManager.default.removeItem(at:file)
-      _ = try? TestAdmin.query("DELETE FROM formulation_stage_runs WHERE id='\(runID)';")
+      _ = try? TestAdmin.query("DELETE FROM recognition_stage_runs WHERE id='\(runID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
       work.remove()
       try await admin.remove(after:error)
     }
     try? FileManager.default.removeItem(at:file)
-    _ = try TestAdmin.query("DELETE FROM formulation_stage_runs WHERE id='\(runID)';")
+    _ = try TestAdmin.query("DELETE FROM recognition_stage_runs WHERE id='\(runID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
     work.remove()
     try await admin.remove()
   }

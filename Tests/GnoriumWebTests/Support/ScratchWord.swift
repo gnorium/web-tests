@@ -1,18 +1,22 @@
 import Foundation
 
-/// A lexico-record with one formulated version whose snapshot holds a
+/// A lexico-record with one explicated version whose snapshot holds a
 /// branch sentiment and a leaf under it, owned by the test's account: the
 /// record's own reference (beside its title, in its closed Metadata) and the
 /// leaf's (beside its definition, in its row's heading). Every row by its own
 /// id, removed in the order the foreign keys allow—except its submission and
-/// Instance, which are submitted input and frozen, so they stay. With a `distinction`,
+/// Instance, which are submitted input and frozen, so they stay. Its
+/// overture is committed, its antiphon submitted, and the notation that
+/// antiphon made permitted. With a `distinction`,
 /// the leaf's TEI holds it as its `<note type="usage" subtype="distinction">`
 /// (a `{branch}` in it a `<ptr>` to the branch). With an `anchor` (a
 /// testament's record, version and page, and the utterance's passage and
 /// word there), the leaf is attested by an utterance in that testament.
 struct ScratchWord {
-  /// Its overture's and its version's ids, as the server writes them.
+  /// Its overture's, its notation's and its version's ids, as the server
+  /// writes them.
   let overtureID: String
+  let notationID: String
   let versionID: String
   /// The scratch record's title.
   let title: String
@@ -39,10 +43,11 @@ struct ScratchWord {
   init(owner: TestAdmin, distinction: String? = nil, anchor: Anchor? = nil, language: String = "eng") throws {
     let user = try owner.column("id")
     var ids: [String: String] = [:]
-    for name in ["submission", "instance", "baseline", "madrigal", "lemma", "record", "overture", "version"] {
+    for name in ["submission", "instance", "overture", "antiphon", "notation", "lemma", "record", "version"] {
       ids[name] = UUID().uuidString.lowercased()
     }
     overtureID = ids["overture"]!.uppercased()
+    notationID = ids["notation"]!.uppercased()
     versionID = ids["version"]!.uppercased()
     self.ids = ids
     recordID = ids["record"]!.uppercased()
@@ -83,12 +88,14 @@ struct ScratchWord {
         VALUES ('\(ids["record"]!)', '\(ids["lemma"]!)', '\(title)', '\(language)', 1, 'noun');
       INSERT INTO lexicographic_instances (id, batch_id, language, title_form_json, anchors_json)
         VALUES ('\(ids["instance"]!)', '\(ids["submission"]!)', '\(language)', '\(titleForm)', '[]');
-      INSERT INTO lexicographic_baselines (id, lexicographic_instance_id, title_form_json, anchors_json)
-        VALUES ('\(ids["baseline"]!)', '\(ids["instance"]!)', '\(titleForm)', '[]');
-      INSERT INTO lexicographic_overtures (id, thread_id, lexicographic_baseline_id, lexicographic_madrigal_id, lexico_record_id, record_json, processing_status, permitted_by_user_id, permitted_at)
-        VALUES ('\(ids["overture"]!)', '\(ids["overture"]!)', '\(ids["baseline"]!)', '\(ids["madrigal"]!)', '\(ids["record"]!)', '\(snapshot)', 'permitted', '\(user)', now());
-      INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_overture_id, treatment, record_json, created_at)
-        VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["overture"]!)', 1, '\(snapshot)', now());
+      INSERT INTO lexicographic_overtures (id, lexicographic_instance_id, title_form_json, anchors_json, committed_by_user_id, committed_at)
+        VALUES ('\(ids["overture"]!)', '\(ids["instance"]!)', '\(titleForm)', '[]', '\(user)', now());
+      INSERT INTO lexicographic_antiphons (id, lexicographic_instance_id, lexicographic_overture_id, requested_by_user_id, processing_status, language, sentence, title_form_json)
+        VALUES ('\(ids["antiphon"]!)', '\(ids["instance"]!)', '\(ids["overture"]!)', '\(user)', 'submitted', '\(language)', '\(title)', '\(titleForm)');
+      INSERT INTO lexicographic_notations (id, lexicographic_antiphon_id, lexico_record_id, proposed_content_json, processing_status, permitted_by_user_id, permitted_at)
+        VALUES ('\(ids["notation"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"record":\(snapshot),"homographFlags":[],"evidenceRequests":[],"reasoning":"Web tests."}', 'permitted', '\(user)', now());
+      INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_notation_id, treatment, record_json, created_at)
+        VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["notation"]!)', 1, '\(snapshot)', now());
       COMMIT;
       """)
   }
@@ -98,8 +105,9 @@ struct ScratchWord {
       """
       BEGIN;
       DELETE FROM lexico_record_versions WHERE id = '\(ids["version"]!)';
+      DELETE FROM lexicographic_notations WHERE id = '\(ids["notation"]!)';
+      DELETE FROM lexicographic_antiphons WHERE id = '\(ids["antiphon"]!)';
       DELETE FROM lexicographic_overtures WHERE id = '\(ids["overture"]!)';
-      DELETE FROM lexicographic_baselines WHERE id = '\(ids["baseline"]!)';
       DELETE FROM url_histories WHERE entity_id = '\(ids["record"]!)';
       DELETE FROM lexico_records WHERE id = '\(ids["record"]!)';
       DELETE FROM lemmas WHERE id = '\(ids["lemma"]!)';

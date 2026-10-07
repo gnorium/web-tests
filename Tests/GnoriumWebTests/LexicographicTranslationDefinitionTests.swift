@@ -47,7 +47,7 @@ struct LexicographicTranslationDefinitionTests {
             'Wrote the Arabic definition.', '{"language_code":"ara","definition":"\(Self.arabic)"}', now(),
             (SELECT id FROM users WHERE username = 'gnorium'));
         INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_epilogue_id, treatment, record_json, created_at)
-          SELECT gen_random_uuid(), lexico_record_id, '\(arabicAmendment)', 3,
+          SELECT gen_random_uuid(), lexico_record_id, '\(arabicAmendment)', 2,
               jsonb_set(record_json::jsonb, '{senses,1,definitionTranslation}',
                 '{"languageCode":"ara","definition":"\(Self.arabic)","labels":{"domain":[],"grammar":[],"region":[],"register":[]}}')::text,
               now() + interval '1 second'

@@ -256,7 +256,7 @@ struct TableResizeTests {
         try await expect(page.locator("main input[name='count'], main input[name='enabled']")).toHaveCount(0)
         let breadcrumb = try await page.evaluate("document.querySelector('.breadcrumb-list')?.textContent || ''", as: String.self)
         #expect(breadcrumb.contains("Workers"))
-        #expect(!breadcrumb.contains("Bibliographic") && !breadcrumb.contains("Lexicographic") && !breadcrumb.contains("Formulation"))
+        #expect(!breadcrumb.contains("Bibliographic") && !breadcrumb.contains("Lexicographic") && !breadcrumb.contains("Recognition"))
         try await page.expectNoHorizontalOverflow()
       }
       try await page.expectNoErrors()

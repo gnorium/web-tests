@@ -71,7 +71,7 @@ final class FixtureServer: @unchecked Sendable {
 
   /// A locally served, identified three-page witness. Configured before any
   /// caller receives the server; no live data or external host is involved.
-  static func formulationManifest() async throws -> FixtureServer {
+  static func threePageManifest() async throws -> FixtureServer {
     let server = try await FixtureServer(files: [:])
     let base = server.baseURL
     let items = (1...3).map { n in

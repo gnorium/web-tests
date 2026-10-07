@@ -34,7 +34,7 @@ struct PromptMarkdownLayoutTests {
           const content = document.querySelector('.mission-control-prompt-content');
           const sections = [...content.querySelectorAll(':scope > .prompt-section')];
           const crumbs = [...document.querySelectorAll('.breadcrumb-label, .breadcrumb-current')].map(e => e.textContent.trim());
-          const expected = ['Mission Control', 'Prompts', 'Bibliographic', 'Formulation'];
+          const expected = ['Mission Control', 'Prompts', 'Bibliographic', 'Recognition'];
           let index = -1;
           const ordered = expected.every(label => { index = crumbs.indexOf(label, index + 1); return index >= 0; });
           return getComputedStyle(content).gap === '24px'

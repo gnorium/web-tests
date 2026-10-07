@@ -60,12 +60,12 @@ struct WatchtowerFigureLinksTests {
     }
   }
 
-  /// The case that was broken: the sentiments' committed baselines.
-  static let committedSentimentBaselines =
-    "/mission-control/lifecycles?tab=lexicographic&object=baseline&status=committed&since=1w"
-  /// The testaments' pending baselines, whose list must be filtered on the
+  /// The case that was broken: the sentiments' committed overtures.
+  static let committedSentimentOvertures =
+    "/mission-control/lifecycles?tab=lexicographic&object=overture&status=committed&since=1w"
+  /// The testaments' pending overtures, whose list must be filtered on the
   /// first render, not only after Apply.
-  static let pendingTestamentBaselines = "/mission-control/lifecycles?tab=bibliographic&object=baseline&status=pending"
+  static let pendingTestamentOvertures = "/mission-control/lifecycles?tab=bibliographic&object=overture&status=pending"
 
   /// A stage's figure opens the runs list: its filter bar names the stage,
   /// the status and "Runs", with no placeholder, and it lists as many runs as
@@ -106,8 +106,8 @@ struct WatchtowerFigureLinksTests {
   func aFigureOpensItsFilteredList(engine: BrowserEngine, layout: Layout) async throws {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       for (href, object, status, tab) in [
-        (Self.committedSentimentBaselines, "Baseline", "Committed", "lexicographic"),
-        (Self.pendingTestamentBaselines, "Baseline", "Pending", "bibliographic"),
+        (Self.committedSentimentOvertures, "Overture", "Committed", "lexicographic"),
+        (Self.pendingTestamentOvertures, "Overture", "Pending", "bibliographic"),
       ] {
         try await page.openHydrated("/")
         let link = page.locator(".watchtower-object-figures-view a[href='\(href)']").first

@@ -35,7 +35,7 @@ struct ComboboxTests {
       _ = try? TestAdmin.query(
         """
         BEGIN;
-        DELETE FROM bibliographic_baselines WHERE bibliographic_instance_id IN
+        DELETE FROM bibliographic_overtures WHERE bibliographic_instance_id IN
           (SELECT id FROM bibliographic_instances WHERE source_url = '\(source)');
         UPDATE bibliographic_instances SET deleted_at = now(), deleted_by = '\(admin.username)'
           WHERE source_url = '\(source)' AND deleted_at IS NULL;
@@ -242,7 +242,7 @@ struct ComboboxTests {
       _ = try? TestAdmin.query(
         """
         BEGIN;
-        DELETE FROM bibliographic_baselines WHERE bibliographic_instance_id IN
+        DELETE FROM bibliographic_overtures WHERE bibliographic_instance_id IN
           (SELECT id FROM bibliographic_instances WHERE source_url = '\(source)');
         UPDATE bibliographic_instances SET deleted_at = now(), deleted_by = '\(admin.username)'
           WHERE source_url = '\(source)' AND deleted_at IS NULL;
