@@ -29,7 +29,9 @@ struct InstanceDeletionTests {
     }
     do {
       let user = try admin.column("id")
-      let form = #"{"title":"webtestsdeletion","languageCode":"eng","type":"noun"}"#
+      // A whole title form, as Submit Sentiment writes one (ScratchWord):
+      // the instance page reads it.
+      let form = #"{"title":"webtestsdeletion","languageCode":"eng","partOfSpeech":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
       _ = try TestAdmin.query(
         """
         BEGIN;
@@ -56,9 +58,10 @@ struct InstanceDeletionTests {
 
         // Gone from the register; there with the State filter.
         try await tab.openHydrated(register)
-        try await expect(tab.locator("a[href='\(page)']")).toHaveCount(0)
-        try await tab.openHydrated(register + "&state=deleted")
-        try await expect(tab.locator("a[href='\(page)']").first).toBeVisible()
+        // The register spells ids in capitals; the match ignores case.
+        try await expect(tab.locator("a[href='\(page)' i]")).toHaveCount(0)
+        try await tab.openHydrated(register + "?state=deleted")
+        try await expect(tab.locator("a[href='\(page)' i]").first).toBeVisible()
 
         try await tab.openHydrated(page)
         try await tab.locator("button[form='deletion-restore']").click()
