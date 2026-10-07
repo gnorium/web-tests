@@ -52,7 +52,7 @@ struct WatchtowerTests {
     }
   }
 
-  static let treatmentLabels = ["Operation", "Pipelines"]
+  static let treatmentLabels = ["Process", "Pipelines"]
 
   static func treatmentRow(_ page: Page) async throws -> Locator {
     let rows = page.locator(".filter-bar-row")

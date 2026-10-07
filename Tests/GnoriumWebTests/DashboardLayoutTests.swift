@@ -51,7 +51,7 @@ struct DashboardLayoutTests {
       #expect(try await page.evaluate("document.querySelector('.mission-control-worker-view').textContent.includes('Latest 100 assignments.') && !document.querySelector('.mission-control-worker-view').textContent.includes('recorded since')", as: Bool.self))
       try await expect(page.locator(".mission-control-worker-data")).toContainText("Working")
       try await expect(page.locator(".mission-control-worker-data")).toContainText("3 waiting")
-      try await expect(page.locator(".mission-control-worker-history-table")).toContainText("Operation")
+      try await expect(page.locator(".mission-control-worker-history-table")).toContainText("Process")
       try await expect(page.locator(".mission-control-worker-history-table")).toContainText("Recognition")
       try await expect(page.locator(".mission-control-worker-history-table a[href=\"/mission-control/antiphons/bibliographic/recorded\"]")).toHaveAttribute("href", "/mission-control/antiphons/bibliographic/recorded")
       try await expect(page.locator(".mission-control-worker-data a")).toHaveAttribute("href", "/mission-control/workers")
