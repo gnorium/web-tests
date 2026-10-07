@@ -42,7 +42,7 @@ struct BibliographicExplicationSessionsTests {
         INSERT INTO bibliographic_explication_stage_runs (id, submission_id, stage, semblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)',
             (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
-            'explication', 'Pages 1–2', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),
+            'explication', '1–2', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),
             '\(antiphonID)', 1200, now());
         COMMIT;
         """)
@@ -57,7 +57,7 @@ struct BibliographicExplicationSessionsTests {
         // sidebar is drawn twice, for wide screens and the phone's menu).
         let rows = page.locator(".computorium-core-sessions-slot").first.locator(".roster-row")
         try await expect(rows).toHaveCount(1)
-        try await expect(rows.first).toHaveAttribute("data-session-label", "Pages 1–2")
+        try await expect(rows.first).toHaveAttribute("data-session-label", "1–2")
         // Its trace: the tool call it committed a page with, and its last word.
         try await expect(page.locator(".session-view").getByText("commit_page").first).toBeAttached()
         try await expect(page.locator(".session-view").getByText("Both pages of the chunk committed.")).toBeAttached()
@@ -123,11 +123,16 @@ struct BibliographicExplicationSessionsTests {
         try await card.locator(".accordion-summary").first.click()
         let detail = card.locator(".detail-view")
         try await expect(detail).toBeVisible()
-        let preview = detail.locator(".expandable-attachment-image-preview")
-        try await expect(preview).toBeVisible()
-        try await expect(preview).toHaveAttribute("src", detailURL)
-        try await expect(card).toContainText("1200 × 800")
-        try await expect(card).toContainText("600 × 400")
+        // The detail in place, as a semblance is: no chip, no lightbox.
+        try await expect(detail.locator(".expandable-attachment-image-viewport")).toBeVisible()
+        try await expect(detail.locator(".expandable-attachment-image-canvas")).toHaveAttribute("src", detailURL)
+        try await expect(card.locator(".expandable-attachment-dialog")).toHaveCount(0)
+        // The sizes the model received, under its own keys, in the result box.
+        let box = card.locator(".session-tool-call-result-box")
+        try await expect(box).toContainText("source_width")
+        try await expect(box).toContainText("1200")
+        try await expect(box).toContainText("sent_width")
+        try await expect(box).toContainText("600")
         // The card fits the phone: no sideways scroll.
         let overflow = try await page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
         #expect(overflow == .bool(false))

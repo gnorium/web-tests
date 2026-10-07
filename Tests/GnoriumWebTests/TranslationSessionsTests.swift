@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// Translation is one session per chunk of pages (user, 2026-09-29): a
-/// postlude's page lists its chunks as sessions ("Pages 1–2"), shows the
+/// postlude's page lists its chunks as sessions ("1–2"), shows the
 /// focused one's trace—each page opened, translated and committed, its
 /// last words—and no stages.
 @Suite("Translation sessions", .serialized)
@@ -56,7 +56,7 @@ struct TranslationSessionsTests {
           VALUES ('\(postlude)', '\(madrigal)', 'eng', '\(user)', 'failed', 'Web tests');
         INSERT INTO bibliographic_translation_stage_runs (id, bibliographic_postlude_id, stage, chunk, attempt, provider, model, output,
           result, duration_ms, created_at)
-          VALUES (gen_random_uuid(), '\(postlude)', 'translation', 'Pages 1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
+          VALUES (gen_random_uuid(), '\(postlude)', 'translation', '1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
             '\(try Self.trace())', 'passed', 1200, now());
         COMMIT;
         """)
@@ -66,7 +66,7 @@ struct TranslationSessionsTests {
         try await expect(pipeline).toHaveAttribute("data-active-stage", "translation")
         try await expect(page.locator(".stages-view")).toHaveCount(0)
         try await expect(page.locator("a[href*='stage=']")).toHaveCount(0)
-        try await expect(pipeline).toHaveAttribute("data-item-order", "Pages 1–2")
+        try await expect(pipeline).toHaveAttribute("data-item-order", "1–2")
         let session = page.locator(".session-view")
         try await expect(session.getByText("open_page").first).toBeAttached()
         try await expect(session.getByText("write_translation").first).toBeAttached()

@@ -74,7 +74,7 @@ struct TranslationScopeTests {
         try await expect(page.locator(".prompt-instances-slot")).toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".prompt-instance-task")).toHaveCount(1)
         let task = try await page.locator(".prompt-instance-task .prompt-text-source").first.textContent()
-        #expect(task.contains("Translate these pages from Italian into English: Pages 1–2."))
+        #expect(task.contains("Translate these pages from Italian into English: 1–2."))
         // Commit translates the stale pages while none is ticked, and the
         // pages ticked once some are.
         let commit = page.locator(".commit-trigger")

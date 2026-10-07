@@ -30,8 +30,15 @@ struct WatchtowerTests {
 
         // The filter row whose field is the treatment filter, however it is
         // labeled today.
+        // The process the link filters by (its `treatment`), as the filter
+        // names it: a permit link is named by what it lists ("biblio-record").
+        let treatment = try #require(
+          URLComponents(string: href)?.queryItems?.first { $0.name == "treatment" }?.value, "\(phrase) filters no process")
         let row = try await Self.treatmentRow(page)
-        try await expect(row.locator(".filter-bar-value-select .dropdown-selected-text")).toHaveText(phrase)
+        let selected = row.locator(".filter-bar-value-select .dropdown-selected-text")
+        try await expect(selected).not.toHaveText("")
+        let shown = try await selected.textContent()
+        #expect(shown.lowercased().contains(treatment), "\(phrase): the filter reads \(shown), not \(treatment)")
       }
     }
   }

@@ -89,19 +89,19 @@ struct CanvasAttachmentTests {
           .replacingOccurrences(of:"data-auto-watch=\"0\"",with:"data-auto-watch=\"1\"")
           .write(to:file,atomically:true,encoding:.utf8)
         try await page.openHydrated("/\(name)")
-        let image = page.locator("#session-tool-late-canvas .expandable-attachment-image-preview")
+        let image = page.locator("#session-tool-late-canvas .expandable-attachment-image-viewport")
         do { try await expect(image).toBeAttached() } catch {
           print(try await page.evaluate("JSON.stringify({mock:window.__canvasMock,auto:document.querySelector('.pipeline-container')?.dataset.autoWatch,kind:document.querySelector('.pipeline-container')?.dataset.computoriumCoreKind,tools:document.querySelectorAll('.session-tool-call').length,url:window.__canvasMockURL,handlers:window.__canvasMockHandlers,focus:document.querySelector('.session-view')?.dataset.sessionSemblance,output:!!document.querySelector('.session-view .session-output-content')})",as:String.self))
           throw error
         }
         try await page.locator("#session-tool-late-canvas summary").click()
+        // The detail in place: in the result box with every field the model
+        // received, its image the box's width and no taller than the bound,
+        // no chip and no lightbox (user, 2026-10-07).
         let parity = try await page.evaluate("""
-          (()=>{const card=document.querySelector('#session-tool-late-canvas');const box=card.querySelector('.session-tool-call-result-box');const img=box.querySelector('img');const r=img.getBoundingClientRect();return card.querySelector('.expandable-attachment-view').dataset.attachmentHydrated==='true' && !!box && !box.querySelector('.datum-view') && r.height>0 && r.height<=innerHeight*.64+1 && card.textContent.includes('Source resolution') && card.textContent.includes('Sent resolution');})()
+          (()=>{const card=document.querySelector('#session-tool-late-canvas');const box=card.querySelector('.session-tool-call-result-box');const view=box&&box.querySelector('.expandable-attachment-view[data-presentation="inline"]');const vp=view&&view.querySelector('.expandable-attachment-image-viewport');const r=vp?vp.getBoundingClientRect():{height:0,width:0};const b=box?box.getBoundingClientRect():{width:0};return !!view && view.dataset.attachmentHydrated==='true' && r.height>0 && r.height<=innerHeight*.64+1 && r.width>b.width*.8 && !card.querySelector('.expandable-attachment-dialog') && box.textContent.includes('source_width') && box.textContent.includes('sent_width');})()
           """, as:Bool.self)
-        #expect(parity,"A late SSE tool uses the shared bounded preview and hydrates its existing lightbox")
-        try await page.locator("#session-tool-late-canvas .expandable-attachment-image-trigger").click()
-        try await expect(page.locator("#session-tool-late-canvas .expandable-attachment-dialog")).toHaveAttribute("data-open","true")
-        try await page.locator("#session-tool-late-canvas .dialog-close-button").click()
+        #expect(parity,"A late SSE tool's zoom is in place in its result box with its fields")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }

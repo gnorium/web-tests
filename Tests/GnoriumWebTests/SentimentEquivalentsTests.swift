@@ -26,10 +26,11 @@ struct SentimentEquivalentsTests {
     let term = #"[{"form":"\#(german.title)","languageCode":"deu","recordPath":"\#(german.path)#record-row-s-1-1","equivalence":"broader"}]"#
     do {
       // A later snapshot of the English record: its sense lists the German word.
+      // Provisional, with no antecedent: a madrigal makes one snapshot.
       _ = try TestAdmin.query(
         """
-        INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_madrigal_id, treatment, record_json, created_at)
-          SELECT '\(snapshot)', lexico_record_id, lexicographic_madrigal_id, treatment,
+        INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_madrigal_id, treatment, provisional, record_json, created_at)
+          SELECT '\(snapshot)', lexico_record_id, NULL, treatment, true,
               jsonb_set(record_json::jsonb, '{senses,1,translations}', '\(term)')::text, now() + interval '1 second'
             FROM lexico_record_versions WHERE id = '\(english.versionID.lowercased())';
         """)
