@@ -167,7 +167,7 @@ struct ComboboxTests {
     // MARK: A citation's scheme: a combobox of a row, its panel as a
     // listed scheme's.
     let citation = form.locator("[data-item-list='reference-citation'] .combobox-view\(live)").first
-    try await expect(citation.getByRole(.combobox, name: "Classification scheme")).toHaveCount(1)
+    try await expect(citation.getByRole(.combobox, name: "Scheme")).toHaveCount(1)
 
     // A long suggestion wraps on a phone as on a desktop: nothing runs past
     // the page.

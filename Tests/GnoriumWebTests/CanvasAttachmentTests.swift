@@ -61,7 +61,7 @@ struct CanvasAttachmentTests {
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_stage_runs (id, submission_id, stage, semblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
-            'explication', 'Page 1', 1, 'fixture', 'fixture', '[{"type":"thinking","content":"Preparing the canvas fixture."}]', 'passed',
+            'explication', '1', 1, 'fixture', 'fixture', '[{"type":"thinking","content":"Preparing the canvas fixture."}]', 'passed',
             gen_random_uuid(), '\(antiphonID)', 1, now());
         COMMIT;
         """)
@@ -77,7 +77,7 @@ struct CanvasAttachmentTests {
               window.__canvasMock='emitted';
               this.emit('start','{}');
               const src='data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="3000" height="4000"><rect width="3000" height="4000" fill="#e7dec7"/></svg>');
-              this.emit('chunk',JSON.stringify({type:'tool',semblance:'Page 1',name:'view_canvas',arguments:'{"label":"1"}',result:JSON.stringify({ok:true,canvas:'1',page_url:src,detail_url:src,source_width:3000,source_height:4000,sent_width:900,sent_height:1200}),status:'ok',call_id:'late-canvas'}));
+              this.emit('chunk',JSON.stringify({type:'tool',semblance:'1',name:'view_canvas',arguments:'{"label":"1"}',result:JSON.stringify({ok:true,canvas:'1',page_url:src,detail_url:src,source_width:3000,source_height:4000,sent_width:900,sent_height:1200}),status:'ok',call_id:'late-canvas'}));
             },500); }
             addEventListener(name,fn) { (this.handlers[name]??=[]).push(fn); }
             emit(name,data) { window.__canvasMockHandlers=Object.keys(this.handlers); for(const fn of this.handlers[name]??[])fn({data}); }
@@ -96,7 +96,7 @@ struct CanvasAttachmentTests {
         }
         try await page.locator("#session-tool-late-canvas summary").click()
         let parity = try await page.evaluate("""
-          (()=>{const card=document.querySelector('#session-tool-late-canvas');const box=card.querySelector('.session-tool-call-result-box');const img=box.querySelector('img');const r=img.getBoundingClientRect();return card.querySelector('.expandable-attachment-view').dataset.attachmentHydrated==='true' && !!box && !box.querySelector('.datum-view') && r.height>0 && r.height<=innerHeight*.64+1 && card.textContent.includes('Source Pixels') && card.textContent.includes('Sent Pixels');})()
+          (()=>{const card=document.querySelector('#session-tool-late-canvas');const box=card.querySelector('.session-tool-call-result-box');const img=box.querySelector('img');const r=img.getBoundingClientRect();return card.querySelector('.expandable-attachment-view').dataset.attachmentHydrated==='true' && !!box && !box.querySelector('.datum-view') && r.height>0 && r.height<=innerHeight*.64+1 && card.textContent.includes('Source resolution') && card.textContent.includes('Sent resolution');})()
           """, as:Bool.self)
         #expect(parity,"A late SSE tool uses the shared bounded preview and hydrates its existing lightbox")
         try await page.locator("#session-tool-late-canvas .expandable-attachment-image-trigger").click()

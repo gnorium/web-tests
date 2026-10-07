@@ -86,7 +86,7 @@ struct WordDetailsTests {
         try await expect(dialog.locator(".dialog-header-title")).toHaveText("scratchwords")
         let details = dialog.locator(".word-details-view")
         try await expect(details.locator(".word-details-word .datum-label")).toHaveTexts([
-          "Lemma", "Type", "Morphology",
+          "Lemma", "Class", "Morphology",
         ])
         try await expect(details.locator(".word-details-word .datum-value")).toHaveTexts([
           "scratchword", "Noun", "Number: Plural",
