@@ -7,9 +7,10 @@ import WebTestsTesting
 /// which holds everything about the account: Profile,
 /// Change Password, Multi-Factor Authentication and Admin Console (admins only), and Delete
 /// Account. The menu
-/// itself keeps one account link and Sign Out (a POST form). And the email
-/// verification reminder: a warning alert at the top of the page's content,
-/// whose Resend Email sends a new link and whose close control dismisses it.
+/// itself keeps one account link and Sign Out (a POST form). And changing
+/// the email address: the new one's verification reminder, a warning alert
+/// at the top of the page's content, whose Resend Email sends a new link and
+/// whose close control dismisses it.
 /// The accounts are throwaway ones, made for the test and removed after.
 @Suite("Account")
 struct AccountTests {
@@ -111,22 +112,37 @@ struct AccountTests {
     let list: Double
   }
 
-  /// The reminder for an unverified address: the design system's warning
-  /// alert inside the page's content (under the navbar, not above the whole
-  /// page), spaced by the section's gap; Resend Email sends a new link, and
-  /// the alert's own close control dismisses it.
-  @Test(
-    .disabled(
-      "No account can be unverified while signed in: registration verifies the address first, and sign-in requires it. The reminder returns with changing one's email, as the new address's pending verification (user, 2026-10-07)."),
-    arguments: gnorium.engines, Layout.allCases)
+  /// Changing one's email address: Edit Profile keeps the new address
+  /// pending and sends it a link, and the account keeps its verified address
+  /// meanwhile. The reminder is the design system's warning alert inside the
+  /// page's content (under the navbar, not above the whole page), spaced by
+  /// the section's gap; Resend Email sends a new link, and the alert's own
+  /// close control dismisses it. Opening the link switches the address.
+  @Test(arguments: gnorium.engines, Layout.allCases)
   func theVerificationReminderResendsAndDismisses(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let account = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let current = account.username + "@gnorium.test"
+    let pending = account.username + "_new@gnorium.test"
     do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [account.cookie]) { page in
+        try await page.openHydrated("/account/profile")
+        try await expect(page.locator("#email")).toHaveValue(current)
+        try await page.locator("#email").fill(pending)
+        try await page.locator("#edit-profile-password").fill(account.password)
+        try await page.getByRole(.button, name: "Save profile").click()
+        try await expect(page).toHaveURL("/account/profile?saved=1")
+        try await expect(page.locator("#email")).toHaveValue(current)
+      }
+      // The old address is still the account's, and still verified.
+      #expect(
+        try TestAdmin.query("SELECT email || ' ' || email_verified::text || ' ' || coalesce(pending_email, '—') FROM users WHERE username = '\(account.username)';")
+          == "\(current) true \(pending)")
       let linkBefore = try Self.verificationToken(account)
-      // Registration's own link starts the minute Resend Email waits
-      // (`EmailVerification.resendCooldown`): issued a minute ago, as an
-      // address that never got it would be by the time anyone asks again.
+      #expect(!linkBefore.isEmpty, "the new address was sent a link")
+      // The change's own link starts the minute Resend Email waits
+      // (`EmailVerification.resendCooldown`): issued a minute ago, as a
+      // link that never arrived would be by the time anyone asks again.
       _ = try TestAdmin.query(
         "UPDATE email_verification_tokens SET expires_at = expires_at - interval '61 seconds' FROM users WHERE users.id = email_verification_tokens.user_id AND users.username = '\(account.username)';"
       )
@@ -134,7 +150,9 @@ struct AccountTests {
         try await page.openHydrated("/account")
         let banner = page.locator(".email-verification-banner-view")
         try await expect(banner).toBeVisible()
-        try await expect(banner).toContainText(account.username + "@gnorium.test")
+        try await expect(banner.locator(".email-verification-banner-message")).toHaveText(
+          "Verify your new address \(pending): open the link we sent to it.")
+        try await expect(banner.locator(".email-verification-banner-message strong")).toHaveCSS("font-weight", "600")
         let placement = try await page.evaluate(
           """
           (() => {
@@ -161,7 +179,7 @@ struct AccountTests {
         // The outcome is its own green alert just above the banner; the
         // button then waits a minute, counting down.
         try await expect(page.locator(".email-verification-banner-notices .alert-view.alert-green"))
-          .toContainText("We sent a new verification link")
+          .toContainText("We sent a new verification link to \(pending).")
         try await expect(banner.locator(".button-label")).toContainText("Resend in ")
         try await expect(banner.locator("button.email-verification-banner-resend")).toBeDisabled()
 
@@ -171,6 +189,24 @@ struct AccountTests {
       }
       let linkAfter = try Self.verificationToken(account)
       #expect(!linkAfter.isEmpty && linkAfter != linkBefore, "a new link was issued")
+
+      // Opening the link: the link's token is only ever in the email, so
+      // the test gives the row one it knows.
+      let token = UUID().uuidString.lowercased()
+      _ = try TestAdmin.query(
+        "UPDATE email_verification_tokens SET token_hash = encode(sha256(convert_to('\(token)', 'UTF8')), 'hex') FROM users WHERE users.id = email_verification_tokens.user_id AND users.username = '\(account.username)';"
+      )
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [account.cookie]) { page in
+        try await page.openHydrated("/auth/verify-email?token=\(token)")
+        try await expect(page.locator(".verify-email-view")).toContainText("Your email address is now \(pending).")
+        try await page.openHydrated("/account")
+        try await expect(page.locator(".email-verification-banner-view")).toHaveCount(0)
+        try await page.expectNoErrors()
+      }
+      #expect(
+        try TestAdmin.query("SELECT email || ' ' || email_verified::text || ' ' || coalesce(pending_email, '—') FROM users WHERE username = '\(account.username)';")
+          == "\(pending) true —")
+      #expect(try Self.verificationToken(account).isEmpty, "the link works once")
     } catch {
       try await account.remove(after: error)
     }
