@@ -39,6 +39,18 @@ struct TestAdmin: Sendable {
 
   /// `admin: false` leaves the account a plain contributor (the same
   /// throwaway rules; only the role differs).
+  /// A mailbox's proof, as the emailed link would set it: a throwaway
+  /// address's challenge written already verified, and the cookie that opens
+  /// the register page's second step—the account's name, password and terms.
+  static func registrationProof(baseURL: URL) throws -> Cookie {
+    let email = "web_tests_\(randomHex(bytes: 5))@gnorium.test"
+    let proof = randomHex(bytes: 32)
+    try runSQL(
+      "INSERT INTO registration_challenges (id, email, token_hash, completion_hash, verified_at, expires_at, created_at) VALUES (gen_random_uuid(), '\(email)', encode(sha256(convert_to('\(randomHex(bytes: 32))', 'UTF8')), 'hex'), encode(sha256(convert_to('\(proof)', 'UTF8')), 'hex'), now(), now() + interval '15 minutes', now());"
+    )
+    return Cookie(name: "registration_proof", value: proof, url: baseURL)
+  }
+
   static func create(baseURL: URL, admin: Bool = true) async throws -> TestAdmin {
     // A run killed mid-test leaves its account behind; sweep those (and only
     // those: web_tests_ accounts on the reserved .test domain, an hour old,

@@ -3,7 +3,7 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A record with no treatment (user, 2026-09-29): a citation naming a work
+/// A record with no status (user, 2026-09-29): a citation naming a work
 /// Gnorium had no record of made one—its identity, its Citations, no
 /// version. Its page says "—" for what it has undergone and what made it
 /// ("Created by gnorium from the citation … in [work], page N"), lists the
@@ -12,7 +12,7 @@ import WebTestsTesting
 @Suite("Untreated records", .serialized)
 struct UntreatedRecordsTests {
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aRecordACitationMadeHasNoTreatmentSaysWhatMadeItAndIsNotIndexed(engine: BrowserEngine, layout: Layout)
+  func aRecordACitationMadeHasNoStatusSaysWhatMadeItAndIsNotIndexed(engine: BrowserEngine, layout: Layout)
     async throws
   {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -49,12 +49,12 @@ struct UntreatedRecordsTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(path)
         try await expect(page.locator("h1")).toContainText(title)
-        // Not indexed while it has no treatment.
+        // Not indexed while it has no status.
         let robots = try await page.locator("meta[name='robots']").getAttribute("content")
         #expect(robots == "noindex, follow")
         // What it has undergone: nothing, "—"; then what made it.
         let sidebar = page.locator(".record-sidebar-view").first
-        try await expect(sidebar.locator(".record-sidebar-treatment")).toHaveText("—")
+        try await expect(sidebar.locator(".record-sidebar-status")).toHaveText("—")
         let provenance = sidebar.locator(".record-provenance-view")
         try await expect(provenance).toHaveText(
           "Created by gnorium from the citation “Web tests Journ.” in \(citing.title), page 2.")
@@ -71,7 +71,7 @@ struct UntreatedRecordsTests {
         try await page.openHydrated(citing.path)
         let treated = try await page.locator("meta[name='robots']").getAttribute("content")
         #expect(treated == "index, follow")
-        try await expect(page.locator(".record-sidebar-view").first.locator(".record-sidebar-treatment")).toHaveText("Explicated.")
+        try await expect(page.locator(".record-sidebar-view").first.locator(".record-sidebar-status")).toHaveText("Explicated.")
         try await expect(page.locator(".record-sidebar-view").first.locator(".record-provenance-view")).toHaveCount(0)
       }
     } catch {

@@ -17,7 +17,7 @@ struct ScratchTestament {
       BEGIN;
       UPDATE bibliographic_madrigals SET processing_status = 'permitted', permitted_by_user_id = '\(user)', permitted_at = now()
         WHERE id = '\(reading.madrigalID)';
-      INSERT INTO biblio_record_versions (id, biblio_record_id, bibliographic_madrigal_id, metadata_json, shape_json, treatment, created_at)
+      INSERT INTO biblio_record_versions (id, biblio_record_id, bibliographic_madrigal_id, metadata_json, shape_json, status, created_at)
         SELECT '\(versionID)', biblio_record_id, '\(reading.madrigalID)', metadata_json, shape_json, 1, now()
         FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())';
       COMMIT;

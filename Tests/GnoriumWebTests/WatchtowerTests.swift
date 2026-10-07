@@ -3,8 +3,8 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// The Watchtower on the home page links each permitted treatment to the
-/// records it shows, and that page's filter names the same treatment.
+/// The Watchtower on the home page links each permitted status to the
+/// records it shows, and that page's filter names the same status.
 @Suite("Watchtower")
 struct WatchtowerTests {
   /// The Watchtower's links into the public records.
@@ -28,17 +28,17 @@ struct WatchtowerTests {
         try await expect(page, timeout: .seconds(15)).toHaveURL(href)
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
 
-        // The filter row whose field is the treatment filter, however it is
+        // The filter row whose field is the status filter, however it is
         // labeled today.
-        // The process the link filters by (its `treatment`), as the filter
+        // The process the link filters by (its `status`), as the filter
         // names it: a permit link is named by what it lists ("biblio-record").
-        let treatment = try #require(
-          URLComponents(string: href)?.queryItems?.first { $0.name == "treatment" }?.value, "\(phrase) filters no process")
-        let row = try await Self.treatmentRow(page)
+        let status = try #require(
+          URLComponents(string: href)?.queryItems?.first { $0.name == "status" }?.value, "\(phrase) filters no process")
+        let row = try await Self.statusRow(page)
         let selected = row.locator(".filter-bar-value-select .dropdown-selected-text")
         try await expect(selected).not.toHaveText("")
         let shown = try await selected.textContent()
-        #expect(shown.lowercased().contains(treatment), "\(phrase): the filter reads \(shown), not \(treatment)")
+        #expect(shown.lowercased().contains(status), "\(phrase): the filter reads \(shown), not \(status)")
       }
     }
   }
@@ -60,17 +60,17 @@ struct WatchtowerTests {
     }
   }
 
-  static let treatmentLabels = ["Process", "Pipelines"]
+  static let statusLabels = ["Process", "Pipelines"]
 
-  static func treatmentRow(_ page: Page) async throws -> Locator {
+  static func statusRow(_ page: Page) async throws -> Locator {
     let rows = page.locator(".filter-bar-row")
     try await expect(rows.first).toBeVisible()
     var labels: [String] = []
     for row in try await rows.all() {
       let label = try await row.locator(".filter-bar-field-picker .dropdown-selected-text").textContent()
-      if treatmentLabels.contains(label) { return row }
+      if statusLabels.contains(label) { return row }
       labels.append(label)
     }
-    throw WebTestError("No filter row is labeled \(treatmentLabels.joined(separator: " or ")); the rows are \(labels).")
+    throw WebTestError("No filter row is labeled \(statusLabels.joined(separator: " or ")); the rows are \(labels).")
   }
 }

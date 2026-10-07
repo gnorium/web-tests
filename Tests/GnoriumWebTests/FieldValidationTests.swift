@@ -11,7 +11,10 @@ import WebTestsTesting
 struct FieldValidationTests {
   @Test(arguments: gnorium.engines)
   func unavailableUsernameUsesMatchingBorderAndOutline(engine: BrowserEngine) async throws {
-    try await withPage(engine, gnorium) { page in
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    // The username is the second step's, behind a verified address.
+    let proof = try TestAdmin.registrationProof(baseURL: gnorium.baseURL)
+    try await withPage(engine, gnorium, cookies: [proof]) { page in
       try await page.openHydrated("/auth/register")
       let input = page.locator("#username")
       try await input.fill("gnorium")
@@ -158,10 +161,20 @@ struct FieldValidationTests {
 
   @Test(arguments: gnorium.engines)
   func registerNamesEachBrokenRule(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    // Registration's first step asks for an address alone; its rules are
+    // checked there. The rest are the second step's, opened by the link.
     try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine)) { page in
       try await page.openHydrated("/auth/register")
-      try await page.locator("#username").fill("ab")
       try await page.locator("#email").fill("not-an-email")
+      try await page.locator("form.register-form button[type='submit']").click()
+      try await expect(page.locator("#email-validation-message")).toHaveText("Enter a valid email address.")
+      try await expect(page.locator("#username")).toHaveCount(0)
+    }
+    let proof = try TestAdmin.registrationProof(baseURL: gnorium.baseURL)
+    try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine), cookies: [proof]) { page in
+      try await page.openHydrated("/auth/register")
+      try await page.locator("#username").fill("ab")
       try await page.locator("#password").fill("one")
       try await page.locator("#confirmPassword").fill("two")
       try await page.locator("form.register-form button[type='submit']").click()
@@ -169,7 +182,6 @@ struct FieldValidationTests {
       try await expect(page.locator("#full-name-validation-message")).toHaveText("Enter your full name.")
       try await expect(page.locator("#full-name")).toBeFocused()
       try await expect(page.locator("#username-validation-message")).toHaveText("3–20 characters, using lowercase letters, digits, and underscores.")
-      try await expect(page.locator("#email-validation-message")).toHaveText("Enter a valid email address.")
       try await expect(page.locator("#confirmPassword-validation-message")).toHaveText("The passwords don't match.")
       try await expect(page.locator("#terms-and-policy-validation-message")).toHaveText(
         "Agree to the Terms of Service and Privacy Policy to register.")

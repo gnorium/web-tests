@@ -100,7 +100,7 @@ struct RecordBreadcrumbsTests {
   }
 
   /// A prefix page's records tabs keep its language, nothing under it, and
-  /// the treatment filter where the other half has its name; the search is
+  /// the status filter where the other half has its name; the search is
   /// each half's own and drops.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func aPrefixPagesTabsKeepItsLanguage(engine: BrowserEngine, layout: Layout) async throws {
@@ -109,23 +109,23 @@ struct RecordBreadcrumbsTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         let titlePrefix = work.path.split(separator: "/").prefix(3).joined(separator: "/")
-        try await page.openHydrated("/\(titlePrefix)?title=crumbs&field=title&treatment=translated")
+        try await page.openHydrated("/\(titlePrefix)?title=crumbs&field=title&status=translated")
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
         let lexicoTab = page.locator(".records-tabs #tab-lexico-records")
         let biblioTab = page.locator(".records-tabs #tab-biblio-records")
         try await expect(lexicoTab).toBeVisible()
-        try await expect(biblioTab).toHaveAttribute("href", "/biblio-records/eng?treatment=translated")
-        try await expect(lexicoTab).toHaveAttribute("href", "/lexico-records/eng?treatment=translated")
+        try await expect(biblioTab).toHaveAttribute("href", "/biblio-records/eng?status=translated")
+        try await expect(lexicoTab).toHaveAttribute("href", "/lexico-records/eng?status=translated")
         try await lexicoTab.click()
-        try await expect(page).toHaveURL("/lexico-records/eng?treatment=translated") { url in
-          url.path == "/lexico-records/eng" && url.query == "treatment=translated"
+        try await expect(page).toHaveURL("/lexico-records/eng?status=translated") { url in
+          url.path == "/lexico-records/eng" && url.query == "status=translated"
         }
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
         try await expect(page.locator(".records-tabs #tab-biblio-records")).toHaveAttribute(
-          "href", "/biblio-records/eng?treatment=translated")
+          "href", "/biblio-records/eng?status=translated")
         try await expect(page.locator(".records-tabs #tab-lexico-records")).toHaveAttribute("aria-selected", "true")
       }
     } catch {

@@ -70,7 +70,7 @@ struct ScratchWord {
     } ?? ("[]", "[]", "")
     let snapshot = """
       {"lemmaForm":{"title":"\(title)","inflections":[],"languageCode":"\(language)","origin":{"citations":[],"derivation":"","etymons":[]},\
-      "partOfSpeech":"noun","sources":[{"locator":"s.v.","title":"Web tests dictionary","url":"https://dictionary.example.org/web-tests"}],\
+      "class":"noun","sources":[{"locator":"s.v.","title":"Web tests dictionary","url":"https://dictionary.example.org/web-tests"}],\
       "spellings":[]},"quotations":\(utterances.0),"selectionRunIDs":["run"]\(utterances.2),"senses":[\
       {"definition":"A branch sense.","id":"s-1","isLeaf":false,"labels":{"domain":[],"grammar":[],"region":[],"register":[]},\
       "position":0,"quotationIDs":[],"rank":0,"relations":[],"selectionRunID":"run","tei":"<sense><def>A branch sense.</def></sense>"},\
@@ -82,7 +82,7 @@ struct ScratchWord {
     // Its title form as the Submit Sentiment form writes one: a submitted
     // Instance is frozen and stays, so it must be one the Instances list can
     // read (an empty form fails the whole list).
-    let titleForm = #"{"title":"\#(title)","languageCode":"\#(language)","partOfSpeech":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
+    let titleForm = #"{"title":"\#(title)","languageCode":"\#(language)","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
     _ = try TestAdmin.query(
       """
       BEGIN;
@@ -99,7 +99,7 @@ struct ScratchWord {
         VALUES ('\(ids["antiphon"]!)', '\(ids["instance"]!)', '\(ids["overture"]!)', '\(user)', 'submitted', '\(language)', '\(title)', '\(titleForm)');
       INSERT INTO lexicographic_madrigals (id, lexicographic_antiphon_id, lexico_record_id, proposed_content_json, processing_status, permitted_by_user_id, permitted_at)
         VALUES ('\(ids["madrigal"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"record":\(snapshot),"homographFlags":[],"evidenceRequests":[],"reasoning":"Web tests."}', \(submitted ? "'submitted', NULL, NULL" : "'permitted', '\(user)', now()"));
-      INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_madrigal_id, treatment, record_json, created_at)
+      INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_madrigal_id, status, record_json, created_at)
         VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["madrigal"]!)', 1, '\(snapshot)', now());
       COMMIT;
       """)

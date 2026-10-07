@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// A table's column is resized by its heading's handle: a drag widens it, a
 /// double-click fits it to its values (TableView). A column that fits its
-/// heading (`fitsHeader`, the records lists' Treatment) can still be dragged
+/// heading (`fitsHeader`, the records lists' RecordStatus) can still be dragged
 /// wider, and a double-click fits it back to its heading alone. With a mouse,
 /// at desktop width.
 @Suite("Table resize", .serialized)
@@ -112,14 +112,14 @@ struct TableResizeTests {
       for path in ["/biblio-records", "/lexico-records"] {
         try await page.openHydrated(path)
         try await page.expectNoErrors()
-        let column = page.locator("main th[data-table-column-id='treatment']")
+        let column = page.locator("main th[data-table-column-id='status']")
         try await expect(column).toHaveAttribute("data-fits-header", "true")
         try await expect(column.locator(".table-resizer")).toBeHidden()
-        let width = try await Self.width(page, "treatment")
+        let width = try await Self.width(page, "status")
         let heading = try await page.evaluate(
           """
           (() => {
-            const th = document.querySelector("main th[data-table-column-id='treatment']")
+            const th = document.querySelector("main th[data-table-column-id='status']")
             const style = getComputedStyle(th)
             return { width: th.querySelector('.table-header-label, .table-sort-button').scrollWidth
               + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) }

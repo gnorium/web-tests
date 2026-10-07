@@ -115,7 +115,10 @@ struct AccountTests {
   /// alert inside the page's content (under the navbar, not above the whole
   /// page), spaced by the section's gap; Resend Email sends a new link, and
   /// the alert's own close control dismisses it.
-  @Test(arguments: gnorium.engines, Layout.allCases)
+  @Test(
+    .disabled(
+      "No account can be unverified while signed in: registration verifies the address first, and sign-in requires it. The reminder returns with changing one's email, as the new address's pending verification (user, 2026-10-07)."),
+    arguments: gnorium.engines, Layout.allCases)
   func theVerificationReminderResendsAndDismisses(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let account = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)

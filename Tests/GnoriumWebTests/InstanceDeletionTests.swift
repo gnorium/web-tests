@@ -31,7 +31,7 @@ struct InstanceDeletionTests {
       let user = try admin.column("id")
       // A whole title form, as Submit Sentiment writes one (ScratchWord):
       // the instance page reads it.
-      let form = #"{"title":"webtestsdeletion","languageCode":"eng","partOfSpeech":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
+      let form = #"{"title":"webtestsdeletion","languageCode":"eng","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
       _ = try TestAdmin.query(
         """
         BEGIN;
@@ -60,7 +60,7 @@ struct InstanceDeletionTests {
         try await tab.openHydrated(register)
         // The register spells ids in capitals; the match ignores case.
         try await expect(tab.locator("a[href='\(page)' i]")).toHaveCount(0)
-        try await tab.openHydrated(register + "?state=deleted")
+        try await tab.openHydrated(register + "?status=deleted")
         try await expect(tab.locator("a[href='\(page)' i]").first).toBeVisible()
 
         try await tab.openHydrated(page)

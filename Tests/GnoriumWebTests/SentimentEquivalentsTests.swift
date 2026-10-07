@@ -29,8 +29,8 @@ struct SentimentEquivalentsTests {
       // Provisional, with no antecedent: a madrigal makes one snapshot.
       _ = try TestAdmin.query(
         """
-        INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_madrigal_id, treatment, provisional, record_json, created_at)
-          SELECT '\(snapshot)', lexico_record_id, NULL, treatment, true,
+        INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_madrigal_id, status, provisional, record_json, created_at)
+          SELECT '\(snapshot)', lexico_record_id, NULL, status, true,
               jsonb_set(record_json::jsonb, '{senses,1,translations}', '\(term)')::text, now() + interval '1 second'
             FROM lexico_record_versions WHERE id = '\(english.versionID.lowercased())';
         """)

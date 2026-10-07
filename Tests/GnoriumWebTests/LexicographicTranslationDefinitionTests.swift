@@ -38,7 +38,7 @@ struct LexicographicTranslationDefinitionTests {
         UPDATE lexico_record_versions SET record_json = jsonb_set(record_json::jsonb, '{senses,1,labels,grammar}',
             '["in seafaring use"]')::text
           WHERE id = '\(word.versionID.lowercased())';
-        -- The Arabic record translated: a version (treatment 3) permitted
+        -- The Arabic record translated: a version (status 3) permitted
         -- from a lexicographic epilogue, as the antecedent check requires.
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition, target,
             status, submitted_by_user_id, summary, definition_translation_json, evaluated_at, evaluated_by_user_id)
@@ -46,7 +46,7 @@ struct LexicographicTranslationDefinitionTests {
             'A leaf sense.', 'definition', 'permitted', (SELECT id FROM users WHERE username = 'gnorium'),
             'Wrote the Arabic definition.', '{"language_code":"ara","definition":"\(Self.arabic)"}', now(),
             (SELECT id FROM users WHERE username = 'gnorium'));
-        INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_epilogue_id, treatment, record_json, created_at)
+        INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_epilogue_id, status, record_json, created_at)
           SELECT gen_random_uuid(), lexico_record_id, '\(arabicAmendment)', 2,
               jsonb_set(record_json::jsonb, '{senses,1,definitionTranslation}',
                 '{"languageCode":"ara","definition":"\(Self.arabic)","labels":{"domain":[],"grammar":[],"region":[],"register":[]}}')::text,
@@ -81,7 +81,7 @@ struct LexicographicTranslationDefinitionTests {
         try await english.click()
         try await expect(row.locator(".record-row-title").first).toHaveText(Self.german)
         try await expect(row.locator(".record-row-title").first).toHaveAttribute("lang", "de")
-        try await expect(page.locator(".record-sidebar-treatment").first).toContainText("translated")
+        try await expect(page.locator(".record-sidebar-status").first).toContainText("translated")
         try await expect(row.locator(".sentiment-metadata-view span[data-reading-english='in seafaring use']").first).toHaveText("in der Seefahrt")
         try await english.click()
         try await expect(row.locator(".record-row-title").first).toHaveText("A leaf sense.")
