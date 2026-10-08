@@ -146,7 +146,7 @@ struct GlossTests {
 
         // Closed by a click, the word has the focus again, with no focus
         // ring; the reader under it where it was.
-        try await sheet.locator(".gloss-sheet-close").first.click()
+        try await sheet.locator(".dialog-sheet-close").first.click()
         try await expect(sheet).toHaveAttribute("data-state", "closed")
         try await expect(linked).toBeFocused()
         try await expect(linked).toHaveCSS("outline-style", "none")
@@ -172,7 +172,7 @@ struct GlossTests {
         // Tab stays inside while it is open.
         for _ in 0..<3 { try await page.keyboard.press("Tab") }
         let inside = try await page.evaluate(
-          "!!document.activeElement.closest('.gloss-sheet-content')")
+          "!!document.activeElement.closest('.dialog-sheet-content')")
         #expect(inside == .bool(true))
         // Esc closes it; from the keyboard, the word's focus ring shows.
         try await page.keyboard.press("Escape")
