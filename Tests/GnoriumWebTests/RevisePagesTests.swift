@@ -3,18 +3,18 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// One Suggest is one modification (user, 2026-10-08): an object's Modify
+/// One Suggest is one revision (user, 2026-10-08): an object's Revise
 /// page files whatever was changed—its fields, any number of ordinances
 /// edited in its reader, the prompts of the process it would be committed
 /// for—as one row, accepted whole; each diff is drawn live where it is made,
-/// and the modification's page draws each in the record's tree. Prompts are
+/// and the revision's page draws each in the record's tree. Prompts are
 /// in force only once the object is committed. A process's prompt page is
 /// read-only. All of it under a throwaway contributor's account; Chrome,
 /// desktop.
-@Suite("Modify pages", .serialized)
-struct ModifyPagesTests {
+@Suite("Revise pages", .serialized)
+struct RevisePagesTests {
   @Test(arguments: [BrowserEngine.chrome])
-  func oneSuggestFilesFieldsOrdinancesAndPromptsAsOneModification(engine: BrowserEngine) async throws {
+  func oneSuggestFilesFieldsOrdinancesAndPromptsAsOneRevision(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
@@ -23,10 +23,10 @@ struct ModifyPagesTests {
     let commit = try ScratchCommit(owner: contributor)
     let slot = "bibliographic_explication"
     func remove() {
-      _ = try? TestAdmin.query("DELETE FROM modifications WHERE requested_by_user_id = '\(user)'")
+      _ = try? TestAdmin.query("DELETE FROM revisions WHERE requested_by_user_id = '\(user)'")
       commit.remove()
     }
-    let inForce = try TestAdmin.query("SELECT revision_id FROM active_prompt_revisions WHERE slot = '\(slot)'")
+    let inForce = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
     do {
       // Two semblances; the digitization's required provider.
       _ = try TestAdmin.query(
@@ -40,25 +40,25 @@ struct ModifyPagesTests {
         // The process's page is read-only, its runs its associated ones.
         let processURL = "/mission-control/prompts/bibliographic/explication"
         try await page.openHydrated(processURL)
-        try await expect(page.locator("a[href='\(processURL)/modify']")).toHaveCount(0)
+        try await expect(page.locator("a[href='\(processURL)/revise']")).toHaveCount(0)
         try await expect(page.locator(".associated-links-view a")).toHaveText("runs")
 
-        try await page.openHydrated("\(commit.madrigalPath)/modify")
+        try await page.openHydrated("\(commit.madrigalPath)/revise")
         try await expect(page.locator(".testament-tree-diff-view")).toHaveCount(1)
         try await expect(page.locator(".tei-page-edit textarea")).toHaveCount(2)
         // One Suggest, at the end: none per page, none for the prompts, no
         // Diff toggle and no scope.
         try await expect(page.locator("button[type='submit']").filter(hasText: "Suggest")).toHaveCount(1)
         try await expect(page.locator(".testament-suggest")).toHaveCount(0)
-        try await expect(page.locator(".prompt-modification-fields-diff-toggle")).toHaveCount(0)
+        try await expect(page.locator(".prompt-revision-fields-diff-toggle")).toHaveCount(0)
         try await expect(page.locator("input[name='scope']")).toHaveCount(0)
         // A process toggle, where there is one, is in the header.
-        try await expect(page.locator(".prompt-modification-fields-view .process-toggle-view")).toHaveCount(0)
+        try await expect(page.locator(".prompt-revision-fields-view .process-toggle-view")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
 
         // The fields, an ordinance and the system prompt, each diff drawn
         // as it is made.
-        try await page.locator("[data-modify-form] input[name='title']").first.fill("Web tests title")
+        try await page.locator("[data-revise-form] input[name='title']").first.fill("Web tests title")
         _ = try await page.evaluate(
           """
           (() => {
@@ -69,36 +69,36 @@ struct ModifyPagesTests {
           })()
           """, as: Bool.self)
         try await expect(page.locator(".testament-diff[data-edited='true']")).toHaveCount(1)
-        let prompts = page.locator(".prompt-modification-fields-view")
+        let prompts = page.locator(".prompt-revision-fields-view")
         // Each prompt in its accordion, closed as on the object's page.
-        try await prompts.locator("#prompt-modification-system-accordion-\(slot) .accordion-summary").first.click()
+        try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
         let system = prompts.locator("textarea[name='prompt-system-\(slot)']")
         try await system.fill((try await system.inputValue()) + "\nWeb tests suggestion.")
         let line = prompts.locator(".field-diff-diff").first
         try await expect(line).toBeVisible()
         try await expect(line).toContainText("Web tests suggestion.")
-        try await page.locator(".modification-form button[type='submit']").click()
+        try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15))
-          .toHaveURL("/mission-control/modifications/bibliographic?object=madrigal")
+          .toHaveURL("/mission-control/revisions/bibliographic?object=madrigal")
         let stored = try TestAdmin.query(
           """
           SELECT count(*) || ' ' || bool_and(content_json IS NOT NULL)::text || ' '
             || max(json_array_length(pages_json::json)) || ' ' || max(prompt_slot)
-          FROM modifications WHERE requested_by_user_id = '\(user)'
+          FROM revisions WHERE requested_by_user_id = '\(user)'
           """)
         #expect(stored == "1 true 1 \(slot)", "One row holding all three: \(stored)")
       }
-      let id = try TestAdmin.query("SELECT id FROM modifications WHERE requested_by_user_id = '\(user)'")
+      let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'")
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         // The thread says who suggested it and its size, and links it.
         try await page.openHydrated(commit.madrigalPath)
-        let event = page.locator("#modification-\(id)")
-        try await expect(event).toContainText("suggested modification")
+        let event = page.locator("#revision-\(id)")
+        try await expect(event).toContainText("suggested revision")
         try await expect(event.locator(".intervention-thread-event-added")).toBeVisible()
 
         // Its page draws each diff where it is made: the record's tree,
         // the ordinance under its semblance, the prompts.
-        try await page.openHydrated("\(commit.madrigalPath)/modifications/\(id)")
+        try await page.openHydrated("\(commit.madrigalPath)/revisions/\(id)")
         try await expect(page.locator(".testament-tree-diff-view")).toHaveCount(1)
         try await expect(page.getByText("Ordinance of semblance 1").first).toBeVisible()
         try await expect(page.locator(".testament-diff[data-edited='true'] .tooltip-view").first).toBeAttached()
@@ -107,7 +107,7 @@ struct ModifyPagesTests {
         try await expect(page.getByText("Web tests suggestion.").first).toBeAttached()
         try await page.expectNoHorizontalOverflow()
         _ = try await page.evaluate(
-          "(() => { document.getElementById('modification-accept').submit(); return true })()", as: Bool.self)
+          "(() => { document.getElementById('revision-accept').submit(); return true })()", as: Bool.self)
         try await expect(page, timeout: .seconds(15)).toHaveURL("the madrigal's page") {
           $0.path.lowercased() == commit.madrigalPath.lowercased()
         }
@@ -119,9 +119,9 @@ struct ModifyPagesTests {
         "SELECT metadata_json::json ->> 'title' FROM bibliographic_madrigals WHERE id = '\(commit.madrigalID)'")
       #expect(title == "Web tests title", "and its fields: \(title)")
       let status = try TestAdmin.query(
-        "SELECT status || ' ' || (prompt_template_id IS NULL)::text FROM modifications WHERE id = '\(id)'")
+        "SELECT status || ' ' || (prompt_vignette_id IS NULL)::text FROM revisions WHERE id = '\(id)'")
       #expect(status == "accepted true", "Accepted whole, its prompts not yet in force: \(status)")
-      let still = try TestAdmin.query("SELECT revision_id FROM active_prompt_revisions WHERE slot = '\(slot)'")
+      let still = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
       #expect(still == inForce, "Accepting puts no prompt in force")
     } catch {
       remove()
@@ -133,15 +133,15 @@ struct ModifyPagesTests {
     try await contributor.remove()
   }
 
-  /// A lexicographic madrigal's Modify page offers what a bibliographic
+  /// A lexicographic madrigal's Revise page offers what a bibliographic
   /// one's does, in parallel (user, 2026-10-07): its record's identity and
   /// each sentiment's definition and labels, in its Sentiments tree. A
-  /// change is one modification of its fields an admin accepts—written into the
+  /// change is one revision of its fields an admin accepts—written into the
   /// madrigal—and reverts.
-  /// An epilogue's definition in the record's language is modified the same
+  /// An epilogue's definition in the record's language is revised the same
   /// way, the session's confidence cleared once a person changed it.
   @Test(arguments: [BrowserEngine.chrome])
-  func lexicographicFieldsAreModifiedAsBibliographicOnesAre(engine: BrowserEngine) async throws {
+  func lexicographicFieldsAreRevisedAsBibliographicOnesAre(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
@@ -153,7 +153,7 @@ struct ModifyPagesTests {
       _ = try? TestAdmin.query(
         """
         BEGIN;
-        DELETE FROM modifications WHERE requested_by_user_id = '\(user)';
+        DELETE FROM revisions WHERE requested_by_user_id = '\(user)';
         DELETE FROM lexicographic_epilogues WHERE id = '\(epilogue)';
         COMMIT;
         """)
@@ -174,7 +174,7 @@ struct ModifyPagesTests {
         """)
       let madrigalPath = "/mission-control/madrigals/lexicographic/\(word.madrigalID)"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        try await page.openHydrated("\(madrigalPath)/modify")
+        try await page.openHydrated("\(madrigalPath)/revise")
         // Every sentiment's fields, under its number.
         try await expect(page.locator("textarea[name='sentiment-0-definition']")).toHaveValue("A branch sense.")
         try await expect(page.locator("textarea[name='sentiment-1-definition']")).toHaveValue("A leaf sense.")
@@ -184,27 +184,27 @@ struct ModifyPagesTests {
         try await leaf.fill("A leaf sense, as a person reads it.")
         // Its diff is drawn as it is made, as a bibliographic field's is.
         try await expect(page.locator("[data-diff-annotation][data-visible='true']").first).toBeAttached()
-        try await page.locator(".modification-form button[type='submit']").click()
+        try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15))
-          .toHaveURL("/mission-control/modifications/lexicographic?object=madrigal")
+          .toHaveURL("/mission-control/revisions/lexicographic?object=madrigal")
       }
       let id = try TestAdmin.query(
-        "SELECT id FROM modifications WHERE requested_by_user_id = '\(user)' AND modifiable_type = 'lexicographicMadrigal' AND content_json IS NOT NULL AND status = 'pending'")
-      #expect(!id.isEmpty, "A modification of the madrigal is filed")
+        "SELECT id FROM revisions WHERE requested_by_user_id = '\(user)' AND revisable_type = 'lexicographicMadrigal' AND content_json IS NOT NULL AND status = 'pending'")
+      #expect(!id.isEmpty, "A revision of the madrigal is filed")
       #expect(try content().contains("A leaf sense.\""), "The madrigal stands until it is accepted")
 
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
-        let modificationPath = "\(madrigalPath)/modifications/\(id.uppercased())"
-        try await page.openHydrated(modificationPath)
+        let revisionPath = "\(madrigalPath)/revisions/\(id.uppercased())"
+        try await page.openHydrated(revisionPath)
         try await expect(page.getByText("Sentiment 1.1").first).toBeAttached()
         try await expect(page.locator(".diff-view").first).toBeAttached()
-        _ = try await page.evaluate("(() => { document.getElementById('modification-accept').submit(); return true })()", as: Bool.self)
+        _ = try await page.evaluate("(() => { document.getElementById('revision-accept').submit(); return true })()", as: Bool.self)
         try await expect(page, timeout: .seconds(15))
-          .toHaveURL("/mission-control/modifications/lexicographic?object=madrigal")
+          .toHaveURL("/mission-control/revisions/lexicographic?object=madrigal")
         #expect(try content().contains("A leaf sense, as a person reads it."), "Accepted, it is written into the madrigal")
-        try await page.openHydrated(modificationPath)
-        _ = try await page.evaluate("(() => { document.getElementById('modification-revert').submit(); return true })()", as: Bool.self)
-        try await expect(page, timeout: .seconds(15)).toHaveURL(modificationPath)
+        try await page.openHydrated(revisionPath)
+        _ = try await page.evaluate("(() => { document.getElementById('revision-revert').submit(); return true })()", as: Bool.self)
+        try await expect(page, timeout: .seconds(15)).toHaveURL(revisionPath)
         #expect(!(try content().contains("as a person reads it")), "Reverted, it comes back out")
         #expect(try content().contains("<def>A leaf sense.</def>"), "The TEI's definition with it")
       }
@@ -212,21 +212,21 @@ struct ModifyPagesTests {
       // An epilogue's definition in the record's language, the same way.
       let epiloguePath = "/mission-control/epilogues/lexicographic/\(epilogue)"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        try await page.openHydrated("\(epiloguePath)/modify")
+        try await page.openHydrated("\(epiloguePath)/revise")
         let definition = page.locator("textarea[name='definition']")
         try await expect(definition).toHaveValue("Un sens feuille.")
         try await definition.fill("Un sens feuille, corrigé.")
-        try await page.locator(".modification-form button[type='submit']").click()
+        try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15))
-          .toHaveURL("/mission-control/modifications/lexicographic?object=epilogue")
+          .toHaveURL("/mission-control/revisions/lexicographic?object=epilogue")
       }
-      let epilogueModification = try TestAdmin.query(
-        "SELECT id FROM modifications WHERE requested_by_user_id = '\(user)' AND modifiable_type = 'lexicographicEpilogue' AND content_json IS NOT NULL")
+      let epilogueRevision = try TestAdmin.query(
+        "SELECT id FROM revisions WHERE requested_by_user_id = '\(user)' AND revisable_type = 'lexicographicEpilogue' AND content_json IS NOT NULL")
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
-        try await page.openHydrated("\(epiloguePath)/modifications/\(epilogueModification)")
-        _ = try await page.evaluate("(() => { document.getElementById('modification-accept').submit(); return true })()", as: Bool.self)
+        try await page.openHydrated("\(epiloguePath)/revisions/\(epilogueRevision)")
+        _ = try await page.evaluate("(() => { document.getElementById('revision-accept').submit(); return true })()", as: Bool.self)
         try await expect(page, timeout: .seconds(15))
-          .toHaveURL("/mission-control/modifications/lexicographic?object=epilogue")
+          .toHaveURL("/mission-control/revisions/lexicographic?object=epilogue")
         let stored = try TestAdmin.query(
           "SELECT definition_translation_json FROM lexicographic_epilogues WHERE id = '\(epilogue)'")
         #expect(stored.contains("Un sens feuille, corrigé."), "stored: \(stored)")
@@ -234,7 +234,7 @@ struct ModifyPagesTests {
         // The epilogue's page reads it, its confidence "—".
         try await page.openHydrated(epiloguePath)
         try await expect(page.getByText("Un sens feuille, corrigé.").first).toBeAttached()
-        try await expect(page.locator("a[href*='/mission-control/modifications/lexicographic?target=']")).toHaveCount(1)
+        try await expect(page.locator("a[href*='/mission-control/revisions/lexicographic?target=']")).toHaveCount(1)
       }
     } catch {
       remove()

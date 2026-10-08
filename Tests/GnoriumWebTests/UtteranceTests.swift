@@ -119,7 +119,7 @@ struct UtteranceTests {
           fetch(document.querySelector('#record-row-s-1-1 .attestation-testament a').href)
             .then(r => (r.ok ? '' : 'HTTP ' + r.status + ' ') + new URL(r.url).pathname + new URL(r.url).search)
           """)
-        #expect(landed == .string("\(scratch.reading.work.path)/snapshots/\(scratch.versionID)?semblance=2"))
+        #expect(landed == .string("\(scratch.reading.work.path)/vignettes/\(scratch.versionID)?semblance=2"))
 
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()

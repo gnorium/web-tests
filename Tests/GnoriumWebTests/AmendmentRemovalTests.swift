@@ -19,11 +19,11 @@ struct AmendmentRemovalTests {
     let work = try ScratchWork(owner: admin)
     let record = work.recordID.lowercased()
     func clean() {
-      // Its amendment Instances are submitted input, frozen: they stay.
+      // Its Palinodes are submitted input, frozen: they stay.
       _ = try? TestAdmin.query(
         """
         BEGIN;
-        DELETE FROM modifications WHERE modifiable_id IN
+        DELETE FROM revisions WHERE revisable_id IN
           (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');
         DELETE FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())';
         COMMIT;

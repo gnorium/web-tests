@@ -12,13 +12,13 @@ import WebTestsTesting
 /// and a digitization's agents and date before its place, a Production's
 /// event as an imprint gives it (place, agents, date); the carrier saying which of
 /// Publication and Production shows; no card, no level or group named, no
-/// Creation, no type check. An overture's Modify page is its record as its
+/// Creation, no type check. An overture's Revise page is its record as its
 /// page draws it, each testament's row open on those fields. A level dated
 /// before the
 /// work is warned of as it is
 /// typed, never refused. On Submit Testament nothing is submitted (the
 /// submit event is dispatched by hand, which runs the form's script but
-/// never posts); the modify test posts a modification of its own scratch
+/// never posts); the revise test posts a revision of its own scratch
 /// overture and removes both. Needs a signed-in account, made for the test
 /// and removed after.
 ///
@@ -183,22 +183,22 @@ struct TestamentLevelsTests {
     }
   }
 
-  /// A manuscript's overture, modified: no edition, its Production shown
+  /// A manuscript's overture, revised: no edition, its Production shown
   /// and posted as it stands, its Acquisition shown and posted.
   @Test(arguments: gnorium.engines, Layout.allCases)
-  func aModifiedManuscriptKeepsItsProductionAndItsAcquisition(engine: BrowserEngine, layout: Layout) async throws {
+  func aRevisedManuscriptKeepsItsProductionAndItsAcquisition(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let submission = UUID().uuidString.lowercased()
-    let instance = UUID().uuidString.lowercased()
+    let folksong = UUID().uuidString.lowercased()
     let overture = UUID().uuidString.lowercased()
     func remove() {
       _ = try? TestAdmin.query(
         """
         BEGIN;
-        DELETE FROM modifications WHERE modifiable_id = '\(overture)';
+        DELETE FROM revisions WHERE revisable_id = '\(overture)';
         DELETE FROM bibliographic_overtures WHERE id = '\(overture)';
-        UPDATE bibliographic_instances SET deleted_at = now(), deleted_by = '\(admin.username)' WHERE id = '\(instance)';
+        UPDATE bibliographic_folksongs SET deleted_at = now(), deleted_by = '\(admin.username)' WHERE id = '\(folksong)';
         COMMIT;
         """)
     }
@@ -211,22 +211,22 @@ struct TestamentLevelsTests {
         """
         BEGIN;
         INSERT INTO submissions (id, user_id) VALUES ('\(submission)', '\(user)');
-        INSERT INTO bibliographic_instances (id, batch_id, source_url, language, processing_status, title, type, year)
-          VALUES ('\(instance)', '\(submission)', 'https://example.org/web-tests/levels', 'eng', 'pending',
+        INSERT INTO bibliographic_folksongs (id, batch_id, source_url, language, processing_status, title, type, year)
+          VALUES ('\(folksong)', '\(submission)', 'https://example.org/web-tests/levels', 'eng', 'pending',
             'Web tests levels \(overture.prefix(8))', 'manuscript', 1623);
-        INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_instance_id, source_url, language, processing_status, title, type,
+        INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_folksong_id, source_url, language, processing_status, title, type,
           year_qualifier, era, year, provider, holding_institution, copy_label, call_number_json, activity_statements_json, carrier)
-          VALUES ('\(overture)', '\(submission)', '\(instance)', 'https://example.org/web-tests/levels', 'eng', 'pending',
+          VALUES ('\(overture)', '\(submission)', '\(folksong)', 'https://example.org/web-tests/levels', 'eng', 'pending',
             'Web tests levels \(overture.prefix(8))', 'manuscript', 'exact', 'anno_domini', 1623, 'folger_shakespeare_library',
             'folger_shakespeare_library', 'Web tests copy 9', '{"scheme":"stc","identifier":"22273"}', '\(statements)', 'manuscript');
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        try await page.openHydrated("/mission-control/overtures/bibliographic/\(overture)/modify")
+        try await page.openHydrated("/mission-control/overtures/bibliographic/\(overture)/revise")
         // The overture's record as its page draws it, its testaments' rows
         // open on their fields: the manuscript's Production shows, its
         // Publication does not.
-        let form = page.locator(".modify-bibliographic-object")
+        let form = page.locator(".revise-bibliographic-object")
         let copy = form.locator(".activity-statement-view[data-as-namespace='production']")
         try await expect(copy).toBeVisible()
         try await expect(form.locator(".activity-statement-view[data-as-namespace='publication']")).toBeHidden()
@@ -237,20 +237,20 @@ struct TestamentLevelsTests {
         try await expect(acquisition.locator("input[name='call_number_value']")).toHaveValue("22273")
         try await expect(acquisition.locator("input[name='holding_institution']")).toHaveValue("folger_shakespeare_library")
         try await expect(copy.locator("input[name='as-production-place']")).toHaveValue("Web tests scriptorium")
-        try await shoot(page, "modify-manuscript", layout)
+        try await shoot(page, "revise-manuscript", layout)
         try await label.fill("Web tests copy 10")
 
-        try await form.locator(".modification-form button[type='submit']").click()
+        try await form.locator(".revision-form button[type='submit']").click()
         // The post answers with a redirect off the form.
         var left = false
         for _ in 0..<60 where !left {
-          left = !(try await page.url()).contains("/modify")
+          left = !(try await page.url()).contains("/revise")
           if !left { try await Task.sleep(for: .milliseconds(250)) }
         }
-        #expect(left, "The modification was not posted.")
+        #expect(left, "The revision was not posted.")
       }
       let content = try TestAdmin.query(
-        "SELECT content_json FROM modifications WHERE modifiable_id = '\(overture)' ORDER BY created_at DESC LIMIT 1")
+        "SELECT content_json FROM revisions WHERE revisable_id = '\(overture)' ORDER BY created_at DESC LIMIT 1")
       let json = try JSONSerialization.jsonObject(with: Data(content.utf8)) as? [String: Any] ?? [:]
       #expect(json["copyLabel"] as? String == "Web tests copy 10", "Its copy label is posted and kept.")
       #expect(json["holdingInstitution"] as? String == "folger_shakespeare_library")

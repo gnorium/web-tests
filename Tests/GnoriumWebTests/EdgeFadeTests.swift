@@ -20,7 +20,7 @@ struct EdgeFadeTests {
   /// The main pages, as a reader first meets them.
   static let pages = [
     "/", "/biblio-records", "/lexico-records", "/mission-control/lifecycles/bibliographic", "/mission-control/contributors",
-    "/mission-control/antiphons/bibliographic", "/mission-control/madrigals/bibliographic", "/mission-control/instances/bibliographic",
+    "/mission-control/antiphons/bibliographic", "/mission-control/madrigals/bibliographic", "/mission-control/folksongs/bibliographic",
     "/mission-control/interventions",
   ]
   static let tables = ["/biblio-records", "/lexico-records", "/mission-control/lifecycles/bibliographic"]
@@ -287,7 +287,7 @@ struct EdgeFadeTests {
       let cases: [(String, String, String, Bool)] = [
         (titlePage, "breadcrumb", title, true),
         (shortTitlePage, "breadcrumb-short", short.title, false),
-        ("\(long.path)/snapshots", "breadcrumb-deep", "Snapshots", false),
+        ("\(long.path)/vignettes", "breadcrumb-deep", "Vignettes", false),
       ]
       for (path, name, text, overflows) in cases {
         try await page.openHydrated(path)

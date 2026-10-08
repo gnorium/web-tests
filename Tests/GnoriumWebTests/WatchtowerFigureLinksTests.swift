@@ -10,7 +10,7 @@ import WebTestsTesting
 /// the filter keeps.
 @Suite("Watchtower figure links")
 struct WatchtowerFigureLinksTests {
-  /// Every figure: an object's, opening a lifecycle list or the rebuttals
+  /// Every figure: an object's, opening a lifecycle list or the palinodes
   /// register, and a stage's, opening the runs it counts.
   static let figureLinks = ".watchtower-object-figures-view a[href], .watchtower-stage-figures a[href]"
 

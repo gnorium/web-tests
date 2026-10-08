@@ -1,17 +1,17 @@
 import Foundation
 
-/// A long bibliographic line, owned by the test's account: an instance and
+/// A long bibliographic line, owned by the test's account: a folksong and
 /// its committed overture, then `links` madrigals, each explicated by an
 /// antiphon from the one before it (the first, from the overture) and each
 /// committed to the next; the last one permitted. Its Pedigree lists every
 /// one of them, so it runs far past one screen. Every row by its own id,
 /// removed in the order the foreign keys allow—except its submission and
-/// Instance, which are submitted input and frozen: the Instance is
+/// Folksong, which are submitted input and frozen: the Folksong is
 /// soft-deleted, as the site deletes one.
 struct ScratchLine {
-  let instanceID: String
-  /// The instance's page, whose Pedigree walks the whole line.
-  var path: String { "/mission-control/instances/bibliographic/\(instanceID)" }
+  let folksongID: String
+  /// The folksong's page, whose Pedigree walks the whole line.
+  var path: String { "/mission-control/folksongs/bibliographic/\(folksongID)" }
   private let submissionID: String
   private let overtureID: String
   private let antiphonIDs: [String]
@@ -23,17 +23,17 @@ struct ScratchLine {
     self.owner = owner.username
     func id() -> String { UUID().uuidString.lowercased() }
     submissionID = id()
-    instanceID = id()
+    folksongID = id()
     overtureID = id()
     antiphonIDs = (0..<links).map { _ in id() }
     madrigalIDs = (0..<links).map { _ in id() }
     var sql = """
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(submissionID)', '\(user)');
-      INSERT INTO bibliographic_instances (id, batch_id, source_url, language, processing_status, title, type)
-        VALUES ('\(instanceID)', '\(submissionID)', 'https://example.org/web-tests', 'eng', 'pending', 'Web tests pedigree \(instanceID.prefix(8))', 'report');
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_instance_id, source_url, language, processing_status, committed_by_user_id, committed_at)
-        VALUES ('\(overtureID)', '\(submissionID)', '\(instanceID)', 'https://example.org/web-tests', 'eng', 'pending', '\(user)', now());
+      INSERT INTO bibliographic_folksongs (id, batch_id, source_url, language, processing_status, title, type)
+        VALUES ('\(folksongID)', '\(submissionID)', 'https://example.org/web-tests', 'eng', 'pending', 'Web tests pedigree \(folksongID.prefix(8))', 'report');
+      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_folksong_id, source_url, language, processing_status, committed_by_user_id, committed_at)
+        VALUES ('\(overtureID)', '\(submissionID)', '\(folksongID)', 'https://example.org/web-tests', 'eng', 'pending', '\(user)', now());
 
       """
     for index in 0..<links {
@@ -68,7 +68,7 @@ struct ScratchLine {
     }
     sql += """
       DELETE FROM bibliographic_overtures WHERE id = '\(overtureID)';
-      UPDATE bibliographic_instances SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(instanceID)';
+      UPDATE bibliographic_folksongs SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(folksongID)';
       COMMIT;
       """
     _ = try? TestAdmin.query(sql)

@@ -4,8 +4,8 @@ import Foundation
 /// manifest, owned by the test's account: its overture committed, its
 /// antiphon submitted, and the madrigal that antiphon made permitted. Every
 /// row by its own id, removed in the order the foreign keys allow—except
-/// its submission and Instance, which are submitted input and frozen: the
-/// Instance is soft-deleted, as the site deletes one, and both stay.
+/// its submission and Folksong, which are submitted input and frozen: the
+/// Folksong is soft-deleted, as the site deletes one, and both stay.
 ///
 /// Its author is a typed name, as every voice is.
 struct ScratchWork {
@@ -24,14 +24,14 @@ struct ScratchWork {
   private let ids: [String: String]
   private let owner: String
 
-  /// `sourceURL` is its Instance's and overture's source URL, fixed at
-  /// submission (a submitted Instance can't be changed).
+  /// `sourceURL` is its Folksong's and overture's source URL, fixed at
+  /// submission (a submitted Folksong can't be changed).
   init(owner: TestAdmin, sourceURL: String = "https://example.org/web-tests") throws {
     self.owner = owner.username
     let user = try owner.column("id")
     var ids: [String: String] = [:]
     for name in [
-      "submission", "instance", "overture", "antiphon", "record", "madrigal", "version", "authorship",
+      "submission", "folksong", "overture", "antiphon", "record", "madrigal", "version", "authorship",
     ] {
       ids[name] = UUID().uuidString.lowercased()
     }
@@ -47,7 +47,7 @@ struct ScratchWork {
     overtureID = ids["overture"]!.uppercased()
     madrigalID = ids["madrigal"]!.uppercased()
     self.ids = ids
-    let instance = ids["instance"]!.uppercased()
+    let folksong = ids["folksong"]!.uppercased()
     let metadata = """
       {"sourceUrl":"https://example.org/web-tests","sourceKind":"iiif-manifest","title":"\(title)",\
       "voices":[{"name":"\(author)","role":"author"}],\
@@ -55,7 +55,7 @@ struct ScratchWork {
       "translationChain":[],"activityStatements":[],"citations":[]}
       """
     let shape = """
-      {"edition-\(instance)":{"parent":"work","position":0},"manifest-\(instance)":{"parent":"edition-\(instance)","position":0},"work":{"parent":null,"position":0}}
+      {"edition-\(folksong)":{"parent":"work","position":0},"manifest-\(folksong)":{"parent":"edition-\(folksong)","position":0},"work":{"parent":null,"position":0}}
       """
     let voice = """
       INSERT INTO biblio_record_voices (id, biblio_record_id, name, role, position)
@@ -65,10 +65,10 @@ struct ScratchWork {
       """
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(ids["submission"]!)', '\(user)');
-      INSERT INTO bibliographic_instances (id, batch_id, source_url, language, processing_status, title, type, edition, year)
-        VALUES ('\(ids["instance"]!)', '\(ids["submission"]!)', '\(sourceURL)', 'eng', 'pending', '\(title)', 'report', 'First edition', 1958);
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_instance_id, source_url, language, processing_status, committed_by_user_id, committed_at)
-        VALUES ('\(ids["overture"]!)', '\(ids["submission"]!)', '\(ids["instance"]!)', '\(sourceURL)', 'eng', 'pending', '\(user)', now());
+      INSERT INTO bibliographic_folksongs (id, batch_id, source_url, language, processing_status, title, type, edition, year)
+        VALUES ('\(ids["folksong"]!)', '\(ids["submission"]!)', '\(sourceURL)', 'eng', 'pending', '\(title)', 'report', 'First edition', 1958);
+      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_folksong_id, source_url, language, processing_status, committed_by_user_id, committed_at)
+        VALUES ('\(ids["overture"]!)', '\(ids["submission"]!)', '\(ids["folksong"]!)', '\(sourceURL)', 'eng', 'pending', '\(user)', now());
       INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, semblance_service_ids_json, processing_status)
         VALUES ('\(ids["antiphon"]!)', '\(ids["overture"]!)', '\(user)', '[]', 'submitted');
       INSERT INTO biblio_records (id, corpus_id, title, title_slug, type, language, genres, year, date_display)
@@ -84,10 +84,10 @@ struct ScratchWork {
   }
 
   func remove() {
-    // An amendment submitted against it is a frozen Instance naming its
+    // An amendment submitted against it is a frozen Folksong naming its
     // record and version (no foreign key): then the work stays whole, or
-    // the Instance would name nothing and every page loading it would fail.
-    let amended = "EXISTS (SELECT 1 FROM bibliographic_amendment_instances WHERE biblio_record_id = '\(ids["record"]!)')"
+    // the Folksong would name nothing and every page loading it would fail.
+    let amended = "EXISTS (SELECT 1 FROM bibliographic_palinodes WHERE biblio_record_id = '\(ids["record"]!)')"
     _ = try? TestAdmin.query(
       """
       BEGIN;
@@ -98,7 +98,7 @@ struct ScratchWork {
       DELETE FROM biblio_record_voices WHERE id = '\(ids["authorship"]!)' AND NOT \(amended);
       DELETE FROM biblio_records WHERE id = '\(ids["record"]!)' AND NOT \(amended);
       DELETE FROM bibliographic_overtures WHERE id = '\(ids["overture"]!)' AND NOT \(amended);
-      UPDATE bibliographic_instances SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(ids["instance"]!)';
+      UPDATE bibliographic_folksongs SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(ids["folksong"]!)';
       COMMIT;
       """)
   }

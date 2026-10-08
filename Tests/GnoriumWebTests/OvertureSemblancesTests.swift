@@ -128,7 +128,7 @@ struct OvertureSemblancesTests {
         let toggleBox = try #require(try await processes.boundingBox())
         let actions = page.locator(".mission-control-object-header-grouped-actions")
         let row = try #require(try await actions.boundingBox())
-        let modify = try #require(try await actions.locator(".button-group-button[data-value='modify']").boundingBox())
+        let revise = try #require(try await actions.locator(".button-group-button[data-value='revise']").boundingBox())
         let commit = try #require(try await actions.locator(".commit-trigger").boundingBox())
         let permit = try #require(try await actions.locator(".button-group-button[data-value='madrigal-permit']").boundingBox())
         if layout == .phone {
@@ -138,14 +138,14 @@ struct OvertureSemblancesTests {
           let first = try #require(try await explication.boundingBox())
           let second = try #require(try await translation.boundingBox())
           #expect(abs(first.width - second.width) < 2, "the segments do not share the width")
-          for (name, box) in [("Modify", modify), ("Commit", commit), ("Permit", permit)] {
+          for (name, box) in [("Revise", revise), ("Commit", commit), ("Permit", permit)] {
             #expect(abs(box.width - row.width) < 2, "\(name) does not span its row")
           }
-          #expect(toggleBox.maxY <= modify.y && modify.maxY <= commit.y && commit.maxY <= permit.y, "out of order")
+          #expect(toggleBox.maxY <= revise.y && revise.maxY <= commit.y && commit.maxY <= permit.y, "out of order")
         } else {
           // Wider: one row, the toggle leading.
           #expect(abs((toggleBox.y + toggleBox.height / 2) - (commit.y + commit.height / 2)) < 2, "the toggle is not in the actions' row")
-          #expect(toggleBox.maxX <= modify.x && modify.maxX <= commit.x && commit.maxX <= permit.x, "out of order")
+          #expect(toggleBox.maxX <= revise.x && revise.maxX <= commit.x && commit.maxX <= permit.x, "out of order")
           #expect(abs(toggleBox.height - commit.height) < 1, "the toggle is not the buttons' height")
         }
         try await shoot(page, "processes", layout)

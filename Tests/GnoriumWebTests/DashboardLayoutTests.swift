@@ -76,7 +76,7 @@ struct DashboardLayoutTests {
     let directory = URL(fileURLWithPath: "/Users/Madhavik/Downloads/Gnorium/gnorium-web/Public")
     let name = "new-record-layout-\(UUID().uuidString).html", ordinaryName = "ordinary-record-layout-\(UUID().uuidString).html"
     let file = directory.appendingPathComponent(name), ordinary = directory.appendingPathComponent(ordinaryName)
-    // These isolated layout fixtures have no persisted source UUID or prompt instance endpoint.
+    // These isolated layout fixtures have no persisted source UUID or prompt folksong endpoint.
     try String(contentsOfFile: path, encoding: .utf8).replacingOccurrences(of: "data-source-url=", with: "data-fixture-source-url=").write(to: file, atomically: true, encoding: .utf8)
     try String(contentsOfFile: path + ".ordinary.html", encoding: .utf8).replacingOccurrences(of: "data-source-url=", with: "data-fixture-source-url=").write(to: ordinary, atomically: true, encoding: .utf8)
     defer { try? FileManager.default.removeItem(at: file); try? FileManager.default.removeItem(at: ordinary) }

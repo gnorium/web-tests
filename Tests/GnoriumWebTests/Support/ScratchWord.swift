@@ -1,11 +1,11 @@
 import Foundation
 
-/// A lexico-record with one explicated version whose snapshot holds a
+/// A lexico-record with one explicated version whose vignette holds a
 /// branch sentiment and a leaf under it, owned by the test's account: the
 /// record's own reference (beside its title, in its closed Metadata) and the
 /// leaf's (beside its definition, in its row's heading). Every row by its own
 /// id, removed in the order the foreign keys allow—except its submission and
-/// Instance, which are submitted input and frozen, so they stay. Its
+/// Folksong, which are submitted input and frozen, so they stay. Its
 /// overture is committed, its antiphon submitted, and the madrigal that
 /// antiphon made permitted. With a `distinction`,
 /// the leaf's TEI holds it as its `<note type="usage" subtype="distinction">`
@@ -41,14 +41,14 @@ struct ScratchWord {
 
   /// `language` is the record's (ISO 639-3): English unless named.
   /// `submitted` leaves its madrigal awaiting its verdict (submitted, not
-  /// yet permitted), as a Modify page needs it.
+  /// yet permitted), as a Revise page needs it.
   init(
     owner: TestAdmin, distinction: String? = nil, anchor: Anchor? = nil, language: String = "eng",
     submitted: Bool = false
   ) throws {
     let user = try owner.column("id")
     var ids: [String: String] = [:]
-    for name in ["submission", "instance", "overture", "antiphon", "madrigal", "lemma", "record", "version"] {
+    for name in ["submission", "folksong", "overture", "antiphon", "madrigal", "lemma", "record", "version"] {
       ids[name] = UUID().uuidString.lowercased()
     }
     overtureID = ids["overture"]!.uppercased()
@@ -68,7 +68,7 @@ struct ScratchWord {
         #"["u-1"]"#,
         #","chronology":[{"testamentTitle":"Web tests testament","text":"The scratch word stood in a sentence.","utteranceID":"u-1","year":1901,"yearEnd":1901}]"#)
     } ?? ("[]", "[]", "")
-    let snapshot = """
+    let vignette = """
       {"lemmaForm":{"title":"\(title)","inflections":[],"languageCode":"\(language)","origin":{"citations":[],"derivation":"","etymons":[]},\
       "class":"noun","sources":[{"locator":"s.v.","title":"Web tests dictionary","url":"https://dictionary.example.org/web-tests"}],\
       "spellings":[]},"quotations":\(utterances.0),"selectionRunIDs":["run"]\(utterances.2),"senses":[\
@@ -80,7 +80,7 @@ struct ScratchWord {
       "tei":"<sense><def>A leaf sense.</def>\(note)</sense>"}]}
       """
     // Its title form as the Submit Sentiment form writes one: a submitted
-    // Instance is frozen and stays, so it must be one the Instances list can
+    // Folksong is frozen and stays, so it must be one the Folksongs list can
     // read (an empty form fails the whole list).
     let titleForm = #"{"title":"\#(title)","languageCode":"\#(language)","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
     _ = try TestAdmin.query(
@@ -91,16 +91,16 @@ struct ScratchWord {
         VALUES ('\(ids["lemma"]!)', '\(title)', '\(title)', '\(title)', (SELECT id FROM languages WHERE iso639_3 = '\(language)'), 1, now(), now());
       INSERT INTO lexico_records (id, lemma_id, title, language_code, version, type)
         VALUES ('\(ids["record"]!)', '\(ids["lemma"]!)', '\(title)', '\(language)', 1, 'noun');
-      INSERT INTO lexicographic_instances (id, batch_id, language, title_form_json, anchors_json)
-        VALUES ('\(ids["instance"]!)', '\(ids["submission"]!)', '\(language)', '\(titleForm)', '[]');
-      INSERT INTO lexicographic_overtures (id, lexicographic_instance_id, title_form_json, anchors_json, committed_by_user_id, committed_at)
-        VALUES ('\(ids["overture"]!)', '\(ids["instance"]!)', '\(titleForm)', '[]', '\(user)', now());
-      INSERT INTO lexicographic_antiphons (id, lexicographic_instance_id, lexicographic_overture_id, requested_by_user_id, processing_status, language, sentence, title_form_json)
-        VALUES ('\(ids["antiphon"]!)', '\(ids["instance"]!)', '\(ids["overture"]!)', '\(user)', 'submitted', '\(language)', '\(title)', '\(titleForm)');
+      INSERT INTO lexicographic_folksongs (id, batch_id, language, title_form_json, anchors_json)
+        VALUES ('\(ids["folksong"]!)', '\(ids["submission"]!)', '\(language)', '\(titleForm)', '[]');
+      INSERT INTO lexicographic_overtures (id, lexicographic_folksong_id, title_form_json, anchors_json, committed_by_user_id, committed_at)
+        VALUES ('\(ids["overture"]!)', '\(ids["folksong"]!)', '\(titleForm)', '[]', '\(user)', now());
+      INSERT INTO lexicographic_antiphons (id, lexicographic_folksong_id, lexicographic_overture_id, requested_by_user_id, processing_status, language, sentence, title_form_json)
+        VALUES ('\(ids["antiphon"]!)', '\(ids["folksong"]!)', '\(ids["overture"]!)', '\(user)', 'submitted', '\(language)', '\(title)', '\(titleForm)');
       INSERT INTO lexicographic_madrigals (id, lexicographic_antiphon_id, lexico_record_id, proposed_content_json, processing_status, permitted_by_user_id, permitted_at)
-        VALUES ('\(ids["madrigal"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"record":\(snapshot),"homographFlags":[],"evidenceRequests":[],"reasoning":"Web tests."}', \(submitted ? "'submitted', NULL, NULL" : "'permitted', '\(user)', now()"));
+        VALUES ('\(ids["madrigal"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"record":\(vignette),"homographFlags":[],"evidenceRequests":[],"reasoning":"Web tests."}', \(submitted ? "'submitted', NULL, NULL" : "'permitted', '\(user)', now()"));
       INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_madrigal_id, status, record_json, created_at)
-        VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["madrigal"]!)', 1, '\(snapshot)', now());
+        VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["madrigal"]!)', 1, '\(vignette)', now());
       COMMIT;
       """)
   }

@@ -4,8 +4,8 @@ import Foundation
 /// account: a pending overture, with one way to commit, and a pending
 /// madrigal (its own overture committed, its antiphon submitted), with
 /// two. Every row by its own id, removed in the order the foreign keys
-/// allow—except its submission and Instance, which are submitted input and
-/// frozen: the Instance is soft-deleted, as the site deletes one. Nothing here is ever committed: a test only opens and cancels.
+/// allow—except its submission and Folksong, which are submitted input and
+/// frozen: the Folksong is soft-deleted, as the site deletes one. Nothing here is ever committed: a test only opens and cancels.
 /// The madrigal's metadata holds what the witness's fields require (its
 /// page decodes them): the language, the source URL and its kind.
 struct ScratchCommit {
@@ -15,7 +15,7 @@ struct ScratchCommit {
   static let sourceURL = "https://web-tests.invalid/manifest.json"
 
   private let submissionID: String
-  private let instanceID: String
+  private let folksongID: String
   private let pendingOvertureID: String
   private let committedOvertureID: String
   private let antiphonID: String
@@ -30,7 +30,7 @@ struct ScratchCommit {
     self.owner = owner.username
     func id() -> String { UUID().uuidString.lowercased() }
     submissionID = id()
-    instanceID = id()
+    folksongID = id()
     pendingOvertureID = id()
     committedOvertureID = id()
     antiphonID = id()
@@ -39,12 +39,12 @@ struct ScratchCommit {
       """
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(submissionID)', '\(user)');
-      INSERT INTO bibliographic_instances (id, batch_id, source_url, language, processing_status, title, type)
-        VALUES ('\(instanceID)', '\(submissionID)', '\(sourceURL)', 'eng', 'pending', 'Web tests commit \(instanceID.prefix(8))', 'report');
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_instance_id, source_url, language, processing_status)
-        VALUES ('\(pendingOvertureID)', '\(submissionID)', '\(instanceID)', '\(sourceURL)', 'eng', 'pending');
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_instance_id, source_url, language, processing_status, committed_by_user_id, committed_at)
-        VALUES ('\(committedOvertureID)', '\(submissionID)', '\(instanceID)', '\(sourceURL)', 'eng', 'pending', '\(user)', now());
+      INSERT INTO bibliographic_folksongs (id, batch_id, source_url, language, processing_status, title, type)
+        VALUES ('\(folksongID)', '\(submissionID)', '\(sourceURL)', 'eng', 'pending', 'Web tests commit \(folksongID.prefix(8))', 'report');
+      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_folksong_id, source_url, language, processing_status)
+        VALUES ('\(pendingOvertureID)', '\(submissionID)', '\(folksongID)', '\(sourceURL)', 'eng', 'pending');
+      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_folksong_id, source_url, language, processing_status, committed_by_user_id, committed_at)
+        VALUES ('\(committedOvertureID)', '\(submissionID)', '\(folksongID)', '\(sourceURL)', 'eng', 'pending', '\(user)', now());
       INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, semblance_service_ids_json, processing_status)
         VALUES ('\(antiphonID)', '\(committedOvertureID)', '\(user)', '[]', 'submitted');
       INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, proposed_content_json, metadata_json, processing_status)
@@ -69,7 +69,7 @@ struct ScratchCommit {
       DELETE FROM bibliographic_madrigals WHERE id = '\(madrigalID)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
       DELETE FROM bibliographic_overtures WHERE id IN ('\(pendingOvertureID)', '\(committedOvertureID)');
-      UPDATE bibliographic_instances SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(instanceID)';
+      UPDATE bibliographic_folksongs SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(folksongID)';
       COMMIT;
       """)
   }

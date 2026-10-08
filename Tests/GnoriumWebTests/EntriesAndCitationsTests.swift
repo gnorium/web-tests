@@ -121,7 +121,7 @@ struct EntriesAndCitationsTests {
         try await expect(row.locator("a[href='\(catalogPath)']")).toHaveCount(1)
         try await expect(row).toContainText("Catalog")
         try await expect(row).toContainText("WEB TESTS HEADING")
-        try await expect(row.locator("a[href='\(catalogPath)/snapshots/\(catalog.versionID)?semblance=2']")).toHaveCount(1)
+        try await expect(row.locator("a[href='\(catalogPath)/vignettes/\(catalog.versionID)?semblance=2']")).toHaveCount(1)
         try await expect(row).not.toContainText("Canon")
         // The works citing it in running text, one row each with how many.
         let citations = page.locator("#record-citations")

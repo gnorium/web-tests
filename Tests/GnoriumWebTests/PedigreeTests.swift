@@ -46,7 +46,7 @@ struct PedigreeTests {
             }
           })()
           """, as: Box.self)
-        // Instance, overture, and an antiphon and a madrigal per link.
+        // Folksong, overture, and an antiphon and a madrigal per link.
         #expect(box.groups == 122)
         #expect(box.maxHeight == "256px")
         #expect(box.overflowY == "auto")

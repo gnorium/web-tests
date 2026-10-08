@@ -5,8 +5,8 @@ import WebTestsTesting
 
 /// Equivalents are a sentiment's fields, never translation's output (user,
 /// 2026-10-07): typed in Disputorium or proposed by lexicographic explication,
-/// and held in the record's snapshot as the sentiment's Translations. A
-/// snapshot whose sentiment lists a German word shows it under the
+/// and held in the record's vignette as the sentiment's Translations. A
+/// vignette whose sentiment lists a German word shows it under the
 /// sentiment's Translations ("broader sense"), and the German record lists
 /// the English one back under its own Translations, read from its side
 /// ("narrower sense"). Phone and desktop, nothing scrolling sideways.
@@ -16,21 +16,21 @@ struct SentimentEquivalentsTests {
   static let overflow = "({ overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth })"
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aSnapshotsEquivalentIsListedOnBothRecords(engine: BrowserEngine, layout: Layout) async throws {
+  func aVignettesEquivalentIsListedOnBothRecords(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let english = try ScratchWord(owner: admin)
     let german = try ScratchWord(owner: admin, language: "deu")
-    let snapshot = UUID().uuidString.lowercased()
+    let vignette = UUID().uuidString.lowercased()
     let term = #"[{"form":"\#(german.title)","languageCode":"deu","recordPath":"\#(german.path)#record-row-s-1-1","equivalence":"broader"}]"#
     do {
-      // A later snapshot of the English record: its sense lists the German word.
-      // Provisional, with no antecedent: a madrigal makes one snapshot.
+      // A later vignette of the English record: its sense lists the German word.
+      // Provisional, with no antecedent: a madrigal makes one vignette.
       _ = try TestAdmin.query(
         """
         INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_madrigal_id, status, provisional, record_json, created_at)
-          SELECT '\(snapshot)', lexico_record_id, NULL, status, true,
+          SELECT '\(vignette)', lexico_record_id, NULL, status, true,
               jsonb_set(record_json::jsonb, '{senses,1,translations}', '\(term)')::text, now() + interval '1 second'
             FROM lexico_record_versions WHERE id = '\(english.versionID.lowercased())';
         """)
@@ -51,15 +51,15 @@ struct SentimentEquivalentsTests {
         #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
       }
     } catch {
-      remove(snapshot: snapshot, words: [english, german])
+      remove(vignette: vignette, words: [english, german])
       try await admin.remove(after: error)
     }
-    remove(snapshot: snapshot, words: [english, german])
+    remove(vignette: vignette, words: [english, german])
     try await admin.remove()
   }
 
-  private func remove(snapshot: String, words: [ScratchWord]) {
-    _ = try? TestAdmin.query("DELETE FROM lexico_record_versions WHERE id = '\(snapshot)'")
+  private func remove(vignette: String, words: [ScratchWord]) {
+    _ = try? TestAdmin.query("DELETE FROM lexico_record_versions WHERE id = '\(vignette)'")
     for word in words { word.remove() }
   }
 }

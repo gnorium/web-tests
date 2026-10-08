@@ -23,13 +23,13 @@ struct AmendmentInsertionTests {
     let work = try ScratchWork(owner: admin, sourceURL: fixture.baseURL + "/manifest.json")
     let record = work.recordID.lowercased()
     func clean() {
-      // Its amendment Instances are submitted input, frozen: they stay.
+      // Its Palinodes are submitted input, frozen: they stay.
       _ = try? TestAdmin.query(
         """
         BEGIN;
         DELETE FROM inferred_citation_jobs WHERE record_id = '\(record)';
         DELETE FROM biblio_record_versions WHERE biblio_record_id = '\(record)' AND id <> '\(work.versionID.lowercased())';
-        DELETE FROM modifications WHERE modifiable_id IN
+        DELETE FROM revisions WHERE revisable_id IN
           (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');
         DELETE FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())';
         COMMIT;
@@ -40,13 +40,13 @@ struct AmendmentInsertionTests {
       // for it, and its copy hangs from its edition.
       let stood = try TestAdmin.query(
         "SELECT shape_json FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())';")
-      let instance = try #require(
+      let folksong = try #require(
         stood.firstMatch(of: /"edition-([0-9A-Fa-f-]+)"/).map { String($0.1) }, "\(stood)")
       _ = try TestAdmin.query(
         """
         UPDATE biblio_record_versions
           SET metadata_json = replace(replace(metadata_json, 'https://example.org/web-tests', '\(fixture.baseURL)/manifest.json'), '"category":"report"', '"category":"report","carrier":"printed","copyLabel":"Copy 1"'),
-            shape_json = '{"copy-\(instance)":{"parent":"edition-\(instance)","position":0},"edition-\(instance)":{"parent":"work","position":0},"manifest-\(instance)":{"parent":"copy-\(instance)","position":0},"work":{"parent":null,"position":0}}'
+            shape_json = '{"copy-\(folksong)":{"parent":"edition-\(folksong)","position":0},"edition-\(folksong)":{"parent":"work","position":0},"manifest-\(folksong)":{"parent":"copy-\(folksong)","position":0},"work":{"parent":null,"position":0}}'
           WHERE id = '\(work.versionID.lowercased())';
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -163,13 +163,13 @@ struct AmendmentInsertionTests {
         #expect(!stored.contains("\"edition-\(witness)\""))
         let filed = try TestAdmin.query(
           """
-          SELECT content_json FROM modifications WHERE modifiable_id IN
+          SELECT content_json FROM revisions WHERE revisable_id IN
             (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');
           """)
         #expect(filed.contains("\"impression\":\"Second impression\""), "\(filed)")
         #expect(filed.contains("\"issue\":\"Library issue\""), "\(filed)")
-        let modification = try TestAdmin.query("SELECT upper(id::text) FROM modifications WHERE modifiable_id IN (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');").trimmingCharacters(in: .whitespacesAndNewlines)
-        try await page.locator(".intervention-thread-view form[action$='/modifications/\(modification)/accept'] button").first.click()
+        let revision = try TestAdmin.query("SELECT upper(id::text) FROM revisions WHERE revisable_id IN (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');").trimmingCharacters(in: .whitespacesAndNewlines)
+        try await page.locator(".intervention-thread-view form[action$='/revisions/\(revision)/accept'] button").first.click()
         try await page.waitForLoadState()
         try await page.locator("button[form='madrigal-permit']").click()
         try await expect(page.locator(".mission-control-object-header-status-chip"), timeout: .seconds(15)).toHaveText("Permitted")

@@ -3,8 +3,8 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-@Suite("Prompt snapshot comparison", .serialized)
-struct PromptSnapshotComparisonTests {
+@Suite("Prompt vignette comparison", .serialized)
+struct PromptVignetteComparisonTests {
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func checkboxSelectionEnablesBlueCompareAndNavigatesToStyledDiff(engine: BrowserEngine, layout: Layout) async throws {
     guard gnorium.engines.contains(engine), ["localhost", "127.0.0.1"].contains(gnorium.baseURL.host ?? "") else { return }
@@ -12,13 +12,13 @@ struct PromptSnapshotComparisonTests {
     let old = UUID().uuidString
     let new = UUID().uuidString
     _ = try TestAdmin.query("""
-      INSERT INTO prompt_templates(id,hash,stage,system_prompt,task_prompt,template_version,is_proprietary_content,created_at,committed_object_type,committed_object_id,committed_by_user_id,committed_at) VALUES
+      INSERT INTO prompt_vignettes(id,hash,stage,system_prompt,task_prompt,vignette_version,is_proprietary_content,created_at,committed_object_type,committed_object_id,committed_by_user_id,committed_at) VALUES
       ('\(old)','\(old)','bibliographic_explication','Recognize cat carefully.\nRemove old sentence.\nUnchanged context line 1\nUnchanged context line 2\nUnchanged context line 3\nUnchanged context line 4\nUnchanged context line 5\nUnchanged context line 6\nUnchanged context line 7\nUnchanged context line 8\nUnchanged context line 9\nUnchanged context line 10\nUnchanged context line 11\nUnchanged context line 12\nUnchanged context line 13\nUnchanged context line 14\nUnchanged context line 15\nUnchanged context line 16\nUnchanged context line 17\nUnchanged context line 18\nUnchanged context line 19\nUnchanged context line 20\nUnchanged context line 21\nUnchanged context line 22\nUnchanged context line 23\nUnchanged context line 24\nUnchanged context line 25\nUnchanged context line 26\nUnchanged context line 27\nUnchanged context line 28\nUnchanged context line 29\nUnchanged context line 30\nUnchanged context line 31\nUnchanged context line 32\nUnchanged context line 33\nUnchanged context line 34\nUnchanged context line 35\nUnchanged context line 36\nUnchanged context line 37\nUnchanged context line 38\nUnchanged context line 39\nUnchanged context line 40','Unchanged task {page}','compare-fixture-old',false,'2026-01-01T00:00:00Z','bibliographicOverture',gen_random_uuid(),(SELECT id FROM users WHERE username = 'gnorium'),NOW()),
       ('\(new)','\(new)','bibliographic_explication','Recognize cats carefully.\nAdd new sentence.\nUnchanged context line 1\nUnchanged context line 2\nUnchanged context line 3\nUnchanged context line 4\nUnchanged context line 5\nUnchanged context line 6\nUnchanged context line 7\nUnchanged context line 8\nUnchanged context line 9\nUnchanged context line 10\nUnchanged context line 11\nUnchanged context line 12\nUnchanged context line 13\nUnchanged context line 14\nUnchanged context line 15\nUnchanged context line 16\nUnchanged context line 17\nUnchanged context line 18\nUnchanged context line 19\nUnchanged context line 20\nUnchanged context line 21\nUnchanged context line 22\nUnchanged context line 23\nUnchanged context line 24\nUnchanged context line 25\nUnchanged context line 26\nUnchanged context line 27\nUnchanged context line 28\nUnchanged context line 29\nUnchanged context line 30\nUnchanged context line 31\nUnchanged context line 32\nUnchanged context line 33\nUnchanged context line 34\nUnchanged context line 35\nUnchanged context line 36\nUnchanged context line 37\nUnchanged context line 38\nUnchanged context line 39\nUnchanged context line 40','Unchanged task {page}','compare-fixture-new',false,'2026-01-02T00:00:00Z','bibliographicOverture',gen_random_uuid(),(SELECT id FROM users WHERE username = 'gnorium'),NOW());
       """)
-    defer { _ = try? TestAdmin.query("DELETE FROM prompt_templates WHERE id IN ('\(old)','\(new)')") }
+    defer { _ = try? TestAdmin.query("DELETE FROM prompt_vignettes WHERE id IN ('\(old)','\(new)')") }
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-      try await page.openHydrated("/mission-control/prompts/bibliographic/explication/snapshots")
+      try await page.openHydrated("/mission-control/prompts/bibliographic/explication/vignettes")
       let button = page.locator(".compare-button")
       #expect(try await page.evaluate("document.querySelector('.compare-button').disabled", as: Bool.self))
       try await page.locator("input[name='row-selection'][value='\(old)']").click()
@@ -61,19 +61,19 @@ struct PromptSnapshotComparisonTests {
       let styled = try await page.evaluate("""
         (() => {
           const content = document.querySelector('.prompt-compare-content');
-          const header = content.querySelector('.snapshot-header');
+          const header = content.querySelector('.vignette-header');
           return getComputedStyle(content).display === 'flex'
             && getComputedStyle(header).flexWrap === 'wrap'
             && getComputedStyle(header).justifyContent === 'center'
             && getComputedStyle(header).textAlign === 'center'
             && [...header.querySelectorAll('a')].every(a => a.classList.contains('link-view'))
-            && [...header.querySelectorAll('.snapshot-identity')].length === 2
-            && [...header.querySelectorAll('.snapshot-identity')].every(side => side.querySelector('.local-time-view')
+            && [...header.querySelectorAll('.vignette-identity')].length === 2
+            && [...header.querySelectorAll('.vignette-identity')].every(side => side.querySelector('.local-time-view')
               && getComputedStyle(side).alignItems === 'center');
         })()
         """, as: Bool.self)
       #expect(styled)
-      try await expect(page.locator(".page-heading")).toHaveText("Compare Prompt Snapshots")
+      try await expect(page.locator(".page-heading")).toHaveText("Compare Prompt Vignettes")
       #expect(try await page.evaluate("""
         (() => {
           const box = document.querySelector('.diff-box');

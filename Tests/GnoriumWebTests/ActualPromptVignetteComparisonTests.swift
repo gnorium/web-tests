@@ -2,14 +2,14 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-@Suite("Existing prompt snapshot comparison", .serialized)
-struct ActualPromptSnapshotComparisonTests {
+@Suite("Existing prompt vignette comparison", .serialized)
+struct ActualPromptVignetteComparisonTests {
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func actualSnapshotsShowColoredChangesInFullWhiteContext(engine: BrowserEngine, layout: Layout) async throws {
+  func actualVignettesShowColoredChangesInFullWhiteContext(engine: BrowserEngine, layout: Layout) async throws {
     guard gnorium.engines.contains(engine) else { return }
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-      try await page.openHydrated("/mission-control/prompts/snapshots/compare?from=832FEFF0-9FD1-4711-86F9-AA1213C72996&to=CE0E6E42-ECF9-4BE8-A365-598219F30063")
-      try await expect(page.locator(".page-heading")).toContainText("Compare Prompt Snapshots")
+      try await page.openHydrated("/mission-control/prompts/vignettes/compare?from=832FEFF0-9FD1-4711-86F9-AA1213C72996&to=CE0E6E42-ECF9-4BE8-A365-598219F30063")
+      try await expect(page.locator(".page-heading")).toContainText("Compare Prompt Vignettes")
       try await expect(page.locator(".diff-box")).toHaveCSS("background-color", "rgb(255, 255, 255)")
       #expect(try await page.evaluate("""
         (()=>{const removed=[...document.querySelectorAll('[data-diff-line=removed] .diff-changed')];
@@ -19,7 +19,7 @@ struct ActualPromptSnapshotComparisonTests {
           return removed.length===8 && inserted.length===0 && removed.every(e=>{const c=rgb(e);return c[0]>c[1]&&c[0]>c[2];})
             && document.querySelectorAll('[data-diff-line=inserted]').length===2 && rows.length>4
             && boxes.length===2 && boxes.every(e=>{const s=getComputedStyle(e);return s.maxHeight==='none' && s.overflowY==='visible' && s.backgroundColor==='rgb(255, 255, 255)';});})()
-        """, as: Bool.self), "Actual snapshots remove eight spaces in red and retain full white unbounded context")
+        """, as: Bool.self), "Actual vignettes remove eight spaces in red and retain full white unbounded context")
       try await page.expectNoHorizontalOverflow()
       try await page.expectNoErrors()
     }

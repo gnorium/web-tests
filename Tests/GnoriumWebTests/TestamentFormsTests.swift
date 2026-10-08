@@ -103,7 +103,7 @@ struct TestamentFormsTests {
         // Never a date: a testament's may be a range, and a span of ranges does not read.
         #expect(!texts.contains("AD 1958"), "\(texts)")
         // Each testament linked: the citing version's page.
-        try await expect(page.locator(".derived-forms-view a[href$='/snapshots/\(work.versionID)']")).toHaveCount(2)
+        try await expect(page.locator(".derived-forms-view a[href$='/vignettes/\(work.versionID)']")).toHaveCount(2)
         // Read-only: no field, no item control.
         try await expect(page.locator(".derived-forms-view input")).toHaveCount(0)
         try await expect(page.locator("button[aria-label='Add Form']")).toHaveCount(0)

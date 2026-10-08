@@ -60,22 +60,22 @@ struct RecordBreadcrumbsTests {
     }
   }
 
-  /// A qualified record's Snapshots page walks the record's address, then
+  /// A qualified record's Vignettes page walks the record's address, then
   /// its own crumb. With the footer's home that is seven crumbs, every one in
   /// sight (no overflow menu, 2026-10-04): the language a link that goes to
   /// its page.
   @Test(arguments: gnorium.engines, Layout.allCases)
-  func aSnapshotsPageWalksItsRecordsPath(engine: BrowserEngine, layout: Layout) async throws {
+  func aVignettesPageWalksItsRecordsPath(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let (work, namesake) = try ScratchRecord.pair()
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-        try await page.openHydrated("\(work.path)/snapshots")
+        try await page.openHydrated("\(work.path)/vignettes")
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
         let trail = page.locator("footer .footer-breadcrumbs")
         try await expect(trail.locator(".breadcrumb-item")).toHaveCount(7)
-        try await expect(trail.locator(".breadcrumb-current")).toHaveText("Snapshots")
+        try await expect(trail.locator(".breadcrumb-current")).toHaveText("Vignettes")
         let titleSlug = work.path.split(separator: "/")[2]
         for href in [
           "/", "/biblio-records", "/biblio-records/eng", "/biblio-records/eng/\(titleSlug)", "/biblio-records/eng/\(titleSlug)/report",

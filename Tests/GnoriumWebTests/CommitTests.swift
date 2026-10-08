@@ -9,7 +9,7 @@ import WebTestsTesting
 /// (a translatable madrigal) has the process toggle leading its header's
 /// actions, explication first, and Commit posts the process chosen there,
 /// which the address keeps (`?process=translation`) across a reload, as
-/// Modify does. The actions read Modify, Commit, Permit, Delete. Every submission is stopped before it
+/// Revise does. The actions read Revise, Commit, Permit, Delete. Every submission is stopped before it
 /// leaves the page: a commit is costly and never run here. A throwaway admin
 /// owns the scratch objects (`ScratchCommit`).
 @Suite("Commit", .serialized)
@@ -48,7 +48,7 @@ struct CommitTests {
         try await expect(page.locator(".process-toggle-view")).toHaveCount(0)
         try await expect(page.locator(".commit-dialog, .commit-menu")).toHaveCount(0)
         let overtureActions = page.locator(".mission-control-object-header-action-buttons > *")
-        try await expect(overtureActions).toHaveTexts(["Modify", "Commit", "Delete"])
+        try await expect(overtureActions).toHaveTexts(["Revise", "Commit", "Delete"])
         #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
         try await page.locator(".commit-trigger").click()
         try await expect(page.locator("body")).toBeAttached()
@@ -66,7 +66,7 @@ struct CommitTests {
         let toggle = page.locator(".mission-control-object-header-view .process-toggle-view")
         try await expect(toggle).toHaveCount(1)
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
-          .toHaveTexts(["Modify", "Commit", "Permit"])
+          .toHaveTexts(["Revise", "Commit", "Permit"])
         let buttons = toggle.locator(".toggle-button-group-button")
         try await expect(buttons).toHaveTexts(["Explication", "Translation"])
         try await expect(buttons.nth(0)).toHaveAttribute("aria-pressed", "true")
@@ -77,10 +77,10 @@ struct CommitTests {
         try await expect(page).toHaveURL("the address keeps the process") { $0.query?.contains("process=translation") == true }
         try await page.locator(".commit-trigger").click()
         #expect(try await Self.posted(page).pipeline == "bibliographic_translation")
-        // Modify is the object's alone, whichever process is chosen: its
+        // Revise is the object's alone, whichever process is chosen: its
         // prompts are suggested on their process's page.
-        try await expect(page.locator(".mission-control-object-header-view a[data-value='modify']"))
-          .toHaveAttribute("href", "\(scratch.madrigalPath.uppercased().replacingOccurrences(of: "/MISSION-CONTROL/MADRIGALS/BIBLIOGRAPHIC/", with: "/mission-control/madrigals/bibliographic/"))/modify")
+        try await expect(page.locator(".mission-control-object-header-view a[data-value='revise']"))
+          .toHaveAttribute("href", "\(scratch.madrigalPath.uppercased().replacingOccurrences(of: "/MISSION-CONTROL/MADRIGALS/BIBLIOGRAPHIC/", with: "/mission-control/madrigals/bibliographic/"))/revise")
 
         // A reload keeps it, before any script runs.
         try await page.openHydrated(scratch.madrigalPath + "?process=translation")

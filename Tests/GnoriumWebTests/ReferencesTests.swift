@@ -22,7 +22,7 @@ struct ReferencesTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         let madrigal = "/mission-control/madrigals/bibliographic/\(work.madrigalID)"
-        for path in [work.path, "\(work.path)/snapshots/\(work.versionID)"] {
+        for path in [work.path, "\(work.path)/vignettes/\(work.versionID)"] {
           try await page.openHydrated(path)
           try await expect(page.locator("#record-references, #references, .sources-view")).toHaveCount(0)
           try await expect(page.locator(".reference-credit-view")).toHaveCount(0)
@@ -56,7 +56,7 @@ struct ReferencesTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         let madrigal = "/mission-control/madrigals/lexicographic/\(word.madrigalID)"
-        for path in [word.path, "\(word.path)/snapshots/\(word.versionID)"] {
+        for path in [word.path, "\(word.path)/vignettes/\(word.versionID)"] {
           try await page.openHydrated(path)
           try await expect(page.locator("#record-references, #references, .sources-view")).toHaveCount(0)
           try await expect(page.locator(".reference-credit-view")).toHaveCount(0)
