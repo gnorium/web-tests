@@ -6,13 +6,15 @@ import WebTestsTesting
 /// A record's footer breadcrumbs walk its address (and its subpages' walk it
 /// too, then their own), and every crumb before the last is its prefix's
 /// page, the records list filtered to it: `Biblio-records › English ›
-/// {title} › report`, and where works share those three, `… › report ›
-/// {author}`, the three segments the list of them. From the record page a
-/// reader climbs crumb by crumb—the group's list, the title's, the
-/// language's, the whole list—each page listing the record and crumbed up
-/// to itself. The biblio records are scratch works made by SQL (no account
-/// owns a record; a pair's qualifiers written as the server computes them)
-/// and removed after; the lexico record is the first the index lists.
+/// {title} › report`; where works share those three, `… › report ›
+/// {author}`, the three segments the list of them; and where they share the
+/// voice names too, `… › {author} › 1`, the voice names the list of the
+/// homographs. From the record page a reader climbs crumb by crumb—the
+/// homographs' list, the group's, the title's, the language's, the whole
+/// list—each page listing the record and crumbed up to itself. The biblio
+/// records are scratch works made by SQL (no account owns a record; a
+/// pair's voice names and homograph numbers written as the server computes
+/// them) and removed after; the lexico record is the first the index lists.
 @Suite("Record breadcrumbs", .serialized)
 struct RecordBreadcrumbsTests {
   @Test(arguments: gnorium.engines, Layout.allCases)
@@ -31,7 +33,7 @@ struct RecordBreadcrumbsTests {
   }
 
   @Test(arguments: gnorium.engines, Layout.allCases)
-  func climbingAQualifiedBiblioRecordsCrumbs(engine: BrowserEngine, layout: Layout) async throws {
+  func climbingAVoicedBiblioRecordsCrumbs(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let (work, namesake) = try ScratchRecord.pair()
     do {
@@ -52,6 +54,32 @@ struct RecordBreadcrumbsTests {
     namesake.remove()
   }
 
+  /// Homographs: two works of one title, class and author, each at its
+  /// number under its voice names, which list the two.
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func climbingAHomographsCrumbs(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    let (first, second) = try ScratchRecord.homographs()
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+        try await Self.climb(page, from: second.path, labels: ["English", second.title, "Report", second.author, "2"])
+        let voiceNames = second.path.split(separator: "/").prefix(5).joined(separator: "/")
+        try await page.openHydrated("/\(voiceNames)")
+        try await expect(page.locator("main a[href='\(first.path)']")).toHaveCount(1)
+        try await expect(page.locator("main a[href='\(second.path)']")).toHaveCount(1)
+        // The list filtered by Language, Title, Class and Voice names.
+        try await expect(page.locator(".filter-bar-view input[name='voice-names']")).toHaveCount(1)
+        try await page.expectNoHorizontalOverflow()
+      }
+    } catch {
+      first.remove()
+      second.remove()
+      throw error
+    }
+    first.remove()
+    second.remove()
+  }
+
   @Test(arguments: gnorium.engines, Layout.allCases)
   func climbingALexicoRecordsCrumbs(engine: BrowserEngine, layout: Layout) async throws {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
@@ -60,7 +88,7 @@ struct RecordBreadcrumbsTests {
     }
   }
 
-  /// A qualified record's Vignettes page walks the record's address, then
+  /// A voiced record's Vignettes page walks the record's address, then
   /// its own crumb. With the footer's home that is seven crumbs, every one in
   /// sight (no overflow menu, 2026-10-04): the language a link that goes to
   /// its page.
@@ -144,7 +172,7 @@ struct RecordBreadcrumbsTests {
     let decoded = record.removingPercentEncoding ?? record
     var segments = decoded.split(separator: "/").map(String.init)
     #expect(
-      segments.count == 4 || segments.count == 5, "not a three- or four-segment record address: \(decoded)")
+      (4...6).contains(segments.count), "not a record address: \(decoded)")
     let trail = page.locator("footer .footer-breadcrumbs")
     // Home, the list, its prefixes; the record itself current.
     try await expect(trail.locator("a")).toHaveCount(segments.count)
@@ -178,7 +206,8 @@ struct RecordBreadcrumbsTests {
 
 /// A bare biblio-record and its one author, made by SQL and removed after:
 /// enough for its page and its prefixes' pages. A pair shares its title and
-/// type, each qualified by its author, as the server qualifies them.
+/// class, each at its author's name; homographs share the author too, each
+/// at its number under it, as the server addresses them.
 struct ScratchRecord {
   let title: String
   let author: String
@@ -186,22 +215,25 @@ struct ScratchRecord {
   private let recordID: String
   private let authorshipID: String
 
-  init(title shared: (title: String, slug: String)? = nil, qualified: Bool = false) throws {
+  init(
+    title shared: (title: String, slug: String)? = nil, author sharedAuthor: String? = nil, voiced: Bool = false,
+    homograph: Int? = nil
+  ) throws {
     recordID = UUID().uuidString.lowercased()
     authorshipID = UUID().uuidString.lowercased()
     let suffix = String(recordID.prefix(8))
     title = shared?.title ?? "Web tests crumbs \(suffix)"
-    author = "Web Tests Crumbs Author \(suffix)"
+    author = sharedAuthor ?? "Web Tests Crumbs Author \(suffix)"
     let slug = shared?.slug ?? "web-tests-crumbs-\(suffix)"
-    let authorSlug = "web-tests-crumbs-author-\(suffix)"
-    let qualifier = qualified ? "'\(authorSlug)'" : "NULL"
-    path = "/biblio-records/eng/\(slug)/report" + (qualified ? "/\(authorSlug)" : "")
+    let authorSlug = author.lowercased().replacingOccurrences(of: " ", with: "-")
+    let voiceNames = voiced ? "'\(authorSlug)'" : "NULL"
+    path = "/biblio-records/eng/\(slug)/report" + (voiced ? "/\(authorSlug)" : "") + (homograph.map { "/\($0)" } ?? "")
     _ = try TestAdmin.query(
       """
       BEGIN;
-      INSERT INTO biblio_records (id, corpus_id, title, title_slug, type, qualifier, language, genres, year, date_display)
+      INSERT INTO biblio_records (id, corpus_id, title, title_slug, type, voice_names_segment, homograph, language, genres, year, date_display)
         VALUES ('\(recordID)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)',
-          'report', \(qualifier), 'eng', '[]', 1958, 'AD 1958');
+          'report', \(voiceNames), \(homograph.map(String.init) ?? "NULL"), 'eng', '[]', 1958, 'AD 1958');
       INSERT INTO biblio_record_voices (id, biblio_record_id, name, role, position)
         VALUES ('\(authorshipID)', '\(recordID)', '\(author)', 'author', 0);
       COMMIT;
@@ -212,9 +244,24 @@ struct ScratchRecord {
   static func pair() throws -> (ScratchRecord, ScratchRecord) {
     let suffix = String(UUID().uuidString.lowercased().prefix(8))
     let shared = (title: "Web tests pair \(suffix)", slug: "web-tests-pair-\(suffix)")
-    let first = try ScratchRecord(title: shared, qualified: true)
+    let first = try ScratchRecord(title: shared, voiced: true)
     do {
-      return (first, try ScratchRecord(title: shared, qualified: true))
+      return (first, try ScratchRecord(title: shared, voiced: true))
+    } catch {
+      first.remove()
+      throw error
+    }
+  }
+
+  /// Two works of one title, class and author: each at its number under
+  /// the author's name.
+  static func homographs() throws -> (ScratchRecord, ScratchRecord) {
+    let suffix = String(UUID().uuidString.lowercased().prefix(8))
+    let shared = (title: "Web tests homographs \(suffix)", slug: "web-tests-homographs-\(suffix)")
+    let author = "Web Tests Homographs Author \(suffix)"
+    let first = try ScratchRecord(title: shared, author: author, voiced: true, homograph: 1)
+    do {
+      return (first, try ScratchRecord(title: shared, author: author, voiced: true, homograph: 2))
     } catch {
       first.remove()
       throw error

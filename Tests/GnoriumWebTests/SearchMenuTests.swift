@@ -6,8 +6,8 @@ import WebTestsTesting
 /// The site's search offers a record as every record field does, in two rows:
 /// its language › its title, a breadcrumb with BreadcrumbView's own
 /// chevron, the name in the link's color; then its class alone, "—" when
-/// unknown, and no language: its voices (a work's own, a word's those of
-/// the work holding its earliest attestation, both sent) and its homograph
+/// unknown, and no language: its voice names (a work's own, a word's those
+/// of the work holding its earliest attestation, both sent) and its homograph
 /// number only beside a namesake (the clash rule). The navbar's
 /// search menu on both tabs. A row is a link, never a dropdown option: a
 /// link's hover under the pointer, nothing left when it goes; the arrow
@@ -41,8 +41,10 @@ struct SearchMenuTests {
       ] {
         try await page.goto(index)
         let expected = try await Self.answer(page, endpoint: endpoint, field: field, name: name)
-        // Its voices sent on both sides, "—" for none recorded.
-        #expect(!expected.voices.isEmpty, "\(endpoint) sends no voices for \(name)")
+        // Its voice names sent on both sides, "—" for none recorded, and
+        // its path: every result carries one.
+        #expect(!expected.voiceNames.isEmpty, "\(endpoint) sends no voice names for \(name)")
+        #expect(!expected.path.isEmpty, "\(endpoint) sends no path for \(name)")
 
         try await page.openHydrated(index)
         try await page.locator("[data-search-trigger='true']").first.click()
@@ -354,11 +356,11 @@ struct SearchMenuTests {
   }
 
   /// What the search answers first for `name`: its language, its
-  /// voices, its type and its path, as the JSON gives them.
+  /// voice names, its type and its path, as the JSON gives them.
   private struct Answer {
     let name: String
     let language: String
-    let voices: String
+    let voiceNames: String
     let type: String
     let path: String
   }
@@ -472,7 +474,7 @@ struct SearchMenuTests {
       throw WebTestError("\(endpoint) finds no record named \(name).")
     }
     return Answer(
-      name: name, language: language, voices: found["qualifier"].string ?? "",
+      name: name, language: language, voiceNames: found["voiceNames"].string ?? "",
       type: found["type"].string ?? "—", path: found["url"].string ?? "")
   }
 }

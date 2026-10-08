@@ -5,9 +5,13 @@ import WebTestsTesting
 
 /// A voice is a role and a name, typed (user, 2026-10-03): no metadata
 /// field links to a record. A record page's sidebar lists its Voices, each
-/// its role and its name as plain text, never a link. The records lists do
-/// not filter by a voice: the sidebar's Author search finds one. There are
-/// no person pages. A throwaway admin owns a scratch work, removed after.
+/// its role and its name as plain text, never a link. The whole records
+/// list does not filter by a voice: the sidebar's Author search finds one.
+/// A title's and a class's page—whose records their voice names tell
+/// apart—show a Voice names column, a list, filtered by its atom (user,
+/// 2026-10-08): Voice name, repeatable, its rows OR'd; and the prefix's
+/// Voice names, the whole set one address takes. There are no person
+/// pages. A throwaway admin owns a scratch work, removed after.
 @Suite("Voice filter", .serialized)
 struct VoiceFilterTests {
   @Test(arguments: gnorium.engines, Layout.allCases)
@@ -23,6 +27,43 @@ struct VoiceFilterTests {
     }
     work.remove()
     try await admin.remove()
+  }
+
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func aClassPageFiltersItsVoiceNames(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    let (work, namesake) = try ScratchRecord.pair()
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+        let group = "/" + work.path.split(separator: "/").prefix(4).joined(separator: "/")
+        try await page.openHydrated(group)
+        try await page.expectNoErrors()
+        try await page.expectNoHorizontalOverflow()
+        try await expect(page.locator("[data-table-column-id='voice-names']").first).toBeVisible()
+        let options = page.locator(".filter-bar-view .filter-bar-field-picker .dropdown-option")
+        // Every row's field picker offers both: one name, and the set.
+        try await expect(options.filter(hasText: "Voice name", exact: true)).not.toHaveCount(0)
+        try await expect(options.filter(hasText: "Voice names", exact: true)).not.toHaveCount(0)
+        // A row of Voice name: one name, the records any of whose voice
+        // names it is.
+        let key = work.author.lowercased()
+        try await page.openHydrated("\(group)?voice=\(key.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? key)")
+        try await expect(page.locator("main a[href='\(work.path)']")).toHaveCount(1)
+        try await expect(page.locator("main a[href='\(namesake.path)']")).toHaveCount(0)
+        try await expect(page.locator(".filter-bar-view input[name='voice']")).toHaveCount(1)
+        // Voice names, typed in another case: the set's canonical address.
+        try await page.openHydrated(
+          "/biblio-records?language=eng&titled=\(group.split(separator: "/")[2])&typed=report&voice-names="
+            + (work.author.uppercased().addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""))
+        try await expect(page).toHaveURL(work.path) { url in url.path == work.path }
+      }
+    } catch {
+      work.remove()
+      namesake.remove()
+      throw error
+    }
+    work.remove()
+    namesake.remove()
   }
 
   private func run(engine: BrowserEngine, viewport: Viewport, work: ScratchWork) async throws {
