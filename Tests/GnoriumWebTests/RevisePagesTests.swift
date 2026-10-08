@@ -308,7 +308,7 @@ struct RevisePagesTests {
         // The epilogue's page reads it, its confidence "—".
         try await page.openHydrated(epiloguePath)
         try await expect(page.getByText("Un sens feuille, corrigé.").first).toBeAttached()
-        try await expect(page.locator("a[href*='/mission-control/revisions/lexicographic?target=']")).toHaveCount(1)
+        try await expect(page.locator("a[href*='/mission-control/revisions/lexicographic?objectID=']")).toHaveCount(1)
       }
     } catch {
       remove()
