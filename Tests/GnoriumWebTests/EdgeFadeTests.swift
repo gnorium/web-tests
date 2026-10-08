@@ -3,10 +3,12 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A single line too long for its box is clipped and fades out at its end
+/// A single line too long for its box is clipped and fades out at its edge
 /// (`fadeOverflow`, EdgeFade.swift), never cut with an ellipsis—in tables,
-/// breadcrumbs, menus, chips, sidebars, everywhere. The fade is drawn exactly
-/// on the boxes whose line runs past them.
+/// datums, breadcrumbs, menus, chips, sidebars, everywhere. The fade is drawn
+/// exactly on the boxes whose line runs past them. The line scrolls sideways
+/// with no scrollbar, and the fades follow it: the end's while more remains,
+/// the start's once scrolled.
 ///
 /// On a phone a tap shows the whole value and another folds it back. A link
 /// in the box stays a link: a tap on its words follows it, and only a tap in
@@ -238,6 +240,134 @@ struct EdgeFadeTests {
         checked += 1
       }
       if checked == 0 { try Test.cancel("no plain table cell overflows at 375 in the dev data") }
+    }
+  }
+
+  struct Scrolling: Decodable {
+    let scrolls: Bool
+    let scrollbar: Double
+    let tabindex: String?
+    let startFade: String
+    let endFade: String
+  }
+
+  /// How the marked box scrolls: sideways, with no scrollbar drawn, no tab
+  /// stop of its own, and the two fade lengths as the scroll has them.
+  static func scrolling(_ page: Page) async throws -> Scrolling {
+    try await page.evaluate(
+      """
+      (() => {
+        const e = document.querySelector('[data-test-edge-fade]')
+        const s = getComputedStyle(e)
+        return {
+          scrolls: s.overflowX === 'auto',
+          scrollbar: e.offsetHeight - e.clientHeight,
+          tabindex: e.getAttribute('tabindex'),
+          startFade: s.getPropertyValue('--edge-fade-start').trim(),
+          endFade: s.getPropertyValue('--edge-fade-end').trim(),
+        }
+      })()
+      """, as: Scrolling.self)
+  }
+
+  /// A faded value scrolls sideways, with no scrollbar, and its fades follow
+  /// the scroll: the end's while more remains, the start's once scrolled.
+  /// It is no tab stop of its own. On a phone a tap still wraps it whole.
+  /// One datum (its value made long on the page) and one table cell.
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func aFadedValueScrollsAndItsFadesFollow(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    let record = try ScratchRecord()
+    defer { record.remove() }
+    let viewport = layout.viewport(for: engine)
+    try await withPage(engine, gnorium, viewport: viewport) { page in
+      let long = String(repeating: "web-tests-edge-fade-scroll-", count: 12)
+      let cases: [(path: String, prepare: String)] = [
+        (
+          record.path,
+          """
+          (() => {
+            const e = [...document.querySelectorAll('.datum-text')].find((e) => e.getClientRects().length > 0 && !e.querySelector('a'))
+            if (!e) return false
+            // The record's metadata is folded at first: open it, as a reader would.
+            const folded = e.closest('details:not([open])')
+            if (folded) folded.querySelector('summary').click()
+            e.textContent = '\(long)'
+            e.setAttribute('data-test-edge-fade', 'true')
+            return true
+          })()
+          """
+        ),
+        (
+          "/biblio-records",
+          """
+          (() => {
+            // A plain cell (no link) that already overflows its column; else
+            // one made long, where the column is held to its width.
+            const plain = [...document.querySelectorAll('.table-view td [data-edge-fade="expand"]')]
+              .filter((e) => e.getClientRects().length > 0 && !e.querySelector('a') && !e.closest('a'))
+            const e = plain.find((e) => e.getAttribute('data-overflowing') === 'true') || plain[0]
+            if (!e) return false
+            if (e.getAttribute('data-overflowing') !== 'true') e.textContent = '\(long)'
+            e.setAttribute('data-test-edge-fade', 'true')
+            return true
+          })()
+          """
+        ),
+      ]
+      for (path, prepare) in cases {
+        try await page.openHydrated(path)
+        try await page.expectNoErrors()
+        let found = try await page.evaluate(prepare)
+        #expect(found.bool == true, "\(path): no value to make long")
+        guard found.bool == true else { continue }
+        let box = page.locator("[data-test-edge-fade]")
+        try await expect(box).toHaveAttribute("data-overflowing", "true")
+        try await expect(box).toHaveAttribute("data-overflowing-start", "false")
+        try await expect(box).toHaveAttribute("data-overflowing-end", "true")
+        var state = try await Self.scrolling(page)
+        #expect(state.scrolls, "\(path): the value does not scroll sideways")
+        #expect(state.scrollbar == 0, "\(path): a scrollbar \(state.scrollbar) tall is drawn")
+        #expect(state.startFade == "0px" && state.endFade != "0px", "\(path): fades \(state.startFade) / \(state.endFade) at rest")
+        if layout == .desktop {
+          #expect(state.tabindex == "-1", "\(path): the value's tabindex is \(state.tabindex ?? "none")")
+        }
+
+        // Partway: both edges hide some of it.
+        _ = try await box.evaluate("(e) => { e.scrollLeft = (e.scrollWidth - e.clientWidth) / 2 * (getComputedStyle(e).direction === 'rtl' ? -1 : 1) }")
+        try await expect(box).toHaveAttribute("data-overflowing-start", "true")
+        try await expect(box).toHaveAttribute("data-overflowing-end", "true")
+        // At the end: only the start does.
+        _ = try await box.evaluate("(e) => { e.scrollLeft = (e.scrollWidth) * (getComputedStyle(e).direction === 'rtl' ? -1 : 1) }")
+        try await expect(box).toHaveAttribute("data-overflowing-start", "true")
+        try await expect(box).toHaveAttribute("data-overflowing-end", "false")
+        state = try await Self.scrolling(page)
+        #expect(state.startFade != "0px" && state.endFade == "0px", "\(path): fades \(state.startFade) / \(state.endFade) at the end")
+        let masked = try await box.evaluate("(e) => (getComputedStyle(e).webkitMaskImage || getComputedStyle(e).maskImage || '').includes('gradient')")
+        #expect(masked.bool == true, "\(path): a scrolled value is not faded")
+
+        if layout == .phone {
+          // The page above it settles first (the opened metadata grows into
+          // place): the point is read once the box holds still.
+          let measure = "(e) => { e.scrollIntoView({ block: 'center', behavior: 'instant' }); const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] }"
+          var middle = try await box.evaluate(measure)
+          for _ in 0..<20 {
+            try await Task.sleep(for: .milliseconds(250))
+            let again = try await box.evaluate(measure)
+            if again == middle { break }
+            middle = again
+          }
+          let x = try #require(middle.array?[0].double)
+          let y = try #require(middle.array?[1].double)
+          try await Self.press(page, x, y, viewport)
+          try await expect(box).toHaveAttribute("aria-expanded", "true")
+          let whole = try await box.evaluate("(e) => e.scrollWidth <= e.clientWidth")
+          #expect(whole.bool == true, "\(path): an expanded value still overflows")
+          try await Self.press(page, x, y, viewport)
+          try await expect(box).toHaveAttribute("aria-expanded", "false")
+          #expect(try await page.url().hasSuffix(path), "\(path): a tap on the value followed a link")
+        }
+      }
     }
   }
 
