@@ -10,10 +10,12 @@ import WebTestsTesting
 /// with no scrollbar, and the fades follow it: the end's while more remains,
 /// the start's once scrolled.
 ///
-/// On a phone a tap shows the whole value and another folds it back. A link
-/// in the box stays a link: a tap on its words follows it, and only a tap in
-/// the fade opens the box. A tap off an open box folds it; Enter on a focused
-/// box opens and folds it. At 1400 wide a click on a link always follows it.
+/// On every device a click or a tap shows the whole value and another folds
+/// it back (user, 2026-10-08). A link in the box stays a link: a click on its
+/// words follows it, and only a click in the fade opens the box. A click off
+/// an open box folds it; Enter on a focused box opens and folds it. A closed
+/// dropdown's value scrolls too. An editable input fades at rest, and not
+/// while it is focused.
 ///
 /// With `EDGE_FADE_SCREENSHOTS` set to a folder, each page is also saved
 /// there, light and dark, for a look.
@@ -45,7 +47,8 @@ struct EdgeFadeTests {
       """
       (() => {
         const shown = (e) => e.getClientRects().length > 0
-        const boxes = [...document.querySelectorAll('\(scope) [data-edge-fade]')].filter(shown)
+        // An input draws its fade over itself, not as a mask: checked apart.
+        const boxes = [...document.querySelectorAll('\(scope) [data-edge-fade]:not(input)')].filter(shown)
         const faded = (e) => {
           const s = getComputedStyle(e)
           return (s.maskImage || '').includes('gradient') || (s.webkitMaskImage || '').includes('gradient')
@@ -158,8 +161,7 @@ struct EdgeFadeTests {
     path == "/" ? "home" : path.dropFirst().replacingOccurrences(of: "/", with: "-")
   }
 
-  /// No ellipsis anywhere, and every box faded exactly where it overflows—and
-  /// never a button at 1400 wide.
+  /// No ellipsis anywhere, and every box faded exactly where it overflows.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func everyPageFadesWhereItOverflows(engine: BrowserEngine, layout: Layout) async throws {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
@@ -169,17 +171,14 @@ struct EdgeFadeTests {
         let report = try await Self.settledReport(page, "body")
         #expect(report.ellipses.isEmpty, "\(path): text-overflow: ellipsis on \(report.ellipses)")
         #expect(report.wrong.isEmpty, "\(path): the fade disagrees with the overflow on \(report.wrong)")
-        if layout == .desktop {
-          #expect(report.buttons == 0, "\(path): \(report.buttons) boxes expand at 1400 wide")
-        }
         try await Self.screenshots(page, Self.slug(path), layout)
       }
     }
   }
 
-  /// A table cell: its link's words follow the link at any width; on a phone
-  /// a tap in the fade opens the cell and stays on the page, a tap off it
-  /// folds it, and Enter opens and folds it.
+  /// A table cell: its link's words follow the link at any width; a click
+  /// or a tap in the fade opens the cell and stays on the page, one off it
+  /// folds it, and Enter opens and folds it—at 375 and at 1400 alike.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func aFadedCellsLinkIsALinkAndItsFadeExpandsIt(engine: BrowserEngine, layout: Layout) async throws {
     let viewport = layout.viewport(for: engine)
@@ -192,15 +191,15 @@ struct EdgeFadeTests {
         let href = try #require(target.href)
         let box = page.locator("[data-test-edge-fade]")
 
-        if layout == .phone {
+        do {
           // The fade opens it, and the page stays where it is.
           try await expect(box).toHaveAttribute("aria-expanded", "false")
           try await Self.press(page, target.fadeX, target.fadeY, viewport)
           try await expect(box).toHaveAttribute("aria-expanded", "true")
           let whole = try await box.evaluate("(e) => e.scrollWidth <= e.clientWidth")
           #expect(whole.bool == true, "\(path): an expanded cell still overflows")
-          #expect(try await page.url().hasSuffix(path), "\(path): the tap in the fade followed a link")
-          // A tap off it folds it.
+          #expect(try await page.url().hasSuffix(path), "\(path): the click in the fade followed a link")
+          // A click off it folds it.
           let (x, y) = try await Self.quietPoint(page)
           try await Self.press(page, x, y, viewport)
           try await expect(box).toHaveAttribute("aria-expanded", "false")
@@ -221,10 +220,11 @@ struct EdgeFadeTests {
     }
   }
 
-  /// A cell with no link opens on a tap anywhere in it, and folds on another.
-  @Test(arguments: gnorium.engines)
-  func aFadedPlainCellExpandsOnATap(engine: BrowserEngine) async throws {
-    let viewport = Layout.phone.viewport(for: engine)
+  /// A cell with no link opens on a click or a tap anywhere in it, and folds
+  /// on another, at 375 and at 1400.
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func aFadedPlainCellExpandsOnATap(engine: BrowserEngine, layout: Layout) async throws {
+    let viewport = layout.viewport(for: engine)
     try await withPage(engine, gnorium, viewport: viewport) { page in
       var checked = 0
       for path in Self.tables {
@@ -239,7 +239,7 @@ struct EdgeFadeTests {
         #expect(try await page.url().hasSuffix(path), "\(path): a tap on a plain cell followed the row's link")
         checked += 1
       }
-      if checked == 0 { try Test.cancel("no plain table cell overflows at 375 in the dev data") }
+      if checked == 0 { try Test.cancel("no plain table cell overflows at \(layout) in the dev data") }
     }
   }
 
@@ -272,7 +272,8 @@ struct EdgeFadeTests {
 
   /// A faded value scrolls sideways, with no scrollbar, and its fades follow
   /// the scroll: the end's while more remains, the start's once scrolled.
-  /// It is no tab stop of its own. On a phone a tap still wraps it whole.
+  /// It is a button of its own (a tab stop), and a click or a tap on it wraps
+  /// it whole at any width.
   /// One datum (its value made long on the page) and one table cell.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func aFadedValueScrollsAndItsFadesFollow(engine: BrowserEngine, layout: Layout) async throws {
@@ -329,9 +330,7 @@ struct EdgeFadeTests {
         #expect(state.scrolls, "\(path): the value does not scroll sideways")
         #expect(state.scrollbar == 0, "\(path): a scrollbar \(state.scrollbar) tall is drawn")
         #expect(state.startFade == "0px" && state.endFade != "0px", "\(path): fades \(state.startFade) / \(state.endFade) at rest")
-        if layout == .desktop {
-          #expect(state.tabindex == "-1", "\(path): the value's tabindex is \(state.tabindex ?? "none")")
-        }
+        #expect(state.tabindex == "0", "\(path): the value's tabindex is \(state.tabindex ?? "none")")
 
         // Partway: both edges hide some of it.
         _ = try await box.evaluate("(e) => { e.scrollLeft = (e.scrollWidth - e.clientWidth) / 2 * (getComputedStyle(e).direction === 'rtl' ? -1 : 1) }")
@@ -346,7 +345,7 @@ struct EdgeFadeTests {
         let masked = try await box.evaluate("(e) => (getComputedStyle(e).webkitMaskImage || getComputedStyle(e).maskImage || '').includes('gradient')")
         #expect(masked.bool == true, "\(path): a scrolled value is not faded")
 
-        if layout == .phone {
+        do {
           // The page above it settles first (the opened metadata grows into
           // place): the point is read once the box holds still.
           let measure = "(e) => { e.scrollIntoView({ block: 'center', behavior: 'instant' }); const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] }"
@@ -368,6 +367,93 @@ struct EdgeFadeTests {
           #expect(try await page.url().hasSuffix(path), "\(path): a tap on the value followed a link")
         }
       }
+    }
+  }
+
+  /// A closed dropdown's value scrolls, as every faded value does, and its
+  /// fades follow the scroll.
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func aClosedDropdownsValueScrolls(engine: BrowserEngine, layout: Layout) async throws {
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      try await page.openHydrated("/biblio-records")
+      try await page.expectNoErrors()
+      let long = String(repeating: "web-tests-dropdown-scroll-", count: 8)
+      let found = try await page.evaluate(
+        """
+        (() => {
+          const e = [...document.querySelectorAll('.dropdown-selected-text')].find((e) => e.getClientRects().length > 0)
+          if (!e) return false
+          e.textContent = '\(long)'
+          e.setAttribute('data-test-edge-fade', 'true')
+          return true
+        })()
+        """)
+      try #require(found.bool == true, "no closed dropdown on the page")
+      let box = page.locator("[data-test-edge-fade]")
+      try await expect(box).toHaveAttribute("data-overflowing", "true")
+      try await expect(box).toHaveAttribute("data-overflowing-end", "true")
+      let state = try await Self.scrolling(page)
+      #expect(state.scrolls, "a closed dropdown's value does not scroll sideways")
+      #expect(state.scrollbar == 0, "a scrollbar \(state.scrollbar) tall is drawn in a dropdown's value")
+      _ = try await box.evaluate("(e) => { e.scrollLeft = e.scrollWidth * (getComputedStyle(e).direction === 'rtl' ? -1 : 1) }")
+      try await expect(box).toHaveAttribute("data-overflowing-start", "true")
+      try await expect(box).toHaveAttribute("data-overflowing-end", "false")
+    }
+  }
+
+  struct InputFade: Decodable {
+    let start: Double
+    let end: Double
+  }
+
+  /// The opacity of the marked input's two fades (its control's `::before`
+  /// and `::after`).
+  static func inputFade(_ page: Page) async throws -> InputFade {
+    try await page.evaluate(
+      """
+      (() => {
+        const control = document.querySelector('[data-test-edge-fade]').parentElement
+        return {
+          start: parseFloat(getComputedStyle(control, '::before').opacity),
+          end: parseFloat(getComputedStyle(control, '::after').opacity),
+        }
+      })()
+      """, as: InputFade.self)
+  }
+
+  /// An editable one-line input keeps its native scroll and caret: its long
+  /// value fades at its end at rest, and not at all while it is focused.
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func aLongInputFadesAtRestAndNotWhileTyped(engine: BrowserEngine, layout: Layout) async throws {
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      try await page.openHydrated("/auth/register")
+      try await page.expectNoErrors()
+      let found = try await page.evaluate(
+        """
+        (() => {
+          const e = [...document.querySelectorAll('input.text-input-input[data-edge-fade]')]
+            .find((e) => e.getClientRects().length > 0 && (e.type === 'text' || e.type === 'email'))
+          if (!e) return false
+          e.setAttribute('data-test-edge-fade', 'true')
+          return true
+        })()
+        """)
+      try #require(found.bool == true, "no text input on the page")
+      let input = page.locator("[data-test-edge-fade]")
+      // Typed, then left.
+      try await input.click()
+      try await page.keyboard.insertText(String(repeating: "webtestsinputfade", count: 8))
+      try await expect(input).toHaveAttribute("data-overflowing", "true")
+      var fade = try await Self.inputFade(page)
+      #expect(fade.start == 0 && fade.end == 0, "a focused input fades: \(fade)")
+      _ = try await input.evaluate("(e) => e.blur()")
+      try await expect(input).toHaveAttribute("data-overflowing-end", "true")
+      fade = try await Self.inputFade(page)
+      #expect(fade.end == 1 && fade.start == 0, "an input at rest fades \(fade)")
+      // Focused again, the caret is in sight: no fade.
+      try await input.focus()
+      fade = try await Self.inputFade(page)
+      #expect(fade.start == 0 && fade.end == 0, "a focused input fades: \(fade)")
     }
   }
 
@@ -437,9 +523,6 @@ struct EdgeFadeTests {
         #expect(placed.fits, "\(path): the breadcrumb trail runs past its footer or the page")
         _ = try await current.evaluate("(e) => e.scrollIntoView({ block: 'center' })")
         try await Self.screenshots(page, name, layout)
-        if layout == .desktop {
-          #expect(report.buttons == 0, "\(path): \(report.buttons) crumbs expand at 1400 wide")
-        }
         // Shown whole, it has nothing to open.
         try await expect(current).not.toHaveAttribute("aria-expanded")
       }
