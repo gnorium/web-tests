@@ -18,7 +18,7 @@ struct DateRangePickerTests {
   static let createdOnColumn = 5
   /// Each layout in each zone; Chrome only, which emulates a zone.
   static let cases: [(Layout, String)] = Layout.allCases.flatMap { layout in
-    ["Asia/Kolkata", "America/New_York"].map { (layout, $0) }
+    ["Asia/Kolkata", "America/New_York", "Asia/Kathmandu"].map { (layout, $0) }
   }
 
   @Test(arguments: cases)

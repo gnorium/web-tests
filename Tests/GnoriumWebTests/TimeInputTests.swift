@@ -7,22 +7,23 @@ import WebTestsTesting
 /// a span of the day on a 12-hour clock, as the tables read ("5:40 PM"),
 /// Time start and Time end each an hour (1–12), minutes and AM/PM column, in
 /// the date picker's popover—by keyboard, and by touch or pointer. The
-/// reader picks and reads local times; the URL carries UTC with a Z
-/// (`?createdAt=03:30Z..12:00Z`), wrapping midnight where the move into UTC
-/// crosses it. Run in India (+05:30) and New York (−04:00), by CDP time zone
-/// emulation.
+/// reader picks and reads local times; the URL carries those wall-clock
+/// times and the reader's IANA zone (`?createdAt=09:00..17:30[Asia/Kolkata]`),
+/// since a time of day is not an instant. A span set in another zone reads
+/// in the reader's clock, its own span and zone after it. Run in India
+/// (+05:30), New York (−04:00/−05:00) and Kathmandu (+05:45), by CDP time
+/// zone emulation.
 @Suite("Time input", .serialized)
 struct TimeInputTests {
   static let list = "/mission-control/madrigals/bibliographic"
   /// ID, Title, Status, Created by, Created on, Created at.
   static let createdAtColumn = 6
 
-  /// Per zone, a span that crosses UTC's midnight once carried there: 4:00
-  /// AM–10:00 AM in India is 22:30Z–04:30Z; 7:00 PM–11:00 PM in New York
-  /// is 23:00Z–03:00Z.
+  /// Per zone, a span picked there.
   static let spans: [(zone: String, start: (hour: Int, pm: Bool), end: (hour: Int, pm: Bool))] = [
     ("Asia/Kolkata", (4, false), (10, false)),
     ("America/New_York", (7, true), (11, true)),
+    ("Asia/Kathmandu", (9, false), (5, true)),
   ]
 
   /// Each layout with each zone's span; Chrome only, which emulates a zone.
@@ -63,7 +64,8 @@ struct TimeInputTests {
       }
       #expect(try await focusedColumn() == "Time start hour")
       try await page.keyboard.press("ArrowDown")  // 1 → 2
-      try await expect(value).toHaveValue("\(try await Self.utc(page, hour: 2, minute: 0))..")
+      let zone = try await page.evaluate("Intl.DateTimeFormat().resolvedOptions().timeZone", as: String.self)
+      try await expect(value).toHaveValue("02:00..[\(zone)]")
       try await expect(field).toHaveValue("Since 2:00 AM")
       try await page.keyboard.press("Tab")
       #expect(try await focusedColumn() == "Time start minutes")
@@ -78,7 +80,7 @@ struct TimeInputTests {
       try await page.keyboard.press("End")
       try await expect(field).toHaveValue("2:01 PM–12:00 AM")
       try await expect(value)
-        .toHaveValue("\(try await Self.utc(page, hour: 14, minute: 1))..\(try await Self.utc(page, hour: 0, minute: 0))")
+        .toHaveValue("14:01..00:00[\(zone)]")
       try await page.keyboard.press("Escape")
       try await expect(popover).toBeHidden()
       try await expect(field).toBeFocused()
@@ -104,20 +106,17 @@ struct TimeInputTests {
       }
       let start24 = span.start.hour % 12 + (span.start.pm ? 12 : 0)
       let end24 = span.end.hour % 12 + (span.end.pm ? 12 : 0)
-      let carried =
-        "\(try await Self.utc(page, hour: start24, minute: 0))..\(try await Self.utc(page, hour: end24, minute: 0))"
+      let two = { (value: Int) in value < 10 ? "0\(value)" : "\(value)" }
+      let carried = "\(two(start24)):00..\(two(end24)):00[\(zone)]"
       try await expect(value).toHaveValue(carried)
       let words = "\(span.start.hour):00 \(span.start.pm ? "PM" : "AM")–\(span.end.hour):00 \(span.end.pm ? "PM" : "AM")"
       try await expect(field).toHaveValue(words)
-      // Carried into UTC, the span runs across midnight.
-      let ends = carried.split(separator: ".").filter { !$0.isEmpty }
-      #expect(ends.count == 2 && ends[0] > ends[1], "\(carried) wraps midnight in UTC")
       try await popover.getByRole(.button, name: "Done").click()
       try await expect(popover).toBeHidden()
 
-      // Applied: one key in UTC; the field reads the reader's clock, no
-      // zone named; every row's Created at, shown in the reader's clock,
-      // falls in the span.
+      // Applied: one key, the wall-clock span and the reader's zone; the
+      // field reads the reader's clock, no zone named; every row's Created
+      // at, shown in the reader's clock, falls in the span.
       try await page.locator(".filter-bar-apply").click()
       try await expect(page, timeout: .seconds(15)).toHaveURL("createdAt=\(carried)") { url in
         URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
@@ -127,21 +126,32 @@ struct TimeInputTests {
       try await expect(page.locator(".filter-bar-value-input .time-input-field input")).toHaveValue(words)
       try await DateRangePickerTests.expectLocalCells(page)
       for minutes in try await Self.createdAtMinutes(page) {
-        #expect(
-          minutes >= start24 * 60 && minutes <= end24 * 60,
-          "\(minutes / 60):\(minutes % 60) is outside \(words)")
+        let inside = start24 <= end24
+          ? minutes >= start24 * 60 && minutes <= end24 * 60 + 59
+          : minutes >= start24 * 60 || minutes <= end24 * 60 + 59
+        #expect(inside, "\(minutes / 60):\(minutes % 60) is outside \(words)")
       }
+
+      // A span set in another zone reads in the reader's clock, today's
+      // moment of each end, and names its own: 9:00 AM–5:30 PM in Kolkata.
+      try await page.openHydrated("\(Self.list)?createdAt=09:00..17:30%5BAsia/Kolkata%5D")
+      let expected = try await page.evaluate(
+        """
+        (() => {
+          const now = new Date();
+          const at = (h, m) => new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), h, m) - 330 * 60000)
+            .toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).replace(/\\s+/g, ' ');
+          const local = at(9, 0) + '–' + at(17, 30);
+          return local === '9:00 AM–5:30 PM' ? local : local + ' (9:00 AM–5:30 PM Kolkata time)';
+        })()
+        """, as: String.self)
+      try await expect(page.locator(".filter-bar-value-input .time-input-field input")).toHaveValue(expected)
+      try await expect(page.locator(".filter-bar-value-input input.time-input-value"))
+        .toHaveValue("09:00..17:30[Asia/Kolkata]")
 
       try await page.expectNoErrors()
       try await page.expectNoHorizontalOverflow()
     }
-  }
-
-  /// `HH:MMZ`: a local time of today in the page's zone, carried in UTC.
-  static func utc(_ page: Page, hour: Int, minute: Int) async throws -> String {
-    try await page.evaluate(
-      "(() => { const d = new Date(); d.setHours(\(hour), \(minute), 0, 0); return d.toISOString().slice(11, 16) + 'Z'; })()",
-      as: String.self)
   }
 
   /// Every listed row's Created at ("4:31 PM", the reader's clock) as
