@@ -8,9 +8,9 @@ import WebTestsTesting
 /// its role and its name as plain text, never a link. The whole records
 /// list does not filter by a voice: the sidebar's Author search finds one.
 /// A title's and a class's page—whose records their voice names tell
-/// apart—show a Voice names column, a list, filtered by its atom (user,
-/// 2026-10-08): Voice name, repeatable, its rows OR'd; and the prefix's
-/// Voice names, the whole set one address takes. There are no person
+/// apart—show a Voice names column, a list, filtered by the prefix's
+/// Voice names (user, 2026-10-08), the whole set one address takes, a
+/// combobox suggesting the sets the class's records take. There are no person
 /// pages. A throwaway admin owns a scratch work, removed after.
 @Suite("Voice filter", .serialized)
 struct VoiceFilterTests {
@@ -41,16 +41,28 @@ struct VoiceFilterTests {
         try await page.expectNoHorizontalOverflow()
         try await expect(page.locator("[data-table-column-id='voice-names']").first).toBeVisible()
         let options = page.locator(".filter-bar-view .filter-bar-field-picker .dropdown-option")
-        // Every row's field picker offers both: one name, and the set.
-        try await expect(options.filter(hasText: "Voice name", exact: true)).not.toHaveCount(0)
+        // The set, Voice names; no atomic Voice name filter.
         try await expect(options.filter(hasText: "Voice names", exact: true)).not.toHaveCount(0)
-        // A row of Voice name: one name, the records any of whose voice
-        // names it is.
-        let key = work.author.lowercased()
-        try await page.openHydrated("\(group)?voice=\(key.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? key)")
-        try await expect(page.locator("main a[href='\(work.path)']")).toHaveCount(1)
-        try await expect(page.locator("main a[href='\(namesake.path)']")).toHaveCount(0)
-        try await expect(page.locator(".filter-bar-view input[name='voice']")).toHaveCount(1)
+        try await expect(options.filter(hasText: "Voice name", exact: true)).toHaveCount(0)
+        // A row switched to Voice names is a combobox: typed words, in any
+        // order and case, suggest the sets its records take; one picked
+        // and applied is its address.
+        try await page.locator(".filter-bar-add-btn").click()
+        let row = page.locator(".filter-bar-row").last
+        try await row.locator(".filter-bar-field-picker .dropdown-trigger").click()
+        try await row.locator(".filter-bar-field-picker .dropdown-option[data-value='voice-names']").click()
+        let field = row.locator("input[data-combobox-input='true']")
+        try await expect(field).toBeVisible()
+        let size = try await field.evaluate("(e) => getComputedStyle(e).fontSize").string
+        #expect(size == "16px", "the combobox's text is 16px, as the bar's other fields: \(size ?? "")")
+        let words = work.author.split(separator: " ").reversed().joined(separator: " ").uppercased()
+        try await field.fill(words)
+        let suggestion = row.locator(".combobox-option").filter(hasText: work.author)
+        try await expect(suggestion).toBeVisible()
+        try await suggestion.click()
+        try await page.locator(".filter-bar-apply").click()
+        try await expect(page).toHaveURL(work.path) { url in url.path == work.path }
+        try await page.expectNoHorizontalOverflow()
         // Voice names, typed in another case: the set's canonical address.
         try await page.openHydrated(
           "/biblio-records?language=eng&titled=\(group.split(separator: "/")[2])&typed=report&voice-names="

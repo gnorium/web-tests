@@ -178,6 +178,18 @@ struct GraphTests {
         try await page.openHydrated(Self.query(["citation-of"], record: cited.path, extra: "&language=fra"))
         try await expect(page.locator(".records-count-view")).toContainText("0 citations")
         try await expect(page.locator(".graph-empty-message")).toHaveText("No citations.")
+        // Voice name, the paths' records' voice names' atom: one name a row,
+        // repeatable, the rows OR'd (user, 2026-10-08).
+        let author = citing.author.lowercased().addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
+        try await page.openHydrated(
+          Self.query(["citation-of"], record: cited.path, extra: "&voice=\(author)&voice=web%20tests%20nobody"))
+        try await expect(page.locator(".graph-table tbody tr a[href='\(citing.path)']")).toHaveCount(1)
+        try await expect(page.locator(".filter-bar-view .filter-bar-row")).toHaveCount(2)
+        try await expect(
+          page.locator(".filter-bar-view .filter-bar-field-picker .dropdown-selected-text").filter(hasText: "Voice name")
+        ).toHaveCount(2)
+        try await page.openHydrated(Self.query(["citation-of"], record: cited.path, extra: "&voice=web%20tests%20nobody"))
+        try await expect(page.locator(".records-count-view")).toContainText("0 citations")
 
         // None: said in words, no drawing.
         try await page.openHydrated(Self.query(["container-of"], record: cited.path))
