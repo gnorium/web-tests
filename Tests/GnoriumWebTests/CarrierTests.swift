@@ -110,7 +110,7 @@ struct CarrierTests {
         try await dropdown.locator(".dropdown-trigger").click()
         let option = dropdown.locator(".dropdown-option[data-value='\(value)']")
         let name = try await option.getAttribute("data-display") ?? value
-        try await dropdown.locator(".dropdown-search-input").fill(name)
+        try await dropdown.locator(".dropdown-search-input .search-input").fill(name)
         try await option.filter(visible: true).first.click()
       }
 
@@ -174,7 +174,7 @@ struct CarrierTests {
       }
       let picker = container.locator(".origin-record-field-view .dropdown-view").first
       try await picker.locator(".dropdown-trigger").click()
-      try await picker.locator(".dropdown-search-input").fill(host.suffix)
+      try await picker.locator(".dropdown-search-input .search-input").fill(host.suffix)
       let found = picker.locator(
         ".dropdown-options-list[data-dropdown-results='true'] .dropdown-option[data-value='\(host.recordID)']")
       try await found.click()

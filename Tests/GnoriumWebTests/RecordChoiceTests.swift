@@ -150,7 +150,7 @@ struct RecordChoiceTests {
       try await page.openHydrated(Self.form)
       try await expect(dropdown.locator(".dropdown-option[data-value='\(work.recordID)']")).toHaveCount(1)
       try await dropdown.locator(".dropdown-trigger").click()
-      try await dropdown.locator(".dropdown-search-input").fill(work.suffix)
+      try await dropdown.locator(".dropdown-search-input .search-input").fill(work.suffix)
       let results = dropdown.locator(".dropdown-options-list[data-dropdown-results='true']")
       try await expect(results).toBeVisible()
       try await expect(results.locator(".dropdown-option")).toHaveCount(1)
@@ -160,9 +160,9 @@ struct RecordChoiceTests {
       try await expect(found.locator(".breadcrumb-label-text")).toHaveText(work.title)
       try await expect(found.locator(".dropdown-option-alt-text")).toHaveText("\(work.author) · Report")
       // Found by its title only, never its author's name.
-      try await dropdown.locator(".dropdown-search-input").fill("Web Tests Author \(work.suffix)")
+      try await dropdown.locator(".dropdown-search-input .search-input").fill("Web Tests Author \(work.suffix)")
       try await expect(results.locator(".dropdown-option")).toHaveCount(0)
-      try await dropdown.locator(".dropdown-search-input").fill(work.suffix)
+      try await dropdown.locator(".dropdown-search-input .search-input").fill(work.suffix)
       try await expect(results.locator(".dropdown-option")).toHaveCount(1)
       try await found.click()
 

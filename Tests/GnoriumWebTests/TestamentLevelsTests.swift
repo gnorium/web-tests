@@ -48,7 +48,7 @@ struct TestamentLevelsTests {
   /// option's name typed into its search, the match clicked.
   private func choose(_ value: String, _ display: String, in dropdown: Locator) async throws {
     try await dropdown.locator(".dropdown-trigger").click()
-    try await dropdown.locator(".dropdown-search-input").fill(display)
+    try await dropdown.locator(".dropdown-search-input .search-input").fill(display)
     try await dropdown.locator(".dropdown-option[data-value='\(value)']").filter(visible: true).first.click()
   }
 

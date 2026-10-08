@@ -319,7 +319,7 @@ struct SubmissionTests {
     try await row(typed, "edition").locator("input[name='edition']").fill("Kept aside")
 
     try await dropdown.locator(".dropdown-trigger").click()
-    try await dropdown.locator(".dropdown-search-input").fill(work.suffix)
+    try await dropdown.locator(".dropdown-search-input .search-input").fill(work.suffix)
     try await dropdown.locator(
       ".dropdown-options-list[data-dropdown-results='true'] .dropdown-option[data-value='\(work.recordID)']"
     ).click()
@@ -578,7 +578,7 @@ struct SubmissionTests {
     try await expect(field.locator(".record-choice-field-slot"), timeout: .seconds(20))
       .toHaveAttribute("aria-busy", "false")
     try await dropdown.locator(".dropdown-trigger").click()
-    try await dropdown.locator(".dropdown-search-input").fill(word.title)
+    try await dropdown.locator(".dropdown-search-input .search-input").fill(word.title)
     let found = dropdown.locator(
       ".dropdown-options-list[data-dropdown-results='true'] .dropdown-option[data-value='\(word.recordID)']")
     try await expect(found, timeout: .seconds(20)).toBeVisible()

@@ -156,7 +156,7 @@ struct OriginTests {
       // follow, to name one by.
       let picker = record.locator(".dropdown-view").first
       try await picker.locator(".dropdown-trigger").click()
-      try await picker.locator(".dropdown-search-input").fill(original.suffix)
+      try await picker.locator(".dropdown-search-input .search-input").fill(original.suffix)
       let found = picker.locator(
         ".dropdown-options-list[data-dropdown-results='true'] .dropdown-option[data-value='\(original.recordID)']")
       try await expect(found.locator(".breadcrumb-label-text")).toHaveText(original.title)
@@ -209,7 +209,7 @@ struct OriginTests {
       let secondPicker = second.locator(".origin-record-field-view .dropdown-view").first
       try await expect(secondPicker).toHaveAttribute("data-excluded-values", original.recordID)
       try await secondPicker.locator(".dropdown-trigger").click()
-      try await secondPicker.locator(".dropdown-search-input").fill(original.suffix)
+      try await secondPicker.locator(".dropdown-search-input .search-input").fill(original.suffix)
       let withheld = secondPicker.locator(
         ".dropdown-options-list[data-dropdown-results='true'] .dropdown-option[data-value='\(original.recordID)']")
       try await expect(withheld).toHaveAttribute("data-excluded", "true")
@@ -227,7 +227,7 @@ struct OriginTests {
       let secondType = second.locator(".dropdown-view:has(#\(secondKey)-type)")
       try await expect(secondType.locator(".dropdown-option[data-value='other']")).toHaveCount(0)
       try await secondType.locator(".dropdown-trigger").click()
-      try await secondType.locator(".dropdown-search-input").fill("Treatise")
+      try await secondType.locator(".dropdown-search-input .search-input").fill("Treatise")
       try await secondType.locator(".dropdown-option[data-value='treatise']").filter(visible: true).first.click()
       let secondDate = second.locator(".origin-field-typed > .form-date-view")
       try await expect(secondDate).toHaveCount(1)
