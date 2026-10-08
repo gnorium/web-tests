@@ -61,6 +61,114 @@ struct OriginTests {
     try await admin.remove()
   }
 
+  /// A deep chain is drawn whole, however deep, scrolling sideways on a
+  /// phone and never the page. A loop no write lets in (written here as
+  /// rows directly) draws the record it comes back to as a plain row
+  /// (named, linked) with no steps under it, and no "…" anywhere. The first
+  /// work's origin: fourteen typed steps, each under the last, the deepest
+  /// naming the second work, whose own origin names the first. A form's
+  /// record field, picking the second work for the first, says the origin
+  /// leads back.
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func aDeepChainAndALoop(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let first = try ScratchWork(owner: admin)
+    let second = try ScratchWork(owner: admin)
+    let typedDepth = 14
+    do {
+      var sql = ""
+      var parent = "NULL"
+      for level in 0..<typedDepth {
+        let step = UUID().uuidString.lowercased()
+        sql += """
+          INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
+            VALUES ('\(step)', '\(first.recordID.lowercased())', \(parent), 0, NULL,
+              '{"language":"ang","title":"Web tests deep \(level + 1) \(first.suffix)","type":"treatise"}', now());
+          INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
+            VALUES ('\(UUID().uuidString.lowercased())', '\(step)', 0, 'translation_of');
+
+          """
+        parent = "'\(step)'"
+      }
+      let toSecond = UUID().uuidString.lowercased()
+      let back = UUID().uuidString.lowercased()
+      sql += """
+        INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
+          VALUES ('\(toSecond)', '\(first.recordID.lowercased())', \(parent), 0, '\(second.recordID.lowercased())', NULL, now());
+        INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
+          VALUES ('\(UUID().uuidString.lowercased())', '\(toSecond)', 0, 'translation_of');
+        INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
+          VALUES ('\(back)', '\(second.recordID.lowercased())', NULL, 0, '\(first.recordID.lowercased())', NULL, now());
+        INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
+          VALUES ('\(UUID().uuidString.lowercased())', '\(back)', 0, 'based_on');
+        """
+      _ = try TestAdmin.query(sql)
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated(first.path)
+        let tree = page.locator("#origin .origin-view")
+        try await expect(tree).toHaveCount(1)
+        // Every step: the typed ones, the second work, and the first again.
+        let steps = tree.locator(".origin-step-view")
+        try await expect(steps).toHaveCount(typedDepth + 2)
+        try await expect(steps.nth(typedDepth - 1).locator(".breadcrumb-label-text")).toHaveText(
+          "Web tests deep \(typedDepth) \(first.suffix)")
+        try await expect(steps.nth(typedDepth).locator("a[href='\(second.path)'] .breadcrumb-label-text"))
+          .toHaveText(second.title)
+        // The first work again: a plain row, linked, with nothing under it.
+        let repeated = steps.last
+        try await expect(repeated.locator("a[href='\(first.path)'] .breadcrumb-label-text")).toHaveText(first.title)
+        try await expect(repeated.locator(".datum-value")).toHaveTexts([
+          "Derivation", "—", "Certain", "\(first.author) (Author)",
+        ])
+        let shape = try await tree.evaluate(
+          """
+          (tree) => {
+            const items = [...tree.querySelectorAll('.outliner-item')];
+            const last = items[items.length - 1];
+            const scroll = tree.querySelector('.outliner-scroll');
+            return {
+              leaf: !last.querySelector('.outliner-list .outliner-item'),
+              ellipsis: tree.textContent.includes('…'),
+              cut: tree.querySelectorAll('.origin-cut').length,
+              scrolls: scroll.scrollWidth > scroll.clientWidth,
+              page: document.documentElement.scrollWidth > window.innerWidth,
+            };
+          }
+          """)
+        #expect(shape["leaf"].bool == true, "the repeated record has no steps under it: \(shape)")
+        #expect(shape["ellipsis"].bool == false && shape["cut"].int == 0, "no cut: \(shape)")
+        #expect(shape["page"].bool == false, "the page never scrolls sideways: \(shape)")
+        if layout == .phone {
+          #expect(shape["scrolls"].bool == true, "a sixteen-step chain scrolls sideways on a phone: \(shape)")
+        }
+
+        // The record field a form draws for the second work, filing for the
+        // first: its error under the field; filing for nothing, none.
+        let field = try await page.evaluate(
+          """
+          (async () => {
+            const url = (own) => '/mission-control/record-choices/biblio-record/origin?name=origin-1-record&record=\(second.recordID)' + own;
+            const looped = await (await fetch(url('&own=\(first.recordID)'))).text();
+            const fresh = await (await fetch(url(''))).text();
+            return {
+              looped: looped.includes('field-validation-message') && looped.includes('This origin leads back to this record.'),
+              fresh: fresh.includes('field-validation-message'),
+            };
+          })()
+          """)
+        #expect(field["looped"].bool == true && field["fresh"].bool == false, "\(field)")
+      }
+    } catch {
+      second.remove()
+      first.remove()
+      try await admin.remove(after: error)
+    }
+    second.remove()
+    first.remove()
+    try await admin.remove()
+  }
+
   private func run(
     engine: BrowserEngine, viewport: Viewport, admin: TestAdmin, original: ScratchWork, translation: ScratchWork,
     typed: String
