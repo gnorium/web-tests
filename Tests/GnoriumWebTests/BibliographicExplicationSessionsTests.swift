@@ -34,7 +34,7 @@ struct BibliographicExplicationSessionsTests {
           "type": "compaction", "mode": "auto", "micro": "0", "chars_before": "100", "chars_after": "60",
           "prompt": "Summarize.", "summary": "Kept **both** pages and `save_page`.",
         ],
-        ["type": "text", "content": "Both pages of the chunk saved with `save_page`."],
+        ["type": "text", "content": "Both pages of the chunk saved with `save_page`.\n\n## Saved\n\n```json\n{\"ok\": true}\n```"],
       ]
       let output = String(decoding: try JSONSerialization.data(withJSONObject: blocks), as: UTF8.self)
         .replacingOccurrences(of: "'", with: "''")
@@ -110,7 +110,19 @@ struct BibliographicExplicationSessionsTests {
             const kinds = ['.session-output-rendered', '.markdown-view', '.session-compaction-summary', '.session-prompt-rendered']
               .filter(k => !prose.some(e => e.matches(k)));
             const codes = prose.flatMap(e => [...e.querySelectorAll(':scope p > code')]).length;
-            return [...off.map(r => r.join(' ')), ...kinds.map(k => 'missing ' + k), codes < 3 ? 'inline code missing' : ''].filter(Boolean).join('; ');
+            // Headings on the scale's own pairs, never the prose's leading
+            // multiplied up; a fence's language label on its own 12/22.
+            const pairs = { H1: '24px/34px', H2: '20px/30px', H3: '18px/28px', H4: '16px/26px' };
+            const heads = prose.flatMap(e => [...e.querySelectorAll(':scope h1, :scope h2, :scope h3, :scope h4')])
+              .filter(h => !h.closest('.session-compaction-summary'));
+            const headOff = heads.map(h => { const s = getComputedStyle(h); return [h.tagName, s.fontSize + '/' + s.lineHeight]; })
+              .filter(([tag, pair]) => pairs[tag] !== pair).map(r => 'heading ' + r.join(' '));
+            const labels = prose.flatMap(e => [...e.querySelectorAll('.code-block-lang')]);
+            const labelOff = labels.map(l => { const s = getComputedStyle(l); return s.fontSize + '/' + s.lineHeight; })
+              .filter(pair => pair !== '12px/22px').map(pair => 'label ' + pair);
+            return [...off.map(r => r.join(' ')), ...headOff, ...labelOff, ...kinds.map(k => 'missing ' + k),
+              codes < 3 ? 'inline code missing' : '', heads.length ? '' : 'heading missing', labels.length ? '' : 'label missing']
+              .filter(Boolean).join('; ');
           })()
           """, as: String.self)
         #expect(proseOff.isEmpty, "Formatted text at 16px on 26px: \(proseOff)")

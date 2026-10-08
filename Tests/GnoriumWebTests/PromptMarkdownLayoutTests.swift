@@ -55,10 +55,12 @@ struct PromptMarkdownLayoutTests {
           const prose = [...view.querySelectorAll('.prompt-text-rendered, .prompt-text-rendered p')].map(size);
           const code = [...view.querySelectorAll('.prompt-text-rendered p code')].map(e => getComputedStyle(e).fontSize);
           return JSON.stringify({ prose: [...new Set(prose)], code: [...new Set(code)],
-            raw: size(view.querySelector('.prompt-text-source')) });
+            raw: size(view.querySelector('.prompt-text-source')),
+            h2: size(view.querySelector('.prompt-text-rendered h2')),
+            label: size(view.querySelector('.prompt-text-rendered .code-block-lang')) });
         })()
         """, as: String.self)
-      #expect(sizes == #"{"prose":["16px/26px"],"code":["16px"],"raw":"16px/22px"}"#, "Prompt prose at 16 on 26: \(sizes)")
+      #expect(sizes == #"{"prose":["16px/26px"],"code":["16px"],"raw":"16px/22px","h2":"20px/30px","label":"12px/22px"}"#, "Prompt prose at 16 on 26: \(sizes)")
       try await view.locator(".prompt-text-raw-toggle button").click()
       try await expect(source).toBeVisible()
       try await expect(rendered).toBeHidden()
