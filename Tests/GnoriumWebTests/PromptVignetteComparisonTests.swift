@@ -63,7 +63,10 @@ struct PromptVignetteComparisonTests {
           const content = document.querySelector('.prompt-compare-content');
           const header = content.querySelector('.vignette-header');
           return getComputedStyle(content).display === 'flex'
-            && getComputedStyle(header).flexWrap === 'wrap'
+            && getComputedStyle(header).flexDirection === (innerWidth <= 768 ? 'column' : 'row')
+            && (() => { const [a, b] = header.querySelectorAll('.vignette-identity'); const arrow = header.querySelector('.vignette-arrow').getBoundingClientRect(); const x = r => r.left + r.width / 2; const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+              return innerWidth <= 768 ? (arrow.top >= ra.bottom && arrow.bottom <= rb.top && Math.abs(x(arrow) - x(ra)) < 2 && getComputedStyle(header.querySelector('.vignette-arrow')).transform !== 'none')
+                : (arrow.left >= ra.right && arrow.right <= rb.left); })()
             && getComputedStyle(header).justifyContent === 'center'
             && getComputedStyle(header).textAlign === 'center'
             && [...header.querySelectorAll('a')].every(a => a.classList.contains('link-view'))
@@ -80,15 +83,22 @@ struct PromptVignetteComparisonTests {
           const unchanged = document.querySelector('.prompt-compare-unchanged');
           const removed = document.querySelector('.diff-row[data-diff-line="removed"] .diff-changed');
           const inserted = document.querySelector('.diff-row[data-diff-line="inserted"] .diff-changed');
-          const rgb = node => { const canvas=document.createElement('canvas');canvas.width=canvas.height=1;const ctx=canvas.getContext('2d');ctx.fillStyle=getComputedStyle(node).color;ctx.fillRect(0,0,1,1);return ctx.getImageData(0,0,1,1).data; };
-          const red = rgb(removed), green = rgb(inserted);
+          const rgb = (node, property = 'color') => { const canvas=document.createElement('canvas');canvas.width=canvas.height=1;const ctx=canvas.getContext('2d');ctx.fillStyle=getComputedStyle(node)[property];ctx.fillRect(0,0,1,1);return ctx.getImageData(0,0,1,1).data; };
+          const fill = node => rgb(node, 'backgroundColor');
+          const red = fill(removed), green = fill(inserted);
+          const redLine = fill(removed.closest('.diff-row')), greenLine = fill(inserted.closest('.diff-row'));
           return box.textContent.includes('Unchanged context line 40')
             && getComputedStyle(box).maxHeight === 'none'
             && box.clientHeight >= box.scrollHeight - 1
             && getComputedStyle(box).backgroundColor === 'rgb(255, 255, 255)'
             && getComputedStyle(unchanged).backgroundColor === 'rgb(255, 255, 255)'
+            // Changed characters filled solid, red where they were and
+            // green where they are, their text inverted; their lines tinted
+            // lighter in the same hue.
             && red[0] > red[1] && red[0] > red[2]
-            && green[1] > green[0] && green[1] > green[2];
+            && green[1] > green[0] && green[1] > green[2]
+            && rgb(removed)[0] > 200 && rgb(inserted)[1] > 200
+            && [redLine, greenLine].every((line, i) => { const solid = [red, green][i]; return line[0] + line[1] + line[2] > solid[0] + solid[1] + solid[2]; });
         })()
         """, as: Bool.self))
       try await page.expectNoHorizontalOverflow()

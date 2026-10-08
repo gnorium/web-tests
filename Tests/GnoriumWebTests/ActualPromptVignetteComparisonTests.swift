@@ -14,12 +14,14 @@ struct ActualPromptVignetteComparisonTests {
       #expect(try await page.evaluate("""
         (()=>{const removed=[...document.querySelectorAll('[data-diff-line=removed] .diff-changed')];
           const inserted=[...document.querySelectorAll('[data-diff-line=inserted] .diff-changed')];
-          const rgb = node => { const canvas=document.createElement('canvas');canvas.width=canvas.height=1;const ctx=canvas.getContext('2d');ctx.fillStyle=getComputedStyle(node).color;ctx.fillRect(0,0,1,1);return ctx.getImageData(0,0,1,1).data; };
+          const rgb = (node, property = 'color') => { const canvas=document.createElement('canvas');canvas.width=canvas.height=1;const ctx=canvas.getContext('2d');ctx.fillStyle=getComputedStyle(node)[property];ctx.fillRect(0,0,1,1);return ctx.getImageData(0,0,1,1).data; };
+          const fill = node => rgb(node, 'backgroundColor');
           const boxes=[...document.querySelectorAll('.diff-box,.prompt-compare-unchanged')];const rows=[...document.querySelectorAll('.diff-row')];
-          return removed.length===8 && inserted.length===0 && removed.every(e=>{const c=rgb(e);return c[0]>c[1]&&c[0]>c[2];})
+          return removed.length===8 && inserted.length===0 && removed.every(e=>{const c=fill(e);return c[0]>c[1]&&c[0]>c[2];})
+            && removed.every(e=>e.textContent===' ' && e.dataset.blank==='true') && !document.body.textContent.includes(String.fromCharCode(183))
             && document.querySelectorAll('[data-diff-line=inserted]').length===2 && rows.length>4
             && boxes.length===2 && boxes.every(e=>{const s=getComputedStyle(e);return s.maxHeight==='none' && s.overflowY==='visible' && s.backgroundColor==='rgb(255, 255, 255)';});})()
-        """, as: Bool.self), "Actual vignettes remove eight spaces in red and retain full white unbounded context")
+        """, as: Bool.self), "Actual vignettes mark eight removed spaces, filled red, no stand-in dots, in full white context the page leaves uncapped on purpose")
       try await page.expectNoHorizontalOverflow()
       try await page.expectNoErrors()
     }

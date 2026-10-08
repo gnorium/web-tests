@@ -12,6 +12,9 @@ final class ChromePage: PageDriver, @unchecked Sendable {
     var requests: [String: (url: String, documentURL: String)] = [:]
     var diagnostics: [Diagnostic] = []
     var modifiers: KeyModifiers = []
+    /// The mouse button held down, if any: a move while it is held is a
+    /// drag, as a person's is (a selection extends, a scrollport autoscrolls).
+    var pressed: MouseButton?
     var closed = false
   }
 
@@ -251,13 +254,19 @@ final class ChromePage: PageDriver, @unchecked Sendable {
       let params: JSONValue
       switch action {
       case .move(let x, let y):
-        params = ["type": "mouseMoved", "x": JSONValue(x), "y": JSONValue(y), "button": "none", "modifiers": JSONValue(modifiers)]
+        let pressed = state.withLock { $0.pressed }
+        params = [
+          "type": "mouseMoved", "x": JSONValue(x), "y": JSONValue(y), "button": .string(pressed?.rawValue ?? "none"),
+          "buttons": JSONValue(pressed.map(Self.buttons) ?? 0), "modifiers": JSONValue(modifiers),
+        ]
       case .down(let x, let y, let button, let clickCount):
+        state.withLock { $0.pressed = button }
         params = [
           "type": "mousePressed", "x": JSONValue(x), "y": JSONValue(y), "button": .string(button.rawValue),
           "buttons": JSONValue(Self.buttons(button)), "clickCount": JSONValue(clickCount), "modifiers": JSONValue(modifiers),
         ]
       case .up(let x, let y, let button, let clickCount):
+        state.withLock { $0.pressed = nil }
         params = [
           "type": "mouseReleased", "x": JSONValue(x), "y": JSONValue(y), "button": .string(button.rawValue),
           "buttons": 0, "clickCount": JSONValue(clickCount), "modifiers": JSONValue(modifiers),
