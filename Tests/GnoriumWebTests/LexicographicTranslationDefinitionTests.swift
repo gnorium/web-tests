@@ -75,7 +75,7 @@ struct LexicographicTranslationDefinitionTests {
         // One record-level English toggle, selected initially.
         try await page.openHydrated(word.path)
         let row = page.locator("#record-row-s-1-1")
-        let english = page.locator(".record-rule-language-toggle")
+        let english = page.locator(".apparatus-rule-language-toggle")
         try await expect(english).toHaveAttribute("aria-pressed", "true")
         try await expect(row.locator(".record-row-title").first).toHaveText("A leaf sense.")
         try await english.click()
@@ -89,7 +89,7 @@ struct LexicographicTranslationDefinitionTests {
 
         // Arabic reads right to left.
         try await page.openHydrated(arabic.path)
-        try await page.locator(".record-rule-language-toggle").click()
+        try await page.locator(".apparatus-rule-language-toggle").click()
         let rtl = page.locator("#record-row-s-1-1 .record-row-title").first
         try await expect(rtl).toHaveAttribute("lang", "ar")
         let direction = try await page.evaluate(

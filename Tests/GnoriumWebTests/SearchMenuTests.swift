@@ -53,15 +53,11 @@ struct SearchMenuTests {
         let input = page.locator(".search-menu-typeahead input")
         // The title in the link's color, as LinkView's.
         try await Self.expectColor(title, "--color-link", "the title is not in the link's color")
-        // The chevron is the page breadcrumb's, in its color.
-        let chevron = try await row.locator(".breadcrumb-separator-view").evaluate(
-          """
-          (el) => {
-            const trail = document.querySelector('.breadcrumb-view .breadcrumb-separator-view');
-            return trail ? getComputedStyle(el).color === getComputedStyle(trail).color : true;
-          }
-          """)
-        #expect(chevron.bool == true, "the chevron is not the breadcrumb's color")
+        // The chevron as quiet as the language it follows (user, 2026-10-08),
+        // on the text's middle.
+        let chevron = row.locator(".breadcrumb-separator-view")
+        try await Self.expectColor(chevron, "--color-subtle", "the chevron is not in the subtle color")
+        try await expect(chevron).toHaveCSS("vertical-align", "baseline")
         // Hovered: a link's hover, no fill, not the active row; the pointer
         // gone, nothing stays.
         try await row.hover()

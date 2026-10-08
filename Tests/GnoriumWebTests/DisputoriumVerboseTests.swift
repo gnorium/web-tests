@@ -9,7 +9,7 @@ struct DisputoriumVerboseTests {
     guard gnorium.engines.contains(engine) else { return }
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/mission-control/overtures/lexicographic/C0FFEE00-0000-4000-8000-000000000130")
-      let toggle = page.locator(".lexicographic-overture-content > .record-rule-view .verbose-toggle-button-control")
+      let toggle = page.locator(".lexicographic-overture-content > .apparatus-rule-view .verbose-toggle-button-control")
       try await expect(toggle).toHaveAttribute("aria-pressed", "false")
       try await expect(page.locator("#apparatus-metadata")).toHaveAttribute("data-expanded", "true")
       #expect(try await page.evaluate("""
@@ -18,7 +18,7 @@ struct DisputoriumVerboseTests {
           const fields=[...work.querySelectorAll('#apparatus-metadata [data-metadata-added=true]')];
           const probe=document.createElement('span');document.body.append(probe);probe.style.borderColor='var(--border-color-base)';const neutral=getComputedStyle(probe).borderTopColor;
           probe.style.borderColor='var(--border-color-green)';const green=getComputedStyle(probe).borderTopColor;probe.remove();
-          return rule.classList.contains('record-rule-view') && metadata && getComputedStyle(metadata).borderTopColor===neutral
+          return rule.classList.contains('apparatus-rule-view') && metadata && getComputedStyle(metadata).borderTopColor===neutral
             && fields.length>0 && fields.every(e=>getComputedStyle(e).borderTopColor===green)
             && !work.querySelector('.prompt-instances-view');})()
         """, as: Bool.self))

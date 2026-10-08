@@ -72,8 +72,17 @@ struct RevisePagesTests {
         let prompts = page.locator(".prompt-revision-fields-view")
         // Each prompt in its accordion, closed as on the object's page.
         try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
-        let system = prompts.locator("textarea[name='prompt-system-\(slot)']")
-        try await system.fill((try await system.inputValue()) + "\nWeb tests suggestion.")
+        // Appended where it is typed: the prompt runs past 60KB, which
+        // Chrome's insertText (what `fill` sends) takes over 30s to type.
+        _ = try await page.evaluate(
+          """
+          (() => {
+            const area = document.querySelector("textarea[name='prompt-system-\(slot)']")
+            area.value = area.value + '\\nWeb tests suggestion.'
+            area.dispatchEvent(new Event('input', { bubbles: true }))
+            return true
+          })()
+          """, as: Bool.self)
         let line = prompts.locator(".field-diff-diff").first
         try await expect(line).toBeVisible()
         try await expect(line).toContainText("Web tests suggestion.")
@@ -130,6 +139,71 @@ struct RevisePagesTests {
     }
     remove()
     try await admin.remove()
+    try await contributor.remove()
+  }
+
+  /// A long text's diff box follows the caret (user, 2026-10-08): redrawn
+  /// on every keystroke, it scrolls itself—never the page—so the row of the
+  /// line being edited is in view. The Revise page has the record rule over
+  /// its work, Verbose on it, as the object's page does. A fragment fetched
+  /// into a page names its stylesheets in its `Link` header.
+  @Test(arguments: [BrowserEngine.chrome])
+  func passageDiffFollowsTheCaret(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let commit = try ScratchCommit(owner: contributor)
+    let slot = "bibliographic_explication"
+    do {
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
+        try await page.openHydrated("\(commit.madrigalPath)/revise")
+        try await expect(page.locator(".apparatus-rule-view + .revise-bibliographic-object")).toHaveCount(1)
+        try await expect(page.locator(".apparatus-rule-view .verbose-toggle-button-view, .apparatus-rule-view button").first)
+          .toBeVisible()
+
+        let prompts = page.locator(".prompt-revision-fields-view")
+        try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
+        let result = try await page.evaluate(
+          """
+          (() => {
+            const area = document.querySelector("textarea[name='prompt-system-\(slot)']")
+            const lines = Array.from({ length: 60 }, (_, i) => 'Web tests line ' + (i + 1)).join('\\n')
+            area.value = area.value + '\\n' + lines
+            area.focus({ preventScroll: true })
+            area.setSelectionRange(area.value.length, area.value.length)
+            const pageY = window.scrollY
+            area.dispatchEvent(new Event('input', { bubbles: true }))
+            const box = area.closest('[data-field-diff-view]').querySelector('[data-diff-annotation] .diff-box')
+            const rows = box.querySelectorAll('.diff-row')
+            const last = rows[rows.length - 1].getBoundingClientRect()
+            const frame = box.getBoundingClientRect()
+            return [box.scrollTop > 0, last.top >= frame.top && last.bottom <= frame.bottom + 1,
+              window.scrollY === pageY].join(' ')
+          })()
+          """, as: String.self)
+        #expect(result == "true true true", "scrolled, the caret's row in view, the page still: \(result)")
+
+        // A fragment—the record's prompts, fetched into an object's page—
+        // names the sheets its render registered.
+        let link = try await page.evaluate(
+          """
+          (async () => {
+            const response = await fetch('\(commit.madrigalPath)', { headers: { Accept: 'text/html' } })
+            const html = await response.text()
+            const source = new DOMParser().parseFromString(html, 'text/html')
+              .querySelector('.prompt-instances-view')?.dataset.sourceUrl
+            if (!source) return 'no prompts section'
+            const fragment = await fetch(source, { headers: { Accept: 'text/html' } })
+            return fragment.headers.get('Link') ?? 'none'
+          })()
+          """, as: String.self)
+        #expect(link.contains("rel=stylesheet"), "Link: \(link)")
+      }
+    } catch {
+      commit.remove()
+      try await contributor.remove(after: error)
+    }
+    commit.remove()
     try await contributor.remove()
   }
 
