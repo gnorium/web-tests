@@ -141,10 +141,11 @@ struct RevisePagesTests {
         try await expect(page.locator(".prompt-change-view .diff-view").first).toBeVisible()
         try await expect(page.getByText("Web tests suggestion.").first).toBeAttached()
         try await page.expectNoHorizontalOverflow()
-        // Its verdicts here too, posting to the thread's routes, and its
-        // locution linked.
+        // Its verdicts here too, posting to the thread's routes. No
+        // Locution row in its Pedigree: a locution is an event in a thread,
+        // not an object.
         try await expect(page.locator("form#revision-accept[action$='/revisions/\(id)/accept']")).toHaveCount(1)
-        try await expect(page.locator("a[href$='#revision-\(id)']")).toHaveCount(1)
+        try await expect(page.locator(".pedigree-view").getByText("Locution", exact: true)).toHaveCount(0)
 
         // Accepted from the thread, back at its locution.
         try await page.openHydrated(commit.madrigalPath)
@@ -311,6 +312,7 @@ struct RevisePagesTests {
         try await expect(page.getByText("Sentiment 1.1").first).toBeAttached()
         try await expect(page.locator(".diff-view").first).toBeAttached()
         try await expect(page.locator("form#revision-accept")).toHaveCount(1)
+        try await expect(page.locator(".pedigree-view").getByText("Locution", exact: true)).toHaveCount(0)
 
         // Its thread, as a bibliographic madrigal's: what it changed,
         // linked, and its verdicts.
