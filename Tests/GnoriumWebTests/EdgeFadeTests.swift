@@ -37,7 +37,7 @@ struct EdgeFadeTests {
     let ellipses: [String]
     /// Boxes whose fade disagrees with their overflow.
     let wrong: [String]
-    /// Boxes that are buttons (expand on a tap).
+    /// Boxes that are buttons or tab stops: none should be, on any device.
     let buttons: Int
   }
 
@@ -60,10 +60,10 @@ struct EdgeFadeTests {
           ellipses: [...document.querySelectorAll('*')]
             .filter((e) => getComputedStyle(e).textOverflow === 'ellipsis')
             .map((e) => e.tagName + '.' + e.className.toString()),
-          wrong: boxes.filter((e) => e.getAttribute('aria-expanded') !== 'true')
+          wrong: boxes.filter((e) => e.getAttribute('data-edge-fade-expanded') !== 'true')
             .filter((e) => over(e) !== faded(e))
             .map((e) => (over(e) ? 'unfaded: ' : 'faded: ') + e.className.toString() + ' ' + e.textContent.trim().slice(0, 60)),
-          buttons: boxes.filter((e) => e.getAttribute('role') === 'button').length,
+          buttons: boxes.filter((e) => e.getAttribute('role') === 'button' || e.tabIndex >= 0).length,
         }
       })()
       """, as: Report.self)
@@ -161,7 +161,8 @@ struct EdgeFadeTests {
     path == "/" ? "home" : path.dropFirst().replacingOccurrences(of: "/", with: "-")
   }
 
-  /// No ellipsis anywhere, and every box faded exactly where it overflows.
+  /// No ellipsis anywhere, every box faded exactly where it overflows, and
+  /// none a button or a tab stop of its own, at any width (user, 2026-10-08).
   @Test(arguments: gnorium.engines, Layout.allCases)
   func everyPageFadesWhereItOverflows(engine: BrowserEngine, layout: Layout) async throws {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
@@ -171,6 +172,7 @@ struct EdgeFadeTests {
         let report = try await Self.settledReport(page, "body")
         #expect(report.ellipses.isEmpty, "\(path): text-overflow: ellipsis on \(report.ellipses)")
         #expect(report.wrong.isEmpty, "\(path): the fade disagrees with the overflow on \(report.wrong)")
+        #expect(report.buttons == 0, "\(path): \(report.buttons) faded values are buttons or tab stops")
         try await Self.screenshots(page, Self.slug(path), layout)
       }
     }
@@ -193,21 +195,21 @@ struct EdgeFadeTests {
 
         do {
           // The fade opens it, and the page stays where it is.
-          try await expect(box).toHaveAttribute("aria-expanded", "false")
+          try await expect(box).toHaveAttribute("data-edge-fade-expanded", "false")
           try await Self.press(page, target.fadeX, target.fadeY, viewport)
-          try await expect(box).toHaveAttribute("aria-expanded", "true")
+          try await expect(box).toHaveAttribute("data-edge-fade-expanded", "true")
           let whole = try await box.evaluate("(e) => e.scrollWidth <= e.clientWidth")
           #expect(whole.bool == true, "\(path): an expanded cell still overflows")
           #expect(try await page.url().hasSuffix(path), "\(path): the click in the fade followed a link")
           // A click off it folds it.
           let (x, y) = try await Self.quietPoint(page)
           try await Self.press(page, x, y, viewport)
-          try await expect(box).toHaveAttribute("aria-expanded", "false")
+          try await expect(box).toHaveAttribute("data-edge-fade-expanded", "false")
           // Enter, focused.
           try await box.press("Enter")
-          try await expect(box).toHaveAttribute("aria-expanded", "true")
+          try await expect(box).toHaveAttribute("data-edge-fade-expanded", "true")
           try await box.press("Enter")
-          try await expect(box).toHaveAttribute("aria-expanded", "false")
+          try await expect(box).toHaveAttribute("data-edge-fade-expanded", "false")
           #expect(try await page.url().hasSuffix(path), "\(path): Enter on the cell followed a link")
         }
 
@@ -233,9 +235,9 @@ struct EdgeFadeTests {
         guard let target = try await Self.markFirstOverflowing(page, ".table-view", withLink: false) else { continue }
         let box = page.locator("[data-test-edge-fade]")
         try await Self.press(page, target.wordsX, target.wordsY, viewport)
-        try await expect(box).toHaveAttribute("aria-expanded", "true")
+        try await expect(box).toHaveAttribute("data-edge-fade-expanded", "true")
         try await Self.press(page, target.wordsX, target.wordsY, viewport)
-        try await expect(box).toHaveAttribute("aria-expanded", "false")
+        try await expect(box).toHaveAttribute("data-edge-fade-expanded", "false")
         #expect(try await page.url().hasSuffix(path), "\(path): a tap on a plain cell followed the row's link")
         checked += 1
       }
@@ -272,8 +274,8 @@ struct EdgeFadeTests {
 
   /// A faded value scrolls sideways, with no scrollbar, and its fades follow
   /// the scroll: the end's while more remains, the start's once scrolled.
-  /// It is a button of its own (a tab stop), and a click or a tap on it wraps
-  /// it whole at any width.
+  /// It is no tab stop and no button, and a click or a tap on it wraps it
+  /// whole at any width.
   /// One datum (its value made long on the page) and one table cell.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func aFadedValueScrollsAndItsFadesFollow(engine: BrowserEngine, layout: Layout) async throws {
@@ -330,7 +332,8 @@ struct EdgeFadeTests {
         #expect(state.scrolls, "\(path): the value does not scroll sideways")
         #expect(state.scrollbar == 0, "\(path): a scrollbar \(state.scrollbar) tall is drawn")
         #expect(state.startFade == "0px" && state.endFade != "0px", "\(path): fades \(state.startFade) / \(state.endFade) at rest")
-        #expect(state.tabindex == "0", "\(path): the value's tabindex is \(state.tabindex ?? "none")")
+        #expect(state.tabindex == "-1", "\(path): the value's tabindex is \(state.tabindex ?? "none")")
+        try await expect(box).not.toHaveAttribute("role")
 
         // Partway: both edges hide some of it.
         _ = try await box.evaluate("(e) => { e.scrollLeft = (e.scrollWidth - e.clientWidth) / 2 * (getComputedStyle(e).direction === 'rtl' ? -1 : 1) }")
@@ -359,11 +362,11 @@ struct EdgeFadeTests {
           let x = try #require(middle.array?[0].double)
           let y = try #require(middle.array?[1].double)
           try await Self.press(page, x, y, viewport)
-          try await expect(box).toHaveAttribute("aria-expanded", "true")
+          try await expect(box).toHaveAttribute("data-edge-fade-expanded", "true")
           let whole = try await box.evaluate("(e) => e.scrollWidth <= e.clientWidth")
           #expect(whole.bool == true, "\(path): an expanded value still overflows")
           try await Self.press(page, x, y, viewport)
-          try await expect(box).toHaveAttribute("aria-expanded", "false")
+          try await expect(box).toHaveAttribute("data-edge-fade-expanded", "false")
           #expect(try await page.url().hasSuffix(path), "\(path): a tap on the value followed a link")
         }
       }
@@ -524,7 +527,7 @@ struct EdgeFadeTests {
         _ = try await current.evaluate("(e) => e.scrollIntoView({ block: 'center' })")
         try await Self.screenshots(page, name, layout)
         // Shown whole, it has nothing to open.
-        try await expect(current).not.toHaveAttribute("aria-expanded")
+        try await expect(current).not.toHaveAttribute("data-edge-fade-expanded")
       }
     }
   }
