@@ -235,6 +235,10 @@ final class ChromePage: PageDriver, @unchecked Sendable {
       ["userAgent": .string(agent), "platform": .string(viewport.touch ? "iPhone" : "MacIntel")])
   }
 
+  func setTimeZone(_ identifier: String) async throws {
+    _ = try await send("Emulation.setTimezoneOverride", ["timezoneId": .string(identifier)])
+  }
+
   /// Safari on an iPhone, as a phone-sized page would be served to one.
   static let phoneUserAgent =
     "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"

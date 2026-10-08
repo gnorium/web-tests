@@ -5,21 +5,38 @@ import WebTestsTesting
 
 /// The date range picker on an object list's Created on filter (user,
 /// 2026-10-08): presets beside the calendar, as Google Analytics, Stripe,
-/// Grafana and Datadog lay theirs out—above it on a phone. A preset selects
-/// its days and stays relative in the URL (`?createdOn=-7d..`); two days
-/// picked make a fixed range (`2026-10-01..2026-10-08`). Each narrows the
-/// rows to their UTC days, as the Created on column shows them.
+/// Grafana and Datadog lay theirs out—above it on a phone. The UI shows the
+/// reader's local days; the URL carries UTC. A preset stays relative
+/// (`?createdOn=-7d..`) and counts the reader's days, read from the `tz`
+/// cookie the client sets; two days picked make a fixed range, the UTC
+/// instants that bound those local days. Run in India (+05:30) and New York
+/// (−04:00), by CDP time zone emulation, so a local day is never a UTC one.
 @Suite("Date range picker", .serialized)
 struct DateRangePickerTests {
   static let list = "/mission-control/madrigals/bibliographic"
   /// The column the filter asks of: ID, Title, Status, Created by, Created on.
   static let createdOnColumn = 5
+  /// Each layout in each zone; Chrome only, which emulates a zone.
+  static let cases: [(Layout, String)] = Layout.allCases.flatMap { layout in
+    ["Asia/Kolkata", "America/New_York"].map { (layout, $0) }
+  }
 
-  @Test(arguments: enginesAndLayouts)
-  func presetsAndFixedRanges(engine: BrowserEngine, layout: Layout) async throws {
+  @Test(arguments: cases)
+  func presetsAndFixedRanges(layout: Layout, zone: String) async throws {
+    let engine = BrowserEngine.chrome
+    guard gnorium.engines.contains(engine) else { return }
     let viewport = layout.viewport(for: engine)
     try await withPage(engine, gnorium, viewport: viewport) { page in
+      try await page.setTimeZone(zone)
       try await page.openHydrated(Self.list)
+      // The client tells the server its zone.
+      // (Chrome may name India's zone by its older alias, Asia/Calcutta.)
+      let cookie = try await page.evaluate("document.cookie", as: String.self)
+      let resolved = try await page.evaluate("Intl.DateTimeFormat().resolvedOptions().timeZone", as: String.self)
+      #expect(cookie.contains("tz=\(resolved)"), "the tz cookie: \(cookie), the browser's zone \(resolved) (\(zone))")
+
+      // Every Created on cell is the reader's day of its moment.
+      try await Self.expectLocalCells(page)
 
       // The bar's fields in the table's column order, the creation three
       // last, and no "since".
@@ -54,25 +71,25 @@ struct DateRangePickerTests {
       let popoverBox = try #require(try await popover.boundingBox())
       #expect(popoverBox.minX >= 0 && popoverBox.maxX <= Double(viewport.width), "the popover runs off screen: \(popoverBox)")
 
-      // A preset selects its days, through today, and stays relative.
+      // A preset selects its days, through the reader's today, and stays
+      // relative.
+      let today = try await DatePickerTests.localToday(page)
       let lastWeek = presets.filter(hasText: "Last 7 days", exact: true)
       if viewport.touch { try await lastWeek.tap() } else { try await lastWeek.click() }
       try await expect(value).toHaveValue("-7d..")
       try await expect(field).toHaveValue("Last 7 days")
       try await expect(lastWeek).toHaveAttribute("aria-pressed", "true")
+      try await expect(popover.locator(".date-picker-month-day[data-date='\(today)']"))
+        .toHaveAttribute("aria-selected", "true")
       // Its ends read in the Date start and Date end fields, named as a
       // year range's are.
       try await expect(popover.locator(".date-picker-start input")).toHaveAttribute("placeholder", "Date start")
-      try await expect(popover.locator(".date-picker-end input"))
-        .toHaveValue(try #require(DatePickerTests.words(DatePickerTests.utcDay(0))))
+      try await expect(popover.locator(".date-picker-end input")).toHaveValue(try #require(DatePickerTests.words(today)))
       try await expect(popover.locator(".date-picker-start input"))
-        .toHaveValue(try #require(DatePickerTests.words(DatePickerTests.utcDay(-6))))
-      let today = DatePickerTests.utcDay(0)
-      try await expect(popover.locator(".date-picker-month-day[data-date='\(today)']"))
-        .toHaveAttribute("aria-selected", "true")
+        .toHaveValue(try #require(DatePickerTests.words(try await DatePickerTests.localDay(page, -6))))
 
       // Applied, the URL keeps it relative, the field reads it, and every
-      // row was created in the last seven UTC days.
+      // row was created in the reader's last seven days.
       try await popover.getByRole(.button, name: "Done").click()
       try await page.locator(".filter-bar-apply").click()
       try await expect(page, timeout: .seconds(15)).toHaveURL("createdOn=-7d..") { url in
@@ -81,16 +98,20 @@ struct DateRangePickerTests {
       }
       try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
       try await expect(page.locator(".filter-bar-value-input .date-picker-field input")).toHaveValue("Last 7 days")
-      let week = (0..<7).compactMap { DatePickerTests.words(DatePickerTests.utcDay(-$0)) }
+      var week: [String] = []
+      for offset in 0..<7 {
+        if let words = DatePickerTests.words(try await DatePickerTests.localDay(page, -offset)) { week.append(words) }
+      }
       for day in try await Self.createdOnCells(page) {
-        #expect(week.contains(day), "\(day) is not in the last seven days")
+        #expect(week.contains(day), "\(day) is not in the reader's last seven days")
       }
 
-      // Two days picked make a fixed range: yesterday through today.
+      // Two days picked make a fixed range: yesterday through today, the
+      // UTC instants that bound them, the end the next day's first moment.
       let applied = page.locator(".filter-bar-value-input.date-picker-view")
       let appliedField = applied.locator(".date-picker-field input")
       if viewport.touch { try await appliedField.tap() } else { try await appliedField.click() }
-      let yesterday = DatePickerTests.utcDay(-1)
+      let yesterday = try await DatePickerTests.localDay(page, -1)
       for day in [yesterday, today] {
         let cell = applied.locator(".date-picker-month-day[data-date='\(day)']")
         if try await cell.count() == 0 {
@@ -99,24 +120,30 @@ struct DateRangePickerTests {
         }
         if viewport.touch { try await cell.first.tap() } else { try await cell.first.click() }
       }
-      try await expect(applied.locator("input.date-picker-value")).toHaveValue("\(yesterday)..\(today)")
+      let tomorrow = try DatePickerTests.day(after: today)
+      let fixed =
+        "\(try await DatePickerTests.instant(page, startOf: yesterday))..\(try await DatePickerTests.instant(page, startOf: tomorrow))"
+      try await expect(applied.locator("input.date-picker-value")).toHaveValue(fixed)
       try await expect(applied.locator(".date-picker-preset[aria-pressed='true']")).toHaveCount(0)
       try await page.keyboard.press("Escape")
       try await page.locator(".filter-bar-apply").click()
-      try await expect(page, timeout: .seconds(15)).toHaveURL("createdOn=\(yesterday)..\(today)") { url in
+      try await expect(page, timeout: .seconds(15)).toHaveURL("createdOn=\(fixed)") { url in
         URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
-          .contains { $0.name == "createdOn" && $0.value == "\(yesterday)..\(today)" } ?? false
+          .contains { $0.name == "createdOn" && $0.value == fixed } ?? false
       }
+      try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
       let twoDays = [yesterday, today].compactMap(DatePickerTests.words)
+      let shownRange = try await page.locator(".filter-bar-value-input .date-picker-field input").inputValue()
+      #expect(shownRange.contains("–"), "the field reads the local days: \(shownRange)")
       for day in try await Self.createdOnCells(page) {
-        #expect(twoDays.contains(day), "\(day) is not yesterday or today")
+        #expect(twoDays.contains(day), "\(day) is not the reader's yesterday or today")
       }
 
-      // A range no row falls in lists none.
-      try await page.openHydrated("\(Self.list)?createdOn=2000-01-01..2000-01-02")
+      // A range no row falls in lists none, and reads the reader's days.
+      try await page.openHydrated(
+        "\(Self.list)?createdOn=\(try await DatePickerTests.instant(page, startOf: "2000-01-01"))..\(try await DatePickerTests.instant(page, startOf: "2000-01-03"))")
       try await expect(page.locator(".mission-control-objects-table-empty")).toBeVisible()
-      try await expect(page.locator(".filter-bar-value-input .date-picker-field input"))
-        .toHaveValue("Jan 1–2, 2000")
+      try await expect(page.locator(".filter-bar-value-input .date-picker-field input")).toHaveValue("Jan 1–2, 2000")
 
       try await page.expectNoErrors()
       try await page.expectNoHorizontalOverflow()
@@ -130,5 +157,24 @@ struct DateRangePickerTests {
       [...document.querySelectorAll('.bibliographic-madrigals-table tbody tr td:nth-child(\(createdOnColumn))')]
         .map(td => td.textContent.trim())
       """, as: [String].self)
+  }
+
+  /// The "on" and "at" cells read their moment in the reader's zone, as the
+  /// browser's own formatter puts it ("Oct 8, 2026", "5:40 PM").
+  static func expectLocalCells(_ page: Page) async throws {
+    let mismatches = try await page.evaluate(
+      """
+      [...document.querySelectorAll('time.local-time-view[data-format="date"], time.local-time-view[data-format="time"]')]
+        .map(t => {
+          const d = new Date(t.getAttribute('datetime'));
+          const want = t.dataset.format === 'date'
+            ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+          const got = t.textContent.replace(/\\s+/g, ' ').trim();
+          return got === want.replace(/\\s+/g, ' ') ? null : got + ' ≠ ' + want;
+        })
+        .filter(x => x)
+      """, as: [String].self)
+    #expect(mismatches.isEmpty, "cells not in the reader's zone: \(mismatches.prefix(3))")
   }
 }

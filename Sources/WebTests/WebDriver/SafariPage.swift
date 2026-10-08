@@ -133,6 +133,10 @@ final class SafariPage: PageDriver, @unchecked Sendable {
 
   // MARK: - Emulation
 
+  func setTimeZone(_ identifier: String) async throws {
+    throw EngineLimitation(engine: .safari, reason: "no time zone emulation over WebDriver.")
+  }
+
   func setViewport(_ viewport: Viewport) async throws {
     if viewport.touch {
       throw EngineLimitation(

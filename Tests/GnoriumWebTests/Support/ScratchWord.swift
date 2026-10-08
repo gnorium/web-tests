@@ -89,16 +89,16 @@ struct ScratchWord {
       INSERT INTO submissions (id, user_id) VALUES ('\(ids["submission"]!)', '\(user)');
       INSERT INTO lemmas (id, citation_form, ascii_form, searchable_form, language_id, homograph_number, created_at, updated_at)
         VALUES ('\(ids["lemma"]!)', '\(title)', '\(title)', '\(title)', (SELECT id FROM languages WHERE iso639_3 = '\(language)'), 1, now(), now());
-      INSERT INTO lexico_records (id, lemma_id, title, language_code, version, type)
-        VALUES ('\(ids["record"]!)', '\(ids["lemma"]!)', '\(title)', '\(language)', 1, 'noun');
+      INSERT INTO lexico_records (id, lemma_id, title, language_code, version, type, created_at, updated_at)
+        VALUES ('\(ids["record"]!)', '\(ids["lemma"]!)', '\(title)', '\(language)', 1, 'noun', now(), now());
       INSERT INTO lexicographic_folksongs (id, batch_id, language, title_form_json, anchors_json)
         VALUES ('\(ids["folksong"]!)', '\(ids["submission"]!)', '\(language)', '\(titleForm)', '[]');
-      INSERT INTO lexicographic_overtures (id, lexicographic_folksong_id, title_form_json, anchors_json, committed_by_user_id, committed_at)
-        VALUES ('\(ids["overture"]!)', '\(ids["folksong"]!)', '\(titleForm)', '[]', '\(user)', now());
-      INSERT INTO lexicographic_antiphons (id, lexicographic_folksong_id, lexicographic_overture_id, requested_by_user_id, processing_status, language, sentence, title_form_json)
-        VALUES ('\(ids["antiphon"]!)', '\(ids["folksong"]!)', '\(ids["overture"]!)', '\(user)', 'submitted', '\(language)', '\(title)', '\(titleForm)');
-      INSERT INTO lexicographic_madrigals (id, lexicographic_antiphon_id, lexico_record_id, proposed_content_json, processing_status, permitted_by_user_id, permitted_at)
-        VALUES ('\(ids["madrigal"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"record":\(vignette),"homographFlags":[],"evidenceRequests":[],"reasoning":"Web tests."}', \(submitted ? "'submitted', NULL, NULL" : "'permitted', '\(user)', now()"));
+      INSERT INTO lexicographic_overtures (id, lexicographic_folksong_id, title_form_json, anchors_json, committed_by_user_id, committed_at, created_at)
+        VALUES ('\(ids["overture"]!)', '\(ids["folksong"]!)', '\(titleForm)', '[]', '\(user)', now(), now());
+      INSERT INTO lexicographic_antiphons (id, lexicographic_folksong_id, lexicographic_overture_id, requested_by_user_id, processing_status, language, sentence, title_form_json, created_at, updated_at)
+        VALUES ('\(ids["antiphon"]!)', '\(ids["folksong"]!)', '\(ids["overture"]!)', '\(user)', 'submitted', '\(language)', '\(title)', '\(titleForm)', now(), now());
+      INSERT INTO lexicographic_madrigals (id, lexicographic_antiphon_id, lexico_record_id, proposed_content_json, processing_status, permitted_by_user_id, permitted_at, created_at, updated_at)
+        VALUES ('\(ids["madrigal"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"record":\(vignette),"homographFlags":[],"evidenceRequests":[],"reasoning":"Web tests."}', \(submitted ? "'submitted', NULL, NULL" : "'permitted', '\(user)', now()"), now(), now());
       INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_madrigal_id, status, record_json, created_at)
         VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["madrigal"]!)', 1, '\(vignette)', now());
       COMMIT;

@@ -65,18 +65,18 @@ struct ScratchWork {
       """
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(ids["submission"]!)', '\(user)');
-      INSERT INTO bibliographic_folksongs (id, batch_id, source_url, language, processing_status, title, type, edition, year)
-        VALUES ('\(ids["folksong"]!)', '\(ids["submission"]!)', '\(sourceURL)', 'eng', 'pending', '\(title)', 'report', 'First edition', 1958);
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_folksong_id, source_url, language, processing_status, committed_by_user_id, committed_at)
-        VALUES ('\(ids["overture"]!)', '\(ids["submission"]!)', '\(ids["folksong"]!)', '\(sourceURL)', 'eng', 'pending', '\(user)', now());
-      INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, semblance_service_ids_json, processing_status)
-        VALUES ('\(ids["antiphon"]!)', '\(ids["overture"]!)', '\(user)', '[]', 'submitted');
-      INSERT INTO biblio_records (id, corpus_id, title, title_slug, type, language, genres, year, date_display)
+      INSERT INTO bibliographic_folksongs (id, batch_id, source_url, language, processing_status, title, type, edition, year, created_at)
+        VALUES ('\(ids["folksong"]!)', '\(ids["submission"]!)', '\(sourceURL)', 'eng', 'pending', '\(title)', 'report', 'First edition', 1958, now());
+      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_folksong_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
+        VALUES ('\(ids["overture"]!)', '\(ids["submission"]!)', '\(ids["folksong"]!)', '\(sourceURL)', 'eng', 'pending', '\(user)', now(), now());
+      INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, semblance_service_ids_json, processing_status, created_at, updated_at)
+        VALUES ('\(ids["antiphon"]!)', '\(ids["overture"]!)', '\(user)', '[]', 'submitted', now(), now());
+      INSERT INTO biblio_records (id, corpus_id, title, title_slug, type, language, genres, year, date_display, created_at, updated_at)
         VALUES ('\(ids["record"]!)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)',
-          'report', 'eng', '[]', 1958, 'AD 1958');
+          'report', 'eng', '[]', 1958, 'AD 1958', now(), now());
       \(voice)
-      INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, biblio_record_id, proposed_content_json, metadata_json, shape_json, processing_status, permitted_by_user_id, permitted_at)
-        VALUES ('\(ids["madrigal"]!)', '\(ids["madrigal"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"teiXml":""}', '\(metadata)', '\(shape)', 'permitted', '\(user)', now());
+      INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, biblio_record_id, proposed_content_json, metadata_json, shape_json, processing_status, permitted_by_user_id, permitted_at, created_at, updated_at)
+        VALUES ('\(ids["madrigal"]!)', '\(ids["madrigal"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"teiXml":""}', '\(metadata)', '\(shape)', 'permitted', '\(user)', now(), now(), now());
       INSERT INTO biblio_record_versions (id, biblio_record_id, bibliographic_madrigal_id, metadata_json, shape_json, status, created_at)
         VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["madrigal"]!)', '\(metadata)', '\(shape)', 1, now());
       COMMIT;

@@ -21,11 +21,11 @@ struct ScratchReading {
     _ = try TestAdmin.query(
       """
       BEGIN;
-      INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, semblance_service_ids_json, processing_status)
-        VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-      INSERT INTO bibliographic_madrigals (id, proposed_content_json, processing_status, biblio_record_id, bibliographic_antiphon_id, thread_id, metadata_json)
+      INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, semblance_service_ids_json, processing_status, created_at, updated_at)
+        VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted', now(), now());
+      INSERT INTO bibliographic_madrigals (id, proposed_content_json, processing_status, biblio_record_id, bibliographic_antiphon_id, thread_id, metadata_json, created_at, updated_at)
         VALUES ('\(madrigalID)', '\(content)', 'pending', '\(work.recordID.lowercased())', '\(antiphonID)', '\(madrigalID)',
-          (SELECT metadata_json FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())'));
+          (SELECT metadata_json FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())'), now(), now());
       COMMIT;
       """)
   }

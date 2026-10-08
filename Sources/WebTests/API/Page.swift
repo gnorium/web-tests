@@ -126,6 +126,12 @@ public final class Page: @unchecked Sendable {
     try await setViewport(Viewport(width: width, height: height, deviceScaleFactor: deviceScaleFactor, touch: touch))
   }
 
+  /// Runs the page in an IANA time zone ("America/New_York"), as a reader
+  /// there would see it: Chrome only (CDP `Emulation.setTimezoneOverride`).
+  public func setTimeZone(_ identifier: String) async throws {
+    try await driver.setTimeZone(identifier)
+  }
+
   /// Sets a cookie for this page's context.
   public func setCookie(name: String, value: String, url: URL? = nil, httpOnly: Bool = true) async throws {
     guard let target = url ?? context.baseURL else {

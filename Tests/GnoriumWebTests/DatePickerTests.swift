@@ -58,23 +58,26 @@ struct DatePickerTests {
       #expect(popoverBox.minX >= 0 && popoverBox.maxX <= Double(viewport.width), "the popover runs off screen: \(popoverBox)")
       #expect(popoverBox.minY >= 0, "the popover runs off the top: \(popoverBox)")
 
-      // Keyboard: the focused day is today (UTC); right a day and Enter
-      // starts the range there, open at its end; right again and Enter
-      // closes it.
+      // Keyboard: the focused day is today, the reader's; right a day and
+      // Enter starts the range there, open at its end; right again and
+      // Enter closes it. The value is the UTC instants that bound those
+      // local days, the end the next day's first moment.
       let today = try #require(try await page.evaluate("document.activeElement?.getAttribute('data-date')").string)
-      #expect(today == Self.utcDay(0), "the calendar opens on today, UTC: \(today)")
+      #expect(today == (try await Self.localToday(page)), "the calendar opens on the reader's today: \(today)")
       try await page.keyboard.press("ArrowRight")
       let tomorrow = try Self.day(after: today)
       let focused = try await page.evaluate("document.activeElement?.getAttribute('data-date')").string
       #expect(focused == tomorrow, "ArrowRight focused \(focused ?? "nothing"), not \(tomorrow)")
       try await page.keyboard.press("Enter")
-      try await expect(value).toHaveValue("\(tomorrow)..")
+      try await expect(value).toHaveValue("\(try await Self.instant(page, startOf: tomorrow))..")
       let tomorrowWords = try #require(Self.words(tomorrow))
       try await expect(field).toHaveValue("Since \(tomorrowWords)")
       try await page.keyboard.press("ArrowRight")
       try await page.keyboard.press("Enter")
       let after = try Self.day(after: tomorrow)
-      try await expect(value).toHaveValue("\(tomorrow)..\(after)")
+      let afterNext = try Self.day(after: after)
+      try await expect(value).toHaveValue(
+        "\(try await Self.instant(page, startOf: tomorrow))..\(try await Self.instant(page, startOf: afterNext))")
       try await expect(popover.locator(".date-picker-month-day[aria-selected='true']")).toHaveCount(2)
 
       // Reset empties the field and keeps the calendar open.
@@ -117,9 +120,29 @@ struct DatePickerTests {
     return formatter.string(from: date.addingTimeInterval(86_400))
   }
 
-  /// The UTC day `offset` days from today, yyyy-mm-dd.
-  static func utcDay(_ offset: Int) -> String {
-    formatter("yyyy-MM-dd").string(from: Date().addingTimeInterval(Double(offset) * 86_400))
+  /// The page's today, its reader's zone, yyyy-mm-dd.
+  static func localToday(_ page: Page) async throws -> String {
+    try await page.evaluate(
+      "(() => { const d = new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-'); })()",
+      as: String.self)
+  }
+
+  /// The local day `offset` days from the page's today, yyyy-mm-dd.
+  static func localDay(_ page: Page, _ offset: Int) async throws -> String {
+    var day = try await localToday(page)
+    let formatter = formatter("yyyy-MM-dd")
+    if let date = formatter.date(from: day) {
+      day = formatter.string(from: date.addingTimeInterval(Double(offset) * 86_400))
+    }
+    return day
+  }
+
+  /// The UTC instant a local day (yyyy-mm-dd) begins in the page's zone, as
+  /// a range's bound: `2026-09-30T18:30Z` for Oct 1 in India.
+  static func instant(_ page: Page, startOf day: String) async throws -> String {
+    try await page.evaluate(
+      "((iso) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d).toISOString().slice(0, 16) + 'Z'; })('\(day)')",
+      as: String.self)
   }
 
   /// "Oct 9, 2026" for `2026-10-09`, as the field and the "on" columns read.

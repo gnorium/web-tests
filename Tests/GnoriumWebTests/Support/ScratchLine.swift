@@ -30,10 +30,10 @@ struct ScratchLine {
     var sql = """
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(submissionID)', '\(user)');
-      INSERT INTO bibliographic_folksongs (id, batch_id, source_url, language, processing_status, title, type)
-        VALUES ('\(folksongID)', '\(submissionID)', 'https://example.org/web-tests', 'eng', 'pending', 'Web tests pedigree \(folksongID.prefix(8))', 'report');
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_folksong_id, source_url, language, processing_status, committed_by_user_id, committed_at)
-        VALUES ('\(overtureID)', '\(submissionID)', '\(folksongID)', 'https://example.org/web-tests', 'eng', 'pending', '\(user)', now());
+      INSERT INTO bibliographic_folksongs (id, batch_id, source_url, language, processing_status, title, type, created_at)
+        VALUES ('\(folksongID)', '\(submissionID)', 'https://example.org/web-tests', 'eng', 'pending', 'Web tests pedigree \(folksongID.prefix(8))', 'report', now());
+      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_folksong_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
+        VALUES ('\(overtureID)', '\(submissionID)', '\(folksongID)', 'https://example.org/web-tests', 'eng', 'pending', '\(user)', now(), now());
 
       """
     for index in 0..<links {
@@ -42,15 +42,15 @@ struct ScratchLine {
       let column = index == 0 ? "bibliographic_overture_id" : "bibliographic_madrigal_id"
       let antecedent = index == 0 ? overtureID : madrigalIDs[index - 1]
       sql += """
-        INSERT INTO bibliographic_antiphons (id, \(column), requested_by_user_id, semblance_service_ids_json, processing_status)
-          VALUES ('\(antiphonIDs[index])', '\(antecedent)', '\(user)', '[]', 'submitted');
+        INSERT INTO bibliographic_antiphons (id, \(column), requested_by_user_id, semblance_service_ids_json, processing_status, created_at, updated_at)
+          VALUES ('\(antiphonIDs[index])', '\(antecedent)', '\(user)', '[]', 'submitted', now(), now());
 
         """
       let last = index == links - 1
       let act = last ? "'permitted', '\(user)', now()" : "'committed', NULL, NULL"
       sql += """
-        INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, proposed_content_json, metadata_json, processing_status, permitted_by_user_id, permitted_at)
-          VALUES ('\(madrigalIDs[index])', '\(madrigalIDs[0])', '\(antiphonIDs[index])', '{"teiXml":""}', '{}', \(act));
+        INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, proposed_content_json, metadata_json, processing_status, permitted_by_user_id, permitted_at, created_at, updated_at)
+          VALUES ('\(madrigalIDs[index])', '\(madrigalIDs[0])', '\(antiphonIDs[index])', '{"teiXml":""}', '{}', \(act), now(), now());
 
         """
     }

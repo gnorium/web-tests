@@ -71,6 +71,9 @@ public protocol PageDriver: AnyObject, Sendable {
   /// JSON, awaiting it when it is a promise.
   func evaluate(_ expression: String) async throws -> JSONValue
   func setViewport(_ viewport: Viewport) async throws
+  /// Runs the page in an IANA time zone ("Asia/Kolkata") rather than the
+  /// machine's: its `Date` and `Intl` read that zone.
+  func setTimeZone(_ identifier: String) async throws
   /// Pointer events at viewport coordinates, in CSS pixels.
   func dispatchMouse(_ actions: [MouseAction]) async throws
   /// A tap: touch start and end at one point.

@@ -128,7 +128,7 @@ struct WatchtowerFigureLinksTests {
   /// figure.
   @Test(arguments: enginesAndLayouts)
   func aStageFigureOpensItsRuns(engine: BrowserEngine, layout: Layout) async throws {
-    let href = "/mission-control/runs/bibliographic?stage=explication&status=failed&startedOn=-7d.."
+    let href = "/mission-control/runs/bibliographic?stage=explication&status=failed&createdOn=-7d.."
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/")
       let link = page.locator(".watchtower-stage-figures a[href='\(href)']").first
