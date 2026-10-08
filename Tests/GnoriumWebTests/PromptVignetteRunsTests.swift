@@ -53,7 +53,7 @@ struct PromptVignetteRunsTests {
         $0.path == "/mission-control/runs/bibliographic" && ($0.query ?? "") == "vignette=\(id)"
       }
       // The filter bar holds it as any filter value; no run used it.
-      try await expect(page.locator(".filter-bar-view").getByText("Prompt vignette").first).toBeAttached()
+      try await expect(page.locator(".filter-bar-view").getByText("Vignette ID").first).toBeAttached()
       try await expect(page.locator(".filter-bar-view").getByText(id).first).toBeAttached()
       try await expect(page.locator(".mission-control-core-empty")).toHaveCount(1)
       try await page.expectNoHorizontalOverflow()
