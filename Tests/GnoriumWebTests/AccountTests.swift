@@ -94,7 +94,10 @@ struct AccountTests {
         try await links.locator("a[href='/users/\(account.username)']").click()
         try await expect(page.locator(".user-profile-actions a[href='/account/profile']")).toBeVisible()
         try await page.locator(".user-profile-actions a[href='/account/profile']").click()
-        try await expect(page).toHaveURL("/account/profile")
+        // The click navigates at once (the server logs the request); the
+        // address changes when the page answers, which with every suite
+        // running can take longer than the usual 5s.
+        try await expect(page, timeout: .seconds(15)).toHaveURL("/account/profile")
         try await expect(page.locator(".account-core-title")).toHaveText("Edit Profile")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()

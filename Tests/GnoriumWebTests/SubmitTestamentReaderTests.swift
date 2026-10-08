@@ -71,16 +71,19 @@ struct SubmitTestamentReaderTests {
         try await expect(message).toHaveCount(0)
 
         // Not a manifest: the viewer goes, and the field says why, an error
-        // that blocks the form for this URL.
+        // that blocks the form for this URL. Each answer is the server's
+        // fetch of the fixture, asked 500ms after the typing stops: with
+        // every suite running the server can take longer than the usual 5s
+        // (alone it answers in milliseconds).
         try await source.fill(fixtures.baseURL + "/not-a-manifest.json")
-        try await expect(message).toHaveText("The source URL can't be read.")
+        try await expect(message, timeout: .seconds(15)).toHaveText("The source URL can't be read.")
         try await expect(source).toHaveAttribute("aria-invalid", "true")
         try await expect(reader).toBeHidden()
         try await expect(reader.locator(".testament-view")).toHaveCount(0)
 
         // Nothing answers: it could not be fetched.
         try await source.fill(fixtures.baseURL + "/gone.json")
-        try await expect(message).toHaveText("The source URL can't be read.")
+        try await expect(message, timeout: .seconds(15)).toHaveText("The source URL can't be read.")
         try await expect(reader).toBeHidden()
 
         // A manifest again: the error goes, the viewer comes back.

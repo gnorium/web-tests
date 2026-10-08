@@ -51,16 +51,21 @@ struct RecordChoiceTests {
       // A dropdown of every record from the start, none chosen: a new record.
       let dropdown = field.locator(".dropdown-view")
       try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("New record")
-      try await expect(dropdown.locator(".dropdown-option[data-value='\(work.recordID)']")).toHaveCount(1)
       // Cut at 50 records, the list says so after its last option, and
-      // only then; the note is no option. (Unasked if the count crossed 50
-      // while the page was drawn.)
+      // only then; the note is no option. The list is in title order, so
+      // the scratch work is among the options only when nothing was cut:
+      // past 50 (other suites' amended scratch works stay) it can sort
+      // after the cut, and typing finds it below. (Unasked if the count
+      // crossed 50 while the page was drawn.)
       let note = dropdown.locator(".dropdown-options-list:not([data-dropdown-results]) > .dropdown-note")
+      let options = dropdown.locator(".dropdown-options-list:not([data-dropdown-results]) > .dropdown-option")
       if before > 50 && after > 50 {
         try await expect(note).toHaveText("Showing the first 50. Type to narrow the list.")
         try await expect(note).not.toHaveAttribute("data-dropdown-option", "true")
+        try await expect(options).toHaveCount(50)
       } else if before <= 50 && after <= 50 {
         try await expect(note).toHaveCount(0)
+        try await expect(dropdown.locator(".dropdown-option[data-value='\(work.recordID)']")).toHaveCount(1)
       }
 
       // The key fields: a dropdown tells its hidden input, as a pick does.
@@ -148,7 +153,7 @@ struct RecordChoiceTests {
 
       // Afresh: found by typing, picked, and its amendment offered.
       try await page.openHydrated(Self.form)
-      try await expect(dropdown.locator(".dropdown-option[data-value='\(work.recordID)']")).toHaveCount(1)
+      try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("New record")
       try await dropdown.locator(".dropdown-trigger").click()
       try await dropdown.locator(".dropdown-search-input .search-input").fill(work.suffix)
       let results = dropdown.locator(".dropdown-options-list[data-dropdown-results='true']")
