@@ -5,8 +5,8 @@ import WebTestsTesting
 
 /// The site's search offers a record as every record field does, in two rows:
 /// its language › its title, a breadcrumb with BreadcrumbView's own
-/// chevron, the name in the link's color; then a work's voices and its type,
-/// "—" each when unknown (a word, its type alone), and no language. The navbar's
+/// chevron, the name in the link's color; then its class alone, "—" when
+/// unknown, never its voices, and no language. The navbar's
 /// search menu on both tabs. A row is a link, never a dropdown option: a
 /// link's hover under the pointer, nothing left when it goes; the arrow
 /// keys make it the active row (aria-selected, the input's
@@ -366,9 +366,8 @@ struct SearchMenuTests {
     try await expect(crumb.locator(".breadcrumb-label-context")).toHaveText(expected.language)
     try await expect(crumb.locator(".breadcrumb-separator-view .next-icon-view")).toHaveCount(1)
     try await expect(crumb.locator(".breadcrumb-label-text")).toHaveText(expected.name)
-    // A word has no voices part: its row reads its type alone.
-    try await expect(row.locator(detail))
-      .toHaveText(expected.voices.isEmpty ? expected.type : "\(expected.voices) · \(expected.type)")
+    // Its class alone, never its voices.
+    try await expect(row.locator(detail)).toHaveText(expected.type)
     // The chevron on the language's line, after it.
     let line = try await crumb.evaluate(
       """

@@ -61,9 +61,9 @@ struct GlossPhraseTests {
         try await reader.locator(".tei-word[data-line='1'][data-word='3']").click()
         let sheet = page.locator(".artifact-transcript .gloss-sheet")
         try await expect(sheet).toHaveAttribute("data-state", "open")
-        let heading = sheet.locator(".gloss-sheet-heading")
-        try await expect(heading.locator(".breadcrumb-label-text")).toHaveText(word.title)
-        try await expect(heading.locator("a.record-label-title")).toHaveAttribute("href", word.path)
+        let title = sheet.locator(".gloss-sheet-title")
+        try await expect(title.locator(".breadcrumb-label-text")).toHaveText(word.title)
+        try await expect(title.locator("a.record-label-title")).toHaveAttribute("href", word.path)
         let details = sheet.locator(".gloss-view")
         let term = details.locator(".metadata-group-view").first
         try await expect(term.locator(".datum-label")).toHaveTexts(["As printed", "Lemma", "Class", "Language"])

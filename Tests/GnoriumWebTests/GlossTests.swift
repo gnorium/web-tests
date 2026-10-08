@@ -10,7 +10,7 @@ import WebTestsTesting
 /// record as the search menu offers one ("English › title", its class under
 /// it, linked; no separate link to it), then the Term at full width, one
 /// datum a row (as printed, lemma linked to the record, class and language
-/// linked to the records list filtered by them, morphology), then the
+/// plain, each morphological feature its own row, spelled out), then the
 /// Lexico-record read at a glance: its Origin, its sentiments laid open
 /// without utterances, the word's own emphasized with its Translations open
 /// (each linked). A word with no link is its own data, headed by itself and
@@ -104,26 +104,26 @@ struct GlossTests {
           }
           """)
         #expect(covers.bool == true, "the gloss does not cover the ordinance pane")
-        // The heading is the record, as the search menu offers one, linked.
-        let heading = sheet.locator(".gloss-sheet-heading")
-        try await expect(heading.locator(".breadcrumb-label-context")).toHaveText("English")
-        try await expect(heading.locator(".breadcrumb-label-text")).toHaveText(english.title)
-        try await expect(heading.locator("a.record-label-title")).toHaveAttribute("href", english.path)
-        try await expect(heading.locator(".record-label-meta")).toHaveText("Noun")
+        // The title is the record, as the search menu offers one, linked.
+        let title = sheet.locator(".gloss-sheet-title")
+        try await expect(title.locator(".breadcrumb-label-context")).toHaveText("English")
+        try await expect(title.locator(".breadcrumb-label-text")).toHaveText(english.title)
+        try await expect(title.locator("a.record-label-title")).toHaveAttribute("href", english.path)
+        try await expect(title.locator(".record-label-meta")).toHaveText("Noun")
         let details = sheet.locator(".gloss-view")
         try await expect(details.locator("a").filter(hasText: "View English")).toHaveCount(0)
         // The Term, full width, one datum a row, its values linked.
         let term = details.locator(".metadata-group-view").first
         try await expect(term.locator(".metadata-group-title")).toHaveText("Term")
         try await expect(term.locator(".datum-label")).toHaveTexts([
-          "As printed", "Lemma", "Class", "Morphology", "Language",
+          "As printed", "Lemma", "Class", "Number", "Language",
         ])
         try await expect(term.locator(".datum-value")).toHaveTexts([
-          "scratchwords", "scratchword", "Noun", "Number: Plural", "English",
+          "scratchwords", "scratchword", "Noun", "Plural", "English",
         ])
-        try await expect(term.locator(".datum-value a").nth(0)).toHaveAttribute("href", english.path)
-        try await expect(term.locator(".datum-value a").nth(1)).toHaveAttribute("href", "/lexico-records?type=noun")
-        try await expect(term.locator(".datum-value a").nth(2)).toHaveAttribute("href", "/lexico-records/eng")
+        // Only the lemma links, to the record; class and language are plain.
+        try await expect(term.locator(".datum-value a")).toHaveCount(1)
+        try await expect(term.locator(".datum-value a")).toHaveAttribute("href", english.path)
         let rows = try await term.locator(".datum-view").first.evaluate(
           "(el) => { const p = el.parentElement.getBoundingClientRect(), r = el.getBoundingClientRect(); return Math.abs(p.width - r.width) <= 1 }")
         #expect(rows.bool == true, "a datum is not full width")
@@ -161,11 +161,11 @@ struct GlossTests {
         try await expect(stood).toHaveAttribute("tabindex", "0")
         try await page.keyboard.press("Enter")
         try await expect(sheet).toHaveAttribute("data-state", "open")
-        try await expect(heading.locator(".record-label-title")).toHaveText("stood")
-        try await expect(heading.locator(".record-label-meta")).toHaveText("Verb")
-        try await expect(heading.locator("a")).toHaveCount(0)
+        try await expect(title.locator(".record-label-title")).toHaveText("stood")
+        try await expect(title.locator(".record-label-meta")).toHaveText("Verb")
+        try await expect(title.locator("a")).toHaveCount(0)
         try await expect(details.locator(".metadata-group-view").first.locator(".datum-value")).toHaveTexts([
-          "stood", "stand", "Verb", "Tense: Past", "English",
+          "stood", "stand", "Verb", "Past", "English",
         ])
         try await expect(details.locator(".record-view")).toHaveCount(0)
         try await expect(details.locator(".metadata-group-title").filter(hasText: "Lexico-record")).toHaveCount(0)
@@ -184,8 +184,8 @@ struct GlossTests {
         let folio = reader.locator("[data-gloss-element]").filter(hasText: "12").first
         try await folio.click()
         try await expect(sheet).toHaveAttribute("data-state", "open")
-        try await expect(heading.locator(".record-label-title")).toHaveText("Page number")
-        try await expect(heading.locator(".record-label-meta")).toHaveText("12")
+        try await expect(title.locator(".record-label-title")).toHaveText("Page number")
+        try await expect(title.locator(".record-label-meta")).toHaveText("12")
         try await expect(details.locator(".datum-label")).toHaveTexts(["Page number"])
         try await page.keyboard.press("Escape")
         try await expect(sheet).toHaveAttribute("data-state", "closed")
@@ -212,7 +212,7 @@ struct GlossTests {
         try await word.click()
         let again = utterance.locator(".gloss-sheet[data-state='open']")
         try await expect(again).toHaveCount(1)
-        try await expect(again.locator(".gloss-sheet-heading .breadcrumb-label-text")).toHaveText(english.title)
+        try await expect(again.locator(".gloss-sheet-title .breadcrumb-label-text")).toHaveText(english.title)
         try await expect(again.locator(".record-row-title[data-current='true']")).toHaveText("A leaf sense.")
         try await page.expectNoHorizontalOverflow()
         try await page.keyboard.press("Escape")
