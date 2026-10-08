@@ -97,7 +97,7 @@ struct WatchtowerFigureLinksTests {
       try await page.openHydrated("/")
       let figures = try await Self.figures(page)
       try #require(figures.count >= 38, "the Watchtower shows \(figures.count) figure links")
-      try #require(figures.filter { $0.href.contains("show=runs") }.count == 6, "every stage has three run links")
+      try #require(figures.filter { $0.href.hasPrefix("/mission-control/runs/") }.count == 6, "every stage has three run links")
       for figure in figures {
         let count = try #require(Int(figure.text.prefix { $0.isNumber }))
         // Explication's figures count both kinds' runs: the list they open
@@ -106,7 +106,9 @@ struct WatchtowerFigureLinksTests {
           let listed = try await Self.listed(page, figure.href)
           guard listed >= 0, figure.href.contains("stage=explication") else { return listed }
           let other = try await Self.listed(
-            page, figure.href.replacingOccurrences(of: "/lifecycles/bibliographic", with: "/lifecycles/lexicographic"))
+            page,
+            figure.href.replacingOccurrences(of: "/lifecycles/bibliographic", with: "/lifecycles/lexicographic")
+              .replacingOccurrences(of: "/runs/bibliographic", with: "/runs/lexicographic"))
           return other < 0 ? -1 : listed + other
         }
         #expect(listed == shown, "\(figure.text) (now \(shown)) opens \(listed) rows: \(figure.href)")
@@ -121,12 +123,12 @@ struct WatchtowerFigureLinksTests {
   /// first render, not only after Apply.
   static let pendingTestamentOvertures = "/mission-control/lifecycles/bibliographic?object=overture&status=pending"
 
-  /// A stage's figure opens the runs list: its filter bar names the stage,
-  /// the status and "Runs", with no placeholder, and it lists as many runs as
-  /// the figure.
+  /// A stage's figure opens the Runs page: its filter bar names the stage
+  /// and the status, with no placeholder, and it lists as many runs as the
+  /// figure.
   @Test(arguments: enginesAndLayouts)
   func aStageFigureOpensItsRuns(engine: BrowserEngine, layout: Layout) async throws {
-    let href = "/mission-control/lifecycles/bibliographic?status=failed&stage=explication&since=1w&show=runs"
+    let href = "/mission-control/runs/bibliographic?stage=explication&status=failed&since=1w"
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/")
       let link = page.locator(".watchtower-stage-figures a[href='\(href)']").first
@@ -136,9 +138,9 @@ struct WatchtowerFigureLinksTests {
       try await expect(page, timeout: .seconds(15)).toHaveURL(href)
       try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
       let fields = try await page.locator(".filter-bar-field-picker .dropdown-selected-text").allTextContents()
-      #expect(fields.contains("Stage") && fields.contains("Status") && fields.contains("Show"), "fields: \(fields)")
+      #expect(fields.contains("Stage") && fields.contains("Status") && !fields.contains("Show"), "fields: \(fields)")
       let values = try await page.locator(".filter-bar-value-select .dropdown-selected-text").allTextContents()
-      #expect(values.contains("Explication") && values.contains("Failed") && values.contains("Runs"), "values: \(values)")
+      #expect(values.contains("Explication") && values.contains("Failed"), "values: \(values)")
       let placeholders = try await page.evaluate(
         """
         [...document.querySelectorAll('.filter-bar-value-select .dropdown-selected-text')]
@@ -150,7 +152,7 @@ struct WatchtowerFigureLinksTests {
       #expect(!stalled, "the runs list offers a Stalled status")
       // The figure counts both kinds' explication runs: this list, and the
       // same list on the Lexicographic tab, which keeps the filters.
-      let lexicographic = href.replacingOccurrences(of: "/lifecycles/bibliographic", with: "/lifecycles/lexicographic")
+      let lexicographic = href.replacingOccurrences(of: "/runs/bibliographic", with: "/runs/lexicographic")
       try await expect(page.locator("a[href='\(lexicographic)']").first).toBeAttached()
       let bibliographic = count - (try await Self.listed(page, lexicographic))
       if bibliographic == 0 {

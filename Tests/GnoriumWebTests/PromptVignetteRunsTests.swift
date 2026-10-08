@@ -4,8 +4,8 @@ import WebTests
 import WebTestsTesting
 
 /// A prompt vignette's runs are its associated runs (user, 2026-10-07): its
-/// page's "See associated runs." opens the Lifecycles page's runs filtered
-/// by it (`?vignette=`), the filter bar showing it as any filter value, the
+/// page's "See associated runs." opens the Runs page filtered by it
+/// (`?vignette=`), the filter bar showing it as any filter value, the
 /// list its own empty state when no run used it. A placeholder—a version
 /// no commit has run with—has no Pedigree and no runs. Chrome, desktop.
 @Suite("Prompt vignette runs", .serialized)
@@ -50,8 +50,7 @@ struct PromptVignetteRunsTests {
       try await expect(page.locator(".associated-links-view")).toHaveText("See associated runs.")
       try await runs.click()
       try await expect(page, timeout: .seconds(15)).toHaveURL("the runs, filtered by the vignette") {
-        $0.path == "/mission-control/lifecycles/bibliographic"
-          && ($0.query ?? "").contains("vignette=\(id)") && ($0.query ?? "").contains("show=runs")
+        $0.path == "/mission-control/runs/bibliographic" && ($0.query ?? "") == "vignette=\(id)"
       }
       // The filter bar holds it as any filter value; no run used it.
       try await expect(page.locator(".filter-bar-view").getByText("Prompt vignette").first).toBeAttached()
