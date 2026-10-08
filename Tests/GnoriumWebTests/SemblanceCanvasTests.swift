@@ -69,10 +69,32 @@ struct SemblanceCanvasTests {
         // scrolls sideways, never the page.
         try await expect(viewer.locator(".artifact-header-bar")).toBeHidden()
         let header = try #require(try await viewer.locator(".artifact-header").boundingBox())
-        let pager = try #require(try await viewer.locator(".artifact-page-nav").boundingBox())
-        #expect(header.height < pager.height + 20, "the header holds more than its one row")
         let row = try #require(try await viewer.locator(".artifact-header-row").boundingBox())
-        #expect(abs(row.y - pager.y) < pager.height, "the pager left the header's row")
+        #expect(header.height < row.height + 2, "the header holds more than its one row")
+        // The pager is in the footer, at every width, immediately before
+        // fullscreen at the row's end (user, 2026-10-08): in the header it
+        // pushed the row past a phone's width.
+        try await expect(viewer.locator(".artifact-header .artifact-page-nav")).toHaveCount(0)
+        let footerPager = try await viewer.evaluate(
+          """
+          (viewer) => { const footer = viewer.querySelector('.artifact-footer');
+            const pager = footer.querySelector(':scope > .artifact-page-nav');
+            const full = footer.querySelector(':scope > .artifact-fullscreen-button');
+            const f = footer.getBoundingClientRect(), p = pager.getBoundingClientRect(),
+              b = full.getBoundingClientRect();
+            // One line, never wrapped: every part of the pager on one row.
+            const tops = [...pager.children].map((c) => Math.round(c.getBoundingClientRect().top));
+            return pager.nextElementSibling === full && tops.every((t) => t === tops[0])
+              && Math.round(p.height) === 32
+              && Math.round(f.height) === 41 && Math.abs(p.top + p.height / 2 - (b.top + b.height / 2)) < 1
+              && p.right <= b.left && b.right <= f.right && footer.scrollWidth <= footer.clientWidth; }
+          """).bool == true
+        #expect(footerPager, "the pager sits in the footer, before fullscreen, and the footer fits")
+        // The header row's controls fit without scrolling sideways.
+        let rowFits = try await viewer.evaluate(
+          "(viewer) => { const r = viewer.querySelector('.artifact-header-row'); return r.scrollWidth <= r.clientWidth; }"
+        ).bool == true
+        #expect(rowFits, "the header row needs more than its width")
         try await page.expectNoHorizontalOverflow()
         // Find is the search icon alone.
         // A toggle, as the semblance switch is: its button holds the name.
