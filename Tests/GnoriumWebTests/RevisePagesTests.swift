@@ -33,7 +33,7 @@ struct RevisePagesTests {
         #"""
         UPDATE bibliographic_madrigals SET
           metadata_json = (metadata_json::jsonb || '{"provider":"folger_shakespeare_library"}'::jsonb)::text,
-          proposed_content_json = '{"teiXml":"<TEI><teiHeader><date>1910</date></teiHeader><text><body><pb n=\"1\" facs=\"https://web-tests.invalid/iiif/p1/full/1300,/0/default.jpg\"/><p>Old line</p><pb n=\"2\" facs=\"https://web-tests.invalid/iiif/p2/full/1300,/0/default.jpg\"/><p>Kept line</p></body></text></TEI>"}'
+          proposed_content_json = '{"teiXml":"<TEI><teiHeader><date>1910</date></teiHeader><text><body><pb n=\"1\" facs=\"https://web-tests.invalid/iiif/p1/full/1300,/0/default.jpg\"/><div><p>Old line</p></div><pb n=\"2\" facs=\"https://web-tests.invalid/iiif/p2/full/1300,/0/default.jpg\"/><p>Kept line</p></body></text></TEI>"}'
         WHERE id = '\#(commit.madrigalID)'
         """#)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
@@ -59,6 +59,11 @@ struct RevisePagesTests {
         // The fields, an ordinance and the system prompt, each diff drawn
         // as it is made.
         try await page.locator("[data-revise-form] input[name='title']").first.fill("Web tests title")
+        // The editor opens on the code as the Raw view lays it out, the
+        // stored one-line ordinance one element per line.
+        let initial = try await page.evaluate(
+          "(() => document.querySelector('.tei-page-edit textarea').value)()", as: String.self)
+        #expect(initial == "<div>\n  <p>Old line</p>\n</div>", "The editor's initial text: \(initial)")
         _ = try await page.evaluate(
           """
           (() => {
@@ -69,6 +74,12 @@ struct RevisePagesTests {
           })()
           """, as: Bool.self)
         try await expect(page.locator(".testament-diff[data-edited='true']")).toHaveCount(1)
+        // Both sides laid out alike, the source diff marks the one line
+        // that changed, not the stored line against the whole layout.
+        let code = page.locator(".testament-diff[data-edited='true'] .diff-view[data-diff-mode='code']")
+        try await expect(code.locator(".diff-row[data-diff-line='removed']")).toHaveCount(1)
+        try await expect(code.locator(".diff-row[data-diff-line='inserted']")).toHaveCount(1)
+        try await expect(code.locator(".diff-row[data-diff-line='unchanged']")).toHaveCount(2)
         let prompts = page.locator(".prompt-revision-fields-view")
         // Each prompt in its accordion, closed as on the object's page.
         try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
@@ -109,8 +120,11 @@ struct RevisePagesTests {
         // the ordinance under its semblance, the prompts.
         try await page.openHydrated("\(commit.madrigalPath)/revisions/\(id)")
         try await expect(page.locator(".testament-tree-diff-view")).toHaveCount(1)
-        try await expect(page.getByText("Ordinance of semblance 1").first).toBeVisible()
-        try await expect(page.locator(".testament-diff[data-edited='true'] .tooltip-view").first).toBeAttached()
+        // Under no heading of its own: the source diff, both sides laid out.
+        try await expect(page.getByText("Ordinance of semblance 1")).toHaveCount(0)
+        try await expect(
+          page.locator(".testament-diff[data-edited='true'] .diff-view[data-diff-mode='code']").first
+        ).toBeAttached()
         // The prompts as an object's read, the one changed open on its diff.
         try await expect(page.locator(".prompt-change-view .diff-view").first).toBeVisible()
         try await expect(page.getByText("Web tests suggestion.").first).toBeAttached()
