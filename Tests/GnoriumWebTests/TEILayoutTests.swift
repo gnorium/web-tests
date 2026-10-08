@@ -67,6 +67,10 @@ struct TEILayoutTests {
         let code = page.locator(".tei-page-raw .code-view").first
         try await expect(code).toHaveCSS("font-size", "16px")
         try await expect(code).toHaveCSS("line-height", "22px")
+        // The rendered layer at the body's 16 on 26 beside it (user,
+        // 2026-10-08): switching layers never changes the size.
+        try await expect(lines.nth(0)).toHaveCSS("font-size", "16px")
+        try await expect(lines.nth(0)).toHaveCSS("line-height", "26px")
         try await page.expectNoHorizontalOverflow()
       }
     } catch {

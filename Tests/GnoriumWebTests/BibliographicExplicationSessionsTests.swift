@@ -22,7 +22,7 @@ struct BibliographicExplicationSessionsTests {
       let user = try admin.column("id")
       let blocks: [[String: String]] = [
         ["type": "image_url", "content": "https://example.org/iiif/web-tests/full/1300,/0/default.jpg"],
-        ["type": "thinking", "content": "Reading the first page of the chunk."],
+        ["type": "thinking", "content": "Reading the first page of the `chunk`."],
         [
           "type": "tool", "name": "save_page", "arguments": "{}",
           "result": #"{"ok": true, "tool": "save_page", "saved": "1", "findings_count": 0}"#,
@@ -30,7 +30,11 @@ struct BibliographicExplicationSessionsTests {
         ],
         ["type": "semblance_xml", "label": "1", "content": Self.page],
         ["type": "semblance_xml", "label": "2", "content": Self.page],
-        ["type": "text", "content": "Both pages of the chunk saved."],
+        [
+          "type": "compaction", "mode": "auto", "micro": "0", "chars_before": "100", "chars_after": "60",
+          "prompt": "Summarize.", "summary": "Kept **both** pages and `save_page`.",
+        ],
+        ["type": "text", "content": "Both pages of the chunk saved with `save_page`."],
       ]
       let output = String(decoding: try JSONSerialization.data(withJSONObject: blocks), as: UTF8.self)
         .replacingOccurrences(of: "'", with: "''")
@@ -80,7 +84,7 @@ struct BibliographicExplicationSessionsTests {
         }
         // Its trace: the tool call it saved a page with, and its last word.
         try await expect(page.locator(".session-view").getByText("save_page").first).toBeAttached()
-        try await expect(page.locator(".session-view").getByText("Both pages of the chunk saved.")).toBeAttached()
+        try await expect(page.locator(".session-view .session-output-rendered")).toContainText("Both pages of the chunk saved")
         // Raw and code read at CodeEditorView's size, 16 on 22 (user,
         // 2026-10-08): the wire's dump, a tool's arguments and result, and
         // a page's code alike, shown or not.
@@ -92,6 +96,24 @@ struct BibliographicExplicationSessionsTests {
             .map(r => r.join(' ')).join('; ')
           """, as: String.self)
         #expect(offSize.isEmpty, "Raw and code at 16px on 22px: \(offSize)")
+        // The formatted text beside them at 16 too, on the body's leading
+        // (user, 2026-10-08), so switching Raw never changes the size: the
+        // output, the thinking, the compaction summary and a prompt's
+        // Markdown, inline code following the prose.
+        let proseOff = try await page.evaluate(
+          """
+          (() => {
+            const prose = [...document.querySelectorAll('.session-view :is(.session-output-rendered, .session-output-thinking-body .markdown-view, .session-compaction-summary, .session-prompt-rendered)')];
+            const blocks = prose.flatMap(e => [e, ...e.querySelectorAll(':scope p, :scope li, :scope p > code')]);
+            const off = blocks.map(e => { const s = getComputedStyle(e); return [e.tagName + '.' + e.className, s.fontSize, s.lineHeight]; })
+              .filter(([, size, height]) => size !== '16px' || height !== '26px');
+            const kinds = ['.session-output-rendered', '.markdown-view', '.session-compaction-summary', '.session-prompt-rendered']
+              .filter(k => !prose.some(e => e.matches(k)));
+            const codes = prose.flatMap(e => [...e.querySelectorAll(':scope p > code')]).length;
+            return [...off.map(r => r.join(' ')), ...kinds.map(k => 'missing ' + k), codes < 3 ? 'inline code missing' : ''].filter(Boolean).join('; ');
+          })()
+          """, as: String.self)
+        #expect(proseOff.isEmpty, "Formatted text at 16px on 26px: \(proseOff)")
         let rawCount = try await page.locator(".session-view .session-output-raw").count()
         #expect(rawCount > 0)
       }

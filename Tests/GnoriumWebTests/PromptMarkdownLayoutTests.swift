@@ -45,6 +45,20 @@ struct PromptMarkdownLayoutTests {
         })()
         """, as: Bool.self)
       #expect(geometry)
+      // The rendered prose at the body's 16 on 26, beside Raw's 16 on 22
+      // (user, 2026-10-08): switching never changes the size; inline code
+      // follows the prose.
+      let sizes = try await page.evaluate("""
+        (() => {
+          const view = document.querySelector('.prompt-text-view');
+          const size = e => { const s = getComputedStyle(e); return s.fontSize + '/' + s.lineHeight; };
+          const prose = [...view.querySelectorAll('.prompt-text-rendered, .prompt-text-rendered p')].map(size);
+          const code = [...view.querySelectorAll('.prompt-text-rendered p code')].map(e => getComputedStyle(e).fontSize);
+          return JSON.stringify({ prose: [...new Set(prose)], code: [...new Set(code)],
+            raw: size(view.querySelector('.prompt-text-source')) });
+        })()
+        """, as: String.self)
+      #expect(sizes == #"{"prose":["16px/26px"],"code":["16px"],"raw":"16px/22px"}"#, "Prompt prose at 16 on 26: \(sizes)")
       try await view.locator(".prompt-text-raw-toggle button").click()
       try await expect(source).toBeVisible()
       try await expect(rendered).toBeHidden()
