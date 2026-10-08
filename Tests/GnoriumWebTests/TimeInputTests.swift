@@ -10,7 +10,7 @@ import WebTestsTesting
 /// reader picks and reads local times; the URL carries those wall-clock
 /// times and the reader's IANA zone (`?createdAt=09:00..17:30[Asia/Kolkata]`),
 /// since a time of day is not an instant. A span set in another zone reads
-/// in the reader's clock, its own span and zone after it. Run in India
+/// converted to the reader's clock. Run in India
 /// (+05:30), New York (−04:00/−05:00) and Kathmandu (+05:45), by CDP time
 /// zone emulation.
 @Suite("Time input", .serialized)
@@ -132,8 +132,8 @@ struct TimeInputTests {
         #expect(inside, "\(minutes / 60):\(minutes % 60) is outside \(words)")
       }
 
-      // A span set in another zone reads in the reader's clock, today's
-      // moment of each end, and names its own: 9:00 AM–5:30 PM in Kolkata.
+      // A span set in another zone reads converted to the reader's clock,
+      // today's moment of each end; the URL keeps its zone.
       try await page.openHydrated("\(Self.list)?createdAt=09:00..17:30%5BAsia/Kolkata%5D")
       let expected = try await page.evaluate(
         """
@@ -141,8 +141,7 @@ struct TimeInputTests {
           const now = new Date();
           const at = (h, m) => new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), h, m) - 330 * 60000)
             .toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).replace(/\\s+/g, ' ');
-          const local = at(9, 0) + '–' + at(17, 30);
-          return local === '9:00 AM–5:30 PM' ? local : local + ' (9:00 AM–5:30 PM Kolkata time)';
+          return at(9, 0) + '–' + at(17, 30);
         })()
         """, as: String.self)
       try await expect(page.locator(".filter-bar-value-input .time-input-field input")).toHaveValue(expected)

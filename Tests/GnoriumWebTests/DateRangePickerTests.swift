@@ -29,11 +29,9 @@ struct DateRangePickerTests {
     try await withPage(engine, gnorium, viewport: viewport) { page in
       try await page.setTimeZone(zone)
       try await page.openHydrated(Self.list)
-      // The client tells the server its zone.
-      // (Chrome may name India's zone by its older alias, Asia/Calcutta.)
-      let cookie = try await page.evaluate("document.cookie", as: String.self)
-      let resolved = try await page.evaluate("Intl.DateTimeFormat().resolvedOptions().timeZone", as: String.self)
-      #expect(cookie.contains("tz=\(resolved)"), "the tz cookie: \(cookie), the browser's zone \(resolved) (\(zone))")
+      // A plain page view sets no cookie.
+      let before = try await page.evaluate("document.cookie", as: String.self)
+      #expect(!before.contains("tz="), "a plain view set the tz cookie: \(before)")
 
       // Every Created on cell is the reader's day of its moment.
       try await Self.expectLocalCells(page)
@@ -79,6 +77,11 @@ struct DateRangePickerTests {
       try await expect(value).toHaveValue("-7d..")
       try await expect(field).toHaveValue("Last 7 days")
       try await expect(lastWeek).toHaveAttribute("aria-pressed", "true")
+      // Filtering by date tells the server the reader's zone. (Chrome may
+      // name India's zone by its older alias, Asia/Calcutta.)
+      let cookie = try await page.evaluate("document.cookie", as: String.self)
+      let resolved = try await page.evaluate("Intl.DateTimeFormat().resolvedOptions().timeZone", as: String.self)
+      #expect(cookie.contains("tz=\(resolved)"), "the tz cookie: \(cookie), the browser's zone \(resolved) (\(zone))")
       try await expect(popover.locator(".date-picker-month-day[data-date='\(today)']"))
         .toHaveAttribute("aria-selected", "true")
       // Its ends read in the Date start and Date end fields, named as a
