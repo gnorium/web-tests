@@ -58,6 +58,26 @@ struct BibliographicExplicationSessionsTests {
         let rows = page.locator(".computorium-core-sessions-slot").first.locator(".roster-row")
         try await expect(rows).toHaveCount(1)
         try await expect(rows.first).toHaveAttribute("data-session-label", "1–2")
+        // Its search is the site's search box, medium: 40 tall, its text
+        // 16px, as every field's.
+        let roster = page.locator(".computorium-core-sessions-slot").first
+        let search = roster.locator(".roster-search-input .search-input")
+        let medium = try await search.evaluate(
+          """
+          (el) => { const row = el.closest('.roster-view').querySelector('.roster-row');
+            return !!row && el.closest('.search-input-view').dataset.size === 'medium'
+              && el.placeholder === 'Search sessions' && el.getAttribute('aria-label') === 'Search sessions'
+              && getComputedStyle(el).fontSize === '16px'
+              && getComputedStyle(el).height === '40px'; }
+          """).bool == true
+        #expect(medium, "The roster's search is a medium search input, its text 16px")
+        // It filters the rows, as it did.
+        if layout == .desktop {
+          try await search.fill("no such session")
+          try await expect(rows.first).toHaveAttribute("data-hidden", "true")
+          try await search.fill("1–2")
+          try await expect(rows.first).toHaveAttribute("data-hidden", "false")
+        }
         // Its trace: the tool call it saved a page with, and its last word.
         try await expect(page.locator(".session-view").getByText("save_page").first).toBeAttached()
         try await expect(page.locator(".session-view").getByText("Both pages of the chunk saved.")).toBeAttached()

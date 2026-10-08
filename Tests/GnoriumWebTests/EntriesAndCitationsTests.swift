@@ -283,6 +283,27 @@ struct EntriesAndCitationsTests {
         try await expect(bar).toBeHidden()
         try await viewer.locator(".testament-find-button").click()
         try await expect(bar).toBeVisible()
+        // The header is 40 and a 1px border, its controls small, 32, 4
+        // above and under them; the find bar's box small too, its text
+        // 16px, 12 at the sides; its buttons 32, their icons 14.
+        let small = try await viewer.evaluate(
+          """
+          (viewer) => { const bar = viewer.querySelector('.testament-find-view');
+            const el = bar.querySelector('.search-input'), css = getComputedStyle(el);
+            const row = viewer.querySelector('.artifact-header-row');
+            const pager = viewer.querySelector('.artifact-page-nav');
+            const buttons = [...bar.querySelectorAll('.testament-find-steps button')];
+            const h = (e) => Math.round(e.getBoundingClientRect().height);
+            return h(row) === 40 && pager.classList.contains('pagination-size-small')
+              && h(pager.querySelector('.pagination-prev')) === 32
+              && getComputedStyle(pager.querySelector('.page-box')).fontSize === '16px'
+              && el.closest('.search-input-view').dataset.size === 'small'
+              && h(el) === 32 && css.fontSize === '16px'
+              && css.paddingInlineStart === '12px' && css.paddingInlineEnd === '12px'
+              && buttons.length === 2 && buttons.every(b => h(b) === 32)
+              && buttons.every(b => h(b.querySelector('svg')) === 14); }
+          """).bool == true
+        #expect(small, "The header and its find bar are rows of small controls, their text 16px")
         try await bar.locator("input").fill("scratchfind")
         let count = bar.locator(".testament-find-count")
         // The word broken over two lines is found whole.

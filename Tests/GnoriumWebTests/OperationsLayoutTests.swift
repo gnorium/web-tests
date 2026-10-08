@@ -63,12 +63,14 @@ struct OperationsLayoutTests {
           const search = roster?.querySelector('.roster-search-input-wrapper');
           const list = roster?.closest('.mission-control-sidebar-list');
           if (!search || !list) return false;
-          return roster.querySelector('input').placeholder === 'Search semblances'
+          const box = roster.querySelector('.roster-search-input .search-input');
+          return box.placeholder === 'Search semblances'
+            && getComputedStyle(box).fontSize === '16px'
             && parseFloat(getComputedStyle(search).borderBottomWidth) === 0
             && getComputedStyle(list).rowGap === '16px';
         })()
         """, as: Bool.self)
-      #expect(roster, "Semblance search has no divider; sidebar sections use 16px spacing")
+      #expect(roster, "Semblance search is a 16px search input with no divider; sidebar sections use 16px spacing")
       try await expect(page.locator(".intervention-thread-count")).toHaveText("1")
       try await expect(page.locator(".intervention-thread-event")).toHaveCount(1)
       let events = try await page.evaluate("""

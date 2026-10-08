@@ -36,6 +36,25 @@ struct DropdownSearchTests {
       try await expect(input).toHaveAttribute("placeholder", "Search")
       try await expect(input).toHaveAttribute("data-edge-fade", "true")
 
+      // The box is medium whatever the dropdown's size: 40 tall, its text
+      // 16px, 16 at the sides, its icons 12.
+      try await picker.locator(".dropdown-trigger").click()
+      let sized = try await page.evaluate(
+        """
+        (() => {
+          const view = document.querySelector('.filter-bar-row .filter-bar-field-picker .search-input-view.dropdown-search-input');
+          const box = view.querySelector('.search-input');
+          const css = getComputedStyle(box);
+          return view.getAttribute('data-size') === 'medium'
+            && Math.round(box.getBoundingClientRect().height) === 40
+            && css.fontSize === '16px'
+            && css.paddingInlineStart === '16px';
+        })()
+        """, as: Bool.self)
+      #expect(sized, "The dropdown's search box is medium, its text 16px")
+      try await picker.locator(".dropdown-trigger").click()
+      try await expect(picker.locator(".dropdown-menu")).toHaveAttribute("data-open", "false")
+
       // Open, a letter typed lands in the box and narrows the options.
       try await picker.locator(".dropdown-trigger").click()
       try await expect(picker.locator(".dropdown-menu")).toHaveAttribute("data-open", "true")
@@ -43,14 +62,14 @@ struct DropdownSearchTests {
       try await page.keyboard.press("a")
       try await expect(input).toBeFocused()
       try await expect(input).toHaveValue("a")
-      try await page.keyboard.type("ctive since d")
+      try await page.keyboard.type("ctive")
       try await expect(visible).toHaveCount(1)
       #expect(all > 1)
 
       // The arrow keys and Enter choose it; the box is emptied as it closes.
       try await page.keyboard.press("ArrowDown")
       try await page.keyboard.press("Enter")
-      try await expect(picker.locator(".dropdown-selected-text")).toHaveText("Active since date")
+      try await expect(picker.locator(".dropdown-selected-text")).toHaveText("Last active")
       try await expect(picker.locator(".dropdown-menu")).toHaveAttribute("data-open", "false")
       try await expect(input).toHaveValue("")
 
