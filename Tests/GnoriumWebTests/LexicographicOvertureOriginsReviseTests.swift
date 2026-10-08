@@ -58,8 +58,9 @@ struct LexicographicOvertureOriginsReviseTests {
         try await relation.locator(".dropdown-trigger").click()
         try await row.locator("input[name$='-form']").first.fill("webtestsetymon")
         try await tab.locator("button[type='submit']").filter(hasText: "Suggest").click()
-        try await expect(tab, timeout: .seconds(15)).toHaveURL("/mission-control/revisions") { url in
-          url.path.hasPrefix("/mission-control/revisions")
+        // Suggest lands on the overture, at the suggestion's locution.
+        try await expect(tab, timeout: .seconds(15)).toHaveURL("the overture at its locution") { url in
+          url.path.lowercased() == page.lowercased() && (url.fragment ?? "").hasPrefix("revision-")
         }
         let revision = try TestAdmin.query(
           "SELECT id FROM revisions WHERE revisable_id = '\(overture)' ORDER BY created_at DESC LIMIT 1;")
