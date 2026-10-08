@@ -169,7 +169,7 @@ struct AmendmentInsertionTests {
         #expect(filed.contains("\"impression\":\"Second impression\""), "\(filed)")
         #expect(filed.contains("\"issue\":\"Library issue\""), "\(filed)")
         let revision = try TestAdmin.query("SELECT upper(id::text) FROM revisions WHERE revisable_id IN (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');").trimmingCharacters(in: .whitespacesAndNewlines)
-        try await page.locator(".intervention-thread-view form[action$='/revisions/\(revision)/accept'] button").first.click()
+        try await page.locator(".locution-thread-view form[action$='/revisions/\(revision)/accept'] button").first.click()
         try await page.waitForLoadState()
         try await page.locator("button[form='madrigal-permit']").click()
         try await expect(page.locator(".mission-control-object-header-status-chip"), timeout: .seconds(15)).toHaveText("Permitted")

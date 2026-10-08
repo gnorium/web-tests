@@ -25,7 +25,7 @@ struct EdgeFadeTests {
   static let pages = [
     "/", "/biblio-records", "/lexico-records", "/mission-control/lifecycles/bibliographic", "/mission-control/contributors",
     "/mission-control/antiphons/bibliographic", "/mission-control/madrigals/bibliographic", "/mission-control/folksongs/bibliographic",
-    "/mission-control/interventions",
+    "/mission-control/locutions",
   ]
   static let tables = ["/biblio-records", "/lexico-records", "/mission-control/lifecycles/bibliographic"]
 

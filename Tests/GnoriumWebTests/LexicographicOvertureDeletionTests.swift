@@ -5,13 +5,13 @@ import WebTestsTesting
 
 /// A lexicographic overture's page has what a bibliographic overture's
 /// has: an admin's Delete on a working copy, marking it Deleted, with
-/// Restore to bring it back; and its interventions thread, whose box
-/// posts an intervention that the page then shows. A scratch lexicographic
+/// Restore to bring it back; and its locutions thread, whose box
+/// posts a locution that the page then shows. A scratch lexicographic
 /// folksong and overture of a throwaway admin, removed after.
 @Suite("Lexicographic overture deletion and thread")
 struct LexicographicOvertureDeletionTests {
   @Test(arguments: gnorium.engines)
-  func anAdminDeletesAndRestoresAnOvertureAndIntervenesOnIt(engine: BrowserEngine) async throws {
+  func anAdminDeletesAndRestoresAnOvertureAndPostsALocutionOnIt(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let submission = UUID().uuidString.lowercased()
@@ -21,7 +21,7 @@ struct LexicographicOvertureDeletionTests {
       _ = try? TestAdmin.query(
         """
         BEGIN;
-        DELETE FROM interventions WHERE intervenable_type = 'lexicographicOverture' AND intervenable_id = '\(overture)';
+        DELETE FROM locutions WHERE locutable_type = 'lexicographic_overture' AND locutable_id = '\(overture)';
         DELETE FROM lexicographic_overtures WHERE id = '\(overture)';
         UPDATE lexicographic_folksongs SET deleted_at = now(), deleted_by = '\(admin.username)'
           WHERE id = '\(folksong)' AND deleted_at IS NULL;
@@ -51,9 +51,9 @@ struct LexicographicOvertureDeletionTests {
 
         // The thread: its opening, and the box that posts to the overture.
         try await expect(tab.locator("#creation-\(overture)")).toHaveCount(1)
-        try await tab.locator("#intervention-thread-intervention-body").fill("The class is a verb here.")
-        try await tab.locator(".intervention-thread-submit").click()
-        try await expect(tab.locator(".intervention-thread")).toContainText("The class is a verb here.")
+        try await tab.locator("#locution-thread-locution-body").fill("The class is a verb here.")
+        try await tab.locator(".locution-thread-submit").click()
+        try await expect(tab.locator(".locution-thread")).toContainText("The class is a verb here.")
 
         // Delete: to the register, the overture Deleted, the row kept.
         try await tab.locator("button[form='overture-delete']").click()

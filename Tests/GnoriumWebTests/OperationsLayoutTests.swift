@@ -71,11 +71,11 @@ struct OperationsLayoutTests {
         })()
         """, as: Bool.self)
       #expect(roster, "Semblance search is a 16px search input with no divider; sidebar sections use 16px spacing")
-      try await expect(page.locator(".intervention-thread-count")).toHaveText("1")
-      try await expect(page.locator(".intervention-thread-event")).toHaveCount(1)
+      try await expect(page.locator(".locution-thread-count")).toHaveText("1")
+      try await expect(page.locator(".locution-thread-event")).toHaveCount(1)
       let events = try await page.evaluate("""
         (() => {
-          const line = document.querySelector('.intervention-thread-event-line');
+          const line = document.querySelector('.locution-thread-event-line');
           const css = getComputedStyle(line);
           return css.marginTop === '0px' && css.marginBottom === '0px'
             && line.innerText.includes('fixture-admin created Bibliographic madrigal.');

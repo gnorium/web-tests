@@ -103,7 +103,7 @@ struct RevisePagesTests {
         try await page.openHydrated(commit.madrigalPath)
         let event = page.locator("#revision-\(id)")
         try await expect(event).toContainText("suggested revision")
-        try await expect(event.locator(".intervention-thread-event-added")).toBeVisible()
+        try await expect(event.locator(".locution-thread-event-added")).toBeVisible()
 
         // Its page draws each diff where it is made: the record's tree,
         // the ordinance under its semblance, the prompts.
