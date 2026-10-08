@@ -118,7 +118,7 @@ struct WatchtowerFigureLinksTests {
 
   /// The case that was broken: the sentiments' committed overtures.
   static let committedSentimentOvertures =
-    "/mission-control/lifecycles/lexicographic?object=overture&status=committed&since=1w"
+    "/mission-control/lifecycles/lexicographic?object=overture&status=committed&createdOn=-7d.."
   /// The testaments' pending overtures, whose list must be filtered on the
   /// first render, not only after Apply.
   static let pendingTestamentOvertures = "/mission-control/lifecycles/bibliographic?object=overture&status=pending"
@@ -128,7 +128,7 @@ struct WatchtowerFigureLinksTests {
   /// figure.
   @Test(arguments: enginesAndLayouts)
   func aStageFigureOpensItsRuns(engine: BrowserEngine, layout: Layout) async throws {
-    let href = "/mission-control/runs/bibliographic?stage=explication&status=failed&since=1w"
+    let href = "/mission-control/runs/bibliographic?stage=explication&status=failed&startedOn=-7d.."
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/")
       let link = page.locator(".watchtower-stage-figures a[href='\(href)']").first

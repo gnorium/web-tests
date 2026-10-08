@@ -3,13 +3,14 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// The date filter on Mission Control's contributors page: Gnorium's own
-/// calendar popover, by pointer, touch and keyboard. Needs an admin, made
-/// for the test and removed after (see `TestAdmin`).
+/// The date filter on Mission Control's contributors page—Last active, a
+/// range of days—in Gnorium's own calendar popover, by pointer, touch and
+/// keyboard. Needs an admin, made for the test and removed after (see
+/// `TestAdmin`).
 @Suite("Date picker", .serialized)
 struct DatePickerTests {
   @Test(arguments: gnorium.engines, Layout.allCases)
-  func activeSinceDate(engine: BrowserEngine, layout: Layout) async throws {
+  func lastActiveRange(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let viewport = layout.viewport(for: engine)
@@ -27,10 +28,10 @@ struct DatePickerTests {
       try await page.openHydrated("/mission-control/contributors")
       try await expect(page, timeout: .seconds(10)).toHaveURL("/mission-control/contributors")
 
-      // Pick the "Active since date" field in the first filter row.
+      // Pick the "Last active" field in the first filter row.
       let row = page.locator(".filter-bar-row").first
       try await row.locator(".filter-bar-field-picker .dropdown-trigger").click()
-      try await row.locator(".filter-bar-field-picker .dropdown-option").filter(hasText: "Active since date", exact: true).click()
+      try await row.locator(".filter-bar-field-picker .dropdown-option").filter(hasText: "Last active", exact: true).click()
 
       let picker = row.locator(".date-picker-view")
       let field = picker.locator(".date-picker-field input")
@@ -38,40 +39,43 @@ struct DatePickerTests {
       let value = picker.locator("input.date-picker-value")
       try await expect(picker).toBeVisible()
       try await expect(picker).toHaveAttribute("data-hydrated", "true")
+      try await expect(picker).toHaveAttribute("data-range", "true")
 
       // Our field, not a native date input: nothing for the platform's
-      // picker to open, and no keyboard asked for on a phone.
+      // picker to open, and no keyboard asked for on a phone. Its
+      // placeholder is its label.
       try await expect(row.locator("input[type='date']")).toHaveCount(0)
       try await expect(field).toHaveAttribute("readonly")
       try await expect(field).toHaveAttribute("inputmode", "none")
+      try await expect(field).toHaveAttribute("placeholder", "Last active")
 
       // Open it: a tap on a touch phone, a click otherwise.
       if viewport.touch { try await field.tap() } else { try await field.click() }
       try await expect(popover).toBeVisible()
       try await expect(popover).toHaveAttribute("data-open", "true")
       try await expect(field).toHaveAttribute("aria-expanded", "true")
-
-      // As wide as the field, like a dropdown's menu, unless the field is
-      // narrower than the popover's min-width (seven 40px days), which the
-      // design keeps while the screen allows.
-      let fieldBox = try #require(try await picker.boundingBox())
       let popoverBox = try #require(try await popover.boundingBox())
-      let minWidth = try await popover.evaluate("(el) => parseFloat(getComputedStyle(el).minWidth) || 0").double ?? 0
-      let expectedWidth = max(fieldBox.width, minWidth)
-      #expect(
-        abs(popoverBox.width - expectedWidth) < 1,
-        "popover \(popoverBox) is not as wide as the field \(fieldBox) (min-width \(minWidth))")
       #expect(popoverBox.minX >= 0 && popoverBox.maxX <= Double(viewport.width), "the popover runs off screen: \(popoverBox)")
+      #expect(popoverBox.minY >= 0, "the popover runs off the top: \(popoverBox)")
 
-      // Keyboard: the focused day moves right a day; Enter picks it.
+      // Keyboard: the focused day is today (UTC); right a day and Enter
+      // starts the range there, open at its end; right again and Enter
+      // closes it.
       let today = try #require(try await page.evaluate("document.activeElement?.getAttribute('data-date')").string)
+      #expect(today == Self.utcDay(0), "the calendar opens on today, UTC: \(today)")
       try await page.keyboard.press("ArrowRight")
       let tomorrow = try Self.day(after: today)
       let focused = try await page.evaluate("document.activeElement?.getAttribute('data-date')").string
       #expect(focused == tomorrow, "ArrowRight focused \(focused ?? "nothing"), not \(tomorrow)")
       try await page.keyboard.press("Enter")
-      try await expect(value).toHaveValue(tomorrow)
-      try await expect(field).not.toHaveValue("")
+      try await expect(value).toHaveValue("\(tomorrow)..")
+      let tomorrowWords = try #require(Self.words(tomorrow))
+      try await expect(field).toHaveValue("Since \(tomorrowWords)")
+      try await page.keyboard.press("ArrowRight")
+      try await page.keyboard.press("Enter")
+      let after = try Self.day(after: tomorrow)
+      try await expect(value).toHaveValue("\(tomorrow)..\(after)")
+      try await expect(popover.locator(".date-picker-month-day[aria-selected='true']")).toHaveCount(2)
 
       // Reset empties the field and keeps the calendar open.
       try await popover.getByRole(.button, name: "Reset").click()
@@ -97,14 +101,29 @@ struct DatePickerTests {
     }
   }
 
-  /// The ISO day after `iso` (yyyy-mm-dd).
-  static func day(after iso: String) throws -> String {
+  static func formatter(_ format: String) -> DateFormatter {
     let formatter = DateFormatter()
     formatter.calendar = Calendar(identifier: .gregorian)
     formatter.timeZone = TimeZone(identifier: "UTC")
     formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.dateFormat = "yyyy-MM-dd"
+    formatter.dateFormat = format
+    return formatter
+  }
+
+  /// The ISO day after `iso` (yyyy-mm-dd).
+  static func day(after iso: String) throws -> String {
+    let formatter = formatter("yyyy-MM-dd")
     guard let date = formatter.date(from: iso) else { throw WebTestError("\(iso) is not a yyyy-mm-dd day.") }
     return formatter.string(from: date.addingTimeInterval(86_400))
+  }
+
+  /// The UTC day `offset` days from today, yyyy-mm-dd.
+  static func utcDay(_ offset: Int) -> String {
+    formatter("yyyy-MM-dd").string(from: Date().addingTimeInterval(Double(offset) * 86_400))
+  }
+
+  /// "Oct 9, 2026" for `2026-10-09`, as the field and the "on" columns read.
+  static func words(_ iso: String) -> String? {
+    formatter("yyyy-MM-dd").date(from: iso).map { formatter("MMM d, yyyy").string(from: $0) }
   }
 }
