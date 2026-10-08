@@ -70,6 +70,8 @@ struct ModifyPagesTests {
           """, as: Bool.self)
         try await expect(page.locator(".testament-diff[data-edited='true']")).toHaveCount(1)
         let prompts = page.locator(".prompt-modification-fields-view")
+        // Each prompt in its accordion, closed as on the object's page.
+        try await prompts.locator("#prompt-modification-system-accordion-\(slot) .accordion-summary").first.click()
         let system = prompts.locator("textarea[name='prompt-system-\(slot)']")
         try await system.fill((try await system.inputValue()) + "\nWeb tests suggestion.")
         let line = prompts.locator(".field-diff-diff").first
