@@ -3,13 +3,14 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A word inside a phrase (`<phr>`) opens the phrase first (user,
-/// 2026-09-29): the phrase as written for the title, its type and lemma, the
-/// record a link over its words puts it to at a glance, then Words, each word
-/// an accordion, the one opened expanded. Phone and desktop, nothing
+/// A word inside a phrase (`<phr>`) opens the phrase's gloss first (user,
+/// 2026-09-29, 2026-10-08): headed by the record a link over its words puts
+/// it to, linked; its Term (as printed, lemma, class, language); the record
+/// at a glance; then Words, each word an accordion with every row of its own
+/// gloss, the one opened expanded. Phone and desktop, nothing
 /// scrolling sideways. Scratch rows made and removed by SQL.
-@Suite("Word phrases", .serialized)
-struct WordPhraseTests {
+@Suite("Gloss phrases", .serialized)
+struct GlossPhraseTests {
   static let idiomService = "https://example.org/iiif/webtests-phrase"
   static let idiomTEI = """
     <TEI><text><body><pb n="1" facs="\(idiomService)/full/1300,/0/default.jpg"/>\
@@ -58,25 +59,34 @@ struct WordPhraseTests {
           """)
         let reader = page.locator(".artifact-view .tei-view").first
         try await reader.locator(".tei-word[data-line='1'][data-word='3']").click()
-        let dialog = page.locator(".word-details-dialog")
-        try await expect(dialog).toBeVisible()
-        try await expect(dialog.locator(".dialog-header-title")).toHaveText("kicked the bucket")
-        let details = dialog.locator(".word-details-view")
-        try await expect(details.locator(".word-details-word").first.locator(".datum-value")).toHaveTexts([
-          "Idiom", "kick the bucket",
+        let sheet = page.locator(".artifact-transcript .gloss-sheet")
+        try await expect(sheet).toHaveAttribute("data-state", "open")
+        let heading = sheet.locator(".gloss-sheet-heading")
+        try await expect(heading.locator(".breadcrumb-label-text")).toHaveText(word.title)
+        try await expect(heading.locator("a.record-label-title")).toHaveAttribute("href", word.path)
+        let details = sheet.locator(".gloss-view")
+        let term = details.locator(".metadata-group-view").first
+        try await expect(term.locator(".datum-label")).toHaveTexts(["As printed", "Lemma", "Class", "Language"])
+        try await expect(term.locator(".datum-value")).toHaveTexts([
+          "kicked the bucket", "kick the bucket", "Idiom", "English",
         ])
-        try await expect(details.locator(".record-title")).toHaveText(word.title)
         try await expect(details.locator(".record-row-title[data-current='true']")).toHaveText("A leaf sense.")
-        // Its words, the one opened expanded.
-        let rows = details.locator(".word-details-word-row")
+        // Its words, the one opened expanded, each with its own gloss.
+        let rows = details.locator(".gloss-word-row")
         try await expect(rows).toHaveCount(3)
         try await expect(rows.locator(".accordion-summary")).toHaveTexts(["kicked", "the", "bucket"])
-        try await expect(rows.nth(1).locator(".word-details-word")).toBeVisible()
-        try await expect(rows.nth(0).locator(".word-details-word")).toBeHidden()
-        try await expect(rows.nth(1).locator(".datum-value")).toHaveTexts(["the", "Article", "—", "—"])
+        try await expect(rows.nth(1).locator(".gloss-word")).toBeVisible()
+        try await expect(rows.nth(0).locator(".gloss-word")).toBeHidden()
+        try await expect(rows.nth(1).locator(".datum-label")).toHaveTexts([
+          "As printed", "Lemma", "Class", "Morphology", "Language", "Phrase", "Phrase lemma", "Phrase type",
+          "Lexico-record",
+        ])
+        try await expect(rows.nth(1).locator(".datum-value")).toHaveTexts([
+          "the", "the", "Article", "—", "English", "kicked the bucket", "kick the bucket", "Idiom", "—",
+        ])
         try await page.expectNoHorizontalOverflow()
         try await page.keyboard.press("Escape")
-        try await expect(dialog).toBeHidden()
+        try await expect(sheet).toHaveAttribute("data-state", "closed")
         try await page.expectNoErrors(ignoring: ["Failed to fetch"])
       }
     } catch {

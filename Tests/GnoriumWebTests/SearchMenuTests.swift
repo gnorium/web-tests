@@ -47,7 +47,7 @@ struct SearchMenuTests {
         let rows = page.locator(".search-menu-typeahead .search-menu-result")
         try await expect(rows.first).toBeVisible()
         try await Self.expectOffered(
-          rows.first, label: ".search-menu-result-label", detail: ".search-menu-result-detail", expected)
+          rows.first, label: ".record-label-title", detail: ".record-label-meta", expected)
         let row = rows.first
         let title = row.locator(".breadcrumb-label-text")
         let input = page.locator(".search-menu-typeahead input")
@@ -319,7 +319,7 @@ struct SearchMenuTests {
         document.body.appendChild(probe);
         const inverted = getComputedStyle(probe).color;
         probe.remove();
-        const parts = [...el.querySelectorAll('.breadcrumb-label-context, .breadcrumb-label-text, .search-menu-result-detail')];
+        const parts = [...el.querySelectorAll('.breadcrumb-label-context, .breadcrumb-label-text, .record-label-meta')];
         return \(settled)(() => {
           const bg = getComputedStyle(el).backgroundColor;
           return (bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') && parts.length === 3

@@ -3,27 +3,32 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A word of a transcript opens what it is (user, 2026-09-29): in the
-/// testament reader and in an utterance, a click, a tap, or Enter on a
-/// focused word opens a dialog as large as the screen over the reader—the
-/// word as written, its lemma, part of speech and morphology, then the
-/// lexico-record a word→sentiment link puts it to, read at a glance: its
-/// language, title and type, its Origin, its sentiments laid open without
-/// utterances, the word's own emphasized with its Translations open (each
-/// linked), and "View English … (Noun)" to its page. A word with no link is
-/// its own data, "—" for the rest. Esc closes it and the word has the focus
-/// again; the arrow keys move between a page's words. Phone and desktop,
-/// nothing scrolling sideways. A throwaway admin owns a scratch work with a
-/// permitted testament and a scratch word linked from it, made by SQL and
-/// removed after.
-@Suite("Word details", .serialized)
-struct WordDetailsTests {
+/// What a transcript encodes opens a gloss (user, 2026-09-29, 2026-10-08):
+/// in the testament reader and in an utterance, a click, a tap, or Enter on
+/// a focused word opens a sheet over the ordinance pane only—as the ellipsis
+/// menu's, a blurred backdrop and a panel filling the pane—headed by the
+/// record as the search menu offers one ("English › title", its class under
+/// it, linked; no separate link to it), then the Term at full width, one
+/// datum a row (as printed, lemma linked to the record, class and language
+/// linked to the records list filtered by them, morphology), then the
+/// Lexico-record read at a glance: its Origin, its sentiments laid open
+/// without utterances, the word's own emphasized with its Translations open
+/// (each linked). A word with no link is its own data, headed by itself and
+/// its class, with no Lexico-record. What is no word but encoded (a running
+/// head's page number, a gap) opens its own. Esc closes it and what was
+/// opened has the focus again; the arrow keys move between a page's words.
+/// Phone and desktop, nothing scrolling sideways. A throwaway admin owns a
+/// scratch work with a permitted testament and a scratch word linked from
+/// it, made by SQL and removed after.
+@Suite("Glosses", .serialized)
+struct GlossTests {
   static let service = "https://example.org/iiif/webtests-words"
   static let tei = """
     <TEI><text><body><pb n="1" facs="\(service)/full/1300,/0/default.jpg"/>\
     <p><s><w lemma="the" type="article" msd="Definite=Def|PronType=Art">The</w> \
     <w lemma="scratchword" type="noun" msd="Number=Plur">scratchwords</w> \
-    <w lemma="stand" type="verb" msd="Tense=Past">stood</w><pc>.</pc></s></p></body></text></TEI>
+    <w lemma="stand" type="verb" msd="Tense=Past">stood</w><pc>.</pc></s></p><fw type="pageNum">12</fw>\
+    </body></text></TEI>
     """
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
@@ -81,20 +86,50 @@ struct WordDetailsTests {
         try await expect(reader.locator(".tei-word[tabindex='0']")).toHaveTexts(["The"])
 
         try await linked.click()
-        let dialog = page.locator(".word-details-dialog")
-        try await expect(dialog).toBeVisible()
-        try await expect(dialog.locator(".dialog-header-title")).toHaveText("scratchwords")
-        let details = dialog.locator(".word-details-view")
-        try await expect(details.locator(".word-details-word .datum-label")).toHaveTexts([
-          "Lemma", "Class", "Morphology",
+        let sheet = page.locator(".artifact-transcript .gloss-sheet")
+        try await expect(sheet).toHaveAttribute("data-state", "open")
+        // Over the ordinance pane only: the pane holds it, the semblance and
+        // the page's chrome stay outside it.
+        let pane = page.locator(".artifact-transcript").first
+        try await expect(pane.locator(".gloss-sheet")).toHaveCount(1)
+        // Once the panel has slid in (the ellipsis menu's motion), it is the
+        // pane's visible box: its padding box, its border aside.
+        let covers = try await pane.evaluate(
+          """
+          async (el) => {
+            await new Promise((r) => setTimeout(r, 400));
+            const p = el.getBoundingClientRect(), s = el.querySelector('.gloss-sheet .sheet-panel').getBoundingClientRect();
+            return Math.abs(s.top - p.top) <= 1 && Math.abs(s.left - p.left) <= 1
+              && Math.abs(s.height - el.clientHeight) <= 1 && Math.abs(s.width - el.clientWidth) <= 1;
+          }
+          """)
+        #expect(covers.bool == true, "the gloss does not cover the ordinance pane")
+        // The heading is the record, as the search menu offers one, linked.
+        let heading = sheet.locator(".gloss-sheet-heading")
+        try await expect(heading.locator(".breadcrumb-label-context")).toHaveText("English")
+        try await expect(heading.locator(".breadcrumb-label-text")).toHaveText(english.title)
+        try await expect(heading.locator("a.record-label-title")).toHaveAttribute("href", english.path)
+        try await expect(heading.locator(".record-label-meta")).toHaveText("Noun")
+        let details = sheet.locator(".gloss-view")
+        try await expect(details.locator("a").filter(hasText: "View English")).toHaveCount(0)
+        // The Term, full width, one datum a row, its values linked.
+        let term = details.locator(".metadata-group-view").first
+        try await expect(term.locator(".metadata-group-title")).toHaveText("Term")
+        try await expect(term.locator(".datum-label")).toHaveTexts([
+          "As printed", "Lemma", "Class", "Morphology", "Language",
         ])
-        try await expect(details.locator(".word-details-word .datum-value")).toHaveTexts([
-          "scratchword", "Noun", "Number: Plural",
+        try await expect(term.locator(".datum-value")).toHaveTexts([
+          "scratchwords", "scratchword", "Noun", "Number: Plural", "English",
         ])
-        // The record at a glance.
-        try await expect(details.locator(".record-kind-label")).toHaveText("English")
-        try await expect(details.locator(".record-title")).toHaveText(english.title)
-        try await expect(details.locator(".record-type-view").first).toHaveText("Noun")
+        try await expect(term.locator(".datum-value a").nth(0)).toHaveAttribute("href", english.path)
+        try await expect(term.locator(".datum-value a").nth(1)).toHaveAttribute("href", "/lexico-records?type=noun")
+        try await expect(term.locator(".datum-value a").nth(2)).toHaveAttribute("href", "/lexico-records/eng")
+        let rows = try await term.locator(".datum-view").first.evaluate(
+          "(el) => { const p = el.parentElement.getBoundingClientRect(), r = el.getBoundingClientRect(); return Math.abs(p.width - r.width) <= 1 }")
+        #expect(rows.bool == true, "a datum is not full width")
+        // The Lexico-record at a glance.
+        try await expect(details.locator(".metadata-group-title").filter(hasText: "Lexico-record")).toHaveCount(1)
+        try await expect(details.locator(".record-title")).toHaveCount(0)
         try await expect(details.locator("#origin .origin-view")).toHaveText("—")
         try await expect(details.locator(".record-row-title")).toHaveTexts(["A branch sense.", "A leaf sense."])
         let current = details.locator(".record-row-title[data-current='true']")
@@ -107,21 +142,12 @@ struct WordDetailsTests {
         let translation = details.locator(".lexicographic-translations-view a").filter(hasText: german.title)
         try await expect(translation).toBeVisible()
         try await expect(translation).toHaveAttribute("href", "\(german.path)#record-row-s-1-1")
-        let recordLink = details.locator(".word-details-link a")
-        try await expect(recordLink).toHaveText("View English \(english.title) (Noun)")
-        try await expect(recordLink).toHaveAttribute("href", english.path)
-        // As large as the screen inside the backdrop's margin, on a phone and
-        // a desktop alike.
-        let screen = try #require(try await dialog.boundingBox())
-        let shell = try #require(try await dialog.locator(".dialog-shell").boundingBox())
-        #expect(shell.width >= screen.width - 2 * 16 - 1)
-        #expect(shell.height >= screen.height - 2 * 16 - 1)
         try await page.expectNoHorizontalOverflow()
 
         // Closed by a click, the word has the focus again, with no focus
         // ring; the reader under it where it was.
-        try await dialog.locator(".dialog-close-button").first.click()
-        try await expect(dialog).toBeHidden()
+        try await sheet.locator(".gloss-sheet-close").first.click()
+        try await expect(sheet).toHaveAttribute("data-state", "closed")
         try await expect(linked).toBeFocused()
         try await expect(linked).toHaveCSS("outline-style", "none")
 
@@ -134,51 +160,63 @@ struct WordDetailsTests {
         try await expect(stood).toHaveCSS("outline-style", "solid")
         try await expect(stood).toHaveAttribute("tabindex", "0")
         try await page.keyboard.press("Enter")
-        try await expect(dialog).toBeVisible()
-        try await expect(dialog.locator(".dialog-header-title")).toHaveText("stood")
-        try await expect(details.locator(".word-details-word .datum-value")).toHaveTexts([
-          "stand", "Verb", "Tense: Past",
+        try await expect(sheet).toHaveAttribute("data-state", "open")
+        try await expect(heading.locator(".record-label-title")).toHaveText("stood")
+        try await expect(heading.locator(".record-label-meta")).toHaveText("Verb")
+        try await expect(heading.locator("a")).toHaveCount(0)
+        try await expect(details.locator(".metadata-group-view").first.locator(".datum-value")).toHaveTexts([
+          "stood", "stand", "Verb", "Tense: Past", "English",
         ])
         try await expect(details.locator(".record-view")).toHaveCount(0)
-        try await expect(details.locator(".datum-view").filter(hasText: "Lexico-record")).toContainText("—")
+        try await expect(details.locator(".metadata-group-title").filter(hasText: "Lexico-record")).toHaveCount(0)
         // Tab stays inside while it is open.
         for _ in 0..<3 { try await page.keyboard.press("Tab") }
         let inside = try await page.evaluate(
-          "!!document.activeElement.closest('.word-details-dialog')")
+          "!!document.activeElement.closest('.gloss-sheet-content')")
         #expect(inside == .bool(true))
         // Esc closes it; from the keyboard, the word's focus ring shows.
         try await page.keyboard.press("Escape")
-        try await expect(dialog).toBeHidden()
+        try await expect(sheet).toHaveAttribute("data-state", "closed")
         try await expect(stood).toBeFocused()
         try await expect(stood).toHaveCSS("outline-style", "solid")
+        // What is no word but encoded opens its own: the running head's
+        // page number.
+        let folio = reader.locator("[data-gloss-element]").filter(hasText: "12").first
+        try await folio.click()
+        try await expect(sheet).toHaveAttribute("data-state", "open")
+        try await expect(heading.locator(".record-label-title")).toHaveText("Page number")
+        try await expect(heading.locator(".record-label-meta")).toHaveText("12")
+        try await expect(details.locator(".datum-label")).toHaveTexts(["Page number"])
+        try await page.keyboard.press("Escape")
+        try await expect(sheet).toHaveAttribute("data-state", "closed")
         // The scratch work's manifest (example.org) is never reachable.
         try await page.expectNoErrors(ignoring: ["Failed to fetch"])
 
-        // The word's address answers JSON too: its data and the same body.
+        // The gloss's address answers JSON too: its data and the same body.
         let json = try await page.evaluate(
           """
-          fetch('\(scratch.reading.work.path)/testaments/\(scratch.versionID)/words?semblance='
+          fetch('\(scratch.reading.work.path)/testaments/\(scratch.versionID)/glosses?semblance='
             + encodeURIComponent('\(Self.service)') + '&line=1&word=2', { headers: { Accept: 'application/json' } })
             .then(r => r.json())
             .then(j => [j.surface, j.lemma, j.type, j.morphology, j.record.title, j.sentiment.id,
-              j.equivalents[0].form, j.equivalents[0].relation, j.html.includes('word-details-view')].join('|'))
+              j.equivalents[0].form, j.equivalents[0].relation, j.html.includes('gloss-view'), j.data[0].label].join('|'))
           """)
-        #expect(json == .string("scratchwords|scratchword|Noun|Number: Plural|\(english.title)|s-1-1|\(german.title)|broader sense|true"))
+        #expect(json == .string("scratchwords|scratchword|Noun|Number: Plural|\(english.title)|s-1-1|\(german.title)|broader sense|true|As printed"))
 
-        // An utterance's words open the same dialog.
+        // An utterance's words open the same gloss, over the utterance's box.
         try await page.openHydrated(english.path)
         try await page.locator("#record-row-s-1-1 > .accordion-summary").click()
         let utterance = page.locator("#record-row-s-1-1 .utterance-view")
         let word = utterance.locator(".tei-word").filter(hasText: "scratchwords")
         try await expect(word).toHaveCount(1)
         try await word.click()
-        let again = page.locator(".word-details-dialog")
-        try await expect(again).toBeVisible()
-        try await expect(again.locator(".dialog-header-title")).toHaveText("scratchwords")
+        let again = utterance.locator(".gloss-sheet[data-state='open']")
+        try await expect(again).toHaveCount(1)
+        try await expect(again.locator(".gloss-sheet-heading .breadcrumb-label-text")).toHaveText(english.title)
         try await expect(again.locator(".record-row-title[data-current='true']")).toHaveText("A leaf sense.")
         try await page.expectNoHorizontalOverflow()
         try await page.keyboard.press("Escape")
-        try await expect(again).toBeHidden()
+        try await expect(page.locator(".gloss-sheet[data-state='open']")).toHaveCount(0)
         try await page.expectNoErrors(ignoring: ["Failed to fetch"])
       }
     } catch {
