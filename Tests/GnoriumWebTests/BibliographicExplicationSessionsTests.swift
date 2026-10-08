@@ -81,6 +81,19 @@ struct BibliographicExplicationSessionsTests {
         // Its trace: the tool call it saved a page with, and its last word.
         try await expect(page.locator(".session-view").getByText("save_page").first).toBeAttached()
         try await expect(page.locator(".session-view").getByText("Both pages of the chunk saved.")).toBeAttached()
+        // Raw and code read at CodeEditorView's size, 16 on 22 (user,
+        // 2026-10-08): the wire's dump, a tool's arguments and result, and
+        // a page's code alike, shown or not.
+        let offSize = try await page.evaluate(
+          """
+          [...document.querySelectorAll('.session-view :is(.session-output-raw, .session-prompt-body, .tool-field-block, .code-view)')]
+            .map(e => { const s = getComputedStyle(e); return [e.className, s.fontSize, s.lineHeight]; })
+            .filter(([, size, height]) => size !== '16px' || height !== '22px')
+            .map(r => r.join(' ')).join('; ')
+          """, as: String.self)
+        #expect(offSize.isEmpty, "Raw and code at 16px on 22px: \(offSize)")
+        let rawCount = try await page.locator(".session-view .session-output-raw").count()
+        #expect(rawCount > 0)
       }
     } catch {
       remove(runID: runID, antiphonID: antiphonID, work: work)

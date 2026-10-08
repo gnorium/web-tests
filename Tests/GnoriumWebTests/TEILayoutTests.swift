@@ -62,6 +62,11 @@ struct TEILayoutTests {
         #expect(first.x >= blockBox.x)
         #expect(blockBox.x == textBox.x)
         try await expect(block).toHaveCSS("padding-inline-start", "24px")
+        // The page's code at CodeEditorView's size, 16 on 22 (user,
+        // 2026-10-08), so it runs line for line with the editor.
+        let code = page.locator(".tei-page-raw .code-view").first
+        try await expect(code).toHaveCSS("font-size", "16px")
+        try await expect(code).toHaveCSS("line-height", "22px")
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
