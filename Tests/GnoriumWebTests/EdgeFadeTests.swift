@@ -222,6 +222,43 @@ struct EdgeFadeTests {
     }
   }
 
+  /// A faded cell's link reached by Tab shows the cell whole, unfaded, as an
+  /// input shows its value while focused; Tab on folds it again. No state is
+  /// kept: it is the link's `:focus-visible` alone.
+  @Test(arguments: gnorium.engines)
+  func tabbingOntoAFadedCellsLinkShowsItWhole(engine: BrowserEngine) async throws {
+    try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine)) { page in
+      var checked = 0
+      for path in Self.tables {
+        try await page.openHydrated(path)
+        _ = try await Self.settledReport(page, ".table-view")
+        guard try await Self.markFirstOverflowing(page, ".table-view", withLink: true) != nil else { continue }
+        let box = page.locator("[data-test-edge-fade]")
+        let shown = "(e) => { const s = getComputedStyle(e); return { whole: e.scrollWidth <= e.clientWidth, masked: (s.webkitMaskImage || s.maskImage || '').includes('gradient') } }"
+        // Reached by the keyboard: focus the link, Tab past it, and back.
+        _ = try await box.evaluate("(e) => (e.querySelector('a') || e.closest('a')).focus()")
+        try await page.keyboard.press("Tab")
+        try await page.keyboard.press("Shift+Tab")
+        let onLink = try await box.evaluate("(e) => { const a = e.querySelector('a') || e.closest('a'); return document.activeElement === a && a.matches(':focus-visible') }")
+        #expect(onLink.bool == true, "\(path): Shift+Tab did not come back to the cell's link")
+        var state = try await box.evaluate(shown)
+        #expect(state.object?["whole"]?.bool == true, "\(path): a focused link's cell is not shown whole")
+        #expect(state.object?["masked"]?.bool == false, "\(path): a focused link's cell is still faded")
+        try await expect(box).not.toHaveAttribute("data-edge-fade-expanded", "true")
+        // Tab on: folded and faded again (measured afresh a frame after
+        // the focus leaves).
+        try await page.keyboard.press("Tab")
+        try await Task.sleep(for: .milliseconds(300))
+        state = try await box.evaluate(shown)
+        #expect(state.object?["whole"]?.bool == false, "\(path): the cell stays whole after Tab moved on")
+        #expect(state.object?["masked"]?.bool == true, "\(path): the cell is not faded after Tab moved on")
+        #expect(try await page.url().hasSuffix(path), "\(path): tabbing followed a link")
+        checked += 1
+      }
+      #expect(checked > 0, "no table cell with a link overflows at 1400")
+    }
+  }
+
   /// A cell with no link opens on a click or a tap anywhere in it, and folds
   /// on another, at 375 and at 1400.
   @Test(arguments: gnorium.engines, Layout.allCases)
