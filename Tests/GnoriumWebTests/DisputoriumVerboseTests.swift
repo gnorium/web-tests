@@ -11,6 +11,12 @@ struct DisputoriumVerboseTests {
       try await page.openHydrated("/mission-control/overtures/lexicographic/C0FFEE00-0000-4000-8000-000000000130")
       let toggle = page.locator(".lexicographic-overture-view .disputorium-core-content > .apparatus-rule-view .verbose-toggle-button-control")
       try await expect(toggle).toHaveAttribute("aria-pressed", "false")
+      // A small button's label is 16px, like the pager and legend beside it.
+      #expect(try await page.evaluate("""
+        (()=>{const b=document.querySelector('.lexicographic-overture-view .disputorium-core-content > .apparatus-rule-view .verbose-toggle-button-control .button-view');
+          const l=b.querySelector('.toggle-button-label');
+          return b.getAttribute('data-size')+' '+getComputedStyle(l).fontSize;})()
+        """, as: String.self) == "small 16px")
       try await expect(page.locator("#apparatus-metadata")).toHaveAttribute("data-expanded", "true")
       #expect(try await page.evaluate("""
         (()=>{const work=document.querySelector('.lexicographic-overture-view .disputorium-core-work');const rule=work.previousElementSibling;
