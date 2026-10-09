@@ -514,10 +514,13 @@ struct RevisePagesTests {
         // acceptance, then its revert, which nothing can be done about.
         try await expect(page.locator("#revision-\(id)-verdict-2"), timeout: .seconds(15)).toContainText("reverted revision")
         try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("accepted revision")
-        // A lexicographic revert returns the suggestion to pending: its
-        // Accept and Reject stand on the suggestion, on no verdict.
-        try await expect(page.locator("#revision-\(id)-verdict-1 form, #revision-\(id)-verdict-2 form")).toHaveCount(0)
+        // The revert undid the verdict: the revision is pending again, its
+        // Accept and Reject on the suggestion, nothing on either act.
+        try await expect(page.locator(
+          "#revision-\(id)-verdict-1 form[action$='/revert'], #revision-\(id)-verdict-2 form[action$='/revert'], "
+            + "#revision-\(id)-verdict-2 form[action$='/accept']")).toHaveCount(0)
         try await expect(page.locator("#revision-\(id) form[action$='/accept']")).toHaveCount(1)
+        #expect(try TestAdmin.query("SELECT status || ' ' || (evaluated_at IS NULL)::text FROM revisions WHERE id = '\(id)'") == "pending true")
         #expect(!(try content().contains("as a person reads it")), "Reverted, it comes back out")
         #expect(try content().contains("<def>A leaf sense.</def>"), "The TEI's definition with it")
       }
@@ -582,6 +585,88 @@ struct RevisePagesTests {
     remove()
     try await admin.remove()
     try await contributor.remove()
+  }
+
+  /// An accepted revision a later accepted one built on cannot be reverted
+  /// alone: its Revert is disabled, in the thread and on its page, the one
+  /// refusal sentence its tooltip—shown on hover, focus and a plain tap
+  /// (user, 2026-10-10). The later one's Revert stays live.
+  @Test(arguments: [BrowserEngine.chrome])
+  func aRevertALaterChangeBuiltOnIsDisabledWithItsReason(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let work = try ScratchCommit(owner: admin)
+    let madrigalPath = work.madrigalPath
+    let user = try admin.column("id")
+    let a = UUID().uuidString.uppercased()
+    let b = UUID().uuidString.uppercased()
+    let refused = "A later accepted revision changed the same lines, so revert that one first."
+    func remove() {
+      _ = try? TestAdmin.query("DELETE FROM revisions WHERE id IN ('\(a)', '\(b)')")
+      work.remove()
+    }
+    do {
+      let slot = "bibliographic_explication"
+      func sql(_ text: String) -> String { text.replacingOccurrences(of: "'", with: "''") }
+      let system = try TestAdmin.query(
+        "SELECT system_prompt FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)')")
+      let task = try TestAdmin.query(
+        "SELECT task_prompt FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)')")
+      let afterA = system + "\nWeb tests A."
+      let afterB = system + "\nWeb tests A, then B."
+      for (id, previous, proposed, offset) in [(a, system, afterA, 2), (b, afterA, afterB, 1)] {
+        _ = try TestAdmin.query("""
+          INSERT INTO revisions (id, revisable_type, revisable_id, prompt_slot, previous_system_prompt, system_prompt,
+            previous_task_prompt, task_prompt, status, requested_by_user_id, created_at)
+          VALUES ('\(id)', 'bibliographicMadrigal', '\(work.madrigalID)', '\(slot)', '\(sql(previous))', '\(sql(proposed))',
+            '\(sql(task))', '\(sql(task))', 'pending', '\(user)', now() - interval '\(offset) minute')
+          """)
+      }
+      let trigger = "#revision-\(a)-verdict-1 form[action$='/revert'] .tooltip-view"
+      // The bubble, portaled to the body's end once hydrated, shown.
+      let bubble = ".tooltip-view[data-visible='true'] .tooltip-content"
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
+        try await page.openHydrated(madrigalPath)
+        for id in [a, b] {
+          try await page.locator("#revision-\(id) form[action$='/accept'] button").click()
+          try await expect(page, timeout: .seconds(15)).toHaveURL("the madrigal at its locution", where: Self.atLocution(madrigalPath))
+          try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("accepted revision")
+        }
+        try await expect(page.locator("#revision-\(a)-verdict-1 form[action$='/revert'] button")).toBeDisabled()
+        try await expect(page.locator("#revision-\(b)-verdict-1 form[action$='/revert'] button")).toBeEnabled()
+        try await expect(page.locator(trigger)).toHaveAttribute("data-disabled-trigger", "true")
+        // Hover shows the reason; focus does too.
+        try await page.locator(trigger).hover()
+        try await expect(page.locator(bubble).filter(hasText: refused)).toBeVisible()
+        // Its own page: the header's Revert disabled, the reason its tooltip.
+        try await page.openHydrated("\(madrigalPath)/revisions/\(a)")
+        try await expect(page.locator("button[form='revision-revert']")).toBeDisabled()
+        let header = ".mission-control-object-header-view .tooltip-view[data-disabled-trigger='true']"
+        try await expect(page.locator(header)).toHaveCount(1)
+        try await page.locator(header).focus()
+        try await expect(page.locator(bubble).filter(hasText: refused)).toBeVisible()
+        try await page.openHydrated("\(madrigalPath)/revisions/\(b)")
+        try await expect(page.locator("button[form='revision-revert']")).toBeEnabled()
+        try await page.expectNoErrors()
+      }
+      // At 375 on touch: a plain tap opens the reason and pins it; the next
+      // tap closes it (user, 2026-10-10).
+      try await withPage(engine, gnorium, viewport: Layout.phone.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated(madrigalPath)
+        try await expect(page.locator(trigger)).toHaveAttribute("data-disabled-trigger", "true")
+        try await page.locator(trigger).tap()
+        try await expect(page.locator(bubble).filter(hasText: refused)).toBeVisible()
+        try await page.locator(trigger).tap()
+        try await expect(page.locator(bubble).filter(hasText: refused)).toHaveCount(0)
+        try await page.expectNoErrors()
+      }
+    } catch {
+      remove()
+      try await admin.remove(after: error)
+    }
+    remove()
+    try await admin.remove()
   }
 
   /// Every item of a revision's "Changed" line (on the page open now) links
