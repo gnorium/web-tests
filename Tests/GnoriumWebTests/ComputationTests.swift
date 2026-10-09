@@ -328,11 +328,11 @@ struct ComputationTests {
     }
     do {
       _ = try TestAdmin.query("""
-        INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition,
+        INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, tei,
           target, status, submitted_by_user_id, summary, definition_translation_json)
           VALUES ('\(epilogue)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', 's-1-1',
-            'A leaf sense.', 'definition', 'proposed', '\(user)', 'Web tests computation prompts.',
-            '{"language_code":"fra","definition":"Un sens feuille."}');
+            '<sense><def>A leaf sense.</def></sense>', 'definition', 'proposed', '\(user)', 'Web tests computation prompts.',
+            '{"languageCode":"fra","tei":"<def xml:lang=\\"fr\\">Un sens feuille.</def>","confidence":"clear","reason":"Web tests."}');
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         let cases = [

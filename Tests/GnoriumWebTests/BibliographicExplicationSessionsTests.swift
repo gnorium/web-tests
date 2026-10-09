@@ -134,6 +134,22 @@ struct BibliographicExplicationSessionsTests {
         let legend = page.locator(".computorium-session-compaction-prompt-fieldset .computorium-session-prompt-legend-vignette a")
         try await expect(legend).toHaveCount(1)
         try await expect(legend).toHaveAttribute("href", "/mission-control/prompts/bibliographic/explication_autocompaction")
+        // The autocompaction card is white; the prompt the summarizer was
+        // given and the summary the main model is given from then on are
+        // gray cards on it, each under its legend (user, 2026-10-10).
+        try await expect(page.locator(".computorium-session-compaction-summary-fieldset legend")).toHaveText("Autocompaction Summary")
+        #expect(try await page.evaluate("""
+          (() => {
+            const probe = document.createElement('span'); document.body.append(probe)
+            const token = (name) => { probe.style.backgroundColor = 'var(--background-color-' + name + ')'; return getComputedStyle(probe).backgroundColor }
+            const [white, seen] = [token('base'), token('neutral-subtle')]; probe.remove()
+            const bg = (el) => getComputedStyle(el).backgroundColor
+            const card = document.querySelector('.computorium-session-compaction-rendered')
+            const prompt = document.querySelector('.computorium-session-compaction-prompt-fieldset')
+            const summary = document.querySelector('.computorium-session-compaction-summary-fieldset')
+            return [bg(card) === white, bg(prompt) === seen, bg(summary) === seen, bg(summary.querySelector('legend')) === seen].join(' ')
+          })()
+          """, as: String.self) == "true true true true", "Compaction card white, its prompt and summary gray")
         let rawCount = try await page.locator(".computorium-session-view .computorium-session-output-raw").count()
         #expect(rawCount > 0)
       }

@@ -6,9 +6,11 @@ import WebTestsTesting
 /// A tool card is fully transparent (user, 2026-10-07): every key of what
 /// the model sent and received is a datum under its raw name, JSON parsed
 /// into nested datums—never printed—in the JSON's own key order, and a
-/// live card reads exactly as the recorded one. What the model sent is on
-/// white; what it sees—a result, a stub, the tools it is offered—is on
-/// gray (user, 2026-10-09). Markup it sent or read is code. Bookkeeping
+/// live card reads exactly as the recorded one. White is what the model
+/// produces, gray what it is given (user, 2026-10-10): every card is a
+/// plain white container, an argument datum is white, and a result, a
+/// stub, the tools it is offered are gray boxes of gray datums—never a
+/// depth's alternating tint. Markup it sent or read is code. Bookkeeping
 /// blocks (usage, any unknown type) show nowhere, Raw included.
 @Suite("Tool card fields", .serialized)
 struct ToolCardFieldsTests {
@@ -48,6 +50,18 @@ struct ToolCardFieldsTests {
     let count: Int
     let bare: Bool
     let flush: Bool
+  }
+
+  struct Grounds: Decodable {
+    let thinking: Bool
+    let argument: Bool
+    let box: Bool
+    let result: Bool
+    let cardCount: Int
+    let boxCount: Int
+    let cardsOff: String
+    let boxesOff: String
+    let surfaces: Int
   }
 
   /// The labels under `selector`, in document order.
@@ -189,6 +203,38 @@ struct ToolCardFieldsTests {
           })()
           """, as: Bool.self)
         #expect(gray, "A stub sits on the same gray box a result does")
+        // White sends, gray sees: the thinking card, every card, and an
+        // argument datum on the page's base ground; the result box gray
+        // and its datums the read-only field's gray; no card alternates
+        // by depth (user, 2026-10-10).
+        let grounds = try await page.evaluate("""
+          (() => {
+            const probe = document.createElement('span'); document.body.append(probe)
+            const token = (name) => { probe.style.backgroundColor = 'var(--background-color-' + name + ')'; return getComputedStyle(probe).backgroundColor }
+            const [white, seen, field] = [token('base'), token('neutral-subtle'), token('disabled')]; probe.remove()
+            const bg = (el) => getComputedStyle(el).backgroundColor
+            const cards = [...document.querySelectorAll('.computorium-session-output-thinking-rendered, .computorium-session-tool-call-rendered, .computorium-session-tools-rendered, .computorium-session-compaction-rendered')]
+            const thinking = document.querySelector('.computorium-session-output-thinking-rendered')
+            const argument = document.querySelector('#computorium-session-tool-ws .computorium-session-tool-call-args .datum-view > .datum-value')
+            const resultBox = document.querySelector('#computorium-session-tool-ws .computorium-session-tool-call-result-box')
+            const result = resultBox.querySelector('.datum-view > .datum-value')
+            const boxes = [...document.querySelectorAll('.tool-result-box-view')]
+            return {
+              thinking: bg(thinking) === white, argument: bg(argument) === white,
+              box: bg(resultBox) === seen, result: bg(result) === field && field !== white,
+              cardCount: cards.length, boxCount: boxes.length,
+              cardsOff: cards.filter(c => bg(c) !== white).map(c => c.className + '=' + bg(c)).join(','),
+              boxesOff: boxes.filter(b => bg(b) !== seen).map(b => b.className + '=' + bg(b)).join(','),
+              surfaces: document.querySelectorAll('.computorium-session-view .surface').length,
+            }
+          })()
+          """, as: Grounds.self)
+        #expect(grounds.thinking, "The thinking card is white: \(grounds)")
+        #expect(grounds.argument, "An argument datum is white: \(grounds)")
+        #expect(grounds.box && grounds.result, "A result box and its datums are gray: \(grounds)")
+        #expect(grounds.cardCount >= 11 && grounds.cardsOff.isEmpty, "No card alternates: every card white: \(grounds)")
+        #expect(grounds.boxCount >= 5 && grounds.boxesOff.isEmpty, "Every seen box gray: \(grounds)")
+        #expect(grounds.surfaces == 0, "The transcript takes no depth tint: \(grounds)")
         // A card header's dot is its own vocabulary (never the roster's
         // marks): green for a call that came back, red for one that
         // failed, orange for a compaction (user, 2026-10-10).
@@ -330,6 +376,19 @@ struct ToolCardFieldsTests {
         #expect(liveOrder == order, "The live transcript keeps the recorded order: \(liveOrder)")
         try await expect(page.locator(".computorium-session-tools .tool-result-box-view").first).toBeAttached()
         try await expect(page.locator("#computorium-session-tool-live_wt .tool-field-markup .code-code.language-xml")).toBeAttached()
+        // Live cards take the same grounds as recorded ones.
+        #expect(try await page.evaluate("""
+          (() => {
+            const probe = document.createElement('span'); document.body.append(probe)
+            const token = (name) => { probe.style.backgroundColor = 'var(--background-color-' + name + ')'; return getComputedStyle(probe).backgroundColor }
+            const [white, seen] = [token('base'), token('neutral-subtle')]; probe.remove()
+            const bg = (el) => getComputedStyle(el).backgroundColor
+            const cards = [...document.querySelectorAll('.computorium-session-output-thinking-rendered, .computorium-session-tool-call-rendered, .computorium-session-tools-rendered, .computorium-session-compaction-rendered')]
+            const argument = document.querySelector('#computorium-session-tool-live_ws .computorium-session-tool-call-args .datum-view > .datum-value')
+            const box = document.querySelector('#computorium-session-tool-live_ws .computorium-session-tool-call-result-box')
+            return [cards.length >= 11, cards.every(c => bg(c) === white), bg(argument) === white, bg(box) === seen].join(' ')
+          })()
+          """, as: String.self) == "true true true true", "Live cards (11+) white, live argument white, live result box gray")
         try await expect(page.locator(".computorium-session-output-content")).not.toContainText("input_tokens")
         try await expect(page.locator(".computorium-session-output-content")).not.toContainText("bookkeeping")
         try await page.expectNoErrors()
