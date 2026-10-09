@@ -192,8 +192,9 @@ struct TableResizeTests {
         #expect(after > before + 60, "\(selector) drag must change its column width: \(before) -> \(after)")
         try await handle.dblclick()
       }
-      // Each process links its prompt page and its vignettes.
-      try await expect(page.locator("main a[href*='/mission-control/prompts/']")).toHaveCount(4)
+      // Each process links its prompt page and its vignettes: explication,
+      // translation and computation, on both sides.
+      try await expect(page.locator("main a[href*='/mission-control/prompts/']")).toHaveCount(6)
       try await page.expectNoErrors()
       try await page.expectNoHorizontalOverflow()
     }

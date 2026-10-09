@@ -53,10 +53,13 @@ struct WatchtowerTests {
       for (pipeline, numbers) in [
         ("Explication", ["1"]), ("Translation", ["2"]),
       ] {
-        let card = page.locator(".watchtower-pipeline-view").filter(hasText: pipeline).first
+        let card = page.locator(".watchtower-pipeline-view[data-pipeline='\(pipeline)']").first
         try await expect(card.locator(".watchtower-stage-number")).toHaveTexts(numbers)
       }
-      try await expect(page.locator(".watchtower-pipeline-name")).toHaveTexts(["Explication", "Translation"])
+      // No heading over a stage's block: the block names its stage.
+      try await expect(page.locator(".watchtower-pipeline-name")).toHaveCount(0)
+      try await expect(page.locator(".watchtower-stage-name")).toHaveTexts(
+        ["COMPUTATION", "EXPLICATION", "COMPUTATION", "TRANSLATION", "COMPUTATION"])
     }
   }
 

@@ -87,7 +87,8 @@ struct RevisePagesTests {
         try await expect(code.locator(".diff-row[data-diff-line='removed']")).toHaveCount(1)
         try await expect(code.locator(".diff-row[data-diff-line='inserted']")).toHaveCount(1)
         try await expect(code.locator(".diff-row[data-diff-line='unchanged']")).toHaveCount(2)
-        let prompts = page.locator(".prompt-revision-fields-view")
+        // Its own process's block: the Computation pair stands first.
+        let prompts = page.locator(".prompt-revision-fields-view .prompt-revision-fields-process[data-process='\(slot)']")
         // Each prompt in its accordion, closed as on the object's page.
         try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
         // Appended where it is typed: the prompt runs past 60KB, which
@@ -229,7 +230,8 @@ struct RevisePagesTests {
         try await expect(page.locator(".apparatus-rule-view .verbose-toggle-button-view, .apparatus-rule-view button").first)
           .toBeVisible()
 
-        let prompts = page.locator(".prompt-revision-fields-view")
+        // Its own process's block: the Computation pair stands first.
+        let prompts = page.locator(".prompt-revision-fields-view .prompt-revision-fields-process[data-process='\(slot)']")
         try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
         let result = try await page.evaluate(
           """
@@ -370,6 +372,7 @@ struct RevisePagesTests {
           .toHaveText("Sentiment 1.1 Register")
         try await Self.expectChangedLinksLand(page, revision: id, on: revisionPath)
         try await page.openHydrated(madrigalPath)
+        try await page.expectNoErrors()
         try await event.locator("form[action$='/accept'] button").click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the madrigal at its locution", where: Self.atLocution(madrigalPath))

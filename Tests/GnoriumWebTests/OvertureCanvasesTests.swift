@@ -63,11 +63,11 @@ struct OvertureCanvasesTests {
         try await expect(roster.locator(".roster-status[data-status]")).toHaveCount(0)
 
         // The preview is the page on screen's, never a notice.
-        let task = page.locator(".prompt-instance-task .prompt-text-source").first
+        let task = page.locator("[data-process='Explication'] .prompt-instance-task .prompt-text-source").first
         try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".prompt-instances-notice")).toHaveCount(0)
-        try await expect(page.locator(".prompt-instances-content .accordion-view")).toHaveCount(2)
+        try await expect(page.locator(".prompt-instances-content .accordion-view")).toHaveCount(4)
         try await expect(task).toContainText("Title page")
 
         // The pager moves the roster and the address.
@@ -280,7 +280,7 @@ struct OvertureCanvasesTests {
           .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".prompt-instance-system a[href$='/revisions/\(id)#prompt-change-system']"))
           .toHaveCount(1)
-        try await expect(page.locator(".prompt-instance-task a[href$='/revisions/\(id)#prompt-change-task']").first)
+        try await expect(page.locator("[data-process='Explication'] .prompt-instance-task a[href$='/revisions/\(id)#prompt-change-task']").first)
           .toBeAttached()
 
         // The task prompt's link: its accordion opened and in view, the

@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// Every object figure on the Watchtower opens a list exactly as long as the
-/// figure, on both rows (testaments and sentiments), and the list it opens is
+/// figure, on both rows (bibliographic and lexicographic), and the list it opens is
 /// filtered as the link asks from the first render: its filter bar names the
 /// linked object and status, never a placeholder, and its rows are the ones
 /// the filter keeps.
@@ -91,20 +91,87 @@ struct WatchtowerFigureLinksTests {
     return (figure, last)
   }
 
+  /// Computation's badge, outside the numbered sequence, wears the
+  /// therefore sign as an icon centered in its disc (a text glyph's ink
+  /// sits on the baseline, below the center): the icon's box and the
+  /// badge's share a center, within a pixel, at both layouts.
+  @Test(arguments: enginesAndLayouts)
+  func theComputationBadgeCentersItsIcon(engine: BrowserEngine, layout: Layout) async throws {
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      try await page.openHydrated("/")
+      let badges = page.locator(".watchtower-stage-number:has(.therefore-icon-view)")
+      try await expect(badges).toHaveCount(3)
+      let offsets = try await page.evaluate(
+        """
+        [...document.querySelectorAll('.watchtower-stage-number')]
+          .filter(b => b.querySelector('.therefore-icon-view'))
+          .map(b => {
+            const badge = b.getBoundingClientRect()
+            const icon = b.querySelector('.therefore-icon-view').getBoundingClientRect()
+            return [Math.abs((badge.left + badge.width / 2) - (icon.left + icon.width / 2)),
+                    Math.abs((badge.top + badge.height / 2) - (icon.top + icon.height / 2))]
+          })
+        """, as: [[Double]].self)
+      for offset in offsets {
+        #expect(offset[0] <= 1 && offset[1] <= 1, "the icon's center is off the badge's by \(offset)")
+      }
+    }
+  }
+
+  /// On every stage card—the Disputorium's, the Computorium's and the
+  /// nested Locution card's—the bibliographic and the lexicographic figure
+  /// groups stand side by side as two equal halves at every width (user,
+  /// 2026-10-09): each group's heading shares a row with the other's, and
+  /// the second column starts at the midpoint, half the gap past it.
+  @Test(arguments: enginesAndLayouts)
+  func theTwoSidesStandSideBySide(engine: BrowserEngine, layout: Layout) async throws {
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      try await page.openHydrated("/")
+      // Five chain objects, the entry, two palinodes and three nested cards.
+      let views = page.locator(".watchtower-object-figures-view")
+      try await expect(views).toHaveCount(11)
+      let rows = try await page.evaluate(
+        """
+        [...document.querySelectorAll('.watchtower-object-figures-view')].map(view => {
+          const box = view.getBoundingClientRect()
+          const gap = parseFloat(getComputedStyle(view).columnGap) || 0
+          const tabs = [...view.querySelectorAll('.watchtower-object-figures-tab')]
+            .map(tab => tab.getBoundingClientRect())
+          return [tabs.length, Math.round(tabs[0].top), Math.round(tabs[1].top),
+            Math.round(tabs[1].left - (box.left + box.width / 2 + gap / 2))]
+        })
+        """, as: [[Int]].self)
+      for row in rows {
+        #expect(row[0] == 2 && row[1] == row[2], "the two sides share a row: \(row)")
+        #expect(abs(row[3]) <= 1, "the second column starts at the midpoint, half the gap past it: \(row)")
+      }
+    }
+  }
+
   @Test(arguments: gnorium.engines)
   func everyFigureIsTheLengthOfItsList(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium) { page in
       try await page.openHydrated("/")
       let figures = try await Self.figures(page)
       try #require(figures.count >= 38, "the Watchtower shows \(figures.count) figure links")
-      try #require(figures.filter { $0.href.hasPrefix("/mission-control/runs/") }.count == 6, "every stage has three run links")
+      // Every stage has three run links: explication's and translation's,
+      // and computation's on each of the three Disputorium objects' nested
+      // cards, whose locution figures add three on each of their two rows.
+      // 6 + 9 + 18 = 33.
+      let runLinks = figures.filter { $0.href.hasPrefix("/mission-control/runs/") }.count
+      try #require(runLinks == 33, "the stages' and the nested Computation cards' run links: \(runLinks)")
       for figure in figures {
         let count = try #require(Int(figure.text.prefix { $0.isNumber }))
         // Explication's figures count both kinds' runs: the list they open
         // and the same list on the other kind's tab.
         let (shown, listed) = try await Self.agreeing(page, figure.href, figure: count) {
           let listed = try await Self.listed(page, figure.href)
-          guard listed >= 0, figure.href.contains("stage=explication") else { return listed }
+          // Explication's and computation's stage figures count both
+          // kinds' runs; a locution figure, filtered to its object, one.
+          guard listed >= 0,
+            figure.href.contains("stage=explication")
+              || (figure.href.contains("stage=computation") && !figure.href.contains("object="))
+          else { return listed }
           let other = try await Self.listed(
             page,
             figure.href.replacingOccurrences(of: "/lifecycles/bibliographic", with: "/lifecycles/lexicographic")

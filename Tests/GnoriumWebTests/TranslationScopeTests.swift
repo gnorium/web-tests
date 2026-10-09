@@ -76,8 +76,8 @@ struct TranslationScopeTests {
         try await page.locator("#artifact-page-input").press("Enter")
         try await expect(page.locator("#artifact-page-input")).toHaveValue("2")
         try await expect(page.locator(".prompt-instances-slot")).toHaveAttribute("aria-busy", "false")
-        try await expect(page.locator(".prompt-instance-task")).toHaveCount(1)
-        let task = try await page.locator(".prompt-instance-task .prompt-text-source").first.textContent()
+        try await expect(page.locator("[data-process='Translation'] .prompt-instance-task")).toHaveCount(1)
+        let task = try await page.locator("[data-process='Translation'] .prompt-instance-task .prompt-text-source").first.textContent()
         #expect(task.contains("Translate these pages from Italian into English: 1–2."))
         // Commit translates the stale pages while none is ticked, and the
         // pages ticked once some are.
@@ -89,13 +89,20 @@ struct TranslationScopeTests {
         var payload = try await submitted()
         #expect(payload.contains("\"pipeline\":\"bibliographic_translation\""))
         #expect(payload.contains("\"scope\":\"stale\""))
+        // Page 2's translation is fresh: locked against a commit, its
+        // checkbox gone (user, 2026-10-09); page 1's is stale, and ticks.
+        // (The navbar clones the sidebar into its menu: the first roster.)
+        let rows = page.locator("#epilogue-canvases").first.locator(".roster-row")
+        try await expect(rows.nth(0)).toHaveAttribute("data-locked", "false")
+        try await expect(rows.nth(1)).toHaveAttribute("data-locked", "true")
+        try await expect(rows.nth(1).locator(".checkbox-icon-wrapper")).toBeHidden()
         _ = try await page.evaluate("""
-          document.querySelectorAll(".mission-control-sidebar-view input[name='canvas[]']")[1].checked = true; true
+          document.querySelectorAll(".mission-control-sidebar-view input[name='canvas[]']")[0].checked = true; true
           """, as: Bool.self)
         try await commit.click()
         payload = try await submitted()
         #expect(payload.contains("\"scope\":\"ticked\""))
-        #expect(payload.contains("\"services\":[\"\(fixture.baseURL)/page-2\"]"))
+        #expect(payload.contains("\"services\":[\"\(service)\"]"))
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }
