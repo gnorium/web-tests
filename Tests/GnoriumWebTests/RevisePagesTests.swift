@@ -137,6 +137,22 @@ struct RevisePagesTests {
         try await expect(
           page.locator(".testament-diff[data-edited='true'] .diff-view[data-diff-mode='code']").first
         ).toBeAttached()
+        // The changed page's frame alone wears the ring; the diff under it
+        // stands unboxed, as a changed field's Diff line does.
+        let unringed = try await page.evaluate(
+          """
+          (() => {
+            const slot = document.querySelector(".testament-diff[data-edited='true']")
+            if (!slot) return 'no diff'
+            const boxed = [slot, ...slot.querySelectorAll('.semblance-diff-view')].filter((el) => {
+              const style = getComputedStyle(el)
+              return style.borderTopStyle !== 'none' || style.outlineStyle !== 'none'
+            })
+            const viewer = document.querySelector('.artifact-view')
+            return boxed.length === 0 && viewer.dataset.diffState === 'changed' ? 'ok' : `boxed ${boxed.length}`
+          })()
+          """, as: String.self)
+        #expect(unringed == "ok", "The diff under the changed page is not unboxed: \(unringed)")
         // The prompts as an object's read, the one changed open on its diff.
         try await expect(page.locator(".prompt-change-view .diff-view").first).toBeVisible()
         try await expect(page.getByText("Web tests suggestion.").first).toBeAttached()
