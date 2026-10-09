@@ -62,6 +62,7 @@ struct TranslationSessionsTests {
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/serenades/bibliographic/\(serenade)")
+        try await ComputoriumMarks.check(page, process: "translation")
         let pipeline = page.locator(".pipeline-container")
         try await expect(pipeline).toHaveAttribute("data-active-stage", "translation")
         try await expect(page.locator(".stages-view")).toHaveCount(0)

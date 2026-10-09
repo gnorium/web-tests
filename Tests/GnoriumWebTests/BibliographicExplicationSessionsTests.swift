@@ -52,6 +52,7 @@ struct BibliographicExplicationSessionsTests {
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)")
+        try await ComputoriumMarks.check(page, process: "explication")
         // No stage cards: the stage is the pipeline's name.
         try await expect(page.locator(".stages-view")).toHaveCount(0)
         try await expect(page.getByText("Stages", exact: true)).toHaveCount(0)

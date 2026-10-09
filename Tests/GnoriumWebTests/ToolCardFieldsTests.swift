@@ -9,6 +9,9 @@ import WebTestsTesting
 /// recorded one.
 @Suite("Tool card fields", .serialized)
 struct ToolCardFieldsTests {
+  static let toolDefinitions =
+    #"[{"type":"function","function":{"name":"read_conventions","description":"The exact recorded conventions tool.","parameters":{"type":"object","properties":{"section":{"type":"string","description":"Section as requested."}},"additionalProperties":false},"strict":true}},{"type":"function","function":{"name":"web_search","description":"Search the recorded web sources.","parameters":{"type":"object","properties":{"query":{"type":"string"}}}}},{"type":"function","function":{"name":"save_page","description":"Save this page with its original schema.","parameters":{"type":"object","properties":{"page":{"type":"integer"}}}}}]"#
+
   static let conventions =
     #"{"ok": true, "tool": "read_conventions", "version": "3", "content": "Rule one.\nRule two."}"#
   static let search =
@@ -36,6 +39,8 @@ struct ToolCardFieldsTests {
 
   static func blocks(prefix: String) -> [[String: String]] {
     [
+      ["type": "tools", "content": toolDefinitions],
+      ["type": "thinking", "content": String(repeating: "Thinking through the recorded page.\n\n", count: 80)],
       ["type": "tool", "name": "read_conventions", "arguments": "{}", "result": conventions, "status": "ok", "call_id": "\(prefix)rc"],
       ["type": "tool", "name": "web_search", "arguments": #"{"query": "sea"}"#, "result": search, "status": "ok", "call_id": "\(prefix)ws"],
       ["type": "tool", "name": "save_page", "arguments": #"{"page": 1}"#, "result": saved, "status": "ok", "call_id": "\(prefix)sp"],
@@ -82,6 +87,13 @@ struct ToolCardFieldsTests {
       var recorded: [String] = []
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(antiphon)
+        #expect(try await page.evaluate("""
+          (() => {
+            const body = document.querySelector('.session-output-thinking-body');
+            return getComputedStyle(body).maxHeight === '256px' && getComputedStyle(body).overflowY === 'auto'
+              && body.clientHeight <= 256 && body.scrollHeight > body.clientHeight;
+          })()
+          """, as: Bool.self), "Thinking remains an inner 256px scrollport")
         // read_conventions: its content—the conventions—under `content`,
         // and every envelope key beside it.
         let conventions = page.locator("#session-tool-rc")
@@ -90,6 +102,14 @@ struct ToolCardFieldsTests {
         for line in ["0|content=Rule one.\nRule two.", "0|ok=true", "0|tool=read_conventions", "0|version=3"] {
           #expect(signature.contains(line), "read_conventions shows \(line): \(signature)")
         }
+        for line in [
+          "0|definition={}", "1|name=read_conventions", "1|description=The exact recorded conventions tool.",
+          "1|parameters={}", "2|properties={}", "3|section={}", "4|description=Section as requested.",
+          "2|additionalProperties=false", "1|strict=true",
+        ] {
+          #expect(signature.contains(line), "The recorded definition shows \(line): \(signature)")
+        }
+        try await expect(conventions.locator(".session-tool-call-definition > .datum-view")).toHaveCount(1)
         // Its stub, key by key, under the call and on the compaction card.
         #expect(signature.contains("0|note=Stubbed; call again."), "the stub's keys hang under the call: \(signature)")
         #expect(signature.contains("0|compacted=true"))
@@ -123,8 +143,15 @@ struct ToolCardFieldsTests {
 
         // Live: the same calls streamed in render the same datums.
         let original = try await page.evaluate("fetch('\(antiphon)').then(r=>r.text())", as: String.self)
-        let chunks = Self.blocks(prefix: "live_").map { block -> String in
+        // Watch frames carry the definition on each call, as StageTraceFrames does.
+        let schemas = try JSONSerialization.jsonObject(with: Data(Self.toolDefinitions.utf8)) as! [[String: Any]]
+        let definitions = Dictionary(uniqueKeysWithValues: try schemas.map { schema -> (String, String) in
+          let function = schema["function"] as! [String: Any]
+          return (function["name"] as! String, String(decoding: try JSONSerialization.data(withJSONObject: function), as: UTF8.self))
+        })
+        let chunks = Self.blocks(prefix: "live_").filter { $0["type"] != "tools" }.map { block -> String in
           var block: [String: Any] = block
+          if let name = block["name"] as? String { block["definition"] = definitions[name] }
           block["canvas"] = "1"
           return String(decoding: try! JSONSerialization.data(withJSONObject: block), as: UTF8.self)
         }
