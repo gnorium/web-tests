@@ -111,6 +111,32 @@ struct EvaluationsTests {
       try await expect(page.getByText("Machine-assisted: pending human review.").first).toBeAttached()
       try await expect(page.locator("#items").getByText("Page one")).toBeAttached()
       #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
+
+      // The runs tables filter by the Mission Control rule (user,
+      // 2026-10-09): Run, Model (a combobox), Prompt, then Created by (the
+      // machine's), Created on and Created at, the table ending with them.
+      let runs = page.locator("#runs")
+      let options = runs.locator(".filter-bar-view .filter-bar-row").first
+        .locator(".filter-bar-field-picker .dropdown-option")
+      try await expect(options).toHaveTexts(["Run", "Model", "Prompt", "Created by", "Created on", "Created at"])
+      try await expect(runs.locator("[data-table-column-id='createdBy']").first).toBeAttached()
+      try await runs.locator(".filter-bar-add-btn").first.click()
+      let row = runs.locator(".filter-bar-row").last
+      try await row.locator(".filter-bar-field-picker .dropdown-trigger").click()
+      try await row.locator(".filter-bar-field-picker .dropdown-option[data-value='model']").click()
+      try await row.locator("input[data-combobox-input='true']").type("FLASH")
+      let suggestion = row.locator(".combobox-option[data-value='deepseek-flash']")
+      try await expect(suggestion).toBeVisible()
+      try await suggestion.click()
+      try await runs.locator(".filter-bar-apply").click()
+      try await expect(page).toHaveURL("model=deepseek-flash") { url in
+        url.query?.contains("model=deepseek-flash") == true
+      }
+      try await expect(page.locator("#runs a[href='/mission-control/evaluations/runs/\(runID)']")).toBeAttached()
+      // A model no run has: none matches.
+      try await page.openHydrated("/mission-control/evaluations/datasets/\(datasetID)?model=none")
+      try await expect(page.locator("#runs").getByText("No run matches these filters.")).toBeAttached()
+      #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
     }
   }
 }
