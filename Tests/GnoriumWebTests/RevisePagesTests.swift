@@ -296,6 +296,14 @@ struct RevisePagesTests {
         try await leaf.fill("A leaf sense, as a person reads it.")
         // Its diff is drawn as it is made, as a bibliographic field's is.
         try await expect(page.locator("[data-diff-annotation][data-visible='true']").first).toBeAttached()
+        // And one of its metadata fields: a label, a row of its Labels.
+        let labels = page.locator("[data-item-list='sentiment-1-labels']")
+        let rows = labels.locator("[data-item-section='true']:not([data-item-template] *)")
+        // With none, its list holds one empty row to fill.
+        try await expect(rows).toHaveCount(1)
+        try await rows.first.locator(".dropdown-trigger").click()
+        try await rows.first.locator(".dropdown-option[data-value='register']").click()
+        try await rows.first.locator(".text-input-input").fill("poetic")
         try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the madrigal at its locution", where: Self.atLocution(madrigalPath))
@@ -318,7 +326,13 @@ struct RevisePagesTests {
         // linked, and its verdicts.
         try await page.openHydrated(madrigalPath)
         let event = page.locator("#revision-\(id)")
-        try await expect(event.locator(".locution-thread-event-changed")).toContainText("Sentiment 1.1 definition")
+        // Its description and its one metadata field, each its own item by
+        // its form's label, each linked to its place on the page.
+        let changed = event.locator(".locution-thread-event-changed")
+        try await expect(changed).toHaveText("Changed Sentiment 1.1 Description and Sentiment 1.1 Labels")
+        try await expect(changed.locator("a")).toHaveCount(2)
+        try await expect(changed.locator("a[href='#record-row-s-1-1']")).toHaveText("Sentiment 1.1 Description")
+        try await expect(changed.locator("a[href='#record-metadata-s-1-1']")).toHaveText("Sentiment 1.1 Labels")
         try await event.locator("form[action$='/accept'] button").click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the madrigal at its locution", where: Self.atLocution(madrigalPath))
@@ -346,7 +360,10 @@ struct RevisePagesTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(epiloguePath)
         let event = page.locator("#revision-\(epilogueRevision)")
-        try await expect(event.locator(".locution-thread-event-changed")).toContainText("Definition")
+        try await expect(event.locator(".locution-thread-event-changed"))
+          .toHaveText("Changed Sentiment 1.1 Description")
+        try await expect(event.locator(".locution-thread-event-changed a[href='#epilogue-description']"))
+          .toHaveCount(1)
         try await event.locator("form[action$='/accept'] button").click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the epilogue at its locution", where: Self.atLocution(epiloguePath))
