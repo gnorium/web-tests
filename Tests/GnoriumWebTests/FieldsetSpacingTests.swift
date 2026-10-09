@@ -9,7 +9,10 @@ import WebTestsTesting
 /// rows, and a fieldset field's legend (FieldView isFieldset). A fieldset's
 /// rendered legend sits outside its flex layout, so the gap never reached
 /// it; the legend is floated, an ordinary flex item, and stays the
-/// fieldset's name. Nothing is submitted. A throwaway admin, removed after.
+/// fieldset's name. Nothing is submitted. A throwaway admin, removed after,
+/// and a scratch word whose madrigal's Revise page holds a text area with
+/// its own label (a sentiment's Description): Submit Sentiment has none
+/// since its description is the machine's (user, 2026-10-09).
 @Suite("Fieldset spacing", .serialized)
 struct FieldsetSpacingTests {
   static let forms = [
@@ -23,10 +26,13 @@ struct FieldsetSpacingTests {
   func everyLabelSitsEightPixelsFromItsControl(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let word = try ScratchWord(owner: admin, submitted: true)
+    // A labeled text area: a sentiment's Description on its madrigal's Revise page.
+    let forms = Self.forms + ["/mission-control/madrigals/lexicographic/\(word.madrigalID)/revise"]
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         var seen: Set<String> = []
-        for form in Self.forms {
+        for form in forms {
           try await page.openHydrated(form)
           // Label bottom → control top of every shown field, rounded to
           // the pixel, by kind.
@@ -84,8 +90,10 @@ struct FieldsetSpacingTests {
         }
       }
     } catch {
+      word.remove()
       try await admin.remove(after: error)
     }
+    word.remove()
     try await admin.remove()
   }
 }
