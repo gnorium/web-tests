@@ -266,6 +266,9 @@ struct EntriesAndCitationsTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let scratch = try ScratchTestament(owner: admin, tei: Self.tei)
+    let name = "early-reader-\(UUID().uuidString).html"
+    let file = URL(fileURLWithPath: "/Users/Madhavik/Downloads/Gnorium/gnorium-web/Public").appendingPathComponent(name)
+    defer { try? FileManager.default.removeItem(at: file) }
     func cleanUp() async throws {
       scratch.remove()
       try await admin.remove()
@@ -273,11 +276,29 @@ struct EntriesAndCitationsTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(scratch.reading.work.path)
-        _ = try await page.evaluate(
-          """
-          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-row')
-            .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
-          """)
+        var original = try await page.evaluate("fetch('\(scratch.reading.work.path)').then(r => r.text())", as: String.self)
+        let loader = try #require(original.range(of: #"<script\b[^>]*\bdata-client-wasm-version="#, options: .regularExpression))
+        // Click the native summary before the WASM loader executes. Deferred
+        // hydration must adopt the click and request this reader's fragment.
+        original.insert(contentsOf: """
+          <script>
+          (() => {
+            const row = document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-row');
+            row.setAttribute('data-early-reader', 'true');
+            row.closest('.outliner-item').setAttribute('data-early-reader-item', 'true');
+            const details = row.querySelector(':scope > .accordion-details');
+            details.querySelector(':scope > .accordion-summary').click();
+            window.__earlyReaderClick = details.open && details.dataset.expanded === 'false'
+              && !row.hasAttribute('data-accordion-hydrated');
+          })();
+          </script>
+          """, at: loader.lowerBound)
+        try original.write(to: file, atomically: true, encoding: .utf8)
+        try await page.openHydrated("/\(name)")
+        #expect(try await page.evaluate("window.__earlyReaderClick", as: Bool.self))
+        let opened = page.locator("[data-early-reader='true']")
+        try await expect(opened.locator(":scope > .accordion-details")).toHaveAttribute("data-open-finished", "true")
+        try await expect(page.locator("[data-early-reader-item='true']")).toHaveAttribute("data-outliner-collapsed", "false")
         let viewer = page.locator(".artifact-view").first
         let bar = viewer.locator(".testament-find-view")
         try await expect(bar).toBeHidden()

@@ -6,7 +6,7 @@ import WebTestsTesting
 @Suite("Canvas attachment preview", .serialized)
 struct CanvasAttachmentTests {
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func boundedImageAndExistingLightbox(engine: BrowserEngine, layout: Layout) async throws {
+  func boundedInlineImageUsesResultDatum(engine: BrowserEngine, layout: Layout) async throws {
     guard gnorium.engines.contains(engine) else { return }
     guard let path = ProcessInfo.processInfo.environment["GNORIUM_CANVAS_FIXTURE_PATH"],
       FileManager.default.fileExists(atPath: path) else {
@@ -22,23 +22,19 @@ struct CanvasAttachmentTests {
       let geometry = try await page.evaluate("""
         (() => {
           const box = document.querySelector('.session-tool-call-result-box');
-          const image = box.querySelector('.expandable-attachment-image-preview');
-          const visibleImages = [...document.querySelectorAll('img')].filter(i => {
-            const r=i.getBoundingClientRect(); return r.width>0 && r.height>0 && getComputedStyle(i).visibility !== 'hidden';
-          });
-          const r=image.getBoundingClientRect(), b=box.getBoundingClientRect();
-          return visibleImages.length===1 && r.height>0 && r.height<=innerHeight*.64+1
-            && r.left>=b.left-1 && r.right<=b.right+1 && r.top>=b.top-1 && r.bottom<=b.bottom+1
-            && Math.abs(r.width/r.height-.75)<.01 && !box.querySelector('.datum-view')
-            && !document.querySelector('.detail-page-image');
+          const view = box.querySelector('.expandable-attachment-view[data-presentation="inline"]');
+          const viewport = view.querySelector('.expandable-attachment-image-viewport');
+          const datum = view.closest('.datum-value'), style = getComputedStyle(datum);
+          const width = datum.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+          const r = viewport.getBoundingClientRect();
+          return view.dataset.attachmentHydrated === 'true' && view.querySelectorAll('img').length === 1
+            && r.height > 0 && r.height <= innerHeight * .64 + 1 && Math.abs(r.width - width) < 1
+            && box.querySelector('.datum-view') && !document.querySelector('.detail-page-image')
+            && !document.querySelector('.expandable-attachment-dialog, .expandable-attachment-image-trigger');
         })()
         """, as: Bool.self)
-      #expect(geometry, "Exactly one bounded image belongs inside the white output surface; metadata stays outside")
+      #expect(geometry, "One bounded inline image fills its result datum alongside the recorded tool fields")
       try await page.expectNoHorizontalOverflow()
-      try await page.locator(".expandable-attachment-image-trigger").click()
-      try await expect(page.locator(".expandable-attachment-dialog")).toHaveAttribute("data-open", "true")
-      try await page.locator(".expandable-attachment-dialog .dialog-close-button").click()
-      try await expect(page.locator(".expandable-attachment-dialog")).toHaveAttribute("data-open", "false")
       try await page.expectNoErrors()
     }
   }

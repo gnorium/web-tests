@@ -6,6 +6,42 @@ import WebTestsTesting
 @Suite("Dashboard summary and numbered worker layout", .serialized)
 struct DashboardLayoutTests {
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func visitorChartsUseTheFigureCardFrame(engine: BrowserEngine, layout: Layout) async throws {
+    guard gnorium.engines.contains(engine) else { return }
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      try await page.openHydrated("/")
+      let region = page.locator(".watchtower-visitors-view")
+      try await expect(region.locator(".watchtower-visitors-cards .mission-control-dashboard-figure-card-tile")).toHaveCount(6)
+      try await expect(region.locator(".watchtower-visitors-trends > .mission-control-dashboard-figure-card-view")).toHaveCount(3)
+      #expect(try await page.evaluate("""
+        (() => {
+          const figure = document.querySelector('.watchtower-visitors-cards .mission-control-dashboard-figure-card-tile');
+          const reference = getComputedStyle(figure);
+          const properties = ['borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+            'borderTopStyle', 'borderTopColor', 'borderRadius', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'];
+          const cards = [...document.querySelectorAll('.watchtower-visitors-trends .mission-control-dashboard-figure-card-tile')];
+          return cards.length === 3 && cards.every((card, index) => {
+            const style = getComputedStyle(card), box = card.getBoundingClientRect();
+            const header = card.querySelector('.watchtower-visitors-trend-header');
+            const bars = card.querySelector('.watchtower-visitors-weeks');
+            const axis = card.querySelector('.watchtower-visitors-trend-axis');
+            return properties.every(p => style[p] === reference[p]) && parseFloat(style.borderTopWidth) > 0
+              && header.children.length === 2 && header.textContent.includes('per week, last 52 weeks')
+              && header.lastElementChild.textContent.startsWith('Highest ')
+              && bars.children.length === 52 && axis.children.length === 2
+              && [header, bars, axis].every(e => { const r = e.getBoundingClientRect();
+                return r.left >= box.left + parseFloat(style.paddingLeft) && r.right <= box.right - parseFloat(style.paddingRight)
+                  && r.top >= box.top + parseFloat(style.paddingTop) && r.bottom <= box.bottom - parseFloat(style.paddingBottom); })
+              && (index === 0 || box.top > cards[index - 1].getBoundingClientRect().bottom);
+          });
+        })()
+        """, as: Bool.self), "All three charts share the numeric figure card frame and contain their header, bars and date axis")
+      try await page.expectNoHorizontalOverflow()
+      try await page.expectNoErrors()
+    }
+  }
+
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func dashboardAndWorkerKeepGeometryAndExactAmounts(engine: BrowserEngine, layout: Layout) async throws {
     guard gnorium.engines.contains(engine) else { return }
     guard let dashboard = ProcessInfo.processInfo.environment["GNORIUM_DASHBOARD_FIXTURE_PATH"],
@@ -100,14 +136,15 @@ struct DashboardLayoutTests {
       #expect(try await page.evaluate("""
         (()=>{const meta=document.querySelector('.record-metadata-change > .metadata-accordion-view > .accordion-view');
           const tree=document.querySelector('[data-tree-change=added] > .sentiment-view > .record-row-view > .accordion-view');
+          const treeFrame=tree?.closest('.outliner-item[data-outliner-accordion=true]');
           const fields=[...document.querySelectorAll('#apparatus-metadata [data-metadata-added=true]')];
           const probe=document.createElement('span');probe.style.borderColor='var(--border-color-green)';document.body.append(probe);
           const green=getComputedStyle(probe).borderTopColor;probe.style.borderColor='var(--border-color-base)';const neutral=getComputedStyle(probe).borderTopColor;probe.remove();
-          return meta && tree && fields.length>=3 && getComputedStyle(meta).borderTopColor===neutral
-            && getComputedStyle(tree).borderTopColor===green && fields.every(e=>getComputedStyle(e).borderTopColor===green && e.textContent.trim()!=='' && e.textContent.trim()!=='—')
+          return meta && treeFrame && fields.length>=3 && getComputedStyle(meta).borderTopColor===neutral
+            && getComputedStyle(treeFrame).borderTopColor===neutral && getComputedStyle(treeFrame).borderTopWidth==='1px' && fields.every(e=>getComputedStyle(e).borderTopColor===green && e.textContent.trim()!=='' && e.textContent.trim()!=='—')
             && [...document.querySelectorAll('#apparatus-metadata .datum-view')].some(e=>e.textContent.includes('Pronunciation')&&!e.querySelector('[data-metadata-added=true]'));
         })()
-        """, as: Bool.self), "Aggregate metadata opens with neutral frame; new sentiment and populated fields green, empty pronunciation neutral")
+        """, as: Bool.self), "Aggregate metadata and added sentiment frames stay neutral; populated fields green, empty pronunciation neutral")
       try await page.expectNoHorizontalOverflow()
       try await page.expectNoErrors()
       try await page.openHydrated("/\(ordinaryName)")

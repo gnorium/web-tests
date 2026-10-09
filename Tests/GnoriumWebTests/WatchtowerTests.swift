@@ -63,6 +63,22 @@ struct WatchtowerTests {
     }
   }
 
+  @Test(arguments: gnorium.engines)
+  func nestedLocutionsAreCommittedOnce(engine: BrowserEngine) async throws {
+    try await withPage(engine, gnorium) { page in
+      try await page.openHydrated("/")
+      let cards = page.locator(".watchtower-object-view:has(> .watchtower-object-header .watchtower-object-name-link)")
+      let routes = try await page.evaluate("""
+        [...document.querySelectorAll('.watchtower-object-name-link')]
+          .filter(e => e.textContent === 'Locution')
+          .map(e => [...e.closest('.watchtower-object-view').querySelectorAll(':scope > .watchtower-routes-view')]
+            .map(r => [...r.querySelectorAll('.watchtower-routes-row > span')].map(s => s.textContent.trim()).join(' ')).join('|')).join('\\n')
+        """, as: String.self)
+      #expect(routes.split(separator: "\n").map(String.init) == Array(repeating: "commit ← locution|submit → locution", count: 3))
+      #expect(try await cards.count() > 0)
+    }
+  }
+
   static let statusLabels = ["Status"]
 
   static func statusRow(_ page: Page) async throws -> Locator {

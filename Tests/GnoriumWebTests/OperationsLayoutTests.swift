@@ -22,7 +22,7 @@ struct OperationsLayoutTests {
       try await expect(page.locator(".session-failed-alert")).toBeVisible()
       let disclosure = try await page.evaluate("""
         (() => {
-          const alert = document.querySelector('.session-failed-alert.alert-red');
+          const alert = document.querySelector('.session-failed-alert.alert-blue');
           const message = alert?.querySelector('.alert-content');
           if (!message) return false;
           const a = getComputedStyle(alert), m = getComputedStyle(message);
@@ -30,13 +30,13 @@ struct OperationsLayoutTests {
             && !alert.querySelector('.accordion-view, pre')
             && parseFloat(a.borderTopWidth) > 0
             && a.backgroundColor !== 'rgba(0, 0, 0, 0)'
-            && parseFloat(m.fontSize) === 14
+            && parseFloat(m.fontSize) === 16
             && Number(m.fontWeight) === 400
             && message.textContent.includes('(')
             && message.textContent.includes('NIOHTTP1.HTTPParserError');
         })()
         """, as: Bool.self)
-      #expect(disclosure, "One normal-weight message includes diagnostics in parentheses inside the red alert")
+      #expect(disclosure, "One normal-weight message includes diagnostics in parentheses inside the blue alert")
       let attachments = try await page.evaluate("""
         (() => {
           const group = document.querySelector('.session-input-attachments');

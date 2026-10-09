@@ -60,6 +60,11 @@ struct RecordPrefixFiltersTests {
     try await expect(secondRemove).toHaveAttribute("aria-label", "Remove filter")
     try await add.click()
     try await expect(filter.locator(".filter-bar-row")).toHaveCount(3)
+    for index in [0, 2] {
+      try await expect(filter.locator(".filter-bar-row").nth(index)
+        .locator(".filter-bar-field-picker .dropdown-option-display-text"))
+        .toHaveTexts(["Language", "Title", "Class", "Status"])
+    }
     let addedRemove = filter.locator(".filter-bar-row").nth(2).locator(".filter-bar-remove-btn")
     try await expect(addedRemove.locator("svg.subtract-icon-view")).toHaveCount(1)
     try await expect(addedRemove).toHaveAttribute("aria-label", "Remove filter")
@@ -85,16 +90,20 @@ struct RecordPrefixFiltersTests {
     try await expect(page).toHaveURL("/biblio-records") { url in url.path == "/biblio-records" }
     try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
     try await page.expectNoErrors()
-    // No language in force: the bar's fields sort by label, so its blank
+    // No language in force: the bar follows column order, so its blank
     // first row offers Language, with no value.
     try await expect(page.locator(".filter-bar-value-select input[name='language']:not([value=''])")).toHaveCount(0)
     try await expect(page.locator("main a[href='\(work.path)']")).toHaveCount(1)
     try await Self.expectLanguageNames(page)
+    try await expect(page.locator(".filter-bar-field-picker").first.locator(".dropdown-option-display-text"))
+      .toHaveTexts(["Language", "Class", "Status"])
 
     // The lexico-records list names its languages as well.
     try await page.openHydrated("/lexico-records")
     try await page.expectNoErrors()
     try await Self.expectLanguageNames(page)
+    try await expect(page.locator(".filter-bar-field-picker").first.locator(".dropdown-option-display-text"))
+      .toHaveTexts(["Language", "Class", "Status"])
   }
 
   /// Every row's Language cell shows the language's name—its whole title

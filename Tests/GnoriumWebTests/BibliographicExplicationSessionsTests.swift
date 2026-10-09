@@ -233,6 +233,128 @@ struct BibliographicExplicationSessionsTests {
     try await admin.remove()
   }
 
+  @Test(arguments: [BrowserEngine.chrome])
+  func replayClearsEveryBlockAndRebuildsTheFinishedTraceTwice(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let work = try ScratchWork(owner: admin)
+    let antiphonID = UUID().uuidString.lowercased()
+    let runID = UUID().uuidString.lowercased()
+    let otherRunID = UUID().uuidString.lowercased()
+    let failedRunID = UUID().uuidString.lowercased()
+    do {
+      let user = try admin.column("id")
+      let blocks: [[String: String]] = [
+        ["type": "thinking", "content": "Reading the first page before saving the recorded result."],
+        ["type": "text", "content": "The first passage is ready."],
+        ["type": "tool", "name": "save_page", "arguments": #"{"page":"1"}"#,
+          "result": #"{"ok":true,"saved":"1"}"#, "status": "ok", "call_id": "replay_save"],
+        ["type": "thinking", "content": "Checking the saved passage before finishing the session."],
+        ["type": "compaction", "mode": "micro", "micro": "1", "chars_before": "100", "chars_after": "60",
+          "summary": "Kept the saved passage."],
+        ["type": "text", "content": "Replay finished with **every** recorded block."],
+      ]
+      let output = String(decoding: try JSONSerialization.data(withJSONObject: blocks), as: UTF8.self)
+        .replacingOccurrences(of: "'", with: "''")
+      _ = try TestAdmin.query("""
+        BEGIN;
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, canvas_service_ids_json, processing_status)
+          VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
+        INSERT INTO bibliographic_explication_stage_runs
+          (id, submission_id, stage, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          VALUES ('\(runID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
+            'explication', '1', 2, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(), '\(antiphonID)', 3000, now());
+        INSERT INTO bibliographic_explication_stage_runs
+          (id, submission_id, stage, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          VALUES ('\(failedRunID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
+            'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '[{"type":"thinking","content":"Historical partial thought."}]',
+            'failed', gen_random_uuid(), '\(antiphonID)', 500, now() - interval '1 second');
+        INSERT INTO bibliographic_explication_stage_runs
+          (id, submission_id, stage, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          VALUES ('\(otherRunID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
+            'explication', '2', 1, 'DeepSeek', 'deepseek-flash', 'Another finished session.', 'passed', gen_random_uuid(), '\(antiphonID)', 100, now());
+        COMMIT;
+        """)
+      try await withPage(engine, gnorium, cookies: [admin.cookie]) { page in
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?canvas=1")
+        let session = page.locator(".session-view")
+        let replay = page.locator(".replay-btn")
+        let snapshot = """
+          (() => {
+            const root = document.querySelector('.session-output-content');
+            const text = selector => [...root.querySelectorAll(selector)].map(e => e.textContent.trim().replace(/\\s+/g, ' '));
+            return JSON.stringify({
+              thinking: text('.session-output-thinking-body .markdown-view'),
+              tools: text('.session-tool-call-name'),
+              arguments: text('.session-tool-call-args'),
+              results: text('.session-tool-call-result-box'),
+              compactions: text('.session-compaction-summary'),
+              output: text('.session-output-rendered').filter(Boolean)
+            });
+          })()
+          """
+        let finished = try await page.evaluate(snapshot, as: String.self)
+        let otherRows = page.locator(".roster-row[data-session-label='2']")
+        try await expect(otherRows.first).toHaveAttribute("data-session-status", "succeeded")
+        try await expect(session.locator(".session-output-thinking")).toHaveCount(2)
+        try await expect(session.locator(".session-tool-call")).toHaveCount(1)
+        for attempt in 1...2 {
+          // Observe the real click after hydration's handler, before any SSE
+          // callback can run. This catches stale cards even on a busy machine.
+          try await page.evaluate("""
+            (() => {
+              const root = document.querySelector('.session-output-content');
+              const session = document.querySelector('.session-view');
+              window.replayStart = null;
+              window.replayFilledWhileRunning = false;
+              document.querySelector('.replay-btn').addEventListener('click', () => {
+                window.replayStart = { children: root.childElementCount, text: root.textContent,
+                  status: session.dataset.sessionStatus };
+                const observer = new MutationObserver(() => {
+                  if (session.dataset.sessionStatus === 'running' && root.textContent.trim()
+                      && !root.textContent.includes('Replay finished with')) window.replayFilledWhileRunning = true;
+                  if (session.dataset.sessionStatus === 'succeeded') observer.disconnect();
+                });
+                observer.observe(session, { childList: true, subtree: true, characterData: true, attributes: true });
+              }, { once: true });
+            })()
+            """)
+          try await replay.click()
+          let empty = try await page.evaluate("window.replayStart.children === 0 && window.replayStart.text === '' && window.replayStart.status === 'running'", as: Bool.self)
+          #expect(empty, "Replay \(attempt) synchronously clears every finished block into an empty running shell")
+          try await expect(replay, timeout: .seconds(20)).toBeEnabled()
+          try await expect(session).toHaveAttribute("data-session-status", "succeeded")
+          #expect(try await page.evaluate("window.replayFilledWhileRunning", as: Bool.self), "Stored trace fills the running card at replay pace")
+          #expect(try await page.evaluate(snapshot, as: String.self) == finished, "Replay \(attempt) finishes with the original thinking, tools, compaction and output")
+          try await expect(session.locator(".session-output-thinking-running")).toHaveCount(0)
+          try await expect(otherRows.first).toHaveAttribute("data-session-status", "succeeded")
+        }
+        // An older failed attempt remains failed in the card, while the list
+        // continues to report the session's later successful result.
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?canvas=1&attempt=1")
+        try await expect(session).toHaveAttribute("data-session-status", "failed")
+        let currentRows = page.locator(".roster-row[data-session-label='1']")
+        try await expect(currentRows.first).toHaveAttribute("data-session-status", "succeeded")
+        let historical = try await page.evaluate(snapshot, as: String.self)
+        try await replay.click()
+        try await expect(currentRows.first).toHaveAttribute("data-session-status", "succeeded")
+        try await expect(replay, timeout: .seconds(20)).toBeEnabled()
+        try await expect(session).toHaveAttribute("data-session-status", "failed")
+        try await expect(currentRows.first).toHaveAttribute("data-session-status", "succeeded")
+        #expect(try await page.evaluate(snapshot, as: String.self) == historical)
+        try await page.expectNoErrors()
+      }
+    } catch {
+      _ = try? TestAdmin.query("DELETE FROM bibliographic_explication_stage_runs WHERE id IN ('\(otherRunID)', '\(failedRunID)')")
+      remove(runID: runID, antiphonID: antiphonID, work: work)
+      try await admin.remove(after: error)
+    }
+    _ = try? TestAdmin.query("DELETE FROM bibliographic_explication_stage_runs WHERE id IN ('\(otherRunID)', '\(failedRunID)')")
+    remove(runID: runID, antiphonID: antiphonID, work: work)
+    try await admin.remove()
+  }
+
   private func remove(runID: String, antiphonID: String, work: ScratchWork) {
     _ = try? TestAdmin.query(
       """
