@@ -36,10 +36,27 @@ struct AvatarTests {
           "INSERT INTO revisions (id, revisable_type, revisable_id, content_json, status, requested_by_user_id, evaluated_by_user_id, created_at, evaluated_at) SELECT gen_random_uuid(), 'bibliographicMadrigal', gen_random_uuid(), '{}', 'accepted', id, id, now(), now() FROM users WHERE username = '\(contributor.username)';"
         )
         try await page.openHydrated("/account/profile")
+        // The avatar's forms stand outside the profile form (a form inside
+        // a form is dropped, and the profile form took the upload); the
+        // field's controls name them.
+        try await expect(page.locator("form[action='/account/profile'] form")).toHaveCount(0)
+        try await expect(page.locator("form#avatar-form[action='/account/avatar']")).toHaveCount(1)
+        try await expect(page.locator("#avatar-file")).toHaveAttribute("form", "avatar-form")
+        try await expect(page.locator(".edit-profile-avatar-add")).toHaveAttribute("form", "avatar-form")
+        // The native control is hidden; the disc and "+ Avatar" are centered.
+        let field = page.locator(".edit-profile-avatar")
+        try await expect(field).toHaveCSS("align-items", "center")
+        try await expect(page.locator("#avatar-file")).toHaveCSS("position", "absolute")
+        try await expect(page.locator("#avatar-description")).toHaveText("A square picture, up to 5 MB; it is checked for unsafe content.")
+        // With no file chosen, "+ Avatar" opens the picker instead of submitting.
+        try await page.locator(".edit-profile-avatar-add").click()
+        try await expect(page).toHaveURL("/account/profile")
+        // A chosen file is named under the disc; the button then submits.
         try await page.locator("#avatar-file").setInputFiles([picture.path])
+        try await expect(page.locator("#avatar-description")).toHaveText("Chosen: \(picture.lastPathComponent)")
         try await page.locator(".edit-profile-avatar-add").click()
         try await expect(page).toHaveURL("/account/profile?avatar=saved")
-        try await expect(page.locator(".edit-profile-view .alert-view")).toContainText("Your avatar is saved")
+        try await expect(page.locator(".edit-profile-view .alert-view.alert-green")).toContainText("Your avatar has been saved")
         let avatarURL = try #require(try await page.locator(".edit-profile-avatar .avatar-view img").evaluate("el => el.getAttribute('src')").string)
         #expect(avatarURL.hasPrefix("/avatars/"))
         #expect(try contributor.column("avatar_key").hasSuffix(".webp"))
@@ -50,6 +67,7 @@ struct AvatarTests {
         // "− Avatar" takes it away, and the disc returns.
         try await page.locator(".edit-profile-avatar-remove").click()
         try await expect(page).toHaveURL("/account/profile?avatar=removed")
+        try await expect(page.locator(".edit-profile-view .alert-view.alert-green")).toContainText("Your avatar has been removed")
         try await expect(page.locator(".edit-profile-avatar .avatar-letter")).toBeAttached()
         try await expect(page.locator("#navbar-ellipsis-menu .ellipsis-account .avatar-letter")).toBeAttached()
         #expect(try contributor.column("avatar_key") == "")

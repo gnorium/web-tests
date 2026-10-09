@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// The account page (`/account`), which the navbar's menu links to and
 /// which holds everything about the account: Profile,
-/// Change Password, Multi-Factor Authentication and Admin Console (admins only), and Delete
+/// Password, Authentication and Admin Console (admins only), and Delete
 /// Account. The menu
 /// itself keeps one account link and Sign Out (a POST form). And changing
 /// the email address: the new one's verification reminder, a warning alert
@@ -49,11 +49,11 @@ struct AccountTests {
         let links = page.locator("nav.account-links")
         try await expect(links.locator("a[href='/users/\(account.username)']")).toContainText("Profile")
         try await expect(links.locator("a[href='/account/profile']")).toHaveCount(0)
-        try await expect(links.locator("a[href='/account/password']")).toContainText("Change Password")
+        try await expect(links.locator("a[href='/account/password']")).toHaveText("Password")
         try await expect(links.locator("a[href='/account/delete']")).toContainText("Delete Account")
         try await expect(links.locator("a[href='/admin-console/mfa/setup']")).toHaveCount(asAdmin ? 1 : 0)
         if asAdmin {
-          try await expect(links.locator("a[href='/admin-console/mfa/setup']")).toHaveText("Multi‑Factor Authentication")
+          try await expect(links.locator("a[href='/admin-console/mfa/setup']")).toHaveText("Authentication")
         }
         try await expect(links.locator("a[href='/admin-console']")).toHaveCount(asAdmin ? 1 : 0)
         try await expect(links.locator("form[action='/auth/sign-out']")).toHaveCount(0)
@@ -131,11 +131,28 @@ struct AccountTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [account.cookie]) { page in
         try await page.openHydrated("/account/profile")
         try await expect(page.locator("#email")).toHaveValue(current)
+        // No helper texts under Email or Current password; the password
+        // field is hidden (out of the tab order) until the address differs.
+        try await expect(page.locator("#email-description")).toHaveCount(0)
+        try await expect(page.locator("#edit-profile-password-field")).toHaveAttribute("hidden")
         try await page.locator("#email").fill(pending)
+        try await expect(page.locator("#edit-profile-password")).toBeVisible()
+        try await expect(page.locator("#edit-profile-password-description")).toHaveCount(0)
+        try await page.locator("#email").fill(current)
+        try await expect(page.locator("#edit-profile-password-field"), timeout: .seconds(5)).toHaveAttribute("hidden")
+        try await page.locator("#email").fill(pending)
+        try await expect(page.locator("#edit-profile-password")).toBeVisible()
+        // Saved without the password: the field says so, the address is unchanged.
+        try await page.getByRole(.button, name: "Save Profile").click()
+        try await expect(page.locator("#edit-profile-password-validation-message")).toContainText("Enter your current password")
+        try await expect(page.locator("#edit-profile-password")).toBeVisible()
+        try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         try await page.locator("#edit-profile-password").fill(account.password)
-        try await page.getByRole(.button, name: "Save profile").click()
-        try await expect(page).toHaveURL("/account/profile?saved=1")
+        try await page.getByRole(.button, name: "Save Profile").click()
+        try await expect(page).toHaveURL("/account/profile?saved=email")
+        try await expect(page.locator(".edit-profile-view .alert-view.alert-green")).toContainText("a link was sent to \(pending); your account keeps its current address until you open it")
         try await expect(page.locator("#email")).toHaveValue(current)
+        try await expect(page.locator("a[href='/account']").filter(hasText: "Back to account")).toHaveCount(0)
       }
       // The old address is still the account's, and still verified.
       #expect(
