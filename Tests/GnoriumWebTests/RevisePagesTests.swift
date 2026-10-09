@@ -20,6 +20,86 @@ struct RevisePagesTests {
     { url in url.path.lowercased() == path.lowercased() && (url.fragment ?? "").hasPrefix("revision-") }
   }
 
+  /// Revise opens on the canvas the object's reader is showing (user,
+  /// 2026-10-10): the Evidence roster's selected row, carried as
+  /// `?canvas=` into the Revise link as the reader turns; the Revise
+  /// page's reader and editor open there, and its way back to the object
+  /// (the breadcrumb) names the canvas on screen too.
+  @Test(arguments: [BrowserEngine.chrome])
+  func reviseOpensOnTheCanvasOnScreen(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let commit = try ScratchCommit(owner: contributor)
+    let services = (1...3).map { "https://web-tests.invalid/iiif/p\($0)" }
+    // The links name the object as the server writes its id.
+    let objectURL = "/mission-control/madrigals/bibliographic/\(commit.madrigalID.uppercased())"
+    do {
+      let pages = (1...3).map {
+        #"<pb n=\"\#($0)\" facs=\"https://web-tests.invalid/iiif/p\#($0)/full/1300,/0/default.jpg\"/><p>Line \#($0)</p>"#
+      }.joined()
+      _ = try TestAdmin.query(
+        """
+        UPDATE bibliographic_madrigals SET
+          proposed_content_json = '{"teiXml":"<TEI><text><body>\(pages)</body></text></TEI>"}'
+        WHERE id = '\(commit.madrigalID)'
+        """)
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
+        try await page.openHydrated(commit.madrigalPath)
+        let rows = page.locator("#madrigal-canvases .roster-row")
+        try await expect(rows).toHaveCount(3)
+        let revise = page.locator("a[data-value='revise']")
+        try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise")
+        // Item 3 selected: the reader on canvas 3, Revise opening there.
+        try await rows.nth(2).click()
+        try await expect(page).toHaveURL("the madrigal at canvas 3") { $0.query == "canvas=2" }
+        try await expect(page.locator("#madrigal-canvases .roster-row-selected"))
+          .toHaveAttribute("data-computorium-session-id", "2")
+        try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise?canvas=2")
+        try await revise.click()
+        try await expect(page).toHaveURL("the Revise page at canvas 3") {
+          $0.path.lowercased() == "\(objectURL)/revise".lowercased() && $0.query == "canvas=2"
+        }
+        let viewer = page.locator(".revise-bibliographic-object .artifact-view")
+        try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
+        try await expect(viewer.locator("#artifact-page-input")).toHaveValue("3")
+        try await expect(viewer.locator(".tei-transcript[data-active='true']")).toHaveAttribute("data-service-id", services[2])
+        try await expect(viewer.locator(".tei-transcript[data-active='true'] .tei-page-edit textarea")).toHaveCount(1)
+        // The way back names the canvas on screen, and follows the pager.
+        let back = page.locator(".breadcrumb-link[href='\(objectURL)?canvas=2']")
+        try await expect(back).toHaveCount(1)
+        try await viewer.locator(".pagination-prev").first.click()
+        try await expect(viewer.locator("#artifact-page-input")).toHaveValue("2")
+        try await expect(page).toHaveURL("the Revise page at canvas 2") { $0.query == "canvas=1" }
+        let backAtTwo = page.locator(".breadcrumb-link[href='\(objectURL)?canvas=1']")
+        try await expect(backAtTwo).toHaveCount(1)
+        try await backAtTwo.click()
+        try await expect(page).toHaveURL("the madrigal at canvas 2") {
+          $0.path.lowercased() == commit.madrigalPath.lowercased() && $0.query == "canvas=1"
+        }
+        try await expect(page.locator("#madrigal-canvases .roster-row-selected"))
+          .toHaveAttribute("data-computorium-session-id", "1")
+        // The object's pager turns the roster and the Revise link alike.
+        let reader = page.locator(".madrigal-object .artifact-view")
+        try await expect(reader).toHaveAttribute("data-artifact-hydrated", "true")
+        try await reader.locator(".pagination-next").first.click()
+        try await expect(page.locator("#madrigal-canvases .roster-row-selected"))
+          .toHaveAttribute("data-computorium-session-id", "2")
+        try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise?canvas=2")
+        try await reader.locator(".pagination-prev").first.click()
+        try await reader.locator(".pagination-prev").first.click()
+        try await expect(page.locator("#madrigal-canvases .roster-row-selected"))
+          .toHaveAttribute("data-computorium-session-id", "0")
+        try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise")
+      }
+    } catch {
+      commit.remove()
+      try await contributor.remove(after: error)
+    }
+    commit.remove()
+    try await contributor.remove()
+  }
+
   @Test(arguments: [BrowserEngine.chrome])
   func oneSuggestFilesFieldsMarkupsAndPromptsAsOneRevision(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -27,7 +107,11 @@ struct RevisePagesTests {
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let user = try contributor.column("id")
-    let commit = try ScratchCommit(owner: contributor)
+    // The witness's pages served on this machine: the ring is checked
+    // with the canvas shown too, which needs an image to show.
+    let fixture = try await FixtureServer.threePageManifest()
+    defer { fixture.stop() }
+    let commit = try ScratchCommit(owner: contributor, sourceURL: fixture.baseURL + "/manifest.json")
     let slot = "bibliographic_explication"
     func remove() {
       _ = try? TestAdmin.query("DELETE FROM revisions WHERE requested_by_user_id = '\(user)'")
@@ -40,7 +124,7 @@ struct RevisePagesTests {
         #"""
         UPDATE bibliographic_madrigals SET
           metadata_json = (metadata_json::jsonb || '{"title":"Web tests original title","provider":"folger_shakespeare_library"}'::jsonb)::text,
-          proposed_content_json = '{"teiXml":"<TEI><teiHeader><date>1910</date></teiHeader><text><body><pb n=\"1\" facs=\"https://web-tests.invalid/iiif/p1/full/1300,/0/default.jpg\"/><div><p>Old line</p></div><pb n=\"2\" facs=\"https://web-tests.invalid/iiif/p2/full/1300,/0/default.jpg\"/><p>Kept line</p></body></text></TEI>"}'
+          proposed_content_json = '{"teiXml":"<TEI><teiHeader><date>1910</date></teiHeader><text><body><pb n=\"1\" facs=\"\#(fixture.baseURL)/page-1/full/1300,/0/default.jpg\"/><div><p>Old line</p></div><pb n=\"2\" facs=\"\#(fixture.baseURL)/page-2/full/1300,/0/default.jpg\"/><p>Kept line</p></body></text></TEI>"}'
         WHERE id = '\#(commit.madrigalID)'
         """#)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
@@ -175,8 +259,11 @@ struct RevisePagesTests {
           """, as: String.self)
         #expect(unringed == "ok", "The change ring is not on the markup pane alone: \(unringed)")
         // The ring on all four sides of the pane, border and outline in the
-        // state's color, whole—the pane inset from the card that clips
-        // it—with the canvas put away and shown alike (user, 2026-10-10).
+        // state's color, both inside the pane's own box (the outline just
+        // inside the border), the pane itself without padding or inset,
+        // flush with the viewer that clips it; the text keeps its inset
+        // through the TEI view's own (user, 2026-10-10). With the canvas
+        // put away and shown alike.
         let ring = """
           (() => {
             const probe = document.createElement('span'); document.body.append(probe)
@@ -188,10 +275,19 @@ struct RevisePagesTests {
             for (const side of ['Top', 'Right', 'Bottom', 'Left']) {
               if (style['border' + side + 'Style'] !== 'solid') return side + ' border ' + style['border' + side + 'Style']
               if (style['border' + side + 'Color'] !== orange) return side + ' border ' + style['border' + side + 'Color']
+              if (style['padding' + side] !== '0px') return side + ' padding ' + style['padding' + side]
             }
             if (style.outlineStyle !== 'solid' || style.outlineColor !== orange) return 'outline ' + style.outlineStyle + ' ' + style.outlineColor
-            const a = card.getBoundingClientRect(), b = pane.getBoundingClientRect()
-            if (b.left - a.left < 2 || a.right - b.right < 2 || b.top - a.top < 2 || a.bottom - b.bottom < 2) return 'clipped'
+            if (style.outlineWidth !== '1px' || style.outlineOffset !== '-2px') return 'outline ' + style.outlineWidth + ' at ' + style.outlineOffset
+            const viewer = card.querySelector('.artifact-viewer-container')
+            const a = viewer.getBoundingClientRect(), b = pane.getBoundingClientRect()
+            const flush = (x, y) => Math.abs(x - y) < 1
+            if (!flush(a.left + viewer.clientLeft, b.left) || !flush(a.top + viewer.clientTop, b.top) || !flush(a.bottom - viewer.clientTop, b.bottom)) return 'inset'
+            if (card.dataset.canvasShown === 'false' && !flush(a.right - viewer.clientLeft, b.right)) return 'inset at the end'
+            const view = pane.querySelector('.tei-view')
+            const inner = getComputedStyle(view)
+            if (inner.paddingLeft !== '16px' || inner.paddingTop !== '16px') return 'text inset ' + inner.padding
+            if (!flush(view.getBoundingClientRect().left, b.left + 1)) return 'view ' + (view.getBoundingClientRect().left - b.left)
             return 'ok ' + card.dataset.canvasShown
           })()
           """
@@ -406,6 +502,14 @@ struct RevisePagesTests {
     try await contributor.remove()
   }
 
+  /// A code editor's text replaced whole, as typed: selected, then the
+  /// markup inserted over it; the hidden textarea follows.
+  static func replaceCode(_ code: Locator, with markup: String, page: Page) async throws {
+    _ = try await code.evaluate(
+      "e => { e.focus(); const r = document.createRange(); r.selectNodeContents(e); getSelection().removeAllRanges(); getSelection().addRange(r); return true }")
+    try await page.keyboard.insertText(markup)
+  }
+
   /// A lexicographic madrigal's Revise page offers what a bibliographic
   /// one's does, in parallel (user, 2026-10-07): its record's identity and
   /// each sentiment's label and usage, in its Sentiments tree. A
@@ -439,11 +543,11 @@ struct RevisePagesTests {
     do {
       _ = try TestAdmin.query(
         """
-        INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition,
+        INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, tei,
             target, status, submitted_by_user_id, summary, definition_translation_json)
           VALUES ('\(epilogue)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', 's-1-1',
-            'A leaf sense.', 'definition', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.',
-            '{"language_code":"fra","definition":"Un sens feuille.","confidence":"clear","reason":"Web tests."}');
+            '<sense><def>A leaf sense.</def></sense>', 'definition', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.',
+            '{"languageCode":"fra","tei":"<def xml:lang=\\"fr\\">Un sens feuille.</def>","confidence":"clear","reason":"Web tests."}');
         """)
       let madrigalPath = "/mission-control/madrigals/lexicographic/\(word.madrigalID)"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
@@ -461,6 +565,17 @@ struct RevisePagesTests {
         try await leaf.fill("A leaf sense, as a person reads it.")
         // Its diff is drawn as it is made, as a bibliographic field's is.
         try await expect(page.locator("[data-diff-annotation][data-visible='true']").first).toBeAttached()
+        // Its definition is its TEI (user, 2026-10-10), edited as a page's
+        // markup is: rendered by default, the XML under Raw.
+        let editor = page.locator(".sense-editor-view:has(textarea[name='sentiment-1-definition'])")
+        try await expect(editor.locator(".sense-editor-definition")).toHaveText("A leaf sense.")
+        try await expect(editor.locator(".sense-editor-raw")).toBeHidden()
+        try await editor.locator(".sense-editor-raw-toggle").click()
+        try await expect(editor.locator(".sense-editor-raw .code-code")).toBeVisible()
+        try await Self.replaceCode(editor.locator(".sense-editor-raw .code-code"), with: "<sense><def>A leaf sense, defined.</def></sense>", page: page)
+        let posted = try await page.evaluate(
+          "(() => document.querySelector(\"textarea[name='sentiment-1-definition']\").value)()", as: String.self)
+        #expect(posted == "<sense><def>A leaf sense, defined.</def></sense>", "The form posts the XML typed: \(posted)")
         // And one of its usage fields: a Register.
         let register = page.locator(".dropdown-view:has(input[name='sentiment-1-register'])")
         try await register.locator(".dropdown-trigger").click()
@@ -492,11 +607,13 @@ struct RevisePagesTests {
         // Its label and its one usage field, each its own item by
         // its form's label, each linked to its place on the page.
         let changed = event.locator(".locution-thread-event-changed")
-        try await expect(changed).toHaveText("Changed Sentiment 1.1 Label and Sentiment 1.1 Register")
-        try await expect(changed.locator("a")).toHaveCount(2)
+        try await expect(changed).toHaveText("Changed Sentiment 1.1 Label, Sentiment 1.1 Definition, and Sentiment 1.1 Register")
+        try await expect(changed.locator("a")).toHaveCount(3)
         // Each on the revision's own page, at its field there (user, 2026-10-09).
         try await expect(changed.locator("a[href='\(revisionPath)#sentiment-1-label']"))
           .toHaveText("Sentiment 1.1 Label")
+        try await expect(changed.locator("a[href='\(revisionPath)#sentiment-1-definition']"))
+          .toHaveText("Sentiment 1.1 Definition")
         try await expect(changed.locator("a[href='\(revisionPath)#sentiment-1-register']"))
           .toHaveText("Sentiment 1.1 Register")
         try await Self.expectChangedLinksLand(page, revision: id, on: revisionPath)
@@ -508,6 +625,7 @@ struct RevisePagesTests {
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the madrigal at its locution", where: Self.atLocution(madrigalPath))
         #expect(try content().contains("A leaf sense, as a person reads it."), "Accepted, it is written into the madrigal")
+        #expect(try content().contains("<def>A leaf sense, defined.</def>"), "Its definition with it, as TEI")
         try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("accepted revision")
         try await page.locator("#revision-\(id)-verdict-1 form[action$='/revert'] button").click()
         // Every verdict stays an act of the thread (user, 2026-10-10): the
@@ -529,9 +647,12 @@ struct RevisePagesTests {
       let epiloguePath = "/mission-control/epilogues/lexicographic/\(epilogue)"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(epiloguePath)/revise")
-        let definition = page.locator("textarea[name='definition']")
-        try await expect(definition).toHaveValue("Un sens feuille.")
-        try await definition.fill("Un sens feuille, corrigé.")
+        // Its `<def xml:lang>`, edited the same way.
+        let editor = page.locator(".sense-editor-view:has(textarea[name='definition'])")
+        try await expect(editor.locator(".sense-editor-translation")).toHaveText("Un sens feuille.")
+        try await expect(editor.locator(".sense-editor-translation")).toHaveAttribute("lang", "fr")
+        try await editor.locator(".sense-editor-raw-toggle").click()
+        try await Self.replaceCode(editor.locator(".sense-editor-raw .code-code"), with: "<def xml:lang=\"fr\">Un sens feuille, corrigé.</def>", page: page)
         try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the epilogue at its locution", where: Self.atLocution(epiloguePath))
