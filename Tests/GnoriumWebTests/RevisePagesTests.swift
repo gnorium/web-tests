@@ -306,20 +306,22 @@ struct RevisePagesTests {
         // Every sentiment's fields, under its number.
         try await expect(page.locator("textarea[name='sentiment-0-description']")).toHaveValue("A branch sense.")
         try await expect(page.locator("textarea[name='sentiment-1-description']")).toHaveValue("A leaf sense.")
-        try await expect(page.locator("input[name='sentiment-1-labels-json']")).toBeAttached()
+        // One field a label kind, as Submit Sentiment draws them (user, 2026-10-09).
+        for kind in ["grammar", "register", "domain", "region", "currency"] {
+          try await expect(page.locator("input[name='sentiment-1-\(kind)']")).toBeAttached()
+        }
+        try await expect(page.locator("[data-item-list='sentiment-1-labels']")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
         let leaf = page.locator("textarea[name='sentiment-1-description']")
         try await leaf.fill("A leaf sense, as a person reads it.")
         // Its diff is drawn as it is made, as a bibliographic field's is.
         try await expect(page.locator("[data-diff-annotation][data-visible='true']").first).toBeAttached()
         // And one of its metadata fields: a Register label.
-        let labels = page.locator("[data-item-list='sentiment-1-labels']")
-        let rows = labels.locator("[data-item-section='true']:not([data-item-template] *)")
-        // With none, its list holds one empty row to fill.
-        try await expect(rows).toHaveCount(1)
-        try await rows.first.locator(".dropdown-trigger").click()
-        try await rows.first.locator(".dropdown-option[data-value='register']").click()
-        try await rows.first.locator(".text-input-input").fill("poetic")
+        let register = page.locator(".dropdown-view:has(input[name='sentiment-1-register'])")
+        try await register.locator(".dropdown-trigger").click()
+        try await register.locator(".dropdown-option[data-value='poetic']").click()
+        try await page.keyboard.press("Escape")
+        try await expect(page.locator("input[name='sentiment-1-register']")).toHaveValue("poetic")
         try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the madrigal at its locution", where: Self.atLocution(madrigalPath))

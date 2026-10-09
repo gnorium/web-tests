@@ -45,7 +45,7 @@ struct SentimentFormTests {
         (form) => {
           const chain = [
             '.record-choice-field-view', '#language', '#script', '#title', '#type', '.submit-sentiment-tree',
-            "[data-submission-draft='true']", '#description', '#label-grammar',
+            "[data-submission-draft='true']", '#label-grammar',
             '#label-register', '#label-domain', '#label-region', '#label-currency',
           ];
           for (let i = 1; i < chain.length; i++) {
@@ -68,7 +68,8 @@ struct SentimentFormTests {
       try await expect(form.locator("#language")).toHaveValue("eng")
       try await expect(form.locator("[data-dropdown-id='language'] .dropdown-selected-text")).toHaveText("English")
       try await expect(form.locator("input[name='title']")).toHaveAttribute("placeholder", "Title")
-      try await expect(form.locator("#description")).toHaveAttribute("placeholder", "Description")
+      // No description: the machine writes it (user, 2026-10-09).
+      try await expect(form.locator("#description, textarea[name='description']")).toHaveCount(0)
 
       // No Form rows: a sentiment's forms are its utterances', never typed.
       try await expect(form.locator("[data-item-list='title-form'], .title-form-json")).toHaveCount(0)

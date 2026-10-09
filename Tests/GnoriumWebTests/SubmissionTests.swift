@@ -501,20 +501,20 @@ struct SubmissionTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let word = try ScratchWord(owner: admin)
     let suffix = String(UUID().uuidString.prefix(8)).lowercased()
-    let description = "A web tests sense \(suffix)"
     func clean() {
       _ = try? TestAdmin.query(
         """
         BEGIN;
         DELETE FROM lexicographic_overtures WHERE lexicographic_folksong_id IN
-          (SELECT id FROM lexicographic_folksongs WHERE sentiment_json LIKE '%\(description)%');
+          (SELECT id FROM lexicographic_folksongs WHERE title_form_json::json ->> 'title' = 'webtestsnew\(suffix)'
+            OR chosen_lexico_record_id = '\(word.recordID.lowercased())');
         COMMIT;
         """)
     }
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        try await newSentiment(page, suffix: suffix, description: description)
-        try await placedSentiment(page, word: word, description: description)
+        try await newSentiment(page, suffix: suffix)
+        try await placedSentiment(page, word: word)
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
       }
@@ -529,9 +529,10 @@ struct SubmissionTests {
   }
 
   /// A new record: its language, title and type typed, its tree the new
-  /// sentiment alone, named by its description as it is typed; submitted,
-  /// an evidence and its overture with no record chosen.
-  private func newSentiment(_ page: Page, suffix: String, description: String) async throws {
+  /// sentiment alone, "—": its description is the machine's, never typed
+  /// (user, 2026-10-09); a label chosen; submitted, an evidence and its
+  /// overture with no record chosen.
+  private func newSentiment(_ page: Page, suffix: String) async throws {
     try await page.openHydrated(Self.sentimentForm)
     try await expect(page).toHaveTitle("Submit Sentiment | Mission Control | Gnorium")
     let form = page.locator(".submit-sentiment-form")
@@ -546,8 +547,9 @@ struct SubmissionTests {
     try await expect(apparatus).toContainText("First attestation")
     try await apparatus.locator("input[name='title']").fill("webtestsnew\(suffix)")
     try await set(page, [("type", "noun")])
-    try await draft.locator("#description").fill(description)
-    try await expect(title).toHaveText(description)
+    try await expect(draft.locator("#description, textarea[name='description']")).toHaveCount(0)
+    try await set(page, [("label-register", "formal")])
+    try await expect(title).toHaveText("—")
     try await form.locator(".record-actions button[type='submit']").click()
     try await expect(page, timeout: .seconds(15)).toHaveURL("its overture's page") {
       $0.path.hasPrefix("/mission-control/overtures/lexicographic/")
@@ -557,10 +559,13 @@ struct SubmissionTests {
       SELECT (e.title_form_json::json ->> 'title') || '|' || coalesce(e.chosen_lexico_record_id::text, '') || '|'
         || count(o.id)
         FROM lexicographic_folksongs e LEFT JOIN lexicographic_overtures o ON o.lexicographic_folksong_id = e.id
-        WHERE e.sentiment_json LIKE '%\(description)%' GROUP BY e.id;
+        WHERE e.title_form_json::json ->> 'title' = 'webtestsnew\(suffix)' GROUP BY e.id;
       """
     ).trimmingCharacters(in: .whitespacesAndNewlines)
     #expect(row == "webtestsnew\(suffix)||1", "\(row)")
+    let sentiment = try TestAdmin.query(
+      "SELECT sentiment_json FROM lexicographic_folksongs WHERE title_form_json::json ->> 'title' = 'webtestsnew\(suffix)'")
+    #expect(sentiment.contains(#""register":["formal"]"#), "\(sentiment)")
   }
 
   /// A chosen record: its fields as its page shows them, in place of the
@@ -568,7 +573,7 @@ struct SubmissionTests {
   /// sentiment after the branch; placed under the branch, after the leaf;
   /// under the leaf, refused. Submitted: the record's own title, the choice
   /// and the placement ride on the evidence and its overture.
-  private func placedSentiment(_ page: Page, word: ScratchWord, description: String) async throws {
+  private func placedSentiment(_ page: Page, word: ScratchWord) async throws {
     try await page.openHydrated(Self.sentimentForm)
     let form = page.locator(".submit-sentiment-form")
     let field = form.locator(".record-choice-field-view")
@@ -604,8 +609,7 @@ struct SubmissionTests {
     try await handle.press("Escape")
     try await expect(number).toHaveText("1.2")
 
-    try await draft.locator("#description").fill("\(description), placed")
-    try await expect(draft.locator(".record-row-title").first).toHaveText("\(description), placed")
+    try await expect(draft.locator(".record-row-title").first).toHaveText("—")
     try await form.locator(".record-actions button[type='submit']").click()
     try await expect(page, timeout: .seconds(15)).toHaveURL("its overture's page") {
       $0.path.hasPrefix("/mission-control/overtures/lexicographic/")
@@ -615,7 +619,7 @@ struct SubmissionTests {
       SELECT (e.title_form_json::json ->> 'title') || '|' || e.chosen_lexico_record_id::text || '|'
         || o.chosen_lexico_record_id::text || '|' || e.placement_json
         FROM lexicographic_folksongs e JOIN lexicographic_overtures o ON o.lexicographic_folksong_id = e.id
-        WHERE e.sentiment_json LIKE '%\(description), placed%';
+        WHERE e.chosen_lexico_record_id = '\(word.recordID.lowercased())';
       """
     ).trimmingCharacters(in: .whitespacesAndNewlines)
     let record = word.recordID.lowercased()
