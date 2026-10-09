@@ -127,6 +127,7 @@ struct RevisePagesTests {
         try await expect(event.locator(".locution-thread-event-changed a").first).toBeVisible()
         try await expect(event.locator("form[action$='/accept'] button")).toHaveCount(1)
         try await expect(event.locator("form[action$='/reject'] button")).toHaveCount(1)
+        try await Self.expectChangedLinksLand(page, revision: id, on: "\(commit.madrigalPath)/revisions/\(id)")
 
         // Its page draws each diff where it is made: the record's tree,
         // the ordinance under its semblance, the prompts.
@@ -349,8 +350,13 @@ struct RevisePagesTests {
         let changed = event.locator(".locution-thread-event-changed")
         try await expect(changed).toHaveText("Changed Sentiment 1.1 Description and Sentiment 1.1 Register")
         try await expect(changed.locator("a")).toHaveCount(2)
-        try await expect(changed.locator("a[href='#record-row-s-1-1']")).toHaveText("Sentiment 1.1 Description")
-        try await expect(changed.locator("a[href='#record-metadata-s-1-1']")).toHaveText("Sentiment 1.1 Register")
+        // Each on the revision's own page, at its field there (user, 2026-10-09).
+        try await expect(changed.locator("a[href='\(revisionPath)#sentiment-1-description']"))
+          .toHaveText("Sentiment 1.1 Description")
+        try await expect(changed.locator("a[href='\(revisionPath)#sentiment-1-register']"))
+          .toHaveText("Sentiment 1.1 Register")
+        try await Self.expectChangedLinksLand(page, revision: id, on: revisionPath)
+        try await page.openHydrated(madrigalPath)
         try await event.locator("form[action$='/accept'] button").click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the madrigal at its locution", where: Self.atLocution(madrigalPath))
@@ -380,8 +386,14 @@ struct RevisePagesTests {
         let event = page.locator("#revision-\(epilogueRevision)")
         try await expect(event.locator(".locution-thread-event-changed"))
           .toHaveText("Changed Sentiment 1.1 Description")
-        try await expect(event.locator(".locution-thread-event-changed a[href='#epilogue-description']"))
-          .toHaveCount(1)
+        // Its revision's page, named as the server names it (ids upper case).
+        let epilogueRevisionPath =
+          "/mission-control/epilogues/lexicographic/\(epilogue.uppercased())/revisions/\(epilogueRevision)"
+        try await expect(
+          event.locator(".locution-thread-event-changed a[href='\(epilogueRevisionPath)#description']")
+        ).toHaveCount(1)
+        try await Self.expectChangedLinksLand(page, revision: epilogueRevision, on: epilogueRevisionPath)
+        try await page.openHydrated(epiloguePath)
         try await event.locator("form[action$='/accept'] button").click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the epilogue at its locution", where: Self.atLocution(epiloguePath))
@@ -407,5 +419,23 @@ struct RevisePagesTests {
     remove()
     try await admin.remove()
     try await contributor.remove()
+  }
+
+  /// Every item of a revision's "Changed" line (on the page open now) links
+  /// to its revision's own page, where an element holds its anchor; a
+  /// semblance's turns the reader there instead (user, 2026-10-09).
+  static func expectChangedLinksLand(_ page: Page, revision id: String, on revisionPath: String) async throws {
+    let hrefs = try await page.evaluate(
+      "JSON.stringify([...document.querySelectorAll('#revision-\(id) .locution-thread-event-changed a')].map(a => a.getAttribute('href')))"
+    ).string ?? "[]"
+    let links = try JSONDecoder().decode([String].self, from: Data(hrefs.utf8))
+    #expect(!links.isEmpty, "a Changed line")
+    for link in links {
+      let parts = link.split(separator: "#", maxSplits: 1).map(String.init)
+      #expect(parts.count == 2 && parts[0].lowercased() == revisionPath.lowercased(), "\(link) is on \(revisionPath)")
+      guard parts.count == 2, !parts[1].hasPrefix("semblance-") else { continue }
+      try await page.openHydrated(parts[0])
+      try await expect(page.locator("[id='\(parts[1])']")).toBeAttached()
+    }
   }
 }

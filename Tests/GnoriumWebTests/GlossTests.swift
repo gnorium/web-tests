@@ -139,7 +139,7 @@ struct GlossTests {
         try await expect(details.locator(".attestation-view")).toHaveCount(0)
         try await expect(details.locator("#record-row-s-1-1")).toHaveCount(0)
         // The word's sentiment's Translations, open, each linked.
-        let translation = details.locator(".lexicographic-translations-view a").filter(hasText: german.title)
+        let translation = details.locator(".lexicographic-equivalents-view a").filter(hasText: german.title)
         try await expect(translation).toBeVisible()
         try await expect(translation).toHaveAttribute("href", "\(german.path)#record-row-s-1-1")
         try await page.expectNoHorizontalOverflow()

@@ -5,10 +5,12 @@ import WebTestsTesting
 
 /// Lexicographic translation is only English ↔ the record's own language (user,
 /// 2026-10-07): for a record not in English, the sentiment's session writes its
-/// description and free-text labels in the record's language, filed as its epilogue. The
-/// amendment's page shows the description in German with its label,
-/// confidence and reason; permitted, the record is Translated and its row carries the
-/// record-level English toggle, selected initially, switching descriptions and labels. An Arabic description reads right to left.
+/// description in the record's language, filed as its epilogue; its labels are
+/// schema, never translated (user, 2026-10-09). The amendment's page shows the
+/// description in German with its confidence and reason; permitted, the record is
+/// Translated and its row carries the record-level English toggle, selected
+/// initially, switching descriptions while labels stay as they are. An Arabic
+/// description reads right to left.
 /// Phone and desktop, nothing scrolling sideways.
 @Suite("Lexicographic translation: the description in the record's language", .serialized)
 struct LexicographicTranslationDescriptionTests {
@@ -30,7 +32,7 @@ struct LexicographicTranslationDescriptionTests {
     let arabic = try ScratchWord(owner: admin, language: "ara")
     let amendment = UUID().uuidString.lowercased()
     let arabicAmendment = UUID().uuidString.lowercased()
-    let description = #"{"confidence":"clear","description":"\#(Self.german)","labels":[{"label":"in seafaring use","translation":"in der Seefahrt"}],"language_code":"deu","reason":"The English says it plainly."}"#
+    let description = #"{"confidence":"clear","description":"\#(Self.german)","language_code":"deu","reason":"The English says it plainly."}"#
     do {
       _ = try TestAdmin.query(
         """
@@ -49,7 +51,7 @@ struct LexicographicTranslationDescriptionTests {
         INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_epilogue_id, status, record_json, created_at)
           SELECT gen_random_uuid(), lexico_record_id, '\(arabicAmendment)', 2,
               jsonb_set(record_json::jsonb, '{senses,1,descriptionTranslation}',
-                '{"languageCode":"ara","description":"\(Self.arabic)","labels":{"domain":[],"grammar":[],"region":[],"register":[]}}')::text,
+                '{"languageCode":"ara","description":"\(Self.arabic)"}')::text,
               now() + interval '1 second'
             FROM lexico_record_versions WHERE id = '\(arabic.versionID.lowercased())';
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, description, target,
@@ -60,12 +62,12 @@ struct LexicographicTranslationDescriptionTests {
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        // The amendment, proposed: the description in German with its label and provenance.
+        // The amendment, proposed: the description in German with its provenance; no label translated.
         try await page.openHydrated("/mission-control/epilogues/lexicographic/\(amendment)")
         let body = page.locator(".lexicographic-epilogue-body")
         try await expect(body.getByText("Description in German")).toBeVisible()
         try await expect(body.getByText(Self.german)).toHaveAttribute("lang", "de")
-        try await expect(body.getByText("in der Seefahrt")).toBeVisible()
+        try await expect(body.getByText("in der Seefahrt")).toHaveCount(0)
         try await expect(body.getByText("The English says it plainly.")).toBeVisible()
         #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
 
@@ -82,7 +84,9 @@ struct LexicographicTranslationDescriptionTests {
         try await expect(row.locator(".record-row-title").first).toHaveText(Self.german)
         try await expect(row.locator(".record-row-title").first).toHaveAttribute("lang", "de")
         try await expect(page.locator(".record-sidebar-status").first).toContainText("translated")
-        try await expect(row.locator(".sentiment-metadata-view span[data-reading-english='in seafaring use']").first).toHaveText("in der Seefahrt")
+        // A label is schema: the same in every language.
+        try await expect(row.locator(".sentiment-metadata-view").first).toContainText("in seafaring use")
+        try await expect(row.locator(".sentiment-metadata-view").getByText("in der Seefahrt")).toHaveCount(0)
         try await english.click()
         try await expect(row.locator(".record-row-title").first).toHaveText("A leaf sense.")
         #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
