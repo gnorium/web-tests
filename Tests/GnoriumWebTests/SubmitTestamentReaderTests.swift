@@ -9,7 +9,9 @@ import WebTestsTesting
 /// pane, since nothing is explicated yet. A URL cleared takes the viewer
 /// away, and the field's own validation asks for one. A manifest the server
 /// cannot read takes it away too, with an error under the field that blocks
-/// the form for that URL: the submit would be refused for it.
+/// the form for that URL (the submit would be refused for it) and an alert
+/// where the reader would have been (user, 2026-10-09)—never words in an
+/// ordinance pane, where they could be taken for a testament's own.
 ///
 /// The manifests are served by a fixture server on this machine
 /// (`FixtureServer`), which the dev server may fetch because `.env.dev`
@@ -52,6 +54,7 @@ struct SubmitTestamentReaderTests {
         let reader = form.locator(".submit-testament-reader")
         let source = form.locator("input[name='source-url']")
         let message = form.locator("#testament-source-url-validation-message .field-validation-message-text")
+        let alert = form.locator(".submit-testament-alert .alert-view")
 
         // No URL: no viewer.
         try await expect(reader).toBeHidden()
@@ -69,6 +72,7 @@ struct SubmitTestamentReaderTests {
         try await expect(viewer.locator(".artifact-transcript")).toHaveCount(0)
         try await expect(viewer.locator(".artifact-canvas-toggle")).toHaveCount(0)
         try await expect(message).toHaveCount(0)
+        try await expect(alert).toHaveCount(0)
 
         // Not a manifest: the viewer goes, and the field says why, an error
         // that blocks the form for this URL. Each answer is the server's
@@ -80,17 +84,32 @@ struct SubmitTestamentReaderTests {
         try await expect(source).toHaveAttribute("aria-invalid", "true")
         try await expect(reader).toBeHidden()
         try await expect(reader.locator(".testament-view")).toHaveCount(0)
+        // The reader's failure, an alert where it would have been, and
+        // nowhere in a reader's panes.
+        try await expect(alert).toHaveCount(1)
+        try await expect(alert).toHaveAttribute("role", "alert")
+        try await expect(alert).toContainText("The source URL can't be read.")
+        try await expect(alert).toBeVisible()
+        let inPanes = try await page.evaluate(
+          """
+          [...document.querySelectorAll('.artifact-transcript, .artifact-object, .tei-view')]
+            .some((pane) => pane.textContent.includes("can't be read"))
+          """)
+        #expect(inPanes == .bool(false), "the failure was written into a reader's pane")
 
         // Nothing answers: it could not be fetched.
         try await source.fill(fixtures.baseURL + "/gone.json")
         try await expect(message, timeout: .seconds(15)).toHaveText("The source URL can't be read.")
         try await expect(reader).toBeHidden()
+        try await expect(alert).toHaveCount(1)
+        try await expect(alert).toContainText("The source URL can't be read.")
 
         // A manifest again: the error goes, the viewer comes back.
         try await source.fill(manifestURL)
         try await expect(reader).toBeVisible()
         try await expect(reader.locator(".artifact-view #artifact-page-total")).toHaveText("3")
         try await expect(message).toHaveCount(0)
+        try await expect(alert).toHaveCount(0)
         #expect(try await source.getAttribute("aria-invalid") == nil, "a readable manifest left the field invalid")
 
         // Cleared: the viewer goes, and the field asks to be filled in.

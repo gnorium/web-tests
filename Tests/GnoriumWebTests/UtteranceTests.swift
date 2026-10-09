@@ -4,11 +4,13 @@ import WebTests
 import WebTestsTesting
 
 /// An utterance is shown in its testament (user, 2026-09-27): a sentiment's
-/// utterance is its testament named and linked at its page, then the transcript
+/// utterance is the transcript
 /// of its page and the pages either side, one after another in one bounded
 /// box, each opened by its label, fetched only once it comes into view and
 /// opened with its sentence (split across a page break here) in the middle,
-/// the sentence and, more strongly, the word marked; no images. A throwaway
+/// the sentence and, more strongly, the word marked; no images; credited
+/// under it as a Chicago note (user, 2026-10-09), its title linked to the
+/// testament at its page. A throwaway
 /// admin owns a scratch work with a permitted testament and a scratch word
 /// attested in it, made by SQL and removed after.
 @Suite("Utterance", .serialized)
@@ -69,12 +71,21 @@ struct UtteranceTests {
 
         try await page.locator("#record-row-s-1-1 > .accordion-summary").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
-        // Its testament, named and dated, linked to the testament at its page; its
-        // page, line and word are data, never shown.
-        try await expect(attestation.locator(".attestation-testament")).toHaveText(
-          "Web tests testament · AD 1901")
         let utterance = attestation.locator(".utterance-view")
         try await expect(utterance).toHaveCount(1)
+        // Credited under the reader, as a quotation is: a Chicago note—the
+        // voice, the title italic (a report is book-length), the date, the
+        // locus (the semblance's place: no manifest is read).
+        let work = scratch.reading.work
+        let citation = attestation.locator(".chicago-citation-view")
+        try await expect(citation).toHaveText("\(work.author), \(work.title) (1958), 3.")
+        try await expect(citation.locator("cite.chicago-citation-title")).toHaveCSS("font-style", "italic")
+        let credit = try await attestation.evaluate(
+          """
+          (el) => { const c = el.querySelector('.chicago-citation-view'), u = el.querySelector('.utterance-view');
+            return c.getBoundingClientRect().top >= u.getBoundingClientRect().bottom }
+          """)
+        #expect(credit == .bool(true), "the utterance's source is not credited under its reader")
         // The page and the pages either side, each opened by its label.
         try await expect(utterance.locator(".tei-transcript")).toHaveCount(3)
         try await expect(utterance.locator(".tei-line-mark")).toHaveTexts(["2", "3", "4"])
@@ -116,7 +127,7 @@ struct UtteranceTests {
         // The link opens the testament's page at the utterance's page.
         let landed = try await page.evaluate(
           """
-          fetch(document.querySelector('#record-row-s-1-1 .attestation-testament a').href)
+          fetch(document.querySelector('#record-row-s-1-1 .chicago-citation-view a').href)
             .then(r => (r.ok ? '' : 'HTTP ' + r.status + ' ') + new URL(r.url).pathname + new URL(r.url).search)
           """)
         #expect(landed == .string("\(scratch.reading.work.path)/vignettes/\(scratch.versionID)?semblance=2"))

@@ -102,12 +102,14 @@ struct SemblanceCanvasTests {
         try await expect(find).toHaveAccessibleName("Find in this testament")
         try await expect(find).toHaveText("")
         // Find and the semblance switch are the pager's small chevrons' size,
-        // 32, their icons' long edge the chevrons', 14 (icons are tight to
-        // their glyph, 2026-10-01): one row of small controls in a 40 bar.
+        // 32, their icons' long edge the chevrons', 16 (icons are tight to
+        // their glyph, 2026-10-01; an icon-only control on par with the
+        // bars' 16px text takes its size, 2026-10-09): one row of small
+        // controls in a 40 bar.
         let chevron = try #require(try await viewer.locator(".pagination-prev").first.boundingBox())
         let chevronIcon = try #require(try await viewer.locator(".pagination-prev svg").first.boundingBox())
         #expect(abs(chevron.height - 32) < 1, "the pager's chevrons are small, 32")
-        #expect(abs(max(chevronIcon.width, chevronIcon.height) - 14) < 1, "the pager's chevrons are 14")
+        #expect(abs(max(chevronIcon.width, chevronIcon.height) - 16) < 1, "the pager's chevrons are 16")
         #expect(abs(row.height - 40) < 1, "the header's row is 40")
         for (name, control, icon) in [
           ("Find", find, find.locator("svg")),
