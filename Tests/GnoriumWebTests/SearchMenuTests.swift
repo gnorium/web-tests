@@ -120,8 +120,7 @@ struct SearchMenuTests {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       for (index, parameter, field, noun, name, path) in [
         ("/biblio-records", "title", "title", "biblio-records", work.title, work.path),
-        // No field chosen on the lexico list: the whole record.
-        ("/lexico-records", "title", "", "lexico-records", word.title, word.path),
+        ("/lexico-records", "title", "title", "lexico-records", word.title, word.path),
       ] {
         for list in [index, "\(index)/eng"] {
           try await page.openHydrated(list)
@@ -138,12 +137,12 @@ struct SearchMenuTests {
           try await input.fill("zzqxj")
           try await expect(count).toHaveText("0 \(noun)")
           try await expect(page.locator(".records-results-view tbody a[href^='\(index)/']")).toHaveCount(0)
-          try await Self.expectAddress(page, list, Self.query([parameter: "zzqxj"], field))
+          try await Self.expectAddress(page, list, [parameter: "zzqxj", "field": field])
           try await expect(page.locator(".search-bar-suggestion-item")).toHaveCount(0)
 
           // The scratch row's name, no other row's: that row alone.
           try await input.fill(name)
-          try await Self.expectAddress(page, list, Self.query([parameter: name], field))
+          try await Self.expectAddress(page, list, [parameter: name, "field": field])
           try await expect(count).toHaveText("1 \(noun.dropLast())")
           let rows = page.locator(".records-results-view tbody a[href^='\(index)/']")
           try await expect(rows).toHaveCount(1)
@@ -155,7 +154,7 @@ struct SearchMenuTests {
           // Cleared: the whole list, at its own address.
           try await Self.expectClearedToTheWholeList(page, input, list) {
             try await input.fill(name)
-            try await Self.expectAddress(page, list, Self.query([parameter: name], field))
+            try await Self.expectAddress(page, list, [parameter: name, "field": field])
           }
           try await page.expectNoHorizontalOverflow()
           try await page.expectNoErrors()
@@ -179,22 +178,6 @@ struct SearchMenuTests {
           ("/lexico-records", "utterance_work", "placement \(work.suffix)", "lexico-record", word.title),
           ("/lexico-records", "utterance_author", "author \(work.suffix)", "lexico-record", word.title),
         ]
-        // No field chosen: the whole record, a sentiment's description
-        // among its texts (user, 2026-10-09); there is no Description radio.
-        _ = try TestAdmin.query(
-          "UPDATE lexico_record_versions SET record_json = replace(record_json, 'A leaf sense.', 'A leaf sense of \(work.suffix).') WHERE id = '\(word.versionID.lowercased())'")
-        try await page.openHydrated("/lexico-records")
-        if layout == .phone {
-          try await page.locator(".sidebar-menu-btn").click()
-        }
-        let sidebar = page.locator("[data-records-search='true']").filter(visible: true).first
-        try await expect(sidebar.locator("input[name='field'][value='description']")).toHaveCount(0)
-        try await expect(sidebar.locator("input[name='field']:checked")).toHaveCount(0)
-        try await sidebar.locator(".search-bar-input").fill("SENSE OF \(work.suffix)")
-        try await Self.expectAddress(page, "/lexico-records", ["title": "SENSE OF \(work.suffix)"])
-        try await expect(page.locator(".records-count-view")).toHaveText("1 lexico-record")
-        try await expect(page.locator(".records-results-view tbody a[href^='/lexico-records/']").first)
-          .toHaveText(word.title)
         for (index, field, query, noun, name) in searches {
           try await page.openHydrated(index)
           if layout == .phone {
@@ -230,7 +213,7 @@ struct SearchMenuTests {
   {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       for (index, parameter, field, column, name) in [
-        ("/lexico-records", "title", "", "title", word.title),
+        ("/lexico-records", "title", "title", "title", word.title),
         ("/biblio-records", "title", "title", "title", work.title),
       ] {
         try await page.openHydrated(index)
@@ -240,7 +223,7 @@ struct SearchMenuTests {
         let form = page.locator("[data-records-search='true']").filter(visible: true).first
         let input = form.locator(".search-bar-input")
         try await input.fill(name)
-        let searched = Self.query([parameter: name], field)
+        let searched = [parameter: name, "field": field]
         try await Self.expectAddress(page, index, searched)
         let count = page.locator(".records-count-view")
         let filtered = index == "/lexico-records" ? "1 lexico-record" : "1 biblio-record"
@@ -286,11 +269,6 @@ struct SearchMenuTests {
 
   /// The address the search left: the list's own path, and exactly
   /// `query` (in any order).
-  /// A search's address: `searched`, and the field when one is chosen.
-  private static func query(_ searched: [String: String], _ field: String) -> [String: String] {
-    field.isEmpty ? searched : searched.merging(["field": field]) { $1 }
-  }
-
   private static func expectAddress(_ page: Page, _ path: String, _ query: [String: String]) async throws {
     try await expect(page).toHaveURL("\(path)?\(query)") { url in
       let parts = URLComponents(url: url, resolvingAgainstBaseURL: false)

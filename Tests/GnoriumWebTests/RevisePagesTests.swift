@@ -9,8 +9,8 @@ import WebTestsTesting
 /// for—as one row, accepted whole; each diff is drawn live where it is made,
 /// and the revision's page draws each in the record's tree. Suggest lands
 /// on the object's own page at the suggestion's locution; the revision is
-/// accepted or rejected there or on its own page, and the Revisions lists
-/// are read-only. Prompts are in force only once the
+/// accepted or rejected there or on its own page, and each object's
+/// Revisions page is read-only. Prompts are in force only once the
 /// object is committed. A process's prompt page is read-only. All of it
 /// under a throwaway contributor's account; Chrome, desktop.
 @Suite("Revise pages", .serialized)
@@ -404,10 +404,16 @@ struct RevisePagesTests {
         // The epilogue's page reads it, its confidence "—".
         try await page.openHydrated(epiloguePath)
         try await expect(page.getByText("Un sens feuille, corrigé.").first).toBeAttached()
-        try await expect(page.locator("a[href*='/mission-control/revisions/lexicographic?objectID=']")).toHaveCount(1)
+        // "See associated revisions" opens the epilogue's own revisions
+        // page: revisions are read per object (user, 2026-10-09).
+        try await expect(
+          page.locator("a[href^='/mission-control/epilogues/lexicographic/'][href$='/revisions']")
+        ).toHaveCount(1)
+        try await expect(page.locator("a[href*='/mission-control/revisions/']")).toHaveCount(0)
 
-        // The Revisions list reads it, each row linking its own page.
-        try await page.openHydrated("/mission-control/revisions/lexicographic?objectID=\(epilogue)")
+        // Its revisions page reads it, each row linking its own page.
+        try await page.openHydrated("\(epiloguePath)/revisions")
+        try await expect(page.getByText("Revisions suggested to this epilogue.")).toBeAttached()
         try await expect(page.locator("a[href$='/revisions/\(epilogueRevision)']").first).toBeAttached()
         try await expect(page.locator("form[action$='/accept'], form[action$='/reject']")).toHaveCount(0)
       }
