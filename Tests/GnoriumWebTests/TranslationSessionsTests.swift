@@ -68,7 +68,7 @@ struct TranslationSessionsTests {
         try await expect(page.locator(".stages-view")).toHaveCount(0)
         try await expect(page.locator("a[href*='stage=']")).toHaveCount(0)
         try await expect(pipeline).toHaveAttribute("data-item-order", "1–2")
-        let session = page.locator(".session-view")
+        let session = page.locator(".computorium-session-view")
         try await expect(session.getByText("open_page").first).toBeAttached()
         try await expect(session.getByText("write_translation").first).toBeAttached()
         try await expect(session.getByText("Two pages of arithmetic, translated.")).toBeAttached()

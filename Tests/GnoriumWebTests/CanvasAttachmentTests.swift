@@ -10,7 +10,7 @@ struct CanvasAttachmentTests {
     guard gnorium.engines.contains(engine) else { return }
     guard let path = ProcessInfo.processInfo.environment["GNORIUM_CANVAS_FIXTURE_PATH"],
       FileManager.default.fileExists(atPath: path) else {
-      try Test.cancel("Export the actual SessionView canvas fixture first.")
+      try Test.cancel("Export the actual ComputoriumSessionView canvas fixture first.")
     }
     let name = "canvas-layout-\(UUID().uuidString).html"
     let file = URL(fileURLWithPath: "/Users/Madhavik/Downloads/Gnorium/gnorium-web/Public").appendingPathComponent(name)
@@ -18,10 +18,10 @@ struct CanvasAttachmentTests {
     defer { try? FileManager.default.removeItem(at: file) }
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/\(name)")
-      try await page.locator(".session-tool-call-rendered summary").click()
+      try await page.locator(".computorium-session-tool-call-rendered summary").click()
       let geometry = try await page.evaluate("""
         (() => {
-          const box = document.querySelector('.session-tool-call-result-box');
+          const box = document.querySelector('.computorium-session-tool-call-result-box');
           const view = box.querySelector('.expandable-attachment-view[data-presentation="inline"]');
           const viewport = view.querySelector('.expandable-attachment-image-viewport');
           const datum = view.closest('.datum-value'), style = getComputedStyle(datum);
@@ -87,7 +87,7 @@ struct CanvasAttachmentTests {
         try await page.openHydrated("/\(name)")
         let image = page.locator("#session-tool-late-canvas .expandable-attachment-image-viewport")
         do { try await expect(image).toBeAttached() } catch {
-          print(try await page.evaluate("JSON.stringify({mock:window.__canvasMock,auto:document.querySelector('.pipeline-container')?.dataset.autoWatch,kind:document.querySelector('.pipeline-container')?.dataset.computoriumCoreKind,tools:document.querySelectorAll('.session-tool-call').length,url:window.__canvasMockURL,handlers:window.__canvasMockHandlers,focus:document.querySelector('.session-view')?.dataset.sessionCanvas,output:!!document.querySelector('.session-view .session-output-content')})",as:String.self))
+          print(try await page.evaluate("JSON.stringify({mock:window.__canvasMock,auto:document.querySelector('.pipeline-container')?.dataset.autoWatch,kind:document.querySelector('.pipeline-container')?.dataset.computoriumCoreKind,tools:document.querySelectorAll('.computorium-session-tool-call').length,url:window.__canvasMockURL,handlers:window.__canvasMockHandlers,focus:document.querySelector('.computorium-session-view')?.dataset.sessionCanvas,output:!!document.querySelector('.computorium-session-view .computorium-session-output-content')})",as:String.self))
           throw error
         }
         try await page.locator("#session-tool-late-canvas summary").click()
@@ -95,7 +95,7 @@ struct CanvasAttachmentTests {
         // received, its image its `image` datum's width and no taller than the bound,
         // no chip and no lightbox (user, 2026-10-07).
         let parity = try await page.evaluate("""
-          (()=>{const card=document.querySelector('#session-tool-late-canvas');const box=card.querySelector('.session-tool-call-result-box');const view=box&&box.querySelector('.expandable-attachment-view[data-presentation="inline"]');const vp=view&&view.querySelector('.expandable-attachment-image-viewport');const r=vp?vp.getBoundingClientRect():{height:0,width:0};const v=view&&view.closest('.datum-value');const cs=v?getComputedStyle(v):null;const w=v?v.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight):Infinity;return !!view && view.dataset.attachmentHydrated==='true' && r.height>0 && r.height<=innerHeight*.64+1 && r.width>=w-1 && !card.querySelector('.expandable-attachment-dialog') && box.textContent.includes('source_width') && box.textContent.includes('sent_width');})()
+          (()=>{const card=document.querySelector('#session-tool-late-canvas');const box=card.querySelector('.computorium-session-tool-call-result-box');const view=box&&box.querySelector('.expandable-attachment-view[data-presentation="inline"]');const vp=view&&view.querySelector('.expandable-attachment-image-viewport');const r=vp?vp.getBoundingClientRect():{height:0,width:0};const v=view&&view.closest('.datum-value');const cs=v?getComputedStyle(v):null;const w=v?v.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight):Infinity;return !!view && view.dataset.attachmentHydrated==='true' && r.height>0 && r.height<=innerHeight*.64+1 && r.width>=w-1 && !card.querySelector('.expandable-attachment-dialog') && box.textContent.includes('source_width') && box.textContent.includes('sent_width');})()
           """, as:Bool.self)
         #expect(parity,"A late SSE tool's zoom is in place in its result box with its fields")
         try await page.expectNoHorizontalOverflow()

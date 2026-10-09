@@ -70,7 +70,7 @@ struct LexicographicExplicationSessionsTests {
         let pipeline = page.locator(".pipeline-container")
         try await expect(pipeline).toHaveAttribute(
           "data-item-order", "Cluster 1 of 2 · 2 quotations,Cluster 2 of 2 · 1 quotation")
-        let session = page.locator(".session-view")
+        let session = page.locator(".computorium-session-view")
         try await expect(session.getByText("read_quotation").first).toBeAttached()
         try await expect(session.getByText("assign", exact: true).first).toBeAttached()
         try await expect(session.getByText("Both uses are the human calculator.")).toBeAttached()

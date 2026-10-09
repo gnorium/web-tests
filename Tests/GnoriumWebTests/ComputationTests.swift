@@ -155,23 +155,28 @@ struct ComputationTests {
           """)
         try await page.openHydrated(reading.path)
         let reply = page.locator("#locution-\(replyID.uppercased())")
-        let session = reply.locator(".session-view")
+        let session = reply.locator(".computorium-session-view")
         try await expect(session).toHaveCount(1)
-        try await expect(session.locator(".session-prompt-fieldset")).toHaveCount(2)
+        try await expect(session.locator(".computorium-session-prompt-fieldset")).toHaveCount(2)
         try await expect(session).toContainText(Self.task)
-        try await expect(session.locator(".session-output-rendered")).toContainText(Self.reply)
+        try await expect(session.locator(".computorium-session-output-rendered")).toContainText(Self.reply)
         try await expect(reply).toContainText("By gnorium")
-        try await expect(session.locator(".session-prompt-fieldset legend")).toHaveCount(2)
-        try await expect(session.locator(".session-output-legend")).toHaveCount(1)
+        try await expect(session.locator(".computorium-session-prompt-fieldset legend")).toHaveCount(2)
+        try await expect(session.locator(".computorium-session-output-legend")).toHaveCount(1)
+        // The tools offered open every round: before the thinking, and
+        // before the reply that follows the call (user, 2026-10-09).
+        let tools = session.locator(".computorium-session-tools")
+        try await expect(tools).toHaveCount(2)
+        try await tools.first.locator(".accordion-summary").first.click()
+        try await expect(tools.first).toContainText("Read the exact human Revise fields and attached evidence.")
         let tool = session.locator("#session-tool-computation_read")
         try await tool.locator(".accordion-summary").first.click()
-        try await expect(tool.locator(".session-tool-call-definition > .datum-view")).toHaveCount(1)
-        try await expect(tool).toContainText("Read the exact human Revise fields and attached evidence.")
+        try await expect(tool.locator(".computorium-session-tool-call-definition")).toHaveCount(0)
         try await expect(tool.locator(".datum-label").filter(hasText: "nodes[0]")).toHaveCount(1)
         #expect(try await reply.evaluate("""
           el => {
             const body = el.querySelector('.locution-body');
-            const thinking = el.querySelector('.session-output-thinking-body');
+            const thinking = el.querySelector('.computorium-session-output-thinking-body');
             return getComputedStyle(body).maxHeight === '512px' && getComputedStyle(body).overflowY === 'auto'
               && body.clientHeight <= 512 && body.scrollHeight > body.clientHeight
               && getComputedStyle(thinking).maxHeight === '256px' && getComputedStyle(thinking).overflowY === 'auto'

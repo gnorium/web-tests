@@ -19,10 +19,10 @@ struct OperationsLayoutTests {
     defer { fixture.stop() }
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.goto(fixture.baseURL + "/operations.html")
-      try await expect(page.locator(".session-failed-alert")).toBeVisible()
+      try await expect(page.locator(".computorium-session-failed-alert")).toBeVisible()
       let disclosure = try await page.evaluate("""
         (() => {
-          const alert = document.querySelector('.session-failed-alert.alert-blue');
+          const alert = document.querySelector('.computorium-session-failed-alert.alert-blue');
           const message = alert?.querySelector('.alert-content');
           if (!message) return false;
           const a = getComputedStyle(alert), m = getComputedStyle(message);
@@ -39,7 +39,7 @@ struct OperationsLayoutTests {
       #expect(disclosure, "One normal-weight message includes diagnostics in parentheses inside the blue alert")
       let attachments = try await page.evaluate("""
         (() => {
-          const group = document.querySelector('.session-input-attachments');
+          const group = document.querySelector('.computorium-session-input-attachments');
           const cards = [...group.children].map(el => el.getBoundingClientRect());
           const s = getComputedStyle(group), rect = group.getBoundingClientRect();
           if (cards.length !== 2 || s.flexDirection !== 'row' || s.flexWrap !== 'wrap') return false;
@@ -52,7 +52,7 @@ struct OperationsLayoutTests {
       #expect(attachments, "Attachments share a row whenever they fit and wrap without overflowing")
       if layout == .desktop {
         let oneRow = try await page.evaluate("""
-          (() => { const cards = [...document.querySelector('.session-input-attachments').children];
+          (() => { const cards = [...document.querySelector('.computorium-session-input-attachments').children];
             return Math.abs(cards[0].getBoundingClientRect().top - cards[1].getBoundingClientRect().top) <= 1; })()
           """, as: Bool.self)
         #expect(oneRow, "Wide screens use one attachment row")

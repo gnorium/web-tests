@@ -62,6 +62,8 @@ struct BibliographicExplicationSessionsTests {
         try await expect(page.locator(".pipeline-container")).toHaveAttribute("data-active-stage", "explication")
         // One session for the chunk, not a row for each of its pages (the
         // sidebar is drawn twice, for wide screens and the phone's menu).
+        // The roster is Evidence, as the Disputorium's (user, 2026-10-09).
+        try await expect(page.locator(".computorium-core-sidebar-stages-heading").first).toHaveText("Evidence")
         let rows = page.locator(".computorium-core-sessions-slot").first.locator(".roster-row")
         try await expect(rows).toHaveCount(1)
         try await expect(rows.first).toHaveAttribute("data-session-label", "1–2")
@@ -73,7 +75,7 @@ struct BibliographicExplicationSessionsTests {
           """
           (el) => { const row = el.closest('.roster-view').querySelector('.roster-row');
             return !!row && el.closest('.search-input-view').dataset.size === 'medium'
-              && el.placeholder === 'Search sessions' && el.getAttribute('aria-label') === 'Search sessions'
+              && el.placeholder === 'Search evidence' && el.getAttribute('aria-label') === 'Search evidence'
               && getComputedStyle(el).fontSize === '16px'
               && getComputedStyle(el).height === '40px'; }
           """).bool == true
@@ -86,14 +88,14 @@ struct BibliographicExplicationSessionsTests {
           try await expect(rows.first).toHaveAttribute("data-hidden", "false")
         }
         // Its trace: the tool call it saved a page with, and its last word.
-        try await expect(page.locator(".session-view").getByText("save_page").first).toBeAttached()
-        try await expect(page.locator(".session-view .session-output-rendered")).toContainText("Both pages of the chunk saved")
+        try await expect(page.locator(".computorium-session-view").getByText("save_page").first).toBeAttached()
+        try await expect(page.locator(".computorium-session-view .computorium-session-output-rendered")).toContainText("Both pages of the chunk saved")
         // Raw and code read at CodeEditorView's size, 16 on 22 (user,
         // 2026-10-08): the wire's dump, a tool's arguments and result, and
         // a page's code alike, shown or not.
         let offSize = try await page.evaluate(
           """
-          [...document.querySelectorAll('.session-view :is(.session-output-raw, .session-prompt-body, .tool-field-block, .code-view)')]
+          [...document.querySelectorAll('.computorium-session-view :is(.computorium-session-output-raw, .computorium-session-prompt-body, .tool-field-block, .code-view)')]
             .map(e => { const s = getComputedStyle(e); return [e.className, s.fontSize, s.lineHeight]; })
             .filter(([, size, height]) => size !== '16px' || height !== '22px')
             .map(r => r.join(' ')).join('; ')
@@ -106,18 +108,18 @@ struct BibliographicExplicationSessionsTests {
         let proseOff = try await page.evaluate(
           """
           (() => {
-            const prose = [...document.querySelectorAll('.session-view :is(.session-output-rendered, .session-output-thinking-body .markdown-view, .session-compaction-summary, .session-prompt-rendered)')];
+            const prose = [...document.querySelectorAll('.computorium-session-view :is(.computorium-session-output-rendered, .computorium-session-output-thinking-body .markdown-view, .computorium-session-compaction-summary, .computorium-session-prompt-rendered)')];
             const blocks = prose.flatMap(e => [e, ...e.querySelectorAll(':scope p, :scope li, :scope p > code')]);
             const off = blocks.map(e => { const s = getComputedStyle(e); return [e.tagName + '.' + e.className, s.fontSize, s.lineHeight]; })
               .filter(([, size, height]) => size !== '16px' || height !== '26px');
-            const kinds = ['.session-output-rendered', '.markdown-view', '.session-compaction-summary', '.session-prompt-rendered']
+            const kinds = ['.computorium-session-output-rendered', '.markdown-view', '.computorium-session-compaction-summary', '.computorium-session-prompt-rendered']
               .filter(k => !prose.some(e => e.matches(k)));
             const codes = prose.flatMap(e => [...e.querySelectorAll(':scope p > code')]).length;
             // Headings on the scale's own pairs, never the prose's leading
             // multiplied up; a fence's language label on its own 12/22.
             const pairs = { H1: '24px/34px', H2: '20px/30px', H3: '18px/28px', H4: '16px/26px' };
             const heads = prose.flatMap(e => [...e.querySelectorAll(':scope h1, :scope h2, :scope h3, :scope h4')])
-              .filter(h => !h.closest('.session-compaction-summary'));
+              .filter(h => !h.closest('.computorium-session-compaction-summary'));
             const headOff = heads.map(h => { const s = getComputedStyle(h); return [h.tagName, s.fontSize + '/' + s.lineHeight]; })
               .filter(([tag, pair]) => pairs[tag] !== pair).map(r => 'heading ' + r.join(' '));
             const labels = prose.flatMap(e => [...e.querySelectorAll('.code-block-lang')]);
@@ -129,10 +131,10 @@ struct BibliographicExplicationSessionsTests {
           })()
           """, as: String.self)
         #expect(proseOff.isEmpty, "Formatted text at 16px on 26px: \(proseOff)")
-        let legend = page.locator(".session-compaction-prompt-fieldset .session-prompt-legend-vignette a")
+        let legend = page.locator(".computorium-session-compaction-prompt-fieldset .computorium-session-prompt-legend-vignette a")
         try await expect(legend).toHaveCount(1)
         try await expect(legend).toHaveAttribute("href", "/mission-control/prompts/bibliographic/explication_autocompaction")
-        let rawCount = try await page.locator(".session-view .session-output-raw").count()
+        let rawCount = try await page.locator(".computorium-session-view .computorium-session-output-raw").count()
         #expect(rawCount > 0)
       }
     } catch {
@@ -163,15 +165,16 @@ struct BibliographicExplicationSessionsTests {
     do {
       let user = try admin.column("id")
       let detailURL = image(600, 400)
-      let result: [String: Any] = [
-        "ok": true, "tool": "zoom_image", "page": "1", "region": [100, 250, 300, 200], "image": "attached below",
-        "source_width": 1200, "source_height": 800, "sent_width": 600, "sent_height": 400,
-        "detail_url": detailURL, "page_url": image(400, 400),
-      ]
+      // Written in a fixed order: the card keeps the JSON's own.
+      let result = """
+        {"ok": true, "tool": "zoom_image", "page": "1", "region": [100, 250, 300, 200], "image": "attached below", \
+        "source_width": 1200, "source_height": 800, "sent_width": 600, "sent_height": 400, \
+        "detail_url": "\(detailURL)", "page_url": "\(image(400, 400))"}
+        """
       let blocks: [[String: String]] = [
         [
           "type": "tool", "name": "zoom_image", "arguments": #"{"x": 100, "y": 250, "width": 300, "height": 200}"#,
-          "result": String(decoding: try JSONSerialization.data(withJSONObject: result), as: UTF8.self),
+          "result": result,
           "status": "ok", "call_id": "call_zoom",
         ],
         ["type": "text", "content": "Looked closer."],
@@ -201,7 +204,7 @@ struct BibliographicExplicationSessionsTests {
         try await expect(detail.locator(".expandable-attachment-image-canvas")).toHaveAttribute("src", detailURL)
         try await expect(card.locator(".expandable-attachment-dialog")).toHaveCount(0)
         // The sizes the model received, under its own keys, in the result box.
-        let box = card.locator(".session-tool-call-result-box")
+        let box = card.locator(".computorium-session-tool-call-result-box")
         try await expect(box).toContainText("source_width")
         try await expect(box).toContainText("1200")
         try await expect(box).toContainText("sent_width")
@@ -213,14 +216,14 @@ struct BibliographicExplicationSessionsTests {
             "[...document.querySelectorAll('#session-tool-call_zoom \(selector) .datum-label')].map(l => l.textContent.trim()).join(' ')",
             as: String.self)
         }
-        let resultLabels = try await labels(".session-tool-call-result-box")
+        let resultLabels = try await labels(".computorium-session-tool-call-result-box")
         #expect(
-          resultLabels == "detail_url image ok page page_url region sent_height sent_width source_height source_width tool",
-          "Every key the zoom returned: \(resultLabels)")
+          resultLabels == "ok tool page region image source_width source_height sent_width sent_height detail_url page_url",
+          "Every key the zoom returned, in the JSON's order: \(resultLabels)")
         try await expect(box).toContainText("[100, 250, 300, 200]")
         // The arguments as sent, each its own datum.
-        let argumentLabels = try await labels(".session-tool-call-args")
-        #expect(argumentLabels == "height width x y", "Every argument: \(argumentLabels)")
+        let argumentLabels = try await labels(".computorium-session-tool-call-args")
+        #expect(argumentLabels == "x y width height", "Every argument, in the JSON's order: \(argumentLabels)")
         // The card fits the phone: no sideways scroll.
         let overflow = try await page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
         #expect(overflow == .bool(false))
@@ -278,34 +281,34 @@ struct BibliographicExplicationSessionsTests {
         """)
       try await withPage(engine, gnorium, cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?canvas=1")
-        let session = page.locator(".session-view")
+        let session = page.locator(".computorium-session-view")
         let replay = page.locator(".replay-btn")
         let snapshot = """
           (() => {
-            const root = document.querySelector('.session-output-content');
+            const root = document.querySelector('.computorium-session-output-content');
             const text = selector => [...root.querySelectorAll(selector)].map(e => e.textContent.trim().replace(/\\s+/g, ' '));
             return JSON.stringify({
-              thinking: text('.session-output-thinking-body .markdown-view'),
-              tools: text('.session-tool-call-name'),
-              arguments: text('.session-tool-call-args'),
-              results: text('.session-tool-call-result-box'),
-              compactions: text('.session-compaction-summary'),
-              output: text('.session-output-rendered').filter(Boolean)
+              thinking: text('.computorium-session-output-thinking-body .markdown-view'),
+              tools: text('.computorium-session-tool-call-name'),
+              arguments: text('.computorium-session-tool-call-args'),
+              results: text('.computorium-session-tool-call-result-box'),
+              compactions: text('.computorium-session-compaction-summary'),
+              output: text('.computorium-session-output-rendered').filter(Boolean)
             });
           })()
           """
         let finished = try await page.evaluate(snapshot, as: String.self)
         let otherRows = page.locator(".roster-row[data-session-label='2']")
         try await expect(otherRows.first).toHaveAttribute("data-session-status", "succeeded")
-        try await expect(session.locator(".session-output-thinking")).toHaveCount(2)
-        try await expect(session.locator(".session-tool-call")).toHaveCount(1)
+        try await expect(session.locator(".computorium-session-output-thinking")).toHaveCount(2)
+        try await expect(session.locator(".computorium-session-tool-call")).toHaveCount(1)
         for attempt in 1...2 {
           // Observe the real click after hydration's handler, before any SSE
           // callback can run. This catches stale cards even on a busy machine.
           try await page.evaluate("""
             (() => {
-              const root = document.querySelector('.session-output-content');
-              const session = document.querySelector('.session-view');
+              const root = document.querySelector('.computorium-session-output-content');
+              const session = document.querySelector('.computorium-session-view');
               window.replayStart = null;
               window.replayFilledWhileRunning = false;
               document.querySelector('.replay-btn').addEventListener('click', () => {
@@ -327,7 +330,7 @@ struct BibliographicExplicationSessionsTests {
           try await expect(session).toHaveAttribute("data-session-status", "succeeded")
           #expect(try await page.evaluate("window.replayFilledWhileRunning", as: Bool.self), "Stored trace fills the running card at replay pace")
           #expect(try await page.evaluate(snapshot, as: String.self) == finished, "Replay \(attempt) finishes with the original thinking, tools, compaction and output")
-          try await expect(session.locator(".session-output-thinking-running")).toHaveCount(0)
+          try await expect(session.locator(".computorium-session-output-thinking-running")).toHaveCount(0)
           try await expect(otherRows.first).toHaveAttribute("data-session-status", "succeeded")
         }
         // An older failed attempt remains failed in the card, while the list
