@@ -6,9 +6,9 @@ import WebTestsTesting
 /// A page read as the image sets it (user, 2026-09-27): each block's
 /// alignment and indent from its rend; a page number and a running head set
 /// on one line a row, each in its place; a right-aligned catchword at the
-/// right. At every width the text reflows (user, 2026-10-07): a block's
-/// lines run on as one paragraph, a break inside a word joining it with no
-/// space. The page, from the Wikisource example the user
+/// right. Every `<lb/>` ends a rendered line (user, 2026-10-10), in a
+/// note and in verse alike; read as text a break inside a word joins it
+/// with no space. The page, from the Wikisource example the user
 /// gave ("On the Goodness of the Supreme Being", 1756, p. 10), encoded as the
 /// explication now writes it.
 @Suite("TEI layout", .serialized)
@@ -18,6 +18,7 @@ struct TEILayoutTests {
     <pb n="10" facs="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/>
     <fw type="pageNum" rend="align(left)">10</fw> <fw type="header" rend="align(center)">On the Goodness</fw>
     <lg><l rend="indent(1)"><s><w lemma="the" type="article">The</w> <w lemma="mighty" type="adjective">migh-<lb break="no"/>ty</w> <w lemma="power" type="noun">Power</w><lb/><w lemma="that" type="pronoun">that</w> <w lemma="form" type="verb">form'd</w> <w lemma="the" type="article">the</w> <w lemma="world" type="noun">world</w></s></l></lg>
+    <note place="foot" rend="align(center)"><w lemma="buy" type="verb">Bought</w><lb/><w lemma="in" type="preposition">in</w><lb/><num value="1800">1800</num></note>
     <fw type="catch" rend="align(right)">Here,</fw>
     </body></text></TEI>
     """#
@@ -52,16 +53,37 @@ struct TEILayoutTests {
         let lines = block.locator(".tei-line")
         try await expect(lines).toHaveCount(3)
         let first = try #require(try await lines.nth(0).boundingBox())
-        // Reflowed: the lines run on, the word broken inside joined.
-        try await expect(block).toHaveCSS("display", "block")
-        try await expect(lines.nth(0)).toHaveCSS("display", "inline")
-        let flowed = try await block.innerText()
-        #expect(flowed.contains("The migh-ty Power that form'd the world"))
+        // One line to a line: each `<lb/>` ends one, the break inside a
+        // word too; read as text the broken word joins with no space.
+        try await expect(block).toHaveCSS("display", "flex")
+        try await expect(block).toHaveCSS("flex-direction", "column")
+        try await expect(lines.nth(0)).toHaveCSS("display", "block")
+        let second = try #require(try await lines.nth(1).boundingBox())
+        let third = try #require(try await lines.nth(2).boundingBox())
+        #expect(second.y > first.y + first.height - 1 && third.y > second.y + second.height - 1, "the lines are not set one under another")
+        try await expect(lines.nth(1)).toHaveAttribute("data-joins-previous", "true")
+        let read = try await block.textContent() ?? ""
+        #expect(read.contains("The migh-ty Power that form'd the world"), "read as text: \(read)")
         let blockBox = try #require(try await block.boundingBox())
         let textBox = try #require(try await text.boundingBox())
         #expect(first.x >= blockBox.x)
         #expect(blockBox.x == textBox.x)
         try await expect(block).toHaveCSS("padding-inline-start", "24px")
+        // The note's lines, one to a line too, each centered as its block is.
+        let note = text.locator(".tei-block[data-rend='align(center)']")
+        try await expect(note).toHaveCount(1)
+        try await expect(note).toHaveCSS("text-align", "center")
+        let noteLines = note.locator(".tei-line-note")
+        try await expect(noteLines).toHaveCount(3)
+        let noteBox = try #require(try await note.boundingBox())
+        var lastBottom = noteBox.y - 1
+        for index in 0..<3 {
+          let line = try #require(try await noteLines.nth(index).boundingBox())
+          #expect(line.y >= lastBottom - 1, "note line \(index + 1) is not under the one before")
+          lastBottom = line.y + line.height
+          let content = try #require(try await noteLines.nth(index).locator(":scope > span").boundingBox())
+          #expect(abs((content.x + content.width / 2) - (noteBox.x + noteBox.width / 2)) < 2, "note line \(index + 1) is not centered")
+        }
         // The page's code at CodeEditorView's size, 16 on 22 (user,
         // 2026-10-08), so it runs line for line with the editor.
         let code = page.locator(".tei-page-raw .code-view").first
