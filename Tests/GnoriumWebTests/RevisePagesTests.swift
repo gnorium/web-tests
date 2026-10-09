@@ -217,8 +217,14 @@ struct RevisePagesTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         // The thread says who suggested it, its size and what it changed,
         // each linked, and offers an admin its verdicts.
+        // The suggester's avatar on their event (the key alone: the
+        // src is what the page owes it).
+        _ = try TestAdmin.query("UPDATE users SET avatar_key = 'avatars/\(user)/webtest.webp' WHERE id = '\(user)'")
         try await page.openHydrated(commit.madrigalPath)
+        _ = try TestAdmin.query("UPDATE users SET avatar_key = NULL WHERE id = '\(user)'")
         let event = page.locator("#revision-\(id)")
+        try await expect(event.locator(".avatar-view img").first)
+          .toHaveAttribute("src", "/avatars/\(user)?v=webtest")
         try await expect(event).toContainText("suggested revision")
         try await expect(event.locator(".locution-thread-event-added")).toBeVisible()
         try await expect(event.locator(".locution-thread-event-changed a").first).toBeVisible()
@@ -261,8 +267,9 @@ struct RevisePagesTests {
         // The ring on all four sides of the pane, border and outline in the
         // state's color, both inside the pane's own box (the outline just
         // inside the border), the pane itself without padding or inset,
-        // flush with the viewer that clips it; the text keeps its inset
-        // through the TEI view's own (user, 2026-10-10). With the canvas
+        // flush with the viewer that clips it; the TEI view 1px inside it,
+        // so the outline stays clear, the text's 16 inset its rendered
+        // layer's (user, 2026-10-10). With the canvas
         // put away and shown alike.
         let ring = """
           (() => {
@@ -286,7 +293,9 @@ struct RevisePagesTests {
             if (card.dataset.canvasShown === 'false' && !flush(a.right - viewer.clientLeft, b.right)) return 'inset at the end'
             const view = pane.querySelector('.tei-view')
             const inner = getComputedStyle(view)
-            if (inner.paddingLeft !== '16px' || inner.paddingTop !== '16px') return 'text inset ' + inner.padding
+            if (inner.paddingLeft !== '1px' || inner.paddingTop !== '1px') return 'view inset ' + inner.padding
+            const text = getComputedStyle(view.querySelector("[data-transcript-layer='rendered']"))
+            if (text.paddingLeft !== '16px' || text.paddingTop !== '16px') return 'text inset ' + text.padding
             if (!flush(view.getBoundingClientRect().left, b.left + 1)) return 'view ' + (view.getBoundingClientRect().left - b.left)
             return 'ok ' + card.dataset.canvasShown
           })()

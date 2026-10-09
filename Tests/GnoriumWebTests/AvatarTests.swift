@@ -51,18 +51,49 @@ struct AvatarTests {
         // With no file chosen, "+ Avatar" opens the picker instead of submitting.
         try await page.locator(".edit-profile-avatar-add").click()
         try await expect(page).toHaveURL("/account/profile")
-        // A chosen file is named under the disc; the button then submits.
+        // A chosen picture previews in the disc, from the local file; the
+        // helper text stays; the button reads "Save Avatar" and submits the
+        // avatar form, never the profile form.
         try await page.locator("#avatar-file").setInputFiles([picture.path])
-        try await expect(page.locator("#avatar-description")).toHaveText("Chosen: \(picture.lastPathComponent)")
+        let preview = page.locator(".edit-profile-avatar .avatar-view img.avatar-image")
+        try await expect(preview).toHaveCount(1)
+        let previewSource = try await preview.getAttribute("src") ?? ""
+        #expect(previewSource.hasPrefix("blob:"), "the preview is the local file: \(previewSource)")
+        try await expect(page.locator(".edit-profile-avatar .avatar-letter")).toBeHidden()
+        try await expect(page.locator("#avatar-description")).toHaveText("A square picture, up to 5 MB; it is checked for unsafe content.")
+        try await expect(page.getByText("Chosen:")).toHaveCount(0)
+        try await expect(page.locator(".edit-profile-avatar-add")).toHaveText("Save Avatar")
+        _ = try await page.evaluate(
+          "document.addEventListener('submit', e => sessionStorage.setItem('submitted', new URL(e.target.action).pathname), true), 1")
         try await page.locator(".edit-profile-avatar-add").click()
         try await expect(page).toHaveURL("/account/profile?avatar=saved")
+        #expect(try await page.evaluate("sessionStorage.getItem('submitted')").string == "/account/avatar")
         try await expect(page.locator(".edit-profile-view .alert-view.alert-green")).toContainText("Your avatar has been saved")
         let avatarURL = try #require(try await page.locator(".edit-profile-avatar .avatar-view img").evaluate("el => el.getAttribute('src')").string)
         #expect(avatarURL.hasPrefix("/avatars/"))
         #expect(try contributor.column("avatar_key").hasSuffix(".webp"))
+        // The disc shows the saved avatar, and again on a reload.
+        #expect(avatarURL.hasPrefix("/avatars/"))
+        try await page.openHydrated("/account/profile")
+        try await expect(page.locator(".edit-profile-avatar .avatar-view img")).toHaveAttribute("src", avatarURL)
+        try await expect(page.locator(".edit-profile-avatar-add")).toHaveText("Avatar")
         // The navbar's menu shows it.
         try await expect(page.locator("#navbar-ellipsis-menu .ellipsis-account .avatar-view img")).toHaveAttribute("src", avatarURL)
         try await expect(page.locator("#navbar-ellipsis-menu .ellipsis-account .avatar-letter")).toHaveCount(0)
+
+        // The empty avatar forms take no gap: Avatar to Username is the
+        // gap of Username to Full name.
+        let gaps = try await page.evaluate(
+          """
+          (() => {
+            const field = el => el.closest('.field-input-wrapper').parentElement.getBoundingClientRect();
+            const avatar = field(document.querySelector('.edit-profile-avatar'));
+            const username = field(document.querySelector('#username'));
+            const fullName = field(document.querySelector('#full-name'));
+            return [username.top - avatar.bottom, fullName.top - username.bottom];
+          })()
+          """, as: [Double].self)
+        #expect(gaps.count == 2 && abs(gaps[0] - gaps[1]) < 0.5, "Avatar→Username vs Username→Full name: \(gaps)")
 
         // "− Avatar" takes it away, and the disc returns.
         try await page.locator(".edit-profile-avatar-remove").click()

@@ -384,6 +384,91 @@ struct BibliographicExplicationSessionsTests {
     try await admin.remove()
   }
 
+  /// The placement rule (user, 2026-10-10): the session's label at the
+  /// top left of its card; the sessions' pager at the bottom right, under
+  /// the card, on its right edge; on the output's bottom border, Raw at the
+  /// start and the attempt pager at the end.
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func pagersSitAtTheBottomRightOfWhatTheyPage(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let work = try ScratchWork(owner: admin)
+    let antiphonID = UUID().uuidString.lowercased()
+    let runIDs = (0..<3).map { _ in UUID().uuidString.lowercased() }
+    func cleanup() {
+      _ = try? TestAdmin.query(
+        "DELETE FROM bibliographic_explication_stage_runs WHERE bibliographic_antiphon_id = '\(antiphonID)'")
+      remove(runID: runIDs[0], antiphonID: antiphonID, work: work)
+    }
+    do {
+      let user = try admin.column("id")
+      let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())')"
+      let columns = "(id, submission_id, stage, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)"
+      _ = try TestAdmin.query("""
+        BEGIN;
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, canvas_service_ids_json, processing_status)
+          VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
+        INSERT INTO bibliographic_explication_stage_runs \(columns)
+          VALUES ('\(runIDs[0])', \(batch), 'explication', '1', 2, 'DeepSeek', 'deepseek-flash', 'The second attempt.', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now());
+        INSERT INTO bibliographic_explication_stage_runs \(columns)
+          VALUES ('\(runIDs[1])', \(batch), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'The first attempt.', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now() - interval '1 second');
+        INSERT INTO bibliographic_explication_stage_runs \(columns)
+          VALUES ('\(runIDs[2])', \(batch), 'explication', '2', 1, 'DeepSeek', 'deepseek-flash', 'Another page.', 'passed', gen_random_uuid(), '\(antiphonID)', 100, now());
+        COMMIT;
+        """)
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?canvas=1")
+        try await expect(page.locator(".computorium-session-pager .computorium-session-page-nav")).toBeVisible()
+        try await expect(page.locator(".computorium-session-header .computorium-session-page-nav")).toHaveCount(0)
+        let report = try await page.evaluate(
+          """
+          (() => {
+            const r = (s) => document.querySelector(s)?.getBoundingClientRect();
+            const card = r('.computorium-session-view'), pager = r('.computorium-session-pager .computorium-session-page-nav');
+            const label = r('.computorium-session-header .computorium-session-title-canvas');
+            const fieldset = r('.computorium-session-output-fieldset');
+            const raw = r('.computorium-session-output-legend-start .computorium-session-raw-toggle');
+            const attempt = r('.computorium-session-output-legend-end .computorium-session-attempt-nav');
+            const out = [];
+            if (!card || !pager || !label || !fieldset || !raw || !attempt) return 'missing';
+            if (Math.abs(pager.right - card.right) > 1) out.push('pager right ' + pager.right + ' vs card ' + card.right);
+            if (pager.top < card.bottom - 1) out.push('pager above the card bottom');
+            if (label.top > card.top + 1 || Math.abs(label.left - card.left) > 1) out.push('label not top left');
+            if (Math.abs(raw.left - (fieldset.left + 16)) > 1) out.push('raw not at the start: ' + (raw.left - fieldset.left));
+            if (Math.abs(attempt.right - (fieldset.right - 16)) > 1) out.push('attempt pager not at the end: ' + (fieldset.right - attempt.right));
+            const mid = (fieldset.bottom);
+            if (Math.abs((attempt.top + attempt.bottom) / 2 - mid) > 2) out.push('attempt pager off the border');
+            // Every transcript legend at the bottom left, Raw first: the
+            // output's Raw then its info icon; a prompt's Raw, its title,
+            // then its id (user, 2026-10-10).
+            const start = document.querySelector('.computorium-session-output-legend-start');
+            const kinds = [...start.children].map(e => e.classList.contains('computorium-session-raw-toggle') ? 'raw'
+              : e.classList.contains('computorium-session-byline') ? 'info' : 'other').join(' ');
+            if (kinds !== 'raw info') out.push('output legend ' + kinds);
+            for (const field of document.querySelectorAll('.computorium-session-prompt-fieldset:has(.computorium-session-prompt-raw-toggle)')) {
+              const legend = field.querySelector(':scope > .prompt-legend-view');
+              const order = [...legend.children].map(e => e.classList.contains('computorium-session-prompt-raw-toggle') ? 'raw'
+                : e.classList.contains('computorium-session-prompt-legend-title') ? 'title'
+                : e.classList.contains('computorium-session-prompt-legend-vignette') ? 'id' : 'other').join(' ');
+              if (!order.startsWith('raw title')) out.push('prompt legend ' + order);
+              const f = field.getBoundingClientRect(), l = legend.getBoundingClientRect();
+              if (Math.abs(l.left - (f.left + 16)) > 1) out.push('prompt legend not at the bottom left: ' + (l.left - f.left));
+            }
+            return out.join('; ');
+          })()
+          """, as: String.self)
+        #expect(report.isEmpty, "\(layout): \(report)")
+        try await page.expectNoHorizontalOverflow()
+      }
+    } catch {
+      cleanup()
+      try await admin.remove(after: error)
+    }
+    cleanup()
+    try await admin.remove()
+  }
+
   private func remove(runID: String, antiphonID: String, work: ScratchWork) {
     _ = try? TestAdmin.query(
       """

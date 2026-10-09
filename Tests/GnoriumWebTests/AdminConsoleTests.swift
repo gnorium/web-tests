@@ -63,7 +63,7 @@ struct AdminConsoleTests {
 
   /// MFA end to end: on, its recovery codes shown once, signed out and in
   /// again with one of them (which then works no more), new codes in place
-  /// of the old, and off with a current code.
+  /// of the old on a current code, and off with a current code.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func mfaRecoveryCodesAndManagement(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -120,7 +120,19 @@ struct AdminConsoleTests {
         try await page.openHydrated("/admin-console/mfa/manage")
         try await expect(page.locator(".manage-mfa-view")).toContainText("7 of 8 unused")
 
+        // New codes take a current code: a wrong one changes nothing and
+        // says so under its field.
+        try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
+        let codesBefore = try admin.column("recovery_codes_hash")
+        try await page.locator("#manage-mfa-regenerate-code").fill("000000")
+        try await page.getByRole(.button, name: "Regenerate Recovery Codes").click()
+        try await expect(page).toHaveURL("/admin-console/mfa/manage?error=invalid-regenerate")
+        try await expect(page.locator("#manage-mfa-regenerate-code-validation-message")).toContainText("didn't match")
+        #expect(try admin.column("recovery_codes_hash") == codesBefore)
+
         // New codes, shown once; the old ones are gone.
+        try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
+        try await page.locator("#manage-mfa-regenerate-code").fill(try Self.code(secret: secret))
         try await page.getByRole(.button, name: "Regenerate Recovery Codes").click()
         try await expect(page.locator(".recovery-codes-view")).toBeVisible()
         try await Self.check(page, sheet: "recovery-codes-view", layout: layout, name: "mfa-regenerated")
@@ -136,7 +148,8 @@ struct AdminConsoleTests {
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         try await page.locator("#manage-mfa-code").fill("000000")
         try await page.getByRole(.button, name: "Turn Off MFA").click()
-        try await expect(page).toHaveURL("/admin-console/mfa/manage?error=invalid")
+        try await expect(page).toHaveURL("/admin-console/mfa/manage?error=invalid-disable")
+        try await expect(page.locator("#manage-mfa-code-validation-message")).toContainText("didn't match")
         #expect(try admin.column("totp_enabled") == "true")
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         try await page.locator("#manage-mfa-code").fill(try Self.code(secret: secret))

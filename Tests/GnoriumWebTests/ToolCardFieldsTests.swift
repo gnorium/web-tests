@@ -83,12 +83,16 @@ struct ToolCardFieldsTests {
         "type": "compaction", "mode": "micro", "micro": "1", "chars_before": "100", "chars_after": "60",
         "stubbed": "\(prefix)rc\tread_conventions\t{}\t40\t\(stub.utf8.count)\t\(stub)",
       ],
+      // Recorded before each model call (user, 2026-10-10).
+      ["type": "tools", "content": toolDefinitions],
       ["type": "thinking", "content": "Writing the page."],
       [
         "type": "tool", "name": "write_tei",
         "arguments": String(decoding: try! JSONSerialization.data(withJSONObject: ["tei": tei]), as: UTF8.self),
         "result": written, "status": "ok", "call_id": "\(prefix)wt",
       ],
+      // The request that answers after the last tool result.
+      ["type": "tools", "content": toolDefinitions],
     ]
   }
 
@@ -147,9 +151,9 @@ struct ToolCardFieldsTests {
               && getComputedStyle(chip.querySelector('.info-chip-text') || chip).color === green
           })()
           """, as: Bool.self), "The Submitted chip is green")
-        // The tools the model is offered go with every request, so the
-        // Tools card opens every round: before the first thinking, and
-        // before the thinking and the text that follow a tool result.
+        // The tools the model is offered go with every request, and the
+        // trace records them before each model call: a Tools card where
+        // each was recorded, before each round (user, 2026-10-10).
         let tools = session.locator(".computorium-session-tools")
         try await expect(tools).toHaveCount(3)
         try await expect(tools.first.locator(".accordion-title")).toHaveText("Tools")

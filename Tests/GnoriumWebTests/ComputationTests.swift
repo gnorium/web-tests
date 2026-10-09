@@ -20,6 +20,7 @@ struct ComputationTests {
       ["type": "thinking", "content": String(repeating: "Reading the selected evidence carefully.\n\n", count: 90)],
       ["type": "tool", "name": "read_record", "arguments": "{}", "status": "ok", "call_id": "computation_read",
        "result": #"{"nodes":[{"id":"work","label":"Work","number":"1","fields":[{"id":"title","label":"Title","value":"Web tests evidence"}]}],"evidence":{"id":"selected-evidence","kind":"canvas","label":"Title page","markup":"<p>Evidence fixture 2.</p>"}}"#],
+      ["type": "tools", "content": toolDefinition],
       ["type": "text", "content": reply],
     ]
     return String(decoding: try JSONSerialization.data(withJSONObject: blocks), as: UTF8.self)
@@ -179,8 +180,9 @@ struct ComputationTests {
         try await expect(reply.locator("a:has(.locution-call-evidence)").first).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID.uppercased())?canvas=0")
         try await expect(session.locator(".computorium-session-prompt-fieldset legend")).toHaveCount(2)
         try await expect(session.locator(".computorium-session-output-legend")).toHaveCount(1)
-        // The tools offered open every round: before the thinking, and
-        // before the reply that follows the call (user, 2026-10-09).
+        // The tools offered, where the trace recorded them, before each
+        // model call: the thinking's, and the reply's after the call
+        // (user, 2026-10-10).
         let tools = session.locator(".computorium-session-tools")
         try await expect(tools).toHaveCount(2)
         try await tools.first.locator(".accordion-summary").first.click()
@@ -300,6 +302,82 @@ struct ComputationTests {
         try await expect(links).toHaveCount(2)
         try await expect(links.nth(0)).toHaveText("Canvas 1")
         try await expect(links.nth(1)).toHaveText("Canvas 2")
+        try await page.expectNoErrors()
+      }
+    } catch {
+      remove()
+      try await admin.remove(after: error)
+    }
+    remove()
+    try await admin.remove()
+  }
+
+  /// A crop box on an attached canvas (user, 2026-10-10): in attach mode
+  /// the reader's image of a ticked item takes a dragged box; the call
+  /// stores it in the 0–1000 space by the item's id, and its locution shows
+  /// the numbers beside the item's link.
+  @Test(arguments: [BrowserEngine.chrome])
+  func aCropBoxDrawnOnAnAttachedCanvasRidesWithTheCall(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let fixture = try await FixtureServer.threePageManifest()
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let reading = try ScratchReading(owner: admin, tei: Self.teiThreeRead(fixture), sourceURL: fixture.baseURL + "/manifest.json")
+    let objectID = reading.madrigalID
+    func remove() {
+      _ = try? TestAdmin.query("DELETE FROM locutions WHERE locutable_id = '\(objectID)'")
+      reading.remove()
+    }
+    do {
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
+        try await page.openHydrated(reading.path)
+        let viewer = page.locator(".artifact-view").first
+        try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
+        let roster = page.locator("#madrigal-canvases")
+        let body = page.locator("#locution-thread-locution-body")
+        // Submit at the right, under the box's right edge (user, 2026-10-10).
+        let field = try #require(try await body.boundingBox())
+        let submit = try #require(try await page.locator(".locution-thread-submit").boundingBox())
+        #expect(abs((submit.x + submit.width) - (field.x + field.width)) < 1, "Submit under the box's right edge")
+        #expect(submit.x > field.x + 1, "Submit is not at the left")
+        try await body.fill("@gnorium Read the line in the box.")
+        try await expect(roster).toHaveAttribute("data-mode", "attach")
+        try await expect(roster.locator(".roster-row").nth(0).locator(".checkbox-input")).toBeChecked()
+        // The page images on; the ticked canvas takes a box.
+        let toggle = viewer.locator(".artifact-canvas-toggle button")
+        if try await toggle.getAttribute("aria-pressed") != "true" { try await toggle.click() }
+        let canvas = viewer.locator(".canvas-view[data-active='true'] .canvas-viewport")
+        try await expect(canvas).toHaveAttribute("data-cropping", "true")
+        let box = try #require(try await canvas.boundingBox())
+        let (x0, y0) = (box.x + box.width * 0.4, box.y + box.height * 0.4)
+        let (x1, y1) = (box.x + box.width * 0.6, box.y + box.height * 0.55)
+        try await page.mouse.move(x: x0, y: y0)
+        try await page.mouse.down(x: x0, y: y0)
+        for step in 1...5 {
+          try await page.mouse.move(x: x0 + (x1 - x0) * Double(step) / 5, y: y0 + (y1 - y0) * Double(step) / 5)
+        }
+        try await page.mouse.up(x: x1, y: y1)
+        try await expect(canvas.locator(".canvas-crop")).toBeVisible()
+        try await expect(roster).toHaveAttribute("data-mode", "attach")
+        try await page.locator(".locution-thread-submit").click()
+        try await expect(page.locator(".locution-call-status"), timeout: .seconds(15)).toHaveText("Pending")
+        let stored = try TestAdmin.query(
+          "SELECT evidence_crops FROM locutions WHERE locutable_id = '\(objectID)' AND kind = 'call'")
+        let service = "\(fixture.baseURL)/page-1"
+        let crops = try JSONSerialization.jsonObject(with: Data(stored.utf8)) as? [String: [Int]]
+        let crop = try #require(crops?[service], Comment(rawValue: stored))
+        #expect(crop.count == 4 && crop[2] > 0 && crop[3] > 0 && crop[0] + crop[2] <= 1000 && crop[1] + crop[3] <= 1000)
+        try await expect(page.locator(".locution-call-evidence-crop").first)
+          .toHaveText(crop.map(String.init).joined(separator: " "))
+        // The locution's action row: the reactions button first, the info
+        // icon after it (user, 2026-10-10).
+        let order = try await page.evaluate(
+          """
+          [...document.querySelector('.locution-view .reactions-controls').children]
+            .map(e => e.classList.contains('reaction-picker-view') ? 'picker'
+              : e.classList.contains('reactions-when') ? 'when' : 'other').slice(0, 2).join(' ')
+          """, as: String.self)
+        #expect(order == "picker when", Comment(rawValue: order))
         try await page.expectNoErrors()
       }
     } catch {

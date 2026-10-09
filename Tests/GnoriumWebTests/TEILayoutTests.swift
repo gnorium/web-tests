@@ -63,7 +63,8 @@ struct TEILayoutTests {
         let blockBox = try #require(try await block.boundingBox())
         let textBox = try #require(try await text.boundingBox())
         #expect(first.x >= blockBox.x)
-        #expect(blockBox.x == textBox.x)
+        // The rendered layer's own 16 inset, then the block.
+        #expect(abs(blockBox.x - (textBox.x + 16)) < 0.5)
         try await expect(block).toHaveCSS("padding-inline-start", "24px")
         // The note's lines run on too, the block centered as its rend says.
         let note = text.locator(".tei-block[data-rend='align(center)']")
@@ -87,6 +88,71 @@ struct TEILayoutTests {
         try await expect(lines.nth(0)).toHaveCSS("font-size", "16px")
         try await expect(lines.nth(0)).toHaveCSS("line-height", "26px")
         try await page.expectNoHorizontalOverflow()
+      }
+    } catch {
+      reading.remove()
+      try await admin.remove(after: error)
+    }
+    reading.remove()
+    try await admin.remove()
+  }
+
+  /// An abbreviation with its expansion (`<choice><abbr>M.A.</abbr><expan>
+  /// Master of Arts</expan></choice>`) is a word of its line: the line's
+  /// font, size and baseline, its expansion on hover. The view has no
+  /// padding; the text's 16 inset is its page's (user, 2026-10-10).
+  static let abbreviationTEI = #"""
+    <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
+    <pb n="4" facs="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/>
+    <p><w lemma="take" type="verb">took</w> <w lemma="his" type="pronoun">his</w> <choice><abbr>M.A.</abbr><expan>Master of Arts</expan></choice> <w lemma="degree" type="noun">degree</w></p>
+    </body></text></TEI>
+    """#
+
+  @Test(arguments: [BrowserEngine.chrome])
+  func anAbbreviationSitsOnItsLine(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let reading = try ScratchReading(owner: admin, tei: Self.abbreviationTEI)
+    do {
+      try await withPage(engine, gnorium, viewport: .desktop) { page in
+        try await page.openHydrated(reading.path)
+        let view = page.locator(".tei-view").first
+        // 1px inside its pane, so the ring's inward outline stays clear;
+        // the rendered text's inset is its layer's 16.
+        try await expect(view).toHaveCSS("padding-top", "1px")
+        try await expect(view).toHaveCSS("padding-left", "1px")
+        try await expect(page.locator(".tei-page-text[data-transcript-layer='rendered']").first)
+          .toHaveCSS("padding-left", "16px")
+        let line = page.locator(".tei-page-text").first
+        let abbreviation = line.locator(".tei-run-alternative").first
+        try await expect(abbreviation).toContainText("M.A.")
+        let word = line.locator(".tei-run").filter(hasText: "his").first
+        let fontSize = try await word.evaluate("el => getComputedStyle(el).fontSize").string
+        try await expect(abbreviation).toHaveCSS("font-size", try #require(fontSize))
+        try await expect(abbreviation).toHaveCSS("vertical-align", "baseline")
+        let abbreviated = try #require(try await abbreviation.locator(".tei-run").first.boundingBox())
+        let neighbor = try #require(try await word.boundingBox())
+        #expect(abs(abbreviated.y - neighbor.y) < 0.5, "on the line's baseline: \(abbreviated.y) vs \(neighbor.y)")
+        #expect(abs(abbreviated.height - neighbor.height) < 0.5)
+
+        // Raw: the code box fills the view edge to edge, square: its gray
+        // starts at the pane's border plus 1 (the view's padding).
+        try await page.locator(".artifact-raw-toggle").first.click()
+        let code = page.locator(".tei-page-raw .code-view").first
+        try await expect(code).toBeVisible()
+        try await expect(code).toHaveCSS("border-top-left-radius", "0px")
+        let inset = try await code.evaluate(
+          """
+          el => {
+            const pane = el.closest('.artifact-transcript');
+            const view = el.closest('.tei-view');
+            const box = el.getBoundingClientRect(), p = pane.getBoundingClientRect(), v = view.getBoundingClientRect();
+            return [box.left - v.left, box.top - v.top, v.left - (p.left + pane.clientLeft)];
+          }
+          """).array?.compactMap(\.double) ?? []
+        #expect(inset.count == 3 && abs(inset[0] - 1) < 0.5 && abs(inset[1] - 1) < 0.5, "code at the view's 1px: \(inset)")
+        #expect(inset.count == 3 && abs(inset[2]) < 0.5, "the view at the pane's inner edge: \(inset)")
       }
     } catch {
       reading.remove()
