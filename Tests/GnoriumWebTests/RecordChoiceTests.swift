@@ -60,7 +60,7 @@ struct RecordChoiceTests {
       let note = dropdown.locator(".dropdown-options-list:not([data-dropdown-results]) > .dropdown-note")
       let options = dropdown.locator(".dropdown-options-list:not([data-dropdown-results]) > .dropdown-option")
       if before > 50 && after > 50 {
-        try await expect(note).toHaveText("Showing the first 50. Type to narrow the list.")
+        try await expect(note).toHaveText("Showing the first 50.")
         try await expect(note).not.toHaveAttribute("data-dropdown-option", "true")
         try await expect(options).toHaveCount(50)
       } else if before <= 50 && after <= 50 {
