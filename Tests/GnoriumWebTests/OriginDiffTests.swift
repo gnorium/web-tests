@@ -103,8 +103,10 @@ struct OriginDiffTests {
         let colors = try await diff.evaluate(
           """
           (root) => {
+            // The card's frame: its outline item's border, round the whole
+            // card (its own accordion draws none).
             const card = (frame) => root.querySelector(
-              `.origin-diff-node[data-tree-change='${frame}'] > .record-row-view > .accordion-view`);
+              `.origin-diff-node[data-tree-change='${frame}']`).closest('.outliner-item');
             const probe = (name) => {
               const el = document.createElement('span');
               el.style.color = `var(${name})`;
@@ -116,7 +118,8 @@ struct OriginDiffTests {
             const ring = (el, name) => {
               const style = getComputedStyle(el);
               return style.borderTopColor === probe(name) && style.outlineColor === probe(name)
-                && style.outlineStyle === 'solid' && style.boxShadow === 'none';
+                && style.outlineStyle === 'solid' && style.outlineWidth === style.borderTopWidth
+                && style.boxShadow === 'none';
             };
             const untinted = [...root.querySelectorAll('.accordion-view')].every((el) => {
               const bg = getComputedStyle(el).backgroundColor;

@@ -80,6 +80,22 @@ struct AmendmentRemovalTests {
         try await dialog.locator(".dialog-primary-button button").click()
         try await expect(manifest).toHaveAttribute("data-outline-state", "removed")
         #expect(!(try await shape()).contains("manifest-"))
+        // Its card ringed as a field is: the card's border—the outline
+        // item's, round the whole card—and an outline of one red, never a
+        // box-shadow and never a line through the card.
+        let ring = try await manifest.evaluate(
+          """
+          (item) => {
+            const s = getComputedStyle(item)
+            const row = getComputedStyle(item.querySelector(':scope > .outliner-row .accordion-view'))
+            const ok = s.borderTopColor === s.outlineColor && s.outlineStyle === 'solid'
+              && s.outlineWidth === s.borderTopWidth && s.borderTopWidth === '1px' && s.boxShadow === 'none'
+              && row.outlineStyle === 'none' && row.boxShadow === 'none'
+            return ok ? 'ok' : [s.borderTopColor, s.outlineColor, s.outlineStyle, s.outlineWidth, s.borderTopWidth,
+              s.boxShadow, row.outlineStyle, row.boxShadow].join(' | ')
+          }
+          """)
+        #expect(ring.string == "ok", "The removed testament's card is not ringed as a field: \(ring)")
         try await own(manifest, ".testament-outliner-restore").click()
         try await expect(manifest).not.toHaveAttribute("data-outline-state", "removed")
         #expect((try await shape()).contains("manifest-"))
