@@ -8,9 +8,9 @@ import WebTestsTesting
 /// of its page and the pages either side, one after another in one bounded
 /// box, each opened by its label, fetched only once it comes into view and
 /// opened with its sentence (split across a page break here) in the middle,
-/// the sentence and, more strongly, the word marked; no images; credited
-/// under it as a Chicago note (user, 2026-10-09), its title linked to the
-/// testament at its page. A throwaway
+/// the sentence and, more strongly, the word marked; no images. Anywhere in
+/// its highlight opens its gloss (user, 2026-10-09): its testament's Chicago
+/// note, its title linked to the testament at its page, then its words. A throwaway
 /// admin owns a scratch work with a permitted testament and a scratch word
 /// attested in it, made by SQL and removed after.
 @Suite("Utterance", .serialized)
@@ -73,19 +73,8 @@ struct UtteranceTests {
         try await expect(row).toHaveAttribute("data-open-finished", "true")
         let utterance = attestation.locator(".utterance-view")
         try await expect(utterance).toHaveCount(1)
-        // Credited under the reader, as a quotation is: a Chicago note—the
-        // voice, the title italic (a report is book-length), the date, the
-        // locus (the semblance's place: no manifest is read).
-        let work = scratch.reading.work
-        let citation = attestation.locator(".chicago-citation-view")
-        try await expect(citation).toHaveText("\(work.author), \(work.title) (1958), 3.")
-        try await expect(citation.locator("cite.chicago-citation-title")).toHaveCSS("font-style", "italic")
-        let credit = try await attestation.evaluate(
-          """
-          (el) => { const c = el.querySelector('.chicago-citation-view'), u = el.querySelector('.utterance-view');
-            return c.getBoundingClientRect().top >= u.getBoundingClientRect().bottom }
-          """)
-        #expect(credit == .bool(true), "the utterance's source is not credited under its reader")
+        // No caption under the reader: the source is in the utterance's gloss.
+        try await expect(attestation.locator(".chicago-citation-view")).toHaveCount(0)
         // The page and the pages either side, each opened by its label.
         try await expect(utterance.locator(".tei-transcript")).toHaveCount(3)
         try await expect(utterance.locator(".tei-line-mark")).toHaveTexts(["2", "3", "4"])
@@ -124,13 +113,32 @@ struct UtteranceTests {
           "box => box.scrollHeight > box.clientHeight + 1 ? box.scrollTop : -1")
         if case .number(let top) = scrolled { #expect(top != 0) } else { Issue.record("No scrollTop") }
 
-        // The link opens the testament's page at the utterance's page.
+        // A word inside the utterance opens the utterance's gloss: its
+        // Chicago note—the voice, the title italic (a report is
+        // book-length), the date, the page as printed (its pb n)—then its
+        // words, the one clicked expanded.
+        try await utterance.locator(".tei-word").filter(hasText: "begins").first.click()
+        let gloss = utterance.locator(".gloss-sheet[data-state='open']")
+        try await expect(gloss).toHaveCount(1)
+        let work = scratch.reading.work
+        let citation = gloss.locator(".chicago-citation-view")
+        try await expect(citation).toHaveText("\(work.author), \(work.title) (1958), 3.")
+        try await expect(citation.locator("cite.chicago-citation-title")).toHaveCSS("font-style", "italic")
+        let begins = gloss.locator(".gloss-word-row").filter(hasText: "begins")
+        try await expect(begins).toHaveCount(1)
+        let open = try await begins.evaluate("(row) => row.querySelector('.accordion-details').hasAttribute('open')")
+        #expect(open == .bool(true), "the word clicked is not expanded in the utterance's gloss")
+        try await expect(gloss.locator(".gloss-word-row").filter(hasText: "scratchword")).toHaveCount(1)
+
+        // Its title opens the testament's page at the utterance's page.
         let landed = try await page.evaluate(
           """
           fetch(document.querySelector('#record-row-s-1-1 .chicago-citation-view a').href)
             .then(r => (r.ok ? '' : 'HTTP ' + r.status + ' ') + new URL(r.url).pathname + new URL(r.url).search)
           """)
         #expect(landed == .string("\(scratch.reading.work.path)/vignettes/\(scratch.versionID)?semblance=2"))
+        try await page.keyboard.press("Escape")
+        try await expect(page.locator(".gloss-sheet[data-state='open']")).toHaveCount(0)
 
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()

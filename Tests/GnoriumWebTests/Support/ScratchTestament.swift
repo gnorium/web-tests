@@ -7,8 +7,8 @@ struct ScratchTestament {
   let reading: ScratchReading
   let versionID: String
 
-  init(owner: TestAdmin, tei: String) throws {
-    reading = try ScratchReading(owner: owner, tei: tei)
+  init(owner: TestAdmin, tei: String, sourceURL: String = "https://example.org/web-tests") throws {
+    reading = try ScratchReading(owner: owner, tei: tei, sourceURL: sourceURL)
     let user = try owner.column("id")
     versionID = UUID().uuidString.lowercased()
     let work = reading.work

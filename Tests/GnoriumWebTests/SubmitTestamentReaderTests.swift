@@ -9,9 +9,9 @@ import WebTestsTesting
 /// pane, since nothing is explicated yet. A URL cleared takes the viewer
 /// away, and the field's own validation asks for one. A manifest the server
 /// cannot read takes it away too, with an error under the field that blocks
-/// the form for that URL (the submit would be refused for it) and an alert
-/// where the reader would have been (user, 2026-10-09)—never words in an
-/// ordinance pane, where they could be taken for a testament's own.
+/// the form for that URL (the submit would be refused for it): the field's
+/// error says it, and the reader is hidden whole—no empty frame, no alert,
+/// never words in an ordinance pane (user, 2026-10-09).
 ///
 /// The manifests are served by a fixture server on this machine
 /// (`FixtureServer`), which the dev server may fetch because `.env.dev`
@@ -54,7 +54,7 @@ struct SubmitTestamentReaderTests {
         let reader = form.locator(".submit-testament-reader")
         let source = form.locator("input[name='source-url']")
         let message = form.locator("#testament-source-url-validation-message .field-validation-message-text")
-        let alert = form.locator(".submit-testament-alert .alert-view")
+        let alert = form.locator(".submit-testament-alert, .submit-testament-reader .alert-view")
 
         // No URL: no viewer.
         try await expect(reader).toBeHidden()
@@ -84,12 +84,10 @@ struct SubmitTestamentReaderTests {
         try await expect(source).toHaveAttribute("aria-invalid", "true")
         try await expect(reader).toBeHidden()
         try await expect(reader.locator(".testament-view")).toHaveCount(0)
-        // The reader's failure, an alert where it would have been, and
-        // nowhere in a reader's panes.
-        try await expect(alert).toHaveCount(1)
-        try await expect(alert).toHaveAttribute("role", "alert")
-        try await expect(alert).toContainText("The source URL can't be read.")
-        try await expect(alert).toBeVisible()
+        // Said under the field alone: no alert, no frame, nothing in a pane.
+        try await expect(alert).toHaveCount(0)
+        let frame = try await reader.evaluate("(el) => el.getBoundingClientRect().height")
+        #expect(frame == .number(0), "the hidden reader still takes room: \(frame)")
         let inPanes = try await page.evaluate(
           """
           [...document.querySelectorAll('.artifact-transcript, .artifact-object, .tei-view')]
@@ -101,8 +99,7 @@ struct SubmitTestamentReaderTests {
         try await source.fill(fixtures.baseURL + "/gone.json")
         try await expect(message, timeout: .seconds(15)).toHaveText("The source URL can't be read.")
         try await expect(reader).toBeHidden()
-        try await expect(alert).toHaveCount(1)
-        try await expect(alert).toContainText("The source URL can't be read.")
+        try await expect(alert).toHaveCount(0)
 
         // A manifest again: the error goes, the viewer comes back.
         try await source.fill(manifestURL)

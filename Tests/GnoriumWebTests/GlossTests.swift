@@ -203,7 +203,10 @@ struct GlossTests {
           """)
         #expect(json == .string("scratchwords|scratchword|Noun|Number: Plural|\(english.title)|s-1-1|\(german.title)|broader sense|true|As printed"))
 
-        // An utterance's words open the same gloss, over the utterance's box.
+        // A word inside an utterance opens the utterance's gloss, over the
+        // utterance's box, as a word of a phrase opens the phrase's (user,
+        // 2026-10-09): its testament's Chicago note, then its words, the
+        // word clicked expanded with its own gloss's rows and its record.
         try await page.openHydrated(english.path)
         try await page.locator("#record-row-s-1-1 > .accordion-summary").click()
         let utterance = page.locator("#record-row-s-1-1 .utterance-view")
@@ -212,8 +215,16 @@ struct GlossTests {
         try await word.click()
         let again = utterance.locator(".gloss-sheet[data-state='open']")
         try await expect(again).toHaveCount(1)
-        try await expect(again.locator(".gloss-sheet-title .breadcrumb-label-text")).toHaveText(english.title)
-        try await expect(again.locator(".record-row-title[data-current='true']")).toHaveText("A leaf sense.")
+        try await expect(again.locator(".gloss-sheet-title")).toContainText("Utterance")
+        let work = scratch.reading.work
+        try await expect(again.locator(".chicago-citation-view")).toHaveText("\(work.author), \(work.title) (1958), 1.")
+        let wordRows = again.locator(".gloss-word-row")
+        try await expect(wordRows).toHaveCount(3)
+        let opened = wordRows.filter(hasText: "scratchwords")
+        let open = try await opened.evaluate("(row) => row.querySelector('.accordion-details').hasAttribute('open')")
+        #expect(open == .bool(true), "the word clicked is not expanded")
+        try await expect(opened.locator(".gloss-word")).toContainText("scratchword")
+        try await expect(opened.locator(".gloss-word")).toContainText(english.title)
         try await page.expectNoHorizontalOverflow()
         try await page.keyboard.press("Escape")
         try await expect(page.locator(".gloss-sheet[data-state='open']")).toHaveCount(0)
