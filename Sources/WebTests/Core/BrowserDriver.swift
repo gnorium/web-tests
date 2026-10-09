@@ -81,6 +81,10 @@ public protocol PageDriver: AnyObject, Sendable {
   func dispatchKeys(_ actions: [KeyAction]) async throws
   /// Text as an input method would commit it: one input event, no keys.
   func insertText(_ text: String) async throws
+  /// Sets the files of the `<input type="file">` that `expression`
+  /// evaluates to, as a chooser would: the paths are the engine's own
+  /// machine's, and the input fires `input` and `change`.
+  func setInputFiles(_ expression: String, paths: [String]) async throws
   /// A PNG of the viewport.
   func screenshot() async throws -> Data
   /// The console errors, exceptions and failed requests seen since the last

@@ -131,6 +131,21 @@ final class SafariPage: PageDriver, @unchecked Sendable {
     return result["__webTestsValue"]
   }
 
+  /// WebDriver: the element the script returns, then its value set to the
+  /// path (Element Send Keys on a file input).
+  func setInputFiles(_ expression: String, paths: [String]) async throws {
+    let result: JSONValue
+    do {
+      result = try await context.command("POST", "execute/sync", ["script": .string("return (\(expression));"), "args": []])
+    } catch let error as WebDriverError {
+      throw JavaScriptError(error.message)
+    }
+    guard let element = result["element-6066-11e4-a52e-4f735466cecf"].string else {
+      throw JavaScriptError("The expression did not evaluate to an element.")
+    }
+    _ = try await context.command("POST", "element/\(element)/value", ["text": .string(paths.joined(separator: "\n"))])
+  }
+
   // MARK: - Emulation
 
   func setTimeZone(_ identifier: String) async throws {

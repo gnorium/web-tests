@@ -219,6 +219,24 @@ public struct Locator: Sendable, CustomStringConvertible {
     }
   }
 
+  /// Chooses `paths` (files on the browser's machine) in the file input, as
+  /// its chooser would: the input fires `input` and `change`. The input
+  /// must be attached; `[]` clears it.
+  public func setInputFiles(
+    _ paths: [String], timeout: Duration? = nil,
+    fileID: String = #fileID, filePath: String = #filePath, line: Int = #line, column: Int = #column
+  ) async throws {
+    _ = try await attached(timeout: timeout)
+    let expression = """
+      (() => {
+        const WT = (\(InjectedScript.source))();
+        const [el] = WT.resolve(\(stepsJSON.jsonText));
+        return el;
+      })()
+      """
+    try await page.driver.setInputFiles(expression, paths: paths)
+  }
+
   /// Focuses the element and types `text` a key at a time.
   public func type(
     _ text: String, timeout: Duration? = nil,

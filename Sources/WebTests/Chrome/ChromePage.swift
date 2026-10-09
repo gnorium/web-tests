@@ -221,6 +221,26 @@ final class ChromePage: PageDriver, @unchecked Sendable {
     return result["result"]["value"]
   }
 
+  /// The element as a remote object, then `DOM.setFileInputFiles` on it.
+  func setInputFiles(_ expression: String, paths: [String]) async throws {
+    let result: JSONValue
+    do {
+      result = try await send("Runtime.evaluate", ["expression": .string(expression), "returnByValue": false])
+    } catch let error as CDPError {
+      throw JavaScriptError(error.message)
+    }
+    let exception = result["exceptionDetails"]
+    if !exception.isNull {
+      throw JavaScriptError(exception["exception"]["description"].string ?? exception["text"].string ?? "exception")
+    }
+    guard let objectId = result["result"]["objectId"].string else {
+      throw JavaScriptError("The expression did not evaluate to an element.")
+    }
+    _ = try await send("DOM.enable")
+    _ = try await send("DOM.setFileInputFiles", ["files": .array(paths.map(JSONValue.string)), "objectId": .string(objectId)])
+    _ = try await send("Runtime.releaseObject", ["objectId": .string(objectId)])
+  }
+
   // MARK: - Emulation
 
   func setViewport(_ viewport: Viewport) async throws {
