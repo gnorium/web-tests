@@ -31,7 +31,7 @@ struct SentimentEquivalentsTests {
         """
         INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_madrigal_id, status, provisional, record_json, created_at)
           SELECT '\(vignette)', lexico_record_id, NULL, status, true,
-              jsonb_set(record_json::jsonb, '{senses,1,translations}', '\(term)')::text, now() + interval '1 second'
+              jsonb_set(record_json::jsonb, '{senses,1,equivalents}', '\(term)')::text, now() + interval '1 second'
             FROM lexico_record_versions WHERE id = '\(english.versionID.lowercased())';
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in

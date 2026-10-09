@@ -61,7 +61,7 @@ struct GlossTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        UPDATE lexico_record_versions SET record_json = jsonb_set(record_json::jsonb, '{senses,1,translations}',
+        UPDATE lexico_record_versions SET record_json = jsonb_set(record_json::jsonb, '{senses,1,equivalents}',
             '[{"form":"\(german.title)","languageCode":"deu","recordPath":"\(german.path)#record-row-s-1-1","equivalence":"broader"}]')::text
           WHERE id = '\(english.versionID.lowercased())';
         INSERT INTO word_lemma_refs (id, biblio_record_id, version_id, canvas_id, page, start_line, start_word,
