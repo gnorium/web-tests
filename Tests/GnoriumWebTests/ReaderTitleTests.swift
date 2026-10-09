@@ -4,11 +4,10 @@ import WebTests
 import WebTestsTesting
 
 /// A testament's reader is headed by the work it witnesses (user,
-/// 2026-10-08): its full title, semibold, and on a line under it "by" the
-/// names of all its voices—a translator's too, as the record's address lists
-/// them (user, 2026-10-09)—in the subtle color, in sight however long the
-/// title; the semblance's label in the footer. On every reader—the record
-/// page's and a Disputorium object's alike.
+/// 2026-10-08): its full title, semibold, alone—no byline, since voice
+/// names are no part of the title (user, 2026-10-09)—in a header of one
+/// line, 40 tall and its 1 border; the semblance's label in the footer. On
+/// every reader—the record page's and a Disputorium object's alike.
 ///
 /// The title fades where it runs past the header, and its fade opens it
 /// whole in a sheet over the reader (`data-edge-fade="sheet"`), at every
@@ -28,18 +27,18 @@ struct ReaderTitleTests {
   /// Long enough to run past the header at any width.
   static let longTitle =
     "A Discourse Concerning the Original and Progress of Satire, Addressed to the Right Honourable Charles Earl of Dorset and Middlesex, Lord Chamberlain of His Majesty's Household, Knight of the Most Noble Order of the Garter, Together with Translations of Juvenal and Persius"
-  /// A voice in no author's role: named in the byline all the same.
+  /// A voice in no author's role, beside the work's author: neither is
+  /// named in the header.
   static let translator = "Web Tests Translator"
 
   struct Header: Decodable {
     let title: String
-    let byline: String
+    /// The whole title block's text: the title and nothing else.
+    let text: String
     let mode: String
     let overflowing: Bool
-    /// Whether the byline's line begins in sight: inside the header's
-    /// block, its first words clear of the fade. A long title before it on
-    /// one line faded it out entirely.
-    let bylineInSight: Bool
+    /// The header's height, its border with it.
+    let height: Double
   }
 
   static func header(_ page: Page) async throws -> Header {
@@ -50,18 +49,10 @@ struct ReaderTitleTests {
         const block = view.querySelector('.artifact-title-block')
         return {
           title: view.querySelector('.artifact-title-primary').textContent.trim(),
-          byline: (view.querySelector('.artifact-title-subtitle')?.textContent ?? '').trim(),
+          text: block.textContent.trim(),
           mode: block.getAttribute('data-edge-fade'),
           overflowing: block.getAttribute('data-overflowing') === 'true',
-          bylineInSight: (() => {
-            const by = view.querySelector('.artifact-title-subtitle')
-            if (!by) return false
-            const range = document.createRange()
-            range.selectNodeContents(by)
-            const b = block.getBoundingClientRect(), r = range.getBoundingClientRect()
-            return r.height > 0 && r.top >= b.top - 1 && r.bottom <= b.bottom + 1
-              && r.left >= b.left - 1 && r.left + 48 <= b.right - 32
-          })(),
+          height: view.querySelector(':scope > header').getBoundingClientRect().height,
         }
       })()
       """, as: Header.self)
@@ -89,18 +80,16 @@ struct ReaderTitleTests {
             '{voices}', '[{"name": "\(work.author)", "role": "author"}, {"name": "\(Self.translator)", "role": "translator"}]')::text
           WHERE id = '\(scratch.versionID)';
         """)
-      let byline = "by \(work.author) and \(Self.translator)"
       let viewport = layout.viewport(for: engine)
       try await withPage(engine, gnorium, viewport: viewport) { page in
         // A Disputorium object's reader: the work as its record stands
         // (the scratch testament's version, the latest).
         try await page.openHydrated(scratch.reading.path)
         try await expect(page.locator(".artifact-view .artifact-title-primary").first).toHaveText(Self.longTitle)
-        try await expect(page.locator(".artifact-view .artifact-title-subtitle").first).toHaveText(byline)
-        #expect(try await Self.header(page).bylineInSight, "the byline is faded out of sight")
-        try await expect(page.locator(".artifact-view .artifact-title-subtitle").first)
-          .toHaveCSS("color", try await page.locator(".artifact-view .artifact-canvas-label").first.evaluate(
-            "(el) => getComputedStyle(el).color").string ?? "")
+        let objectHeader = try await Self.header(page)
+        #expect(objectHeader.text == Self.longTitle, "the header holds more than the title: \(objectHeader.text)")
+        #expect(!objectHeader.text.contains(work.author) && !objectHeader.text.contains(Self.translator))
+        #expect(abs(objectHeader.height - 41) < 0.5, "the header is \(objectHeader.height) tall, not 41")
 
         // The record page's reader, fetched into its row.
         try await page.openHydrated(work.path)
@@ -114,8 +103,9 @@ struct ReaderTitleTests {
         try await expect(view.locator(".artifact-title-block")).toHaveAttribute("data-overflowing", "true")
         let header = try await Self.header(page)
         #expect(header.mode == "sheet")
-        #expect(header.byline == byline)
-        #expect(header.bylineInSight, "the byline is faded out of sight")
+        #expect(header.text == Self.longTitle, "the header holds more than the title: \(header.text)")
+        #expect(abs(header.height - 41) < 0.5, "the header is \(header.height) tall, not 41")
+        try await expect(view.locator(".artifact-title-subtitle")).toHaveCount(0)
         // The canvas label's place: the footer's start, before the pager.
         let order = try await view.evaluate(
           """
@@ -148,9 +138,9 @@ struct ReaderTitleTests {
         try await expect(block).not.toHaveAttribute("data-edge-fade-expanded", "true")
         let dialog = sheet.locator("[role='dialog']")
         try await expect(dialog).toHaveAttribute("aria-modal", "true")
-        try await expect(dialog).toHaveAttribute("aria-label", "\(Self.longTitle) \(byline)")
+        try await expect(dialog).toHaveAttribute("aria-label", Self.longTitle)
         let title = sheet.locator(".dialog-sheet-title")
-        try await expect(title).toHaveText("\(Self.longTitle) \(byline)")
+        try await expect(title).toHaveText(Self.longTitle)
         try await expect(title.locator("[id]")).toHaveCount(0)
         try await expect(sheet.locator(".dialog-sheet-close")).toBeFocused()
         // Over the whole reader, wrapped as prose: many lines, each wider
