@@ -60,8 +60,8 @@ struct SubmitTestamentReaderTests {
         try await expect(reader).toBeHidden()
         try await expect(reader.locator(".testament-view")).toHaveCount(0)
 
-        // A manifest: its semblances, paged and shown, with the switch that
-        // puts them away; no ordinance, so no Raw or Find.
+        // A manifest: its semblances, paged and shown; no ordinance, so no
+        // switch to put them away (it would leave nothing), no Raw or Find.
         try await source.fill(manifestURL)
         try await expect(reader).toBeVisible()
         let viewer = reader.locator(".artifact-view")
@@ -70,7 +70,7 @@ struct SubmitTestamentReaderTests {
         try await expect(viewer.locator("#artifact-page-total")).toHaveText("3")
         try await expect(viewer.locator(".artifact-object")).toBeVisible()
         try await expect(viewer.locator(".artifact-transcript")).toHaveCount(0)
-        try await expect(viewer.locator(".artifact-canvas-toggle button")).toHaveAttribute("aria-pressed", "true")
+        try await expect(viewer.locator(".artifact-canvas-toggle")).toHaveCount(0)
         try await expect(viewer.locator(".artifact-code-toggle, .testament-find-button")).toHaveCount(0)
         try await expect(message).toHaveCount(0)
         try await expect(alert).toHaveCount(0)

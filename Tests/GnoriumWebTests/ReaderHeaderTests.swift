@@ -7,8 +7,8 @@ import WebTestsTesting
 /// biblio page the title is already the page's heading or its node's
 /// description. The header is its controls alone—Raw, Find and the
 /// semblance switch—on one row 40 tall with its 1 border, each control
-/// small (32). Raw and Find need an ordinance, the semblance switch a page
-/// image (user, 2026-10-09): the testament's manifest is served here
+/// small (32). Raw and Find need an ordinance, the semblance switch both an
+/// ordinance and a page image (user, 2026-10-09): the testament's manifest is served here
 /// (`FixtureServer`), one canvas labeled "p1". The footer names the page on
 /// screen by the manifest's canvas label, else its place in the sequence
 /// (1, 2, 3): never the ordinance's own `pb n`. On every reader—a Disputorium object's, the record page's

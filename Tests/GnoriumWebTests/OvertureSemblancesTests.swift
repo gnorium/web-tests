@@ -46,6 +46,11 @@ struct OvertureSemblancesTests {
         // The manifest is fetched after hydration: slow while the full run
         // loads the server, so waited for in full.
         try await expect(viewer.locator("#artifact-page-total"), timeout: .seconds(20)).toHaveText("3")
+        // No ordinance yet: the page images alone, always shown, with no
+        // switch to put them away and no Raw or Find (user, 2026-10-09).
+        try await expect(viewer.locator(".artifact-object")).toBeVisible()
+        try await expect(viewer.locator(".artifact-canvas-toggle, .artifact-code-toggle, .testament-find-button"))
+          .toHaveCount(0)
         let roster = page.locator(".overture-semblances").first
         let rows = roster.locator(".roster-row")
         try await expect(rows).toHaveCount(3)
