@@ -215,7 +215,9 @@ struct GlossTests {
         try await word.click()
         let again = utterance.locator(".gloss-sheet[data-state='open']")
         try await expect(again).toHaveCount(1)
-        try await expect(again.locator(".gloss-sheet-title")).toContainText("Utterance")
+        // Headed by the utterance's words alone: no meta row.
+        try await expect(again.locator(".gloss-sheet-title .record-label-title")).toHaveText("scratchwords")
+        try await expect(again.locator(".gloss-sheet-title .record-label-meta")).toHaveCount(0)
         let work = scratch.reading.work
         try await expect(again.locator(".chicago-citation-view")).toHaveText("\(work.author), \(work.title) (1958), 1.")
         let wordRows = again.locator(".gloss-word-row")

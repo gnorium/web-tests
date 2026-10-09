@@ -120,6 +120,11 @@ struct UtteranceTests {
         try await utterance.locator(".tei-word").filter(hasText: "begins").first.click()
         let gloss = utterance.locator(".gloss-sheet[data-state='open']")
         try await expect(gloss).toHaveCount(1)
+        try await expect(gloss.locator(".gloss-sheet-title .record-label-title")).toHaveText("scratchword")
+        try await expect(gloss.locator(".gloss-sheet-title .record-label-meta")).toHaveCount(0)
+        // Public, under the lexico-record quoting it.
+        let address = try await utterance.evaluate("(box) => box.getAttribute('data-utterance-gloss')")
+        #expect(address.string?.contains("/utterances/") == true && address.string?.hasPrefix("/lexico-records/") == true, "the gloss is at \(address), the record at \(scratchWord.path)")
         let work = scratch.reading.work
         let citation = gloss.locator(".chicago-citation-view")
         try await expect(citation).toHaveText("\(work.author), \(work.title) (1958), 3.")
