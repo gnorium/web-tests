@@ -169,7 +169,7 @@ struct ComputationTests {
         try await expect(tools).toHaveCount(2)
         try await tools.first.locator(".accordion-summary").first.click()
         try await expect(tools.first).toContainText("Read the exact human Revise fields and attached evidence.")
-        let tool = session.locator("#session-tool-computation_read")
+        let tool = session.locator("#computorium-session-tool-computation_read")
         try await tool.locator(".accordion-summary").first.click()
         try await expect(tool.locator(".computorium-session-tool-call-definition")).toHaveCount(0)
         try await expect(tool.locator(".datum-label").filter(hasText: "nodes[0]")).toHaveCount(1)

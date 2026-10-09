@@ -85,17 +85,17 @@ struct CanvasAttachmentTests {
           .replacingOccurrences(of:"data-auto-watch=\"0\"",with:"data-auto-watch=\"1\"")
           .write(to:file,atomically:true,encoding:.utf8)
         try await page.openHydrated("/\(name)")
-        let image = page.locator("#session-tool-late-canvas .expandable-attachment-image-viewport")
+        let image = page.locator("#computorium-session-tool-late-canvas .expandable-attachment-image-viewport")
         do { try await expect(image).toBeAttached() } catch {
-          print(try await page.evaluate("JSON.stringify({mock:window.__canvasMock,auto:document.querySelector('.pipeline-container')?.dataset.autoWatch,kind:document.querySelector('.pipeline-container')?.dataset.computoriumCoreKind,tools:document.querySelectorAll('.computorium-session-tool-call').length,url:window.__canvasMockURL,handlers:window.__canvasMockHandlers,focus:document.querySelector('.computorium-session-view')?.dataset.sessionCanvas,output:!!document.querySelector('.computorium-session-view .computorium-session-output-content')})",as:String.self))
+          print(try await page.evaluate("JSON.stringify({mock:window.__canvasMock,auto:document.querySelector('.pipeline-container')?.dataset.autoWatch,kind:document.querySelector('.pipeline-container')?.dataset.computoriumCoreKind,tools:document.querySelectorAll('.computorium-session-tool-call').length,url:window.__canvasMockURL,handlers:window.__canvasMockHandlers,focus:document.querySelector('.computorium-session-view')?.dataset.computoriumSessionCanvas,output:!!document.querySelector('.computorium-session-view .computorium-session-output-content')})",as:String.self))
           throw error
         }
-        try await page.locator("#session-tool-late-canvas summary").click()
+        try await page.locator("#computorium-session-tool-late-canvas summary").click()
         // The detail in place: in the result box with every field the model
         // received, its image its `image` datum's width and no taller than the bound,
         // no chip and no lightbox (user, 2026-10-07).
         let parity = try await page.evaluate("""
-          (()=>{const card=document.querySelector('#session-tool-late-canvas');const box=card.querySelector('.computorium-session-tool-call-result-box');const view=box&&box.querySelector('.expandable-attachment-view[data-presentation="inline"]');const vp=view&&view.querySelector('.expandable-attachment-image-viewport');const r=vp?vp.getBoundingClientRect():{height:0,width:0};const v=view&&view.closest('.datum-value');const cs=v?getComputedStyle(v):null;const w=v?v.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight):Infinity;return !!view && view.dataset.attachmentHydrated==='true' && r.height>0 && r.height<=innerHeight*.64+1 && r.width>=w-1 && !card.querySelector('.expandable-attachment-dialog') && box.textContent.includes('source_width') && box.textContent.includes('sent_width');})()
+          (()=>{const card=document.querySelector('#computorium-session-tool-late-canvas');const box=card.querySelector('.computorium-session-tool-call-result-box');const view=box&&box.querySelector('.expandable-attachment-view[data-presentation="inline"]');const vp=view&&view.querySelector('.expandable-attachment-image-viewport');const r=vp?vp.getBoundingClientRect():{height:0,width:0};const v=view&&view.closest('.datum-value');const cs=v?getComputedStyle(v):null;const w=v?v.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight):Infinity;return !!view && view.dataset.attachmentHydrated==='true' && r.height>0 && r.height<=innerHeight*.64+1 && r.width>=w-1 && !card.querySelector('.expandable-attachment-dialog') && box.textContent.includes('source_width') && box.textContent.includes('sent_width');})()
           """, as:Bool.self)
         #expect(parity,"A late SSE tool's zoom is in place in its result box with its fields")
         try await page.expectNoHorizontalOverflow()

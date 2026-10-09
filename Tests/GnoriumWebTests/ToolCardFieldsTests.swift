@@ -150,9 +150,9 @@ struct ToolCardFieldsTests {
         try await expect(session.locator(".computorium-session-tool-call-definition")).toHaveCount(0)
         // read_conventions: its content—the conventions—under `content`,
         // and every envelope key beside it, as the JSON wrote them.
-        let conventions = page.locator("#session-tool-rc")
+        let conventions = page.locator("#computorium-session-tool-rc")
         try await conventions.locator(".accordion-summary").first.click()
-        let signature = try await page.evaluate(Self.signature("session-tool-rc"), as: String.self)
+        let signature = try await page.evaluate(Self.signature("computorium-session-tool-rc"), as: String.self)
         #expect(
           signature.hasPrefix("0|ok=true\n0|tool=read_conventions\n0|version=3\n0|content=Rule one.\nRule two."),
           "read_conventions shows every key in the JSON's order: \(signature)")
@@ -165,13 +165,13 @@ struct ToolCardFieldsTests {
         try await expect(conventions.locator(".computorium-session-tool-stub .link-view")).toHaveText("stubbed by microcompaction · 40 → 91 chars")
         try await expect(conventions.locator(".computorium-session-tool-stub .datum-view")).toHaveCount(0)
         try await expect(page.locator(".computorium-session-compaction-stubs li > .tool-result-box-view")).toHaveCount(1)
-        try await expect(page.locator(".computorium-session-compaction-stubs li .link-view")).toHaveAttribute("href", "#session-tool-rc")
+        try await expect(page.locator(".computorium-session-compaction-stubs li .link-view")).toHaveAttribute("href", "#computorium-session-tool-rc")
         let stubLabels = try await page.evaluate(Self.labels(".computorium-session-compaction-stubs"), as: String.self)
         #expect(stubLabels == "ok tool compacted note", "The compaction card shows every key of its stub, in order: \(stubLabels)")
         let gray = try await page.evaluate("""
           (() => {
             const box = document.querySelector('.computorium-session-compaction-stubs li > .tool-result-box-view');
-            const result = document.querySelector('#session-tool-rc').closest('.computorium-session-tool-call').querySelector('.computorium-session-tool-call-result-box');
+            const result = document.querySelector('#computorium-session-tool-rc').closest('.computorium-session-tool-call').querySelector('.computorium-session-tool-call-result-box');
             return getComputedStyle(box).backgroundColor === getComputedStyle(result).backgroundColor
               && getComputedStyle(box).borderTopWidth === getComputedStyle(result).borderTopWidth;
           })()
@@ -179,7 +179,7 @@ struct ToolCardFieldsTests {
         #expect(gray, "A stub sits on the same gray box a result does")
         // A web search: its engine and pages under their own keys, one
         // nested group a page.
-        let search = try await page.evaluate(Self.signature("session-tool-ws"), as: String.self)
+        let search = try await page.evaluate(Self.signature("computorium-session-tool-ws"), as: String.self)
         for line in [
           "0|query=sea", "0|engine=perplexity", "0|engine_name=Perplexity", "0|searches=1",
           "0|pages[0]={}", "1|title=Page", "1|url=https://example.org/page", "0|pages[1]={}", "1|title=Other",
@@ -188,7 +188,7 @@ struct ToolCardFieldsTests {
         }
         // Nested objects recurse; an array of plain values is its text;
         // zero is a number and false a boolean; no JSON is printed.
-        let saved = try await page.evaluate(Self.signature("session-tool-sp"), as: String.self)
+        let saved = try await page.evaluate(Self.signature("computorium-session-tool-sp"), as: String.self)
         for line in [
           "0|page=1", "0|findings_count=0", "0|note=null", "0|features={}", "1|blank=[\"blank\"]", "1|counts={}", "2|lines=0",
           "2|hands=2", "0|findings[0]={}", "1|kind=gap", "1|flags=[false, true]",
@@ -202,9 +202,9 @@ struct ToolCardFieldsTests {
         // inset, no box in the box; only markup is a code view, flush.
         let wrappers = try await page.evaluate("""
           (() => {
-            const plain = [...document.querySelectorAll('#session-tool-sp .datum-view:not(.tool-field-group) > .datum-value')];
+            const plain = [...document.querySelectorAll('#computorium-session-tool-sp .datum-view:not(.tool-field-group) > .datum-value')];
             const bare = plain.every(v => v.children.length === 1 && v.firstElementChild.classList.contains('datum-text') && v.firstElementChild.children.length === 0);
-            const block = document.querySelector('#session-tool-rc .tool-field-block');
+            const block = document.querySelector('#computorium-session-tool-rc .tool-field-block');
             const field = block.closest('.datum-value');
             const cs = getComputedStyle(block);
             const flush = cs.borderTopWidth === '0px' && cs.backgroundColor === 'rgba(0, 0, 0, 0)' && cs.paddingTop === '0px'
@@ -217,11 +217,11 @@ struct ToolCardFieldsTests {
         #expect(wrappers.flush, "A multi-line value is mono text at the field's inset, no box: \(wrappers)")
         // Markup the model sent is code: colored XML, the full width of its
         // datum, capped at 256 and scrolled inside.
-        let write = page.locator("#session-tool-wt")
+        let write = page.locator("#computorium-session-tool-wt")
         try await write.locator(".accordion-summary").first.click()
         let markup = try await page.evaluate("""
           (() => {
-            const datum = document.querySelector('#session-tool-wt .computorium-session-tool-call-args .tool-field-markup');
+            const datum = document.querySelector('#computorium-session-tool-wt .computorium-session-tool-call-args .tool-field-markup');
             const code = datum.querySelector('.code-view');
             const value = datum.querySelector(':scope > .datum-value');
             return !!code.querySelector('.code-code.language-xml')
@@ -283,18 +283,18 @@ struct ToolCardFieldsTests {
           .replacingOccurrences(of: "data-auto-watch=\"0\"", with: "data-auto-watch=\"1\"")
           .write(to: file, atomically: true, encoding: .utf8)
         try await page.openHydrated("/\(name)")
-        try await expect(page.locator("#session-tool-live_wt")).toBeAttached()
-        try await expect(page.locator("#session-tool-live_rc .computorium-session-tool-stub .link-view")).toBeAttached()
-        try await expect(page.locator("#session-tool-live_rc .computorium-session-tool-stub .datum-view")).toHaveCount(0)
+        try await expect(page.locator("#computorium-session-tool-live_wt")).toBeAttached()
+        try await expect(page.locator("#computorium-session-tool-live_rc .computorium-session-tool-stub .link-view")).toBeAttached()
+        try await expect(page.locator("#computorium-session-tool-live_rc .computorium-session-tool-stub .datum-view")).toHaveCount(0)
         var live: [String] = []
-        for id in ["session-tool-live_rc", "session-tool-live_ws", "session-tool-live_sp"] {
+        for id in ["computorium-session-tool-live_rc", "computorium-session-tool-live_ws", "computorium-session-tool-live_sp"] {
           live.append(try await page.evaluate(Self.signature(id), as: String.self))
         }
         #expect(live == recorded, "A live card reads as the recorded one")
         let liveOrder = try await page.evaluate(orderJS, as: String.self)
         #expect(liveOrder == order, "The live transcript keeps the recorded order: \(liveOrder)")
         try await expect(page.locator(".computorium-session-tools .tool-result-box-view").first).toBeAttached()
-        try await expect(page.locator("#session-tool-live_wt .tool-field-markup .code-code.language-xml")).toBeAttached()
+        try await expect(page.locator("#computorium-session-tool-live_wt .tool-field-markup .code-code.language-xml")).toBeAttached()
         try await expect(page.locator(".computorium-session-output-content")).not.toContainText("input_tokens")
         try await expect(page.locator(".computorium-session-output-content")).not.toContainText("bookkeeping")
         try await page.expectNoErrors()

@@ -66,7 +66,7 @@ struct BibliographicExplicationSessionsTests {
         try await expect(page.locator(".computorium-core-sidebar-stages-heading").first).toHaveText("Evidence")
         let rows = page.locator(".computorium-core-sessions-slot").first.locator(".roster-row")
         try await expect(rows).toHaveCount(1)
-        try await expect(rows.first).toHaveAttribute("data-session-label", "1–2")
+        try await expect(rows.first).toHaveAttribute("data-computorium-session-label", "1–2")
         // Its search is the site's search box, medium: 40 tall, its text
         // 16px, as every field's.
         let roster = page.locator(".computorium-core-sessions-slot").first
@@ -195,7 +195,7 @@ struct BibliographicExplicationSessionsTests {
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)")
-        let card = page.locator("#session-tool-call_zoom")
+        let card = page.locator("#computorium-session-tool-call_zoom")
         try await card.locator(".accordion-summary").first.click()
         let detail = card.locator(".detail-view")
         try await expect(detail).toBeVisible()
@@ -213,7 +213,7 @@ struct BibliographicExplicationSessionsTests {
         // URLs, and `image`, whose datum holds the detail itself.
         func labels(_ selector: String) async throws -> String {
           try await page.evaluate(
-            "[...document.querySelectorAll('#session-tool-call_zoom \(selector) .datum-label')].map(l => l.textContent.trim()).join(' ')",
+            "[...document.querySelectorAll('#computorium-session-tool-call_zoom \(selector) .datum-label')].map(l => l.textContent.trim()).join(' ')",
             as: String.self)
         }
         let resultLabels = try await labels(".computorium-session-tool-call-result-box")
@@ -298,8 +298,8 @@ struct BibliographicExplicationSessionsTests {
           })()
           """
         let finished = try await page.evaluate(snapshot, as: String.self)
-        let otherRows = page.locator(".roster-row[data-session-label='2']")
-        try await expect(otherRows.first).toHaveAttribute("data-session-status", "succeeded")
+        let otherRows = page.locator(".roster-row[data-computorium-session-label='2']")
+        try await expect(otherRows.first).toHaveAttribute("data-computorium-session-status", "succeeded")
         try await expect(session.locator(".computorium-session-output-thinking")).toHaveCount(2)
         try await expect(session.locator(".computorium-session-tool-call")).toHaveCount(1)
         for attempt in 1...2 {
@@ -313,11 +313,11 @@ struct BibliographicExplicationSessionsTests {
               window.replayFilledWhileRunning = false;
               document.querySelector('.replay-btn').addEventListener('click', () => {
                 window.replayStart = { children: root.childElementCount, text: root.textContent,
-                  status: session.dataset.sessionStatus };
+                  status: session.dataset.computoriumSessionStatus };
                 const observer = new MutationObserver(() => {
-                  if (session.dataset.sessionStatus === 'running' && root.textContent.trim()
+                  if (session.dataset.computoriumSessionStatus === 'running' && root.textContent.trim()
                       && !root.textContent.includes('Replay finished with')) window.replayFilledWhileRunning = true;
-                  if (session.dataset.sessionStatus === 'succeeded') observer.disconnect();
+                  if (session.dataset.computoriumSessionStatus === 'succeeded') observer.disconnect();
                 });
                 observer.observe(session, { childList: true, subtree: true, characterData: true, attributes: true });
               }, { once: true });
@@ -327,24 +327,24 @@ struct BibliographicExplicationSessionsTests {
           let empty = try await page.evaluate("window.replayStart.children === 0 && window.replayStart.text === '' && window.replayStart.status === 'running'", as: Bool.self)
           #expect(empty, "Replay \(attempt) synchronously clears every finished block into an empty running shell")
           try await expect(replay, timeout: .seconds(20)).toBeEnabled()
-          try await expect(session).toHaveAttribute("data-session-status", "succeeded")
+          try await expect(session).toHaveAttribute("data-computorium-session-status", "succeeded")
           #expect(try await page.evaluate("window.replayFilledWhileRunning", as: Bool.self), "Stored trace fills the running card at replay pace")
           #expect(try await page.evaluate(snapshot, as: String.self) == finished, "Replay \(attempt) finishes with the original thinking, tools, compaction and output")
           try await expect(session.locator(".computorium-session-output-thinking-running")).toHaveCount(0)
-          try await expect(otherRows.first).toHaveAttribute("data-session-status", "succeeded")
+          try await expect(otherRows.first).toHaveAttribute("data-computorium-session-status", "succeeded")
         }
         // An older failed attempt remains failed in the card, while the list
         // continues to report the session's later successful result.
         try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?canvas=1&attempt=1")
-        try await expect(session).toHaveAttribute("data-session-status", "failed")
-        let currentRows = page.locator(".roster-row[data-session-label='1']")
-        try await expect(currentRows.first).toHaveAttribute("data-session-status", "succeeded")
+        try await expect(session).toHaveAttribute("data-computorium-session-status", "failed")
+        let currentRows = page.locator(".roster-row[data-computorium-session-label='1']")
+        try await expect(currentRows.first).toHaveAttribute("data-computorium-session-status", "succeeded")
         let historical = try await page.evaluate(snapshot, as: String.self)
         try await replay.click()
-        try await expect(currentRows.first).toHaveAttribute("data-session-status", "succeeded")
+        try await expect(currentRows.first).toHaveAttribute("data-computorium-session-status", "succeeded")
         try await expect(replay, timeout: .seconds(20)).toBeEnabled()
-        try await expect(session).toHaveAttribute("data-session-status", "failed")
-        try await expect(currentRows.first).toHaveAttribute("data-session-status", "succeeded")
+        try await expect(session).toHaveAttribute("data-computorium-session-status", "failed")
+        try await expect(currentRows.first).toHaveAttribute("data-computorium-session-status", "succeeded")
         #expect(try await page.evaluate(snapshot, as: String.self) == historical)
         try await page.expectNoErrors()
       }
