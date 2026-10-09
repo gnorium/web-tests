@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// One Suggest is one revision (user, 2026-10-08): an object's Revise
-/// page files whatever was changed—its fields, any number of ordinances
+/// page files whatever was changed—its fields, any number of markups
 /// edited in its reader, the prompts of the process it would be committed
 /// for—as one row, accepted whole; each diff is drawn live where it is made,
 /// and the revision's page draws each in the record's tree. Suggest lands
@@ -21,7 +21,7 @@ struct RevisePagesTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome])
-  func oneSuggestFilesFieldsOrdinancesAndPromptsAsOneRevision(engine: BrowserEngine) async throws {
+  func oneSuggestFilesFieldsMarkupsAndPromptsAsOneRevision(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
@@ -35,7 +35,7 @@ struct RevisePagesTests {
     }
     let inForce = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
     do {
-      // Two semblances; the digitization's required provider.
+      // Two canvases; the digitization's required provider.
       _ = try TestAdmin.query(
         #"""
         UPDATE bibliographic_madrigals SET
@@ -63,11 +63,11 @@ struct RevisePagesTests {
         try await expect(page.locator(".prompt-revision-fields-view .process-toggle-view")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
 
-        // The fields, an ordinance and the system prompt, each diff drawn
+        // The fields, a markup and the system prompt, each diff drawn
         // as it is made.
         try await page.locator("[data-revise-form] input[name='title']").first.fill("Web tests title")
         // The editor opens on the code as the Raw view lays it out, the
-        // stored one-line ordinance one element per line.
+        // stored one-line markup one element per line.
         let initial = try await page.evaluate(
           "(() => document.querySelector('.tei-page-edit textarea').value)()", as: String.self)
         #expect(initial == "<div>\n  <p>Old line</p>\n</div>", "The editor's initial text: \(initial)")
@@ -130,30 +130,37 @@ struct RevisePagesTests {
         try await Self.expectChangedLinksLand(page, revision: id, on: "\(commit.madrigalPath)/revisions/\(id)")
 
         // Its page draws each diff where it is made: the record's tree,
-        // the ordinance under its semblance, the prompts.
+        // the markup under its canvas, the prompts.
         try await page.openHydrated("\(commit.madrigalPath)/revisions/\(id)")
         try await expect(page.locator(".testament-tree-diff-view")).toHaveCount(1)
         // Under no heading of its own: the source diff, both sides laid out.
-        try await expect(page.getByText("Ordinance of semblance 1")).toHaveCount(0)
+        try await expect(page.getByText("Markup of canvas 1")).toHaveCount(0)
         try await expect(
           page.locator(".testament-diff[data-edited='true'] .diff-view[data-diff-mode='code']").first
         ).toBeAttached()
-        // The changed page's frame alone wears the ring; the diff under it
-        // stands unboxed, as a changed field's Diff line does.
+        // The changed page's markup pane alone wears the ring (user,
+        // 2026-10-09): never the whole card, the canvas pane or the pager's
+        // number; the diff under it stands unboxed, as a changed field's
+        // Diff line does.
         let unringed = try await page.evaluate(
           """
           (() => {
             const slot = document.querySelector(".testament-diff[data-edited='true']")
             if (!slot) return 'no diff'
-            const boxed = [slot, ...slot.querySelectorAll('.semblance-diff-view')].filter((el) => {
+            const boxed = [slot, ...slot.querySelectorAll('.canvas-diff-view')].filter((el) => {
               const style = getComputedStyle(el)
               return style.borderTopStyle !== 'none' || style.outlineStyle !== 'none'
             })
             const viewer = document.querySelector('.artifact-view')
-            return boxed.length === 0 && viewer.dataset.diffState === 'changed' ? 'ok' : `boxed ${boxed.length}`
+            const markup = viewer.querySelector('.artifact-transcript')
+            const pager = viewer.querySelector('.artifact-page-nav input')
+            if (markup.dataset.diffState !== 'changed') return `markup ${markup.dataset.diffState}`
+            if (viewer.dataset.diffState || (pager && pager.dataset.diffState)) return 'card or pager ringed'
+            if (getComputedStyle(markup).outlineStyle === 'none') return 'markup unringed'
+            return boxed.length === 0 ? 'ok' : `boxed ${boxed.length}`
           })()
           """, as: String.self)
-        #expect(unringed == "ok", "The diff under the changed page is not unboxed: \(unringed)")
+        #expect(unringed == "ok", "The change ring is not on the markup pane alone: \(unringed)")
         // The prompts as an object's read, the one changed open on its diff.
         try await expect(page.locator(".prompt-change-view .diff-view").first).toBeVisible()
         try await expect(page.getByText("Web tests suggestion.").first).toBeAttached()
@@ -166,6 +173,12 @@ struct RevisePagesTests {
 
         // Accepted from the thread, back at its locution.
         try await page.openHydrated(commit.madrigalPath)
+        // The madrigal's Evidence roster marks explication (user,
+        // 2026-10-09): a first reading's pages green discs, markup added;
+        // never a Computorium status.
+        let roster = page.locator("#madrigal-canvases")
+        try await expect(roster.locator(".roster-status[data-mark='disc'][data-tone='green']").first).toBeAttached()
+        try await expect(roster.locator(".roster-status[data-status]")).toHaveCount(0)
         try await page.locator("#revision-\(id) form[action$='/accept'] button").click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the madrigal at its locution", where: Self.atLocution(commit.madrigalPath))
@@ -178,7 +191,7 @@ struct RevisePagesTests {
       }
       let document = try TestAdmin.query(
         "SELECT proposed_content_json::json ->> 'teiXml' FROM bibliographic_madrigals WHERE id = '\(commit.madrigalID)'")
-      #expect(document.contains("New line") && document.contains("Kept line"), "Accepted, the ordinance is the madrigal's: \(document)")
+      #expect(document.contains("New line") && document.contains("Kept line"), "Accepted, the markup is the madrigal's: \(document)")
       let title = try TestAdmin.query(
         "SELECT metadata_json::json ->> 'title' FROM bibliographic_madrigals WHERE id = '\(commit.madrigalID)'")
       #expect(title == "Web tests title", "and its fields: \(title)")
@@ -264,10 +277,10 @@ struct RevisePagesTests {
 
   /// A lexicographic madrigal's Revise page offers what a bibliographic
   /// one's does, in parallel (user, 2026-10-07): its record's identity and
-  /// each sentiment's description and labels, in its Sentiments tree. A
+  /// each sentiment's label and usage, in its Sentiments tree. A
   /// change is one revision of its fields, in the madrigal's thread, that
   /// an admin accepts there—written into the madrigal—and reverts.
-  /// An epilogue's description in the record's language is revised the same
+  /// An epilogue's definition in the record's language is revised the same
   /// way, the session's confidence cleared once a person changed it.
   @Test(arguments: [BrowserEngine.chrome])
   func lexicographicFieldsAreRevisedAsBibliographicOnesAre(engine: BrowserEngine) async throws {
@@ -295,29 +308,29 @@ struct RevisePagesTests {
     do {
       _ = try TestAdmin.query(
         """
-        INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, description,
-            target, status, submitted_by_user_id, summary, description_translation_json)
+        INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition,
+            target, status, submitted_by_user_id, summary, definition_translation_json)
           VALUES ('\(epilogue)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', 's-1-1',
-            'A leaf sense.', 'description', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.',
-            '{"language_code":"fra","description":"Un sens feuille.","labels":[],"confidence":"clear","reason":"Web tests."}');
+            'A leaf sense.', 'definition', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.',
+            '{"language_code":"fra","definition":"Un sens feuille.","confidence":"clear","reason":"Web tests."}');
         """)
       let madrigalPath = "/mission-control/madrigals/lexicographic/\(word.madrigalID)"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(madrigalPath)/revise")
         // Every sentiment's fields, under its number.
-        try await expect(page.locator("textarea[name='sentiment-0-description']")).toHaveValue("A branch sense.")
-        try await expect(page.locator("textarea[name='sentiment-1-description']")).toHaveValue("A leaf sense.")
-        // One field a label kind, as Submit Sentiment draws them (user, 2026-10-09).
+        try await expect(page.locator("textarea[name='sentiment-0-label']")).toHaveValue("A branch sense.")
+        try await expect(page.locator("textarea[name='sentiment-1-label']")).toHaveValue("A leaf sense.")
+        // One field a usage axis, as Submit Sentiment draws them (user, 2026-10-09).
         for kind in ["grammar", "register", "domain", "region", "currency"] {
           try await expect(page.locator("input[name='sentiment-1-\(kind)']")).toBeAttached()
         }
-        try await expect(page.locator("[data-item-list='sentiment-1-labels']")).toHaveCount(0)
+        try await expect(page.locator("[data-item-list='sentiment-1-usage']")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
-        let leaf = page.locator("textarea[name='sentiment-1-description']")
+        let leaf = page.locator("textarea[name='sentiment-1-label']")
         try await leaf.fill("A leaf sense, as a person reads it.")
         // Its diff is drawn as it is made, as a bibliographic field's is.
         try await expect(page.locator("[data-diff-annotation][data-visible='true']").first).toBeAttached()
-        // And one of its metadata fields: a Register label.
+        // And one of its usage fields: a Register.
         let register = page.locator(".dropdown-view:has(input[name='sentiment-1-register'])")
         try await register.locator(".dropdown-trigger").click()
         try await register.locator(".dropdown-option[data-value='poetic']").click()
@@ -345,14 +358,14 @@ struct RevisePagesTests {
         // linked, and its verdicts.
         try await page.openHydrated(madrigalPath)
         let event = page.locator("#revision-\(id)")
-        // Its description and its one metadata field, each its own item by
+        // Its label and its one usage field, each its own item by
         // its form's label, each linked to its place on the page.
         let changed = event.locator(".locution-thread-event-changed")
-        try await expect(changed).toHaveText("Changed Sentiment 1.1 Description and Sentiment 1.1 Register")
+        try await expect(changed).toHaveText("Changed Sentiment 1.1 Label and Sentiment 1.1 Register")
         try await expect(changed.locator("a")).toHaveCount(2)
         // Each on the revision's own page, at its field there (user, 2026-10-09).
-        try await expect(changed.locator("a[href='\(revisionPath)#sentiment-1-description']"))
-          .toHaveText("Sentiment 1.1 Description")
+        try await expect(changed.locator("a[href='\(revisionPath)#sentiment-1-label']"))
+          .toHaveText("Sentiment 1.1 Label")
         try await expect(changed.locator("a[href='\(revisionPath)#sentiment-1-register']"))
           .toHaveText("Sentiment 1.1 Register")
         try await Self.expectChangedLinksLand(page, revision: id, on: revisionPath)
@@ -364,16 +377,16 @@ struct RevisePagesTests {
         try await page.locator("#revision-\(id)-verdict form[action$='/revert'] button").click()
         try await expect(page.locator("#revision-\(id)-verdict"), timeout: .seconds(15)).toHaveCount(0)
         #expect(!(try content().contains("as a person reads it")), "Reverted, it comes back out")
-        #expect(try content().contains("<def>A leaf sense.</def>"), "The TEI's description with it")
+        #expect(try content().contains("<def>A leaf sense.</def>"), "The TEI's definition with it")
       }
 
-      // An epilogue's description in the record's language, the same way.
+      // An epilogue's definition in the record's language, the same way.
       let epiloguePath = "/mission-control/epilogues/lexicographic/\(epilogue)"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(epiloguePath)/revise")
-        let description = page.locator("textarea[name='description']")
-        try await expect(description).toHaveValue("Un sens feuille.")
-        try await description.fill("Un sens feuille, corrigé.")
+        let definition = page.locator("textarea[name='definition']")
+        try await expect(definition).toHaveValue("Un sens feuille.")
+        try await definition.fill("Un sens feuille, corrigé.")
         try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the epilogue at its locution", where: Self.atLocution(epiloguePath))
@@ -385,12 +398,12 @@ struct RevisePagesTests {
         try await page.openHydrated(epiloguePath)
         let event = page.locator("#revision-\(epilogueRevision)")
         try await expect(event.locator(".locution-thread-event-changed"))
-          .toHaveText("Changed Sentiment 1.1 Description")
+          .toHaveText("Changed Sentiment 1.1 Definition")
         // Its revision's page, named as the server names it (ids upper case).
         let epilogueRevisionPath =
           "/mission-control/epilogues/lexicographic/\(epilogue.uppercased())/revisions/\(epilogueRevision)"
         try await expect(
-          event.locator(".locution-thread-event-changed a[href='\(epilogueRevisionPath)#description']")
+          event.locator(".locution-thread-event-changed a[href='\(epilogueRevisionPath)#definition']")
         ).toHaveCount(1)
         try await Self.expectChangedLinksLand(page, revision: epilogueRevision, on: epilogueRevisionPath)
         try await page.openHydrated(epiloguePath)
@@ -398,9 +411,9 @@ struct RevisePagesTests {
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the epilogue at its locution", where: Self.atLocution(epiloguePath))
         let stored = try TestAdmin.query(
-          "SELECT description_translation_json FROM lexicographic_epilogues WHERE id = '\(epilogue)'")
+          "SELECT definition_translation_json FROM lexicographic_epilogues WHERE id = '\(epilogue)'")
         #expect(stored.contains("Un sens feuille, corrigé."), "stored: \(stored)")
-        #expect(stored.contains("\"confidence\":\"\""), "A person's description has no confidence: \(stored)")
+        #expect(stored.contains("\"confidence\":\"\""), "A person's definition has no confidence: \(stored)")
         // The epilogue's page reads it, its confidence "—".
         try await page.openHydrated(epiloguePath)
         try await expect(page.getByText("Un sens feuille, corrigé.").first).toBeAttached()
@@ -429,7 +442,7 @@ struct RevisePagesTests {
 
   /// Every item of a revision's "Changed" line (on the page open now) links
   /// to its revision's own page, where an element holds its anchor; a
-  /// semblance's turns the reader there instead (user, 2026-10-09).
+  /// canvas's turns the reader there instead (user, 2026-10-09).
   static func expectChangedLinksLand(_ page: Page, revision id: String, on revisionPath: String) async throws {
     let hrefs = try await page.evaluate(
       "JSON.stringify([...document.querySelectorAll('#revision-\(id) .locution-thread-event-changed a')].map(a => a.getAttribute('href')))"
@@ -439,7 +452,7 @@ struct RevisePagesTests {
     for link in links {
       let parts = link.split(separator: "#", maxSplits: 1).map(String.init)
       #expect(parts.count == 2 && parts[0].lowercased() == revisionPath.lowercased(), "\(link) is on \(revisionPath)")
-      guard parts.count == 2, !parts[1].hasPrefix("semblance-") else { continue }
+      guard parts.count == 2, !parts[1].hasPrefix("canvas-") else { continue }
       try await page.openHydrated(parts[0])
       try await expect(page.locator("[id='\(parts[1])']")).toBeAttached()
     }

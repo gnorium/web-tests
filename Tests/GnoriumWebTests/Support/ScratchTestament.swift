@@ -1,7 +1,7 @@
 import Foundation
 
 /// A scratch work's testament: its text (`tei`) as a permitted version, a
-/// madrigal's, owned by the test's account, so an utterance can be anchored
+/// madrigal's, owned by the test's account, so a quotation can be anchored
 /// in it and read there. Every row by its own id, removed before the work.
 struct ScratchTestament {
   let reading: ScratchReading

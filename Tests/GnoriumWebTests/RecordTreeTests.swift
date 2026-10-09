@@ -49,9 +49,9 @@ struct RecordTreeTests {
         try await expect(edition).toHaveAttribute("data-outliner-collapsed", "false")
         try await expect(manifest).toBeVisible()
         // A node's Metadata holds its fields alone (user, 2026-10-09): no
-        // semblance count, no other fact that is none of its fields.
+        // canvas count, no other fact that is none of its fields.
         try await expect(tree.locator(".record-row-metadata > .datum-view")).toHaveCount(0)
-        try await expect(tree.locator(".record-row-metadata").getByText("Semblances", exact: true)).toHaveCount(0)
+        try await expect(tree.locator(".record-row-metadata").getByText("Canvases", exact: true)).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
       }
     } catch {

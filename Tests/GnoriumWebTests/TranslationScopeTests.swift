@@ -40,7 +40,7 @@ struct TranslationScopeTests {
         UPDATE bibliographic_madrigals SET metadata_json =
           (metadata_json::jsonb || '{"language":"ita","sourceUrl":"\(fixture.baseURL)/manifest.json"}'::jsonb)::text
           WHERE id = '\(reading.madrigalID)';
-        INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, semblance_service_ids_json, requested_by_user_id, processing_status)
+        INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, canvas_service_ids_json, requested_by_user_id, processing_status)
           VALUES ('\(serenade)', '\(reading.madrigalID)', 'eng', '[]', '\(user)', 'submitted');
         INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id, proposed_content_json, metadata_json, translation_json, processing_status)
           SELECT '\(epilogue)', '\(epilogue)', '\(reading.work.overtureID.lowercased())', '\(serenade)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
@@ -66,7 +66,7 @@ struct TranslationScopeTests {
             if (event.target.id !== 'commit-form') return;
             event.preventDefault();
             const data = new FormData(event.target);
-            window.__translationSubmit = { pipeline: data.get('pipeline'), scope: data.get('scope'), services: data.getAll('semblance[]') };
+            window.__translationSubmit = { pipeline: data.get('pipeline'), scope: data.get('scope'), services: data.getAll('canvas[]') };
           });
           true;
           """, as: Bool.self)
@@ -90,7 +90,7 @@ struct TranslationScopeTests {
         #expect(payload.contains("\"pipeline\":\"bibliographic_translation\""))
         #expect(payload.contains("\"scope\":\"stale\""))
         _ = try await page.evaluate("""
-          document.querySelectorAll(".mission-control-sidebar-view input[name='semblance[]']")[1].checked = true; true
+          document.querySelectorAll(".mission-control-sidebar-view input[name='canvas[]']")[1].checked = true; true
           """, as: Bool.self)
         try await commit.click()
         payload = try await submitted()

@@ -10,8 +10,8 @@ import Foundation
 /// antiphon made permitted. With a `distinction`,
 /// the leaf's TEI holds it as its `<note type="usage" subtype="distinction">`
 /// (a `{branch}` in it a `<ptr>` to the branch). With an `anchor` (a
-/// testament's record, version and page, and the utterance's passage and
-/// word there), the leaf is attested by an utterance in that testament.
+/// testament's record, version and page, and the quotation's passage and
+/// word there), the leaf is attested by a quotation in that testament.
 struct ScratchWord {
   /// Its overture's, its madrigal's and its version's ids, as the server
   /// writes them.
@@ -25,9 +25,9 @@ struct ScratchWord {
   let recordID: String
   private let ids: [String: String]
 
-  /// Where an utterance is in a testament: its record, version and page
+  /// Where a quotation is in a testament: its record, version and page
   /// (image service, and its place among the version's pages), and its word
-  /// by line and place in the line, with its surface, as the utterances service
+  /// by line and place in the line, with its surface, as the quotations service
   /// counts the page.
   struct Anchor {
     let recordID: String
@@ -42,9 +42,11 @@ struct ScratchWord {
   /// `language` is the record's (ISO 639-3): English unless named.
   /// `submitted` leaves its madrigal awaiting its verdict (submitted, not
   /// yet permitted), as a Revise page needs it.
+  /// `title` names the word (a unique one by default; a title in another
+  /// script with its `romanizedTitle`, as explication writes one).
   init(
     owner: TestAdmin, distinction: String? = nil, anchor: Anchor? = nil, language: String = "eng",
-    submitted: Bool = false
+    submitted: Bool = false, title: String? = nil, romanizedTitle: String? = nil
   ) throws {
     let user = try owner.column("id")
     var ids: [String: String] = [:]
@@ -56,41 +58,46 @@ struct ScratchWord {
     versionID = ids["version"]!.uppercased()
     self.ids = ids
     recordID = ids["record"]!.uppercased()
-    title = "webtestsword\(ids["record"]!.prefix(8))"
+    let title = title ?? "webtestsword\(ids["record"]!.prefix(8))"
+    self.title = title
     path = "/lexico-records/\(language)/\(title)/noun"
+    // The title form's romanized title, as explication writes it.
+    let romanized = romanizedTitle.map { #","romanizedTitle":"\#($0)""# } ?? ""
     let note = distinction.map {
       #"<note type=\"usage\" subtype=\"distinction\">"#
         + $0.replacingOccurrences(of: "{branch}", with: ##"<ptr target=\"#s-1\"/>"##) + "</note>"
     } ?? ""
-    let utterances = anchor.map {
+    let quotations = anchor.map {
       (
         #"[{"biblioRecordID":"\#($0.recordID)","canvasID":"\#($0.canvasID)","end":{"line":\#($0.line),"surface":"\#($0.surface)","word":\#($0.word)},"id":"u-1","page":\#($0.page),"start":{"line":\#($0.line),"surface":"\#($0.surface)","word":\#($0.word)},"versionID":"\#($0.versionID)"}]"#,
         #"["u-1"]"#,
-        #","chronology":[{"testamentTitle":"Web tests testament","text":"The scratch word stood in a sentence.","utteranceID":"u-1","year":1901,"yearEnd":1901}]"#)
+        #","chronology":[{"testamentTitle":"Web tests testament","text":"The scratch word stood in a sentence.","quotationID":"u-1","year":1901,"yearEnd":1901}]"#)
     } ?? ("[]", "[]", "")
     let vignette = """
-      {"lemmaForm":{"title":"\(title)","inflections":[],"languageCode":"\(language)","origin":{"citations":[],"derivation":"","etymons":[]},\
+      {"lemmaForm":{"title":"\(title)"\(romanized),"inflections":[],"languageCode":"\(language)","origin":{"citations":[],"derivation":"","etymons":[]},\
       "class":"noun","sources":[{"locator":"s.v.","title":"Web tests dictionary","url":"https://dictionary.example.org/web-tests"}],\
-      "spellings":[]},"quotations":\(utterances.0),"selectionRunIDs":["run"]\(utterances.2),"senses":[\
-      {"description":"A branch sense.","id":"s-1","isLeaf":false,"labels":{"domain":[],"grammar":[],"region":[],"register":[]},\
+      "spellings":[]},"quotations":\(quotations.0),"selectionRunIDs":["run"]\(quotations.2),"senses":[\
+      {"id":"s-1","isLeaf":false,"label":"A branch sense.","usage":{"domain":[],"grammar":[],"region":[],"register":[]},\
       "position":0,"quotationIDs":[],"rank":0,"relations":[],"selectionRunID":"run","tei":"<sense><def>A branch sense.</def></sense>"},\
-      {"description":"A leaf sense.","id":"s-1-1","isLeaf":true,"labels":{"domain":[],"grammar":[],"region":[],"register":[]},\
-      "parentID":"s-1","position":0,"quotationIDs":\(utterances.1),"rank":1,"relations":[],"selectionRunID":"run",\
+      {"id":"s-1-1","isLeaf":true,"label":"A leaf sense.","usage":{"domain":[],"grammar":[],"region":[],"register":[]},\
+      "parentID":"s-1","position":0,"quotationIDs":\(quotations.1),"rank":1,"relations":[],"selectionRunID":"run",\
       "sources":[{"locator":"sense 2","title":"Web tests senses","url":"https://senses.example.org/web-tests"}],\
       "tei":"<sense><def>A leaf sense.</def>\(note)</sense>"}]}
       """
     // Its title form as the Submit Sentiment form writes one: a submitted
     // Folksong is frozen and stays, so it must be one the Folksongs list can
     // read (an empty form fails the whole list).
-    let titleForm = #"{"title":"\#(title)","languageCode":"\#(language)","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
+    let titleForm = #"{"title":"\#(title)"\#(romanized),"languageCode":"\#(language)","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
+    let asciiForm = romanizedTitle ?? title
+    let romanizedColumn = romanizedTitle.map { "'\($0)'" } ?? "NULL"
     _ = try TestAdmin.query(
       """
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(ids["submission"]!)', '\(user)');
       INSERT INTO lemmas (id, citation_form, ascii_form, searchable_form, language_id, homograph_number, created_at, updated_at)
-        VALUES ('\(ids["lemma"]!)', '\(title)', '\(title)', '\(title)', (SELECT id FROM languages WHERE iso639_3 = '\(language)'), 1, now(), now());
-      INSERT INTO lexico_records (id, lemma_id, title, language_code, version, type, created_at, updated_at)
-        VALUES ('\(ids["record"]!)', '\(ids["lemma"]!)', '\(title)', '\(language)', 1, 'noun', now(), now());
+        VALUES ('\(ids["lemma"]!)', '\(title)', '\(asciiForm)', '\(asciiForm)', (SELECT id FROM languages WHERE iso639_3 = '\(language)'), 1, now(), now());
+      INSERT INTO lexico_records (id, lemma_id, title, language_code, version, type, romanized_title, created_at, updated_at)
+        VALUES ('\(ids["record"]!)', '\(ids["lemma"]!)', '\(title)', '\(language)', 1, 'noun', \(romanizedColumn), now(), now());
       INSERT INTO lexicographic_folksongs (id, batch_id, language, title_form_json, anchors_json)
         VALUES ('\(ids["folksong"]!)', '\(ids["submission"]!)', '\(language)', '\(titleForm)', '[]');
       INSERT INTO lexicographic_overtures (id, lexicographic_folksong_id, title_form_json, anchors_json, committed_by_user_id, committed_at, created_at)

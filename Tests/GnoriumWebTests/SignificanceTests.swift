@@ -3,9 +3,9 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// Significance selection shown (user, 2026-09-28): a title's utterances on
+/// Significance selection shown (user, 2026-09-28): a title's quotations on
 /// the admins' page, each with why it was chosen (or "Not selected") and its
-/// density features as plain datums; and an utterance on a record page with
+/// density features as plain datums; and a quotation on a record page with
 /// the same datums under it. The selection rows are a scratch title's, made
 /// by SQL (not stale, so the page reads them as kept) and removed after, as
 /// are a throwaway admin, a scratch testament and a scratch word.
@@ -18,7 +18,7 @@ struct SignificanceTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aTitlesUtterancesShowWhyTheyAreSignificant(engine: BrowserEngine, layout: Layout) async throws {
+  func aTitlesQuotationsShowWhyTheyAreSignificant(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -33,7 +33,7 @@ struct SignificanceTests {
       try await admin.remove()
     }
     do {
-      let scratch = try ScratchTestament(owner: admin, tei: UtteranceTests.tei)
+      let scratch = try ScratchTestament(owner: admin, tei: QuotationTests.tei)
       testament = scratch
       let canvas = "https://example.org/iiif/webtests-p3"
       let scratchWord = try ScratchWord(
@@ -63,14 +63,14 @@ struct SignificanceTests {
             'Page 1, line 1.', 1901, NULL, '[]', '[]', false, now());
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        // The admins' page: every utterance of the title, why each was chosen.
+        // The admins' page: every quotation of the title, why each was chosen.
         _ = try await page.goto(
           "/mission-control/lexicographic/significance?language=eng&title=\(scratchWord.title)&type=noun")
-        let view = page.locator(".significant-utterances-content")
-        try await expect(view.locator("h1")).toHaveText("Significant Utterances of \(scratchWord.title)")
-        try await expect(page).toHaveTitle("Significant Utterances of \(scratchWord.title) | Mission Control | Gnorium")
-        try await expect(view.locator(".significant-utterances-summary")).toContainText("1 of 2")
-        let items = view.locator(".significant-utterances-item")
+        let view = page.locator(".significant-quotations-content")
+        try await expect(view.locator("h1")).toHaveText("Significant Quotations of \(scratchWord.title)")
+        try await expect(page).toHaveTitle("Significant Quotations of \(scratchWord.title) | Mission Control | Gnorium")
+        try await expect(view.locator(".significant-quotations-summary")).toContainText("1 of 2")
+        let items = view.locator(".significant-quotations-item")
         try await expect(items).toHaveCount(2)
         // In reading order: page 1's line first, then the word on page 3.
         try await expect(items.first).toContainText("Not selected")
@@ -80,12 +80,12 @@ struct SignificanceTests {
         let overflow = try await page.evaluate("document.documentElement.scrollWidth > window.innerWidth").bool
         #expect(overflow == false)
 
-        // The record page: the utterance, once fetched, shows the same datums.
+        // The record page: the quotation, once fetched, shows the same datums.
         try await page.openHydrated(scratchWord.path)
         let row = page.locator("#record-row-s-1-1")
         try await page.locator("#record-row-s-1-1 > .accordion-summary").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
-        let density = row.locator(".attestation-view .utterance-density-view")
+        let density = row.locator(".attestation-view .quotation-density-view")
         try await expect(density).toHaveCount(1)
         try await expect(density).toContainText("Definition, Term, Earliest attestation")
         try await expect(density).toContainText("begin")

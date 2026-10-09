@@ -6,8 +6,8 @@ import WebTestsTesting
 /// The code layer's text is one layer, read or edited: a selection dragged
 /// past the pane's edge scrolls the pane and extends over the line, and
 /// what is typed is the text the form posts.
-@Suite("Code layer selection", .serialized)
-struct CodeLayerSelectionTests {
+@Suite("Raw layer selection", .serialized)
+struct RawLayerSelectionTests {
   /// One line far wider than the pane: sixty words joined by commas, no
   /// white space for the layout to break at.
   static let words = (1...60).map { #"<w lemma=\"word\#($0)\">Word\#($0)</w>"# }.joined(separator: "<pc>,</pc>")
@@ -45,7 +45,7 @@ struct CodeLayerSelectionTests {
         ("\(commit.madrigalPath)/revise", ".tei-page-edit .code-code"),
       ] {
         try await page.openHydrated(url)
-        try await page.locator(".artifact-code-toggle").first.click()
+        try await page.locator(".artifact-raw-toggle").first.click()
         let text = page.locator(code).first
         try await expect(text).toBeVisible()
         _ = try await text.evaluate("e => { e.scrollIntoView({block: 'center'}); return true }")

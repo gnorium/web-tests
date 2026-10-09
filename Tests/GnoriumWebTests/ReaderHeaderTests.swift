@@ -6,12 +6,12 @@ import WebTestsTesting
 /// A testament's reader has no title in its header (user, 2026-10-09): on a
 /// biblio page the title is already the page's heading or its node's
 /// description. The header is its controls alone—Raw, Find and the
-/// semblance switch—on one row 40 tall with its 1 border, each control
-/// small (32). Raw and Find need an ordinance, the semblance switch both an
-/// ordinance and a page image (user, 2026-10-09): the testament's manifest is served here
+/// canvas switch—on one row 40 tall with its 1 border, each control
+/// small (32). Raw and Find need a markup, the canvas switch both an
+/// markup and a page image (user, 2026-10-09): the testament's manifest is served here
 /// (`FixtureServer`), one canvas labeled "p1". The footer names the page on
 /// screen by the manifest's canvas label, else its place in the sequence
-/// (1, 2, 3): never the ordinance's own `pb n`. On every reader—a Disputorium object's, the record page's
+/// (1, 2, 3): never the markup's own `pb n`. On every reader—a Disputorium object's, the record page's
 /// and an overture's alike. A throwaway admin owns a scratch work with a
 /// permitted testament, made by SQL and removed after.
 @Suite("Reader header", .serialized)
@@ -31,7 +31,7 @@ struct ReaderHeaderTests {
     let titles: Int
     let raw: Bool
     let find: Bool
-    let semblance: Bool
+    let canvas: Bool
     /// The header's height, its border with it.
     let height: Double
     /// The tallest control in the header's row.
@@ -53,9 +53,9 @@ struct ReaderHeaderTests {
         const controls = [...row.querySelectorAll('button')].filter((b) => b.offsetParent)
         return {
           titles: view.querySelectorAll('#artifact-title, .artifact-title-block, .edge-fade-sheet-view').length,
-          raw: !!row.querySelector('.artifact-code-toggle button')?.offsetParent,
+          raw: !!row.querySelector('.artifact-raw-toggle button')?.offsetParent,
           find: !!row.querySelector('.testament-find-button button')?.offsetParent,
-          semblance: !!row.querySelector('.artifact-canvas-toggle button')?.offsetParent,
+          canvas: !!row.querySelector('.artifact-canvas-toggle button')?.offsetParent,
           height: view.querySelector(':scope > header').getBoundingClientRect().height,
           control: Math.max(0, ...controls.map((b) => b.getBoundingClientRect().height)),
           label: view.querySelector('.artifact-canvas-label').textContent.trim(),
@@ -106,7 +106,7 @@ struct ReaderHeaderTests {
         #expect(header.titles == 0, "\(place): the header still has a title")
         #expect(header.raw, "\(place): no Raw switch")
         #expect(header.find, "\(place): no Find button")
-        #expect(header.semblance, "\(place): no semblance switch")
+        #expect(header.canvas, "\(place): no canvas switch")
         #expect(abs(header.height - 41) < 0.5, "\(place): the header is \(header.height) tall, not 41")
         #expect(abs(header.control - 32) < 0.5, "\(place): a control is \(header.control) tall, not 32")
         // The manifest's canvas label, never the page's pb n.
@@ -117,7 +117,7 @@ struct ReaderHeaderTests {
       }
       try await withPage(engine, gnorium, viewport: viewport) { page in
         // As the server draws it, before any manifest is read: the pager
-        // counts the ordinance's pages, never "of —".
+        // counts the markup's pages, never "of —".
         try await page.openHydrated(scratch.reading.path)
         let served = try await page.evaluate(
           """
@@ -127,7 +127,7 @@ struct ReaderHeaderTests {
             return doc.querySelector('.artifact-view #artifact-page-total').textContent.trim()
           })()
           """)
-        #expect(served == .string("1"), "the served pager's total is \(served), not the ordinance's 1 page")
+        #expect(served == .string("1"), "the served pager's total is \(served), not the markup's 1 page")
 
         // A Disputorium object's reader.
         try await expect(page.locator(".artifact-view .artifact-header-row").first).toBeVisible()
@@ -148,7 +148,7 @@ struct ReaderHeaderTests {
         try await shoot(page, "record")
         try await page.expectNoHorizontalOverflow()
 
-        // The overture's reader: the work's testament, its ordinance the
+        // The overture's reader: the work's testament, its markup the
         // newest its line has made.
         try await page.openHydrated("/mission-control/overtures/bibliographic/\(work.overtureID)")
         try await expect(page.locator(".artifact-view .artifact-header-row").first).toBeVisible()
@@ -158,8 +158,8 @@ struct ReaderHeaderTests {
         try await page.expectNoHorizontalOverflow()
 
         // No page image (a source no manifest answers for): Raw and Find,
-        // which need the ordinance, and no semblance switch, which needs a
-        // semblance; the page named by its place.
+        // which need the markup, and no canvas switch, which needs a
+        // canvas; the page named by its place.
         _ = try TestAdmin.query(
           """
           UPDATE biblio_record_versions SET metadata_json = jsonb_set(metadata_json::jsonb, '{sourceUrl}', '"https://example.org/web-tests-none"')::text
@@ -173,8 +173,8 @@ struct ReaderHeaderTests {
           """)
         try await expect(page.locator(".artifact-view .artifact-canvas-label").first).toHaveText("1")
         let bare = try await Self.header(page)
-        #expect(bare.raw && bare.find, "no page image: Raw and Find need only the ordinance")
-        #expect(!bare.semblance, "no page image, yet a semblance switch")
+        #expect(bare.raw && bare.find, "no page image: Raw and Find need only the markup")
+        #expect(!bare.canvas, "no page image, yet a canvas switch")
       }
       try await clean()
     } catch {

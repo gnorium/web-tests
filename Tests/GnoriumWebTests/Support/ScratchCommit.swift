@@ -45,7 +45,7 @@ struct ScratchCommit {
         VALUES ('\(pendingOvertureID)', '\(submissionID)', '\(folksongID)', '\(sourceURL)', 'eng', 'pending', now());
       INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_folksong_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
         VALUES ('\(committedOvertureID)', '\(submissionID)', '\(folksongID)', '\(sourceURL)', 'eng', 'pending', '\(user)', now(), now());
-      INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, semblance_service_ids_json, processing_status, created_at, updated_at)
+      INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, canvas_service_ids_json, processing_status, created_at, updated_at)
         VALUES ('\(antiphonID)', '\(committedOvertureID)', '\(user)', '[]', 'submitted', now(), now());
       INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, proposed_content_json, metadata_json, processing_status, created_at, updated_at)
         VALUES ('\(madrigalID)', '\(madrigalID)', '\(antiphonID)', '{"teiXml":""}', '{"language":"eng","sourceUrl":"\(sourceURL)","sourceKind":"iiif-manifest"}', 'pending', now(), now());

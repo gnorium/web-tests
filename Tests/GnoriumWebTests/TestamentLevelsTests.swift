@@ -8,7 +8,7 @@ import WebTestsTesting
 /// levels' fields in one stack, unheaded (user, 2026-10-01)—an edition's
 /// Publication, a copy's Acquisition (holding institution, call number,
 /// copy label) and its Production, a Digitization—each level's description
-/// fields first (`TestamentDescription`, user, 2026-10-03): a publication's
+/// fields first (`TestamentLabel`, user, 2026-10-03): a publication's
 /// and a digitization's agents and date before its place, a Production's
 /// event as an imprint gives it (place, agents, date); the carrier saying which of
 /// Publication and Production shows; no card, no level or group named, no

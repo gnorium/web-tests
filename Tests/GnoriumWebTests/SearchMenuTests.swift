@@ -164,19 +164,19 @@ struct SearchMenuTests {
   }
 
   /// Both lists find a title by any part of it, not its start alone: the
-  /// scratch rows by their names' ends. The lexico sidebar's utterance
-  /// radios find a word by the testament its utterance is anchored in, by
+  /// scratch rows by their names' ends. The lexico sidebar's quotation
+  /// radios find a word by the testament its quotation is anchored in, by
   /// its work's title and its author's name, any part of either; the
   /// address keeps the radio.
   @Test(arguments: gnorium.engines, Layout.allCases)
-  func theSidebarFindsByAnyPartAndByTheUtterances(engine: BrowserEngine, layout: Layout) async throws {
+  func theSidebarFindsByAnyPartAndByTheQuotations(engine: BrowserEngine, layout: Layout) async throws {
     try await Self.withScratch(anchored: true) { work, word in
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         let searches: [(index: String, field: String, query: String, noun: String, name: String)] = [
           ("/biblio-records", "title", String(work.title.dropFirst(5)), "biblio-record", work.title),
           ("/lexico-records", "title", String(word.title.dropFirst(4)), "lexico-record", word.title),
-          ("/lexico-records", "utterance_work", "placement \(work.suffix)", "lexico-record", word.title),
-          ("/lexico-records", "utterance_author", "author \(work.suffix)", "lexico-record", word.title),
+          ("/lexico-records", "quotation_work", "placement \(work.suffix)", "lexico-record", word.title),
+          ("/lexico-records", "quotation_author", "author \(work.suffix)", "lexico-record", word.title),
         ]
         for (index, field, query, noun, name) in searches {
           try await page.openHydrated(index)
@@ -389,7 +389,7 @@ struct SearchMenuTests {
 
   /// A throwaway admin's scratch work and word for `body`, removed after
   /// whatever it does. Skipped where no admin can be made.
-  /// `anchored`: the word's utterance is in the work's testament.
+  /// `anchored`: the word's quotation is in the work's testament.
   private static func withScratch(anchored: Bool = false, _ body: (ScratchWork, ScratchWord) async throws -> Void)
     async throws
   {

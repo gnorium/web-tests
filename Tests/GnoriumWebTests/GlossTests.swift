@@ -4,15 +4,15 @@ import WebTests
 import WebTestsTesting
 
 /// What a transcript encodes opens a gloss (user, 2026-09-29, 2026-10-08):
-/// in the testament reader and in an utterance, a click, a tap, or Enter on
-/// a focused word opens a sheet over the ordinance pane only—as the ellipsis
+/// in the testament reader and in a quotation, a click, a tap, or Enter on
+/// a focused word opens a sheet over the markup pane only—as the ellipsis
 /// menu's, a blurred backdrop and a panel filling the pane—headed by the
 /// record as the search menu offers one ("English › title", its class under
 /// it, linked; no separate link to it), then the Term at full width, one
 /// datum a row (as printed, lemma linked to the record, class and language
 /// plain, each morphological feature its own row, spelled out), then the
 /// Lexico-record read at a glance: its Origin, its sentiments laid open
-/// without utterances, the word's own emphasized with its Translations open
+/// without quotations, the word's own emphasized with its Translations open
 /// (each linked). A word with no link is its own data, headed by itself and
 /// its class, with no Lexico-record. What is no word but encoded (a running
 /// head's page number, a gap) opens its own. Esc closes it and what was
@@ -88,7 +88,7 @@ struct GlossTests {
         try await linked.click()
         let sheet = page.locator(".artifact-transcript .gloss-sheet")
         try await expect(sheet).toHaveAttribute("data-state", "open")
-        // Over the ordinance pane only: the pane holds it, the semblance and
+        // Over the markup pane only: the pane holds it, the canvas and
         // the page's chrome stay outside it.
         let pane = page.locator(".artifact-transcript").first
         try await expect(pane.locator(".gloss-sheet")).toHaveCount(1)
@@ -103,7 +103,7 @@ struct GlossTests {
               && Math.abs(s.height - el.clientHeight) <= 1 && Math.abs(s.width - el.clientWidth) <= 1;
           }
           """)
-        #expect(covers.bool == true, "the gloss does not cover the ordinance pane")
+        #expect(covers.bool == true, "the gloss does not cover the markup pane")
         // The title is the record, as the search menu offers one, linked.
         let title = sheet.locator(".gloss-sheet-title")
         try await expect(title.locator(".breadcrumb-label-context")).toHaveText("English")
@@ -135,7 +135,7 @@ struct GlossTests {
         let current = details.locator(".record-row-title[data-current='true']")
         try await expect(current).toHaveText("A leaf sense.")
         try await expect(current).toHaveCSS("font-weight", "600")
-        // No utterances; the page's own row ids are never reused.
+        // No quotations; the page's own row ids are never reused.
         try await expect(details.locator(".attestation-view")).toHaveCount(0)
         try await expect(details.locator("#record-row-s-1-1")).toHaveCount(0)
         // The word's sentiment's Translations, open, each linked.
@@ -195,7 +195,7 @@ struct GlossTests {
         // The gloss's address answers JSON too: its data and the same body.
         let json = try await page.evaluate(
           """
-          fetch('\(scratch.reading.work.path)/testaments/\(scratch.versionID)/glosses?semblance='
+          fetch('\(scratch.reading.work.path)/testaments/\(scratch.versionID)/glosses?canvas='
             + encodeURIComponent('\(Self.service)') + '&line=1&word=2', { headers: { Accept: 'application/json' } })
             .then(r => r.json())
             .then(j => [j.surface, j.lemma, j.type, j.morphology, j.record.title, j.sentiment.id,
@@ -203,19 +203,19 @@ struct GlossTests {
           """)
         #expect(json == .string("scratchwords|scratchword|Noun|Number: Plural|\(english.title)|s-1-1|\(german.title)|broader sense|true|As printed"))
 
-        // A word inside an utterance opens the utterance's gloss, over the
-        // utterance's box, as a word of a phrase opens the phrase's (user,
+        // A word inside a quotation opens the quotation's gloss, over the
+        // quotation's box, as a word of a phrase opens the phrase's (user,
         // 2026-10-09): its testament's Chicago note, then its words, the
         // word clicked expanded with its own gloss's rows and its record.
         try await page.openHydrated(english.path)
         try await page.locator("#record-row-s-1-1 > .accordion-summary").click()
-        let utterance = page.locator("#record-row-s-1-1 .utterance-view")
-        let word = utterance.locator(".tei-word").filter(hasText: "scratchwords")
+        let quotation = page.locator("#record-row-s-1-1 .quotation-view")
+        let word = quotation.locator(".tei-word").filter(hasText: "scratchwords")
         try await expect(word).toHaveCount(1)
         try await word.click()
-        let again = utterance.locator(".gloss-sheet[data-state='open']")
+        let again = quotation.locator(".gloss-sheet[data-state='open']")
         try await expect(again).toHaveCount(1)
-        // Headed by the utterance's words alone: no meta row.
+        // Headed by the quotation's words alone: no meta row.
         try await expect(again.locator(".gloss-sheet-title .record-label-title")).toHaveText("scratchwords")
         try await expect(again.locator(".gloss-sheet-title .record-label-meta")).toHaveCount(0)
         let work = scratch.reading.work

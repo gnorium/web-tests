@@ -3,9 +3,9 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// Explication is one session per cluster of utterances (user, 2026-09-29):
+/// Explication is one session per cluster of quotations (user, 2026-09-29):
 /// the antiphon's page lists its clusters as sessions ("Cluster 1 of 2 · 2
-/// utterances"), shows the focused one's trace—each utterance read and
+/// quotations"), shows the focused one's trace—each quotation read and
 /// assigned, its last words—and no stages.
 @Suite("Lexicographic explication sessions", .serialized)
 struct LexicographicExplicationSessionsTests {
@@ -13,17 +13,17 @@ struct LexicographicExplicationSessionsTests {
     let blocks: [[String: String]] = [
       ["type": "thinking", "content": "The sentence speaks of a person adding by hand."],
       [
-        "type": "tool", "name": "read_utterance", "arguments": #"{"utterance":"u-1"}"#,
-        "result": #"{"ok": true, "utterance": "u-1", "sentence": "The ⟦computer⟧ added the columns."}"#,
+        "type": "tool", "name": "read_quotation", "arguments": #"{"quotation":"u-1"}"#,
+        "result": #"{"ok": true, "quotation": "u-1", "sentence": "The ⟦computer⟧ added the columns."}"#,
         "status": "ok", "call_id": "call_1",
       ],
       [
         "type": "tool", "name": "assign",
-        "arguments": #"{"utterance":"u-1","status":"assigned","sentiments":["s-1-1"],"confidence":"clear","meaning":"a person who calculates","reason":"added the columns"}"#,
-        "result": #"{"ok": true, "utterance": "u-1", "unassigned": []}"#,
+        "arguments": #"{"quotation":"u-1","status":"assigned","sentiments":["s-1-1"],"confidence":"clear","meaning":"a person who calculates","reason":"added the columns"}"#,
+        "result": #"{"ok": true, "quotation": "u-1", "unassigned": []}"#,
         "status": "ok", "call_id": "call_2",
       ],
-      ["type": "assignment", "utterance": "u-1", "content": "{}"],
+      ["type": "assignment", "quotation": "u-1", "content": "{}"],
       ["type": "text", "content": "Both uses are the human calculator."],
     ]
     return String(decoding: try JSONSerialization.data(withJSONObject: blocks), as: UTF8.self)
@@ -50,14 +50,14 @@ struct LexicographicExplicationSessionsTests {
           processing_status, processing_error, language, sentence, created_at, updated_at)
           VALUES ('\(antiphon)', (SELECT lexicographic_folksong_id FROM lexicographic_overtures WHERE id = '\(word.overtureID)'),
             '\(word.madrigalID)', '\(user)', 'failed', 'Needs a person: web tests', 'eng', '\(word.title)', now(), now());
-        INSERT INTO utterance_clusterings (id, lexicographic_antiphon_id, method, threshold, model, model_version,
-          dimensions, recipe, utterance_ids_json)
+        INSERT INTO quotation_clusterings (id, lexicographic_antiphon_id, method, threshold, model, model_version,
+          dimensions, recipe, quotation_ids_json)
           VALUES ('\(clustering)', '\(antiphon)', 'agglomerative-average-cosine-v1', 0.35, 'test/embedding',
-            'Test via Stub', 3, 'utterance-v1', '["u-1","u-2","u-3"]');
-        INSERT INTO utterance_clusters (id, utterance_clustering_id, position, utterance_ids_json)
+            'Test via Stub', 3, 'quotation-v1', '["u-1","u-2","u-3"]');
+        INSERT INTO quotation_clusters (id, quotation_clustering_id, position, quotation_ids_json)
           VALUES ('\(clusters[0])', '\(clustering)', 0, '["u-1","u-2"]'), ('\(clusters[1])', '\(clustering)', 1, '["u-3"]');
         INSERT INTO lexicographic_explication_stage_runs (id, lexicographic_antiphon_id, stage, attempt, provider, model, output, result,
-          duration_ms, utterance_cluster_id, created_at)
+          duration_ms, quotation_cluster_id, created_at)
           VALUES ('\(run)', '\(antiphon)', 'explication', 1, 'openrouter', 'qwen/qwen3.8-max-0902', '\(try Self.trace())',
             'passed', 1200, '\(clusters[0])', now());
         COMMIT;
@@ -69,9 +69,9 @@ struct LexicographicExplicationSessionsTests {
         try await expect(page.locator("a[href*='stage=']")).toHaveCount(0)
         let pipeline = page.locator(".pipeline-container")
         try await expect(pipeline).toHaveAttribute(
-          "data-item-order", "Cluster 1 of 2 · 2 utterances,Cluster 2 of 2 · 1 utterance")
+          "data-item-order", "Cluster 1 of 2 · 2 quotations,Cluster 2 of 2 · 1 quotation")
         let session = page.locator(".session-view")
-        try await expect(session.getByText("read_utterance").first).toBeAttached()
+        try await expect(session.getByText("read_quotation").first).toBeAttached()
         try await expect(session.getByText("assign", exact: true).first).toBeAttached()
         try await expect(session.getByText("Both uses are the human calculator.")).toBeAttached()
       }
@@ -88,7 +88,7 @@ struct LexicographicExplicationSessionsTests {
       """
       BEGIN;
       DELETE FROM lexicographic_explication_stage_runs WHERE lexicographic_antiphon_id = '\(antiphon)';
-      DELETE FROM utterance_clusterings WHERE lexicographic_antiphon_id = '\(antiphon)';
+      DELETE FROM quotation_clusterings WHERE lexicographic_antiphon_id = '\(antiphon)';
       DELETE FROM lexicographic_antiphons WHERE id = '\(antiphon)';
       COMMIT;
       """)

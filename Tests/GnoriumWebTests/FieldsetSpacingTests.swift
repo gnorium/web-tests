@@ -11,8 +11,8 @@ import WebTestsTesting
 /// it; the legend is floated, an ordinary flex item, and stays the
 /// fieldset's name. Nothing is submitted. A throwaway admin, removed after,
 /// and a scratch word whose madrigal's Revise page holds a text area with
-/// its own label (a sentiment's Description): Submit Sentiment has none
-/// since its description is the machine's (user, 2026-10-09).
+/// its own label (a sentiment's Label): Submit Sentiment has none
+/// since its label is the machine's (user, 2026-10-09).
 @Suite("Fieldset spacing", .serialized)
 struct FieldsetSpacingTests {
   static let forms = [
@@ -27,7 +27,7 @@ struct FieldsetSpacingTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let word = try ScratchWord(owner: admin, submitted: true)
-    // A labeled text area: a sentiment's Description on its madrigal's Revise page.
+    // A labeled text area: a sentiment's Label on its madrigal's Revise page.
     let forms = Self.forms + ["/mission-control/madrigals/lexicographic/\(word.madrigalID)/revise"]
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in

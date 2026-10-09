@@ -26,7 +26,7 @@ struct TestamentFormFieldsTests {
           "[name='format']", "[name='dimension_size']", "[name='dimension_unit']", "[name='extent']",
           "[name='extent_unit']", "[name='notes']", "[data-item-list='former-owner']",
           ".former-owners-view", "[data-as-namespace='manufacture']", "[data-as-namespace='distribution']",
-          "#testament-semblance-count",
+          "#testament-canvas-count",
         ] {
           try await expect(form.locator(gone)).toHaveCount(0)
         }

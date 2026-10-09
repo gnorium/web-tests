@@ -6,10 +6,10 @@ import WebTestsTesting
 /// Submit Sentiment, the parallel of Submit Testament, the record page in
 /// edit mode: the record first (Lexico-record, Language, Script, Title,
 /// Type), then the tree with the new sentiment alone, open, its fields in
-/// its Metadata (its Form rows, Description, the Grammar, Register, Domain,
-/// Region and Currency labels). No card, no placement widget. No utterance
+/// its Metadata (its Form rows, Label, the Grammar, Register, Domain,
+/// Region and Currency usage). No card, no placement widget. No quotation
 /// is cited, nothing is derived and no passage coins the word: the pipeline
-/// finds the utterances by the title and the forms. A region is offered
+/// finds the quotations by the title and the forms. A region is offered
 /// under its language. A picked lexico-record stands with its own fields,
 /// its tree in the tree section, and stays chosen; unset, the typed fields
 /// come back as they were left. Nothing is submitted (`SubmissionTests`
@@ -45,8 +45,8 @@ struct SentimentFormTests {
         (form) => {
           const chain = [
             '.record-choice-field-view', '#language', '#script', '#title', '#type', '.submit-sentiment-tree',
-            "[data-submission-draft='true']", '#label-grammar',
-            '#label-register', '#label-domain', '#label-region', '#label-currency',
+            "[data-submission-draft='true']", '#usage-grammar',
+            '#usage-register', '#usage-domain', '#usage-region', '#usage-currency',
           ];
           for (let i = 1; i < chain.length; i++) {
             const a = form.querySelector(chain[i - 1]), b = form.querySelector(chain[i]);
@@ -59,7 +59,7 @@ struct SentimentFormTests {
       ).string
       #expect(order == "ok", "\(order ?? "")")
       // Nothing cited, nothing derived, nothing coined.
-      for gone in ["[id^='utterance-accordion']", "input[name='coins[]']", "[data-derived-scope]", "input[name='anchors']"] {
+      for gone in ["[id^='quotation-accordion']", "input[name='coins[]']", "[data-derived-scope]", "input[name='anchors']"] {
         try await expect(form.locator(gone)).toHaveCount(0)
       }
       try await expect(form.locator(".framed-accordion-view, #sentiment-accordion, #sentiment-placement"))
@@ -68,10 +68,10 @@ struct SentimentFormTests {
       try await expect(form.locator("#language")).toHaveValue("eng")
       try await expect(form.locator("[data-dropdown-id='language'] .dropdown-selected-text")).toHaveText("English")
       try await expect(form.locator("input[name='title']")).toHaveAttribute("placeholder", "Title")
-      // No description: the machine writes it (user, 2026-10-09).
-      try await expect(form.locator("#description, textarea[name='description']")).toHaveCount(0)
+      // No label: the machine writes it (user, 2026-10-09).
+      try await expect(form.locator("#sentiment-0-label, textarea[name='sentiment-0-label']")).toHaveCount(0)
 
-      // No Form rows: a sentiment's forms are its utterances', never typed.
+      // No Form rows: a sentiment's forms are its quotations', never typed.
       try await expect(form.locator("[data-item-list='title-form'], .title-form-json")).toHaveCount(0)
       try await expect(form.locator("button[aria-label='Add Form']")).toHaveCount(0)
 

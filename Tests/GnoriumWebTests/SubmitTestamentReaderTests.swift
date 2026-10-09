@@ -5,13 +5,13 @@ import WebTestsTesting
 
 /// Submit Testament reads the testament its Source URL names as the record
 /// page reads one (user, 2026-10-03): the server reads the IIIF manifest,
-/// and the record page's viewer shows its semblances, with no ordinance
+/// and the record page's viewer shows its canvases, with no markup
 /// pane, since nothing is explicated yet. A URL cleared takes the viewer
 /// away, and the field's own validation asks for one. A manifest the server
 /// cannot read takes it away too, with an error under the field that blocks
 /// the form for that URL (the submit would be refused for it): the field's
 /// error says it, and the reader is hidden whole—no empty frame, no alert,
-/// never words in an ordinance pane (user, 2026-10-09).
+/// never words in a markup pane (user, 2026-10-09).
 ///
 /// The manifests are served by a fixture server on this machine
 /// (`FixtureServer`), which the dev server may fetch because `.env.dev`
@@ -40,7 +40,7 @@ struct SubmitTestamentReaderTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func theSourceURLShowsItsSemblances(engine: BrowserEngine, layout: Layout) async throws {
+  func theSourceURLShowsItsCanvases(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -60,7 +60,7 @@ struct SubmitTestamentReaderTests {
         try await expect(reader).toBeHidden()
         try await expect(reader.locator(".testament-view")).toHaveCount(0)
 
-        // A manifest: its semblances, paged and shown; no ordinance, so no
+        // A manifest: its canvases, paged and shown; no markup, so no
         // switch to put them away (it would leave nothing), no Raw or Find.
         try await source.fill(manifestURL)
         try await expect(reader).toBeVisible()
@@ -71,7 +71,7 @@ struct SubmitTestamentReaderTests {
         try await expect(viewer.locator(".artifact-object")).toBeVisible()
         try await expect(viewer.locator(".artifact-transcript")).toHaveCount(0)
         try await expect(viewer.locator(".artifact-canvas-toggle")).toHaveCount(0)
-        try await expect(viewer.locator(".artifact-code-toggle, .testament-find-button")).toHaveCount(0)
+        try await expect(viewer.locator(".artifact-raw-toggle, .testament-find-button")).toHaveCount(0)
         try await expect(message).toHaveCount(0)
         try await expect(alert).toHaveCount(0)
 

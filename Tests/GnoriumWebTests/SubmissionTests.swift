@@ -378,7 +378,7 @@ struct SubmissionTests {
     try await handle.click()
     try await handle.press("ArrowRight")
     try await expect(tree.locator(".outliner-feedback .alert-content"))
-      .toHaveText("Nothing can go under a digitization: its semblances attest it.")
+      .toHaveText("Nothing can go under a digitization: its canvases attest it.")
     try await handle.press("Escape")
     try await expect(number).toHaveText("1.2")
 
@@ -548,7 +548,7 @@ struct SubmissionTests {
     try await apparatus.locator("input[name='title']").fill("webtestsnew\(suffix)")
     try await set(page, [("type", "noun")])
     try await expect(draft.locator("#description, textarea[name='description']")).toHaveCount(0)
-    try await set(page, [("label-register", "formal")])
+    try await set(page, [("usage-register", "formal")])
     try await expect(title).toHaveText("—")
     try await form.locator(".record-actions button[type='submit']").click()
     try await expect(page, timeout: .seconds(15)).toHaveURL("its overture's page") {

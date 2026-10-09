@@ -28,8 +28,8 @@ struct BibliographicExplicationSessionsTests {
           "result": #"{"ok": true, "tool": "save_page", "saved": "1", "findings_count": 0}"#,
           "status": "ok", "call_id": "call_1",
         ],
-        ["type": "semblance_xml", "label": "1", "content": Self.page],
-        ["type": "semblance_xml", "label": "2", "content": Self.page],
+        ["type": "canvas_xml", "label": "1", "content": Self.page],
+        ["type": "canvas_xml", "label": "2", "content": Self.page],
         [
           "type": "compaction", "mode": "auto", "micro": "0", "chars_before": "100", "chars_after": "60",
           "prompt": "Summarize.", "summary": "Kept **both** pages and `save_page`.",
@@ -41,9 +41,9 @@ struct BibliographicExplicationSessionsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, semblance_service_ids_json, processing_status)
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, canvas_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_stage_runs (id, submission_id, stage, semblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_stage_runs (id, submission_id, stage, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)',
             (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1–2', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),
@@ -175,9 +175,9 @@ struct BibliographicExplicationSessionsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, semblance_service_ids_json, processing_status)
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, canvas_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_stage_runs (id, submission_id, stage, semblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_stage_runs (id, submission_id, stage, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)',
             (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),
@@ -190,7 +190,7 @@ struct BibliographicExplicationSessionsTests {
         try await card.locator(".accordion-summary").first.click()
         let detail = card.locator(".detail-view")
         try await expect(detail).toBeVisible()
-        // The detail in place, as a semblance is: no chip, no lightbox.
+        // The detail in place, as a canvas is: no chip, no lightbox.
         try await expect(detail.locator(".expandable-attachment-image-viewport")).toBeVisible()
         try await expect(detail.locator(".expandable-attachment-image-canvas")).toHaveAttribute("src", detailURL)
         try await expect(card.locator(".expandable-attachment-dialog")).toHaveCount(0)

@@ -3,7 +3,7 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A testament's reader holds one semblance per page, each a canvas, in its
+/// A testament's reader holds one canvas per page, each a canvas, in its
 /// viewer's canvas slot (user, 2026-09-28): only the page on screen is shown
 /// and only its canvas holds tiles; a canvas paged away lets go of them, and
 /// its transcript pages with it. The manifest and its pages' images are
@@ -13,12 +13,12 @@ import WebTestsTesting
 ///
 /// The page images are off until the reader asks for them (user,
 /// 2026-09-29): the transcript takes the whole width and no image is
-/// fetched; the header's Semblance switch (the image icon alone, distinct
+/// fetched; the header's Canvas switch (the image icon alone, distinct
 /// from the pager's arrows, 2026-10-03) shows them, and the choice holds
 /// across the reader's pages and the site's navigation for the browser
 /// session (sessionStorage), and is off again in a new one.
-@Suite("Semblance canvas", .serialized)
-struct SemblanceCanvasTests {
+@Suite("Canvas canvas", .serialized)
+struct CanvasTests {
   /// The fixture's three pages' image services.
   static func services(_ fixture: FixtureServer) -> [String] { (1...3).map { "\(fixture.baseURL)/page-\($0)" } }
 
@@ -34,7 +34,7 @@ struct SemblanceCanvasTests {
   struct Canvas: Decodable { let service: String; let shown: Bool; let tiles: Int }
 
   static let canvasesScript = """
-    (viewer) => JSON.stringify([...viewer.querySelectorAll('.semblance-view')].map(s => ({
+    (viewer) => JSON.stringify([...viewer.querySelectorAll('.testament-canvas-view')].map(s => ({
       service: s.dataset.serviceId,
       shown: getComputedStyle(s).display !== 'none',
       tiles: s.querySelectorAll('.canvas-tile-image').length,
@@ -97,11 +97,11 @@ struct SemblanceCanvasTests {
         #expect(rowFits, "the header row needs more than its width")
         try await page.expectNoHorizontalOverflow()
         // Find is the search icon alone.
-        // A toggle, as the semblance switch is: its button holds the name.
+        // A toggle, as the canvas switch is: its button holds the name.
         let find = viewer.locator(".testament-find-button button")
         try await expect(find).toHaveAccessibleName("Find in this testament")
         try await expect(find).toHaveText("")
-        // Find and the semblance switch are the pager's small chevrons' size,
+        // Find and the canvas switch are the pager's small chevrons' size,
         // 32, their icons' long edge the chevrons', 16 (icons are tight to
         // their glyph, 2026-10-01; an icon-only control on par with the
         // bars' 16px text takes its size, 2026-10-09): one row of small
@@ -113,7 +113,7 @@ struct SemblanceCanvasTests {
         #expect(abs(row.height - 40) < 1, "the header's row is 40")
         for (name, control, icon) in [
           ("Find", find, find.locator("svg")),
-          ("Semblance", toggle, toggle.locator("svg")),
+          ("Canvas", toggle, toggle.locator("svg")),
         ] {
           let box = try #require(try await control.boundingBox())
           let iconBox = try #require(try await icon.boundingBox())
@@ -124,8 +124,8 @@ struct SemblanceCanvasTests {
         }
 
         // Off: the transcript alone, the whole width, and no image asked for.
-        // The switch is the image icon alone, named "Semblance".
-        try await expect(toggle).toHaveAccessibleName("Semblance")
+        // The switch is the image icon alone, named "Canvas".
+        try await expect(toggle).toHaveAccessibleName("Canvas")
         try await expect(viewer.locator(".artifact-canvas-toggle .toggle-button-label")).toHaveCount(0)
         try await expect(toggle.locator("svg.image-icon-view")).toHaveCount(1)
         try await expect(toggle).toHaveAttribute("aria-pressed", "false")
@@ -143,17 +143,17 @@ struct SemblanceCanvasTests {
         try await toggle.click()
         try await expect(toggle).toHaveAttribute("aria-pressed", "true")
         try await expect(object).toBeVisible()
-        try await expect(viewer.locator(".semblance-view[data-active='true'] .canvas-tile-image").first)
+        try await expect(viewer.locator(".testament-canvas-view[data-active='true'] .canvas-tile-image").first)
           .toHaveCount(1)
-        try await expect(viewer.locator(".semblance-view[data-active='true']"))
+        try await expect(viewer.locator(".testament-canvas-view[data-active='true']"))
           .toHaveAttribute("data-service-id", services[1])
 
         // Across the reader's pages.
         try await viewer.locator(".pagination-next").first.click()
         try await expect(toggle).toHaveAttribute("aria-pressed", "true")
-        try await expect(viewer.locator(".semblance-view[data-active='true']"))
+        try await expect(viewer.locator(".testament-canvas-view[data-active='true']"))
           .toHaveAttribute("data-service-id", services[2])
-        try await expect(viewer.locator(".semblance-view[data-active='true'] .canvas-tile-image").first)
+        try await expect(viewer.locator(".testament-canvas-view[data-active='true'] .canvas-tile-image").first)
           .toHaveCount(1)
 
         // Across navigation in the session.
@@ -162,7 +162,7 @@ struct SemblanceCanvasTests {
         try await expect(again).toHaveAttribute("data-artifact-hydrated", "true")
         try await expect(again.locator(".artifact-canvas-toggle button")).toHaveAttribute("aria-pressed", "true")
         try await expect(again.locator(".artifact-object")).toBeVisible()
-        try await expect(again.locator(".semblance-view[data-active='true'] .canvas-tile-image").first)
+        try await expect(again.locator(".testament-canvas-view[data-active='true'] .canvas-tile-image").first)
           .toHaveCount(1)
         try await page.expectNoHorizontalOverflow()
       }
@@ -198,7 +198,7 @@ struct SemblanceCanvasTests {
         try await page.openHydrated(reading.path)
         let viewer = page.locator(".artifact-view").first
         try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
-        try await expect(viewer.locator(".semblance-view")).toHaveCount(3)
+        try await expect(viewer.locator(".testament-canvas-view")).toHaveCount(3)
         try await expect(viewer.locator("#artifact-page-total")).toHaveText("3")
         // The page images, off by default, turned on.
         try await viewer.locator(".artifact-canvas-toggle button").click()
@@ -209,7 +209,7 @@ struct SemblanceCanvasTests {
         }
         func expectShown(_ index: Int) async throws {
           // The backdrop is drawn once the image service's format is probed.
-          try await expect(viewer.locator(".semblance-view[data-active='true'] .canvas-tile-image").first)
+          try await expect(viewer.locator(".testament-canvas-view[data-active='true'] .canvas-tile-image").first)
             .toHaveCount(1)
           let read = try await canvases()
           #expect(read.map(\.shown) == (0..<3).map { $0 == index }, "only page \(index + 1) is shown")

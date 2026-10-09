@@ -121,7 +121,7 @@ struct EntriesAndCitationsTests {
         try await expect(row.locator("a[href='\(catalogPath)']")).toHaveCount(1)
         try await expect(row).toContainText("Catalog")
         try await expect(row).toContainText("WEB TESTS HEADING")
-        try await expect(row.locator("a[href='\(catalogPath)/vignettes/\(catalog.versionID)?semblance=2']")).toHaveCount(1)
+        try await expect(row.locator("a[href='\(catalogPath)/vignettes/\(catalog.versionID)?canvas=2']")).toHaveCount(1)
         try await expect(row).not.toContainText("Canon")
         // The works citing it in running text, one row each with how many.
         let citations = page.locator("#record-citations")
@@ -285,7 +285,8 @@ struct EntriesAndCitationsTests {
         try await expect(bar).toBeVisible()
         // The header is 40 and a 1px border, its controls small, 32, 4
         // above and under them; the find bar's box small too, its text
-        // 16px, 12 at the sides; its buttons 32, their icons 14.
+        // 16px, 12 at the sides; its buttons 32, their icons alone in
+        // their boxes so at the row's 16, as every icon-only control.
         let small = try await viewer.evaluate(
           """
           (viewer) => { const bar = viewer.querySelector('.testament-find-view');
@@ -301,9 +302,9 @@ struct EntriesAndCitationsTests {
               && h(el) === 32 && css.fontSize === '16px'
               && css.paddingInlineStart === '12px' && css.paddingInlineEnd === '12px'
               && buttons.length === 2 && buttons.every(b => h(b) === 32)
-              && buttons.every(b => h(b.querySelector('svg')) === 14); }
+              && buttons.every(b => h(b.querySelector('svg')) === 16); }
           """).bool == true
-        #expect(small, "The header and its find bar are rows of small controls, their text 16px")
+        #expect(small, "The header and its find bar are rows of small controls, their text and icons 16px")
         try await bar.locator("input").fill("scratchfind")
         let count = bar.locator(".testament-find-count")
         // The word broken over two lines is found whole.
