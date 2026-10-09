@@ -63,6 +63,7 @@ struct ToolCardFieldsTests {
       ["type": "tool", "name": "read_conventions", "arguments": "{}", "result": conventions, "status": "ok", "call_id": "\(prefix)rc"],
       ["type": "tool", "name": "web_search", "arguments": #"{"query": "sea"}"#, "result": search, "status": "ok", "call_id": "\(prefix)ws"],
       ["type": "tool", "name": "save_page", "arguments": #"{"page": 1}"#, "result": saved, "status": "ok", "call_id": "\(prefix)sp"],
+      ["type": "tool", "name": "web_search", "arguments": #"{"query": "x"}"#, "result": #"{"ok": false, "error": "timed out"}"#, "status": "error", "call_id": "\(prefix)fx"],
       ["type": "draft", "content": #"{"bookkeeping": "never shown"}"#],
       [
         "type": "compaction", "mode": "micro", "micro": "1", "chars_before": "100", "chars_after": "60",
@@ -121,6 +122,17 @@ struct ToolCardFieldsTests {
           })()
           """, as: Bool.self), "Thinking remains an inner 256px scrollport")
         let session = page.locator(".computorium-session-view")
+        // The header's status chip keeps its own vocabulary: a submitted
+        // antiphon's is green (user, 2026-10-10).
+        #expect(try await page.evaluate("""
+          (() => {
+            const chip = document.querySelector('.computorium-core-header-status-chip')
+            const probe = document.createElement('span'); document.body.append(probe)
+            probe.style.color = 'var(--color-green)'; const green = getComputedStyle(probe).color; probe.remove()
+            return chip.classList.contains('info-chip-green') && chip.textContent.trim() === 'Submitted'
+              && getComputedStyle(chip.querySelector('.info-chip-text') || chip).color === green
+          })()
+          """, as: Bool.self), "The Submitted chip is green")
         // The tools the model is offered go with every request, so the
         // Tools card opens every round: before the first thinking, and
         // before the thinking and the text that follow a tool result.
@@ -146,7 +158,7 @@ struct ToolCardFieldsTests {
             .map(e => e.className.replace('computorium-session-', '').split(' ')[0]).join(' ')
           """
         let order = try await page.evaluate(orderJS, as: String.self)
-        #expect(order == "tools output-thinking tool-call tool-call tool-call compaction tools output-thinking tool-call tools output-rendered", "Stream order: \(order)")
+        #expect(order == "tools output-thinking tool-call tool-call tool-call tool-call compaction tools output-thinking tool-call tools output-rendered", "Stream order: \(order)")
         try await expect(session.locator(".computorium-session-tool-call-definition")).toHaveCount(0)
         // read_conventions: its content—the conventions—under `content`,
         // and every envelope key beside it, as the JSON wrote them.
@@ -177,6 +189,29 @@ struct ToolCardFieldsTests {
           })()
           """, as: Bool.self)
         #expect(gray, "A stub sits on the same gray box a result does")
+        // A card header's dot is its own vocabulary (never the roster's
+        // marks): green for a call that came back, red for one that
+        // failed, orange for a compaction (user, 2026-10-10).
+        #expect(try await page.evaluate("""
+          (() => {
+            const probe = document.createElement('span'); document.body.append(probe)
+            const tone = (name) => { probe.style.color = 'var(--color-' + name + ')'; return getComputedStyle(probe).color }
+            const [green, red, orange] = [tone('green'), tone('red'), tone('orange')]; probe.remove()
+            const color = (id) => getComputedStyle(document.getElementById(id).closest('.computorium-session-tool-call').querySelector('.computorium-session-tool-call-mark .icon-view')).color
+            const compaction = getComputedStyle(document.querySelector('.computorium-session-compaction-mark .icon-view')).color
+            return [color('computorium-session-tool-rc') === green, color('computorium-session-tool-fx') === red, compaction === orange].join(' ')
+          })()
+          """, as: String.self) == "true true true", "ok green, failed red, compaction orange")
+        // The call's inputs and what came back stand 16 apart, further
+        // than the 8 between the datums inside either (user, 2026-10-10).
+        #expect(try await page.evaluate("""
+          (() => {
+            const card = document.querySelector('#computorium-session-tool-rc').closest('.computorium-session-tool-call');
+            const content = card.querySelector('.accordion-content');
+            const fields = card.querySelector('.computorium-session-tool-call-args');
+            return getComputedStyle(content).rowGap + ' ' + (fields ? getComputedStyle(fields).rowGap : '8px');
+          })()
+          """, as: String.self) == "16px 8px", "Inputs and output 16 apart, datums 8")
         // A web search: its engine and pages under their own keys, one
         // nested group a page.
         let search = try await page.evaluate(Self.signature("computorium-session-tool-ws"), as: String.self)

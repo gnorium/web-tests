@@ -169,7 +169,7 @@ struct BibliographicExplicationSessionsTests {
       let result = """
         {"ok": true, "tool": "zoom_image", "page": "1", "region": [100, 250, 300, 200], "image": "attached below", \
         "source_width": 1200, "source_height": 800, "sent_width": 600, "sent_height": 400, \
-        "detail_url": "\(detailURL)", "page_url": "\(image(400, 400))"}
+        "crop_url": "\(detailURL)", "page_url": "\(image(400, 400))"}
         """
       let blocks: [[String: String]] = [
         [
@@ -218,7 +218,7 @@ struct BibliographicExplicationSessionsTests {
         }
         let resultLabels = try await labels(".computorium-session-tool-call-result-box")
         #expect(
-          resultLabels == "ok tool page region image source_width source_height sent_width sent_height detail_url page_url",
+          resultLabels == "ok tool page region image source_width source_height sent_width sent_height crop_url page_url",
           "Every key the zoom returned, in the JSON's order: \(resultLabels)")
         try await expect(box).toContainText("[100, 250, 300, 200]")
         // The arguments as sent, each its own datum.
@@ -330,6 +330,16 @@ struct BibliographicExplicationSessionsTests {
           try await expect(session).toHaveAttribute("data-computorium-session-status", "succeeded")
           #expect(try await page.evaluate("window.replayFilledWhileRunning", as: Bool.self), "Stored trace fills the running card at replay pace")
           #expect(try await page.evaluate(snapshot, as: String.self) == finished, "Replay \(attempt) finishes with the original thinking, tools, compaction and output")
+          // As live: the tool, Tools and compaction cards arrive closed and
+          // stay closed; the thinking card streams open and stays open
+          // (user, 2026-10-10).
+          #expect(try await page.evaluate("""
+            (() => {
+              const closed = [...document.querySelectorAll(':is(.computorium-session-tool-call, .computorium-session-tools-rendered, .computorium-session-compaction) details, details:is(.computorium-session-tool-call, .computorium-session-tools-rendered, .computorium-session-compaction)')]
+              const thinking = [...document.querySelectorAll('.computorium-session-output-thinking details, details.computorium-session-output-thinking')]
+              return closed.length > 0 && closed.every(d => !d.open) && thinking.length > 0 && thinking.every(d => d.open)
+            })()
+            """, as: Bool.self), "Replay \(attempt) leaves cards as live leaves them: thinking open, the rest closed")
           try await expect(session.locator(".computorium-session-output-thinking-running")).toHaveCount(0)
           try await expect(otherRows.first).toHaveAttribute("data-computorium-session-status", "succeeded")
         }

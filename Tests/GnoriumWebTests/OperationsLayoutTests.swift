@@ -64,7 +64,7 @@ struct OperationsLayoutTests {
           const list = roster?.closest('.mission-control-sidebar-list');
           if (!search || !list) return false;
           const box = roster.querySelector('.roster-search-input .search-input');
-          return box.placeholder === 'Search canvases'
+          return box.placeholder === 'Search evidence' && box.getAttribute('aria-label') === 'Search evidence'
             && getComputedStyle(box).fontSize === '16px'
             && parseFloat(getComputedStyle(search).borderBottomWidth) === 0
             && getComputedStyle(list).rowGap === '16px';

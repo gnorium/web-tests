@@ -125,8 +125,19 @@ struct ComputationTests {
         try await expect(rows.nth(0).locator(".checkbox-input")).toBeDisabled()
         try await expect(rows.nth(1)).toHaveAttribute("data-locked", "false")
         try await expect(rows.nth(1).locator(".checkbox-icon-wrapper")).toBeVisible()
+        // Its checkbox's column kept, the locked row's ordinal, mark and
+        // label line up with an unlocked row's (user, 2026-10-10).
+        #expect(try await page.evaluate("""
+          (() => { const rows = document.querySelectorAll('#madrigal-canvases .roster-row')
+            const x = (row, s) => row.querySelector(s).getBoundingClientRect().left
+            return ['.roster-marker', '.roster-status', '.roster-label'].every(s => x(rows[0], s) === x(rows[1], s)) })()
+          """, as: Bool.self), "Locked and unlocked rows align")
         let call = page.locator("#locution-\(callID.uppercased())")
         try await expect(call.locator(".locution-call-status")).toHaveText("Pending")
+        // The evidence item it attached, linked to it in the reader (user,
+        // 2026-10-10).
+        try await expect(call.locator(".locution-call-evidence")).toHaveText("Canvas 1")
+        try await expect(call.locator("a:has(.locution-call-evidence)")).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID.uppercased())?canvas=0")
         try await expect(call.locator(".locution-commit")).toHaveText("Commit")
         try await expect(call.locator(".locution-commit-form[action$='/locutions/\(callID.uppercased())/commit']")).toHaveCount(1)
         try await call.locator(".locution-commit").click()
@@ -161,6 +172,11 @@ struct ComputationTests {
         try await expect(session).toContainText(Self.task)
         try await expect(session.locator(".computorium-session-output-rendered")).toContainText(Self.reply)
         try await expect(reply).toContainText("By gnorium")
+        // Committed, the call still names its item; its reply names it too.
+        try await expect(call.locator(".locution-call-status")).toHaveText("Done")
+        try await expect(call.locator(".locution-call-evidence")).toHaveText("Canvas 1")
+        try await expect(reply.locator(".locution-call-evidence").first).toHaveText("Canvas 1")
+        try await expect(reply.locator("a:has(.locution-call-evidence)").first).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID.uppercased())?canvas=0")
         try await expect(session.locator(".computorium-session-prompt-fieldset legend")).toHaveCount(2)
         try await expect(session.locator(".computorium-session-output-legend")).toHaveCount(1)
         // The tools offered open every round: before the thinking, and
@@ -201,6 +217,99 @@ struct ComputationTests {
     try await contributor.remove()
   }
 
+  /// A madrigal of three explicated pages and one laid in blank.
+  static func teiThreeRead(_ fixture: FixtureServer) -> String {
+    let services = (1...4).map { "\(fixture.baseURL)/page-\($0)" }
+    return """
+      <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
+      <pb n="1" facs="\(services[0])/full/1300,/0/default.jpg"/><p>Evidence fixture 1.</p>
+      <pb n="2" facs="\(services[1])/full/1300,/0/default.jpg"/><p>Evidence fixture 2.</p>
+      <pb n="3" facs="\(services[2])/full/1300,/0/default.jpg"/><p>Evidence fixture 3.</p>
+      <pb n="4" facs="\(services[3])/full/1300,/0/default.jpg"/>
+      </body></text></TEI>
+      """
+  }
+
+  /// The Evidence roster's two modes (user, 2026-10-10). Commit: boxes on
+  /// the pending items alone. Attach, while the locution box has focus or
+  /// holds "@gnorium": boxes on the processed items alone, the page open
+  /// in the reader ticked first, at most two, neighbors; a tick apart or
+  /// a third is refused under the box. Submit attaches the ticked items in
+  /// order, and the call names each, linked. The box left empty, the
+  /// roster is back in commit mode.
+  @Test(arguments: [BrowserEngine.chrome])
+  func attachModeTicksTwoConsecutiveProcessedItems(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let fixture = try await FixtureServer.threePageManifest()
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let reading = try ScratchReading(owner: admin, tei: Self.teiThreeRead(fixture), sourceURL: fixture.baseURL + "/manifest.json")
+    let objectID = reading.madrigalID
+    func remove() {
+      _ = try? TestAdmin.query("DELETE FROM locutions WHERE locutable_id = '\(objectID)'")
+      reading.remove()
+    }
+    do {
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
+        try await page.openHydrated(reading.path)
+        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+          .toHaveAttribute("aria-busy", "false")
+        let roster = page.locator("#madrigal-canvases")
+        let rows = roster.locator(".roster-row")
+        try await expect(rows).toHaveCount(4)
+        // Commit mode: the three read pages locked, the blank one ticked for.
+        try await expect(rows.nth(0).locator(".checkbox-icon-wrapper")).toBeHidden()
+        try await expect(rows.nth(3).locator(".checkbox-icon-wrapper")).toBeVisible()
+        let body = page.locator("#locution-thread-locution-body")
+        try await body.focus()
+        try await expect(roster).toHaveAttribute("data-mode", "attach")
+        try await expect(rows.nth(0).locator(".checkbox-icon-wrapper")).toBeVisible()
+        try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked()
+        try await expect(rows.nth(0).locator(".checkbox-input")).toHaveAttribute("name", "evidence[]")
+        try await expect(rows.nth(0).locator(".checkbox-input")).toHaveAttribute("form", "locution-thread-form")
+        try await expect(rows.nth(1).locator(".checkbox-input")).toBeChecked(false)
+        try await expect(rows.nth(3).locator(".checkbox-icon-wrapper")).toBeHidden()
+        try await expect(rows.nth(3).locator(".checkbox-input")).toBeDisabled()
+        // A tick apart from the first is refused; its neighbor is taken; a
+        // third is refused.
+        try await rows.nth(2).locator("input").click()
+        try await expect(rows.nth(2).locator(".checkbox-input")).toBeChecked(false)
+        try await expect(page.locator(".field-validation-message-view")).toContainText("consecutive")
+        try await rows.nth(1).locator("input").click()
+        try await expect(rows.nth(1).locator(".checkbox-input")).toBeChecked()
+        try await rows.nth(2).locator("input").click()
+        try await expect(rows.nth(2).locator(".checkbox-input")).toBeChecked(false)
+        // Back to commit mode when the box is left empty; attach again on
+        // "@gnorium" typed.
+        try await page.locator(".locution-thread-title, h3").first.click()
+        try await expect(roster).toHaveAttribute("data-mode", "commit")
+        try await expect(rows.nth(0).locator(".checkbox-icon-wrapper")).toBeHidden()
+        try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked(false)
+        try await expect(rows.nth(0).locator(".checkbox-input")).toHaveAttribute("name", "canvas[]")
+        try await expect(rows.nth(3).locator(".checkbox-icon-wrapper")).toBeVisible()
+        try await body.fill("@gnorium Compare these two pages.")
+        try await expect(roster).toHaveAttribute("data-mode", "attach")
+        try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked()
+        try await rows.nth(1).locator("input").click()
+        try await page.locator(".locution-thread-submit").click()
+        try await expect(page.locator(".locution-call-status"), timeout: .seconds(15)).toHaveText("Pending")
+        let stored = try TestAdmin.query(
+          "SELECT evidence_id || '|' || coalesce(evidence_ids, '') FROM locutions WHERE locutable_id = '\(objectID)' AND kind = 'call'")
+        #expect(stored == "\(fixture.baseURL)/page-1|[\"\(fixture.baseURL)/page-1\",\"\(fixture.baseURL)/page-2\"]", Comment(rawValue: stored))
+        let links = page.locator(".locution-call-evidence")
+        try await expect(links).toHaveCount(2)
+        try await expect(links.nth(0)).toHaveText("Canvas 1")
+        try await expect(links.nth(1)).toHaveText("Canvas 2")
+        try await page.expectNoErrors()
+      }
+    } catch {
+      remove()
+      try await admin.remove(after: error)
+    }
+    remove()
+    try await admin.remove()
+  }
+
   @Test(arguments: [BrowserEngine.chrome])
   func computationPromptsLeadBothProcessesAndAreRevisable(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -236,18 +345,23 @@ struct ComputationTests {
           try await expect(sections, timeout: .seconds(20)).toHaveCount(2)
           try await expect(sections.nth(0)).toHaveAttribute("data-process", "Computation")
           try await expect(sections.nth(1)).toHaveAttribute("data-process", process)
-          for index in 0..<2 {
+          for (index, name, id) in [(0, "Computation", "prompt-instance-process-computation"), (1, process, "prompt-instance-process")] {
+            // One accordion a process, its three nested (user, 2026-10-10).
+            try await expect(sections.nth(index).locator("#\(id) .accordion-title").first).toHaveText(name)
+            try await expect(sections.nth(index).locator("#\(id)")).toHaveAttribute("data-expanded", "false")
             try await expect(sections.nth(index).getByText("System Prompt", exact: true)).toHaveCount(2)
             try await expect(sections.nth(index).getByText("Task Prompt Template", exact: true)).toHaveCount(2)
+            try await expect(sections.nth(index).getByText("Autocompaction", exact: true)).toHaveCount(1)
           }
           try await page.openHydrated(path.split(separator: "?").first.map(String.init)! + "/revise")
           let computation = page.locator(".prompt-revision-fields-process[data-process='\(slot)']")
           try await expect(computation.locator("textarea[name='prompt-system-\(slot)']")).toHaveCount(1)
           try await expect(computation.locator("textarea[name='prompt-task-\(slot)']")).toHaveCount(1)
-          try await expect(computation.locator(".accordion-details")).toHaveCount(5)
-          try await expect(computation.locator(".accordion-details[data-expanded='false']")).toHaveCount(5)
+          try await expect(computation.locator(".accordion-details")).toHaveCount(6)
+          try await expect(computation.locator(".accordion-details[data-expanded='false']")).toHaveCount(6)
+          try await expect(computation.locator("#prompt-revision-process-\(slot) .accordion-title").first).toHaveText("Computation")
           let auto = computation.locator("#prompt-revision-autocompaction-\(slot)")
-          try await expect(auto.getByText("Autocompaction Prompts", exact: true)).toHaveCount(1)
+          try await expect(auto.getByText("Autocompaction", exact: true)).toHaveCount(1)
           try await expect(auto.locator("textarea[name='prompt-system-\(slot)_autocompaction']")).toHaveCount(1)
           try await expect(auto.locator("textarea[name='prompt-task-\(slot)_autocompaction']")).toHaveCount(1)
           try await page.expectNoHorizontalOverflow()

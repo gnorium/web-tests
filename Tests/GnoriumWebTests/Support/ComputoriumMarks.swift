@@ -15,8 +15,12 @@ enum ComputoriumMarks {
         row.classList.remove('roster-row-selected');
         const translation = '\(process)' === 'translation';
         const failures = [];
+        // The header chip keeps its own vocabulary (never the roster's):
+        // submitted green, failed red, in flight or pending blue.
         const header = document.querySelector('.computorium-core-header-status-chip');
-        if (!header || !header.classList.contains('info-chip-blue')) failures.push('header not blue');
+        const label = header ? header.textContent.trim() : '';
+        const tone = label === 'Submitted' ? 'green' : label === 'Failed' ? 'red' : 'blue';
+        if (!header || !header.classList.contains('info-chip-' + tone)) failures.push('header not ' + tone);
         if (document.querySelector('.computorium-core-view :is(.alert-red, .alert-orange, .alert-green)'))
           failures.push('non-blue alert');
         const visible = selector => {

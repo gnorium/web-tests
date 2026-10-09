@@ -73,7 +73,8 @@ struct CanvasAttachmentTests {
               window.__canvasMock='emitted';
               this.emit('start','{}');
               const src='data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="3000" height="4000"><rect width="3000" height="4000" fill="#e7dec7"/></svg>');
-              this.emit('chunk',JSON.stringify({type:'tool',canvas:'1',name:'view_canvas',arguments:'{"label":"1"}',result:JSON.stringify({ok:true,canvas:'1',page_url:src,detail_url:src,source_width:3000,source_height:4000,sent_width:900,sent_height:1200}),status:'ok',call_id:'late-canvas'}));
+              this.emit('chunk',JSON.stringify({type:'tool',canvas:'1',name:'view_canvas',arguments:'{"label":"1"}',result:JSON.stringify({ok:true,canvas:'1',page_url:src,crop_url:src,source_width:3000,source_height:4000,sent_width:900,sent_height:1200}),status:'ok',call_id:'late-canvas'}));
+              this.emit('chunk',JSON.stringify({type:'thinking',canvas:'1',text:'Reading the page live.'}));
             },500); }
             addEventListener(name,fn) { (this.handlers[name]??=[]).push(fn); }
             emit(name,data) { window.__canvasMockHandlers=Object.keys(this.handlers); for(const fn of this.handlers[name]??[])fn({data}); }
@@ -90,6 +91,16 @@ struct CanvasAttachmentTests {
           print(try await page.evaluate("JSON.stringify({mock:window.__canvasMock,auto:document.querySelector('.pipeline-container')?.dataset.autoWatch,kind:document.querySelector('.pipeline-container')?.dataset.computoriumCoreKind,tools:document.querySelectorAll('.computorium-session-tool-call').length,url:window.__canvasMockURL,handlers:window.__canvasMockHandlers,focus:document.querySelector('.computorium-session-view')?.dataset.computoriumSessionCanvas,output:!!document.querySelector('.computorium-session-view .computorium-session-output-content')})",as:String.self))
           throw error
         }
+        // Live, a tool card arrives closed and the thinking card open, each
+        // left as it arrived (user, 2026-10-10).
+        let arrived = try await page.evaluate("""
+          (()=>{const el=document.querySelector('#computorium-session-tool-late-canvas');
+            const tool=el.matches('details')?el:(el.closest('details')||el.querySelector('details'));
+            const t=document.querySelector("[id^='computorium-session-thinking-live-']")||document.querySelector('.computorium-session-output-thinking');
+            const thinking=t&&(t.matches('details')?t:(t.querySelector('details')||t.closest('details')));
+            return 'tool ' + (tool ? (tool.hasAttribute('open') ? 'open' : 'closed') : 'none') + ', thinking ' + (thinking ? (thinking.hasAttribute('open') ? 'open' : 'closed') : 'none');})()
+          """, as: String.self)
+        #expect(arrived == "tool closed, thinking open", "A live tool card arrives closed; the thinking card open: \(arrived)")
         try await page.locator("#computorium-session-tool-late-canvas summary").click()
         // The detail in place: in the result box with every field the model
         // received, its image its `image` datum's width and no taller than the bound,

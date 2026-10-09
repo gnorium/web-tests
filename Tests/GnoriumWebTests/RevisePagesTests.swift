@@ -96,7 +96,10 @@ struct RevisePagesTests {
         try await expect(code.locator(".diff-row[data-diff-line='unchanged']")).toHaveCount(2)
         // Its own process's block: the Computation pair stands first.
         let prompts = page.locator(".prompt-revision-fields-view .prompt-revision-fields-process[data-process='\(slot)']")
-        // Each prompt in its accordion, closed as on the object's page.
+        // The process in its accordion, each prompt in its own inside,
+        // closed as on the object's page.
+        try await expect(prompts.locator("#prompt-revision-process-\(slot)")).toHaveAttribute("data-expanded", "false")
+        try await prompts.locator("#prompt-revision-process-\(slot) .accordion-summary").first.click()
         try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
         try await expect(prompts.locator("#prompt-revision-system-accordion-\(slot)"))
           .toHaveAttribute("data-open-finished", "true")
@@ -171,8 +174,39 @@ struct RevisePagesTests {
           })()
           """, as: String.self)
         #expect(unringed == "ok", "The change ring is not on the markup pane alone: \(unringed)")
-        // The prompts as an object's read, the one changed open on its diff.
+        // The ring on all four sides of the pane, border and outline in the
+        // state's color, whole—the pane inset from the card that clips
+        // it—with the canvas put away and shown alike (user, 2026-10-10).
+        let ring = """
+          (() => {
+            const probe = document.createElement('span'); document.body.append(probe)
+            probe.style.borderColor = 'var(--border-color-orange)'
+            const orange = getComputedStyle(probe).borderTopColor; probe.remove()
+            const card = document.querySelector('.artifact-view')
+            const pane = card.querySelector('.artifact-transcript')
+            const style = getComputedStyle(pane)
+            for (const side of ['Top', 'Right', 'Bottom', 'Left']) {
+              if (style['border' + side + 'Style'] !== 'solid') return side + ' border ' + style['border' + side + 'Style']
+              if (style['border' + side + 'Color'] !== orange) return side + ' border ' + style['border' + side + 'Color']
+            }
+            if (style.outlineStyle !== 'solid' || style.outlineColor !== orange) return 'outline ' + style.outlineStyle + ' ' + style.outlineColor
+            const a = card.getBoundingClientRect(), b = pane.getBoundingClientRect()
+            if (b.left - a.left < 2 || a.right - b.right < 2 || b.top - a.top < 2 || a.bottom - b.bottom < 2) return 'clipped'
+            return 'ok ' + card.dataset.canvasShown
+          })()
+          """
+        #expect(try await page.evaluate(ring, as: String.self) == "ok false", "Canvas put away")
+        try await page.locator(".artifact-canvas-toggle button").first.click()
+        try await expect(page.locator(".artifact-view")).toHaveAttribute("data-canvas-shown", "true")
+        #expect(try await page.evaluate(ring, as: String.self) == "ok true", "Canvas shown")
+        try await page.locator(".artifact-canvas-toggle button").first.click()
+        try await expect(page.locator(".artifact-view")).toHaveAttribute("data-canvas-shown", "false")
+        // The prompts as an object's read, the one changed open on its diff,
+        // the other processes closed.
         try await expect(page.locator(".prompt-change-view .diff-view").first).toBeVisible()
+        try await expect(page.locator("#prompt-change-process-\(slot)")).toHaveAttribute("data-expanded", "true")
+        try await expect(page.locator("#prompt-change-process-bibliographic_computation")).toHaveAttribute("data-expanded", "false")
+        try await expect(page.locator("#prompt-change-autocompaction-\(slot)")).toHaveAttribute("data-expanded", "false")
         try await expect(page.getByText("Web tests suggestion.").first).toBeAttached()
         try await page.expectNoHorizontalOverflow()
         // Its verdicts here too, posting to the thread's routes. No
@@ -194,7 +228,7 @@ struct RevisePagesTests {
         try await page.locator("#revision-\(id) form[action$='/accept'] button").click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the madrigal at its locution", where: Self.atLocution(commit.madrigalPath))
-        try await expect(page.locator("#revision-\(id)-verdict")).toContainText("accepted revision")
+        try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("accepted revision")
 
         // The madrigal's Revisions list reads it, linking its own page.
         try await page.openHydrated("\(commit.madrigalPath)/revisions")
@@ -248,6 +282,7 @@ struct RevisePagesTests {
         let auto = page.locator("#prompt-revision-autocompaction-\(parent)")
         try await expect(auto).toHaveAttribute("data-expanded", "false")
         try await expect(auto.locator(".accordion-details[data-expanded='false']")).toHaveCount(2)
+        try await page.locator("#prompt-revision-process-\(parent) .accordion-summary").first.click()
         try await auto.locator(".accordion-summary").first.click()
         for (part, suffix) in [("system", "Web tests summarizer system."), ("task", "Web tests summarizer task.")] {
           try await auto.locator("#prompt-revision-\(part)-accordion-\(slot) .accordion-summary").click()
@@ -272,7 +307,15 @@ struct RevisePagesTests {
       let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'").uppercased()
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated("\(work.madrigalPath)/revisions/\(id)")
-        try await expect(page.locator(".prompt-change-heading")).toHaveText("Autocompaction Prompts")
+        // Its page's Prompts as an object's: every process, its pairs
+        // nested; the changed autocompaction pair open on its diffs, its
+        // process with it, the rest closed (user, 2026-10-10).
+        try await expect(page.locator(".prompt-change-heading")).toHaveText("Prompts")
+        try await expect(page.locator("#prompt-change-process-\(parent)")).toHaveAttribute("data-expanded", "true")
+        try await expect(page.locator("#prompt-change-autocompaction-\(parent)")).toHaveAttribute("data-expanded", "true")
+        try await expect(page.locator("#prompt-change-system")).toHaveAttribute("data-expanded", "true")
+        try await expect(page.locator("#prompt-change-\(parent)-system")).toHaveAttribute("data-expanded", "false")
+        try await expect(page.locator("#prompt-change-process-bibliographic_explication")).toHaveAttribute("data-expanded", "false")
         try await expect(page.locator(".prompt-change-view .diff-view")).toHaveCount(2)
         try await page.locator("button[form='revision-accept']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the object at its revision", where: Self.atLocution(work.madrigalPath))
@@ -317,6 +360,7 @@ struct RevisePagesTests {
 
         // Its own process's block: the Computation pair stands first.
         let prompts = page.locator(".prompt-revision-fields-view .prompt-revision-fields-process[data-process='\(slot)']")
+        try await prompts.locator("#prompt-revision-process-\(slot) .accordion-summary").first.click()
         try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
         let result = try await page.evaluate(
           """
@@ -464,8 +508,16 @@ struct RevisePagesTests {
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the madrigal at its locution", where: Self.atLocution(madrigalPath))
         #expect(try content().contains("A leaf sense, as a person reads it."), "Accepted, it is written into the madrigal")
-        try await page.locator("#revision-\(id)-verdict form[action$='/revert'] button").click()
-        try await expect(page.locator("#revision-\(id)-verdict"), timeout: .seconds(15)).toHaveCount(0)
+        try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("accepted revision")
+        try await page.locator("#revision-\(id)-verdict-1 form[action$='/revert'] button").click()
+        // Every verdict stays an act of the thread (user, 2026-10-10): the
+        // acceptance, then its revert, which nothing can be done about.
+        try await expect(page.locator("#revision-\(id)-verdict-2"), timeout: .seconds(15)).toContainText("reverted revision")
+        try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("accepted revision")
+        // A lexicographic revert returns the suggestion to pending: its
+        // Accept and Reject stand on the suggestion, on no verdict.
+        try await expect(page.locator("#revision-\(id)-verdict-1 form, #revision-\(id)-verdict-2 form")).toHaveCount(0)
+        try await expect(page.locator("#revision-\(id) form[action$='/accept']")).toHaveCount(1)
         #expect(!(try content().contains("as a person reads it")), "Reverted, it comes back out")
         #expect(try content().contains("<def>A leaf sense.</def>"), "The TEI's definition with it")
       }

@@ -67,7 +67,7 @@ struct OvertureCanvasesTests {
         try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".prompt-instances-notice")).toHaveCount(0)
-        try await expect(page.locator(".prompt-instances-content .accordion-view")).toHaveCount(10)
+        try await expect(page.locator(".prompt-instances-content .accordion-view")).toHaveCount(12)
         try await expect(task).toContainText("Title page")
 
         // The pager moves the roster and the address.
@@ -94,8 +94,12 @@ struct OvertureCanvasesTests {
         // One process: no toggle anywhere; the heading names it.
         try await expect(page.locator(".process-toggle-view")).toHaveCount(0)
         try await expect(page.locator(".prompt-instances-heading")).toHaveText("Prompts")
-        try await expect(page.locator(".prompt-instances-content .accordion-title").first)
-          .toContainText("System Prompt")
+        // One accordion a process, its prompts nested inside (user,
+        // 2026-10-10), closed until opened.
+        try await expect(page.locator("#prompt-instance-process .accordion-title").first).toHaveText("Explication")
+        try await expect(page.locator("#prompt-instance-process")).toHaveAttribute("data-expanded", "false")
+        try await expect(page.locator("#prompt-instance-process .accordion-title").nth(1)).toHaveText("System Prompt")
+        try await expect(page.locator("#prompt-instance-process .accordion-title").nth(3)).toHaveText("Autocompaction")
         try await shoot(page, "roster", layout)
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
@@ -244,6 +248,7 @@ struct OvertureCanvasesTests {
         // The form's required fields, filled so the browser lets it go.
         try await page.locator("[data-revise-form] input[name='title']").first.fill("Web tests legend title")
         let prompts = page.locator(".prompt-revision-fields-process[data-process='bibliographic_explication']")
+        try await prompts.locator("#prompt-revision-process-bibliographic_explication .accordion-summary").first.click()
         try await prompts.locator("#prompt-revision-system-accordion-bibliographic_explication .accordion-summary").first
           .click()
         try await expect(prompts.locator("#prompt-revision-system-accordion-bibliographic_explication"))
@@ -275,7 +280,7 @@ struct OvertureCanvasesTests {
         try await expect(page, timeout: .seconds(15)).toHaveURL(
           "the overture at its locution",
           where: { url in url.path.lowercased() == scratch.overturePath.lowercased() && (url.fragment ?? "").hasPrefix("revision-") })
-        try await expect(page.locator("#revision-\(id)-verdict")).toContainText("accepted revision")
+        try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("accepted revision")
 
         // Merged in, each prompt's legend links the revision's page at the
         // prompt it is.
