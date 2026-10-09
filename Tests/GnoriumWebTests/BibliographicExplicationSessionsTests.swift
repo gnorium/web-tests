@@ -20,6 +20,7 @@ struct BibliographicExplicationSessionsTests {
     let runID = UUID().uuidString.lowercased()
     do {
       let user = try admin.column("id")
+      let autoID = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = 'bibliographic_explication_autocompaction'").trimmingCharacters(in: .whitespacesAndNewlines)
       let blocks: [[String: String]] = [
         ["type": "image_url", "content": "https://example.org/iiif/web-tests/full/1300,/0/default.jpg"],
         ["type": "thinking", "content": "Reading the first page of the `chunk`."],
@@ -32,6 +33,7 @@ struct BibliographicExplicationSessionsTests {
         ["type": "canvas_xml", "label": "2", "content": Self.page],
         [
           "type": "compaction", "mode": "auto", "micro": "0", "chars_before": "100", "chars_after": "60",
+          "template_id": autoID, "system_prompt": "Summarize this session.",
           "prompt": "Summarize.", "summary": "Kept **both** pages and `save_page`.",
         ],
         ["type": "text", "content": "Both pages of the chunk saved with `save_page`.\n\n## Saved\n\n```json\n{\"ok\": true}\n```"],
@@ -127,6 +129,9 @@ struct BibliographicExplicationSessionsTests {
           })()
           """, as: String.self)
         #expect(proseOff.isEmpty, "Formatted text at 16px on 26px: \(proseOff)")
+        let legend = page.locator(".session-compaction-prompt-fieldset .session-prompt-legend-vignette a")
+        try await expect(legend).toHaveCount(1)
+        try await expect(legend).toHaveAttribute("href", "/mission-control/prompts/bibliographic/explication_autocompaction")
         let rawCount = try await page.locator(".session-view .session-output-raw").count()
         #expect(rawCount > 0)
       }

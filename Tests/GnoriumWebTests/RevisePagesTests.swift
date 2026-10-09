@@ -39,7 +39,7 @@ struct RevisePagesTests {
       _ = try TestAdmin.query(
         #"""
         UPDATE bibliographic_madrigals SET
-          metadata_json = (metadata_json::jsonb || '{"provider":"folger_shakespeare_library"}'::jsonb)::text,
+          metadata_json = (metadata_json::jsonb || '{"title":"Web tests original title","provider":"folger_shakespeare_library"}'::jsonb)::text,
           proposed_content_json = '{"teiXml":"<TEI><teiHeader><date>1910</date></teiHeader><text><body><pb n=\"1\" facs=\"https://web-tests.invalid/iiif/p1/full/1300,/0/default.jpg\"/><div><p>Old line</p></div><pb n=\"2\" facs=\"https://web-tests.invalid/iiif/p2/full/1300,/0/default.jpg\"/><p>Kept line</p></body></text></TEI>"}'
         WHERE id = '\#(commit.madrigalID)'
         """#)
@@ -62,6 +62,13 @@ struct RevisePagesTests {
         // A process toggle, where there is one, is in the header.
         try await expect(page.locator(".prompt-revision-fields-view .process-toggle-view")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
+
+        // Opening the formatted editor alone files no diff or revision.
+        try await page.locator("button[type='submit']").filter(hasText: "Suggest").click()
+        try await expect(page.locator(".alert-view").filter(hasText: "Nothing was changed.")).toBeVisible()
+        let untouched = try TestAdmin.query("SELECT count(*) FROM revisions WHERE revisable_id = '\(commit.madrigalID)'")
+        #expect(untouched.trimmingCharacters(in: .whitespacesAndNewlines) == "0")
+        try await page.openHydrated("\(commit.madrigalPath)/revise")
 
         // The fields, a markup and the system prompt, each diff drawn
         // as it is made.
@@ -91,6 +98,8 @@ struct RevisePagesTests {
         let prompts = page.locator(".prompt-revision-fields-view .prompt-revision-fields-process[data-process='\(slot)']")
         // Each prompt in its accordion, closed as on the object's page.
         try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
+        try await expect(prompts.locator("#prompt-revision-system-accordion-\(slot)"))
+          .toHaveAttribute("data-open-finished", "true")
         // Appended where it is typed: the prompt runs past 60KB, which
         // Chrome's insertText (what `fill` sends) takes over 30s to type.
         _ = try await page.evaluate(
@@ -174,6 +183,8 @@ struct RevisePagesTests {
 
         // Accepted from the thread, back at its locution.
         try await page.openHydrated(commit.madrigalPath)
+        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+          .toHaveAttribute("aria-busy", "false")
         // The madrigal's Evidence roster marks explication (user,
         // 2026-10-09): a first reading's pages green discs, markup added;
         // never a Computorium status.
@@ -201,6 +212,80 @@ struct RevisePagesTests {
       #expect(status == "accepted true", "Accepted whole, its prompts not yet in force: \(status)")
       let still = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
       #expect(still == inForce, "Accepting puts no prompt in force")
+    } catch {
+      remove()
+      try await admin.remove()
+      try await contributor.remove(after: error)
+    }
+    remove()
+    try await admin.remove()
+    try await contributor.remove()
+  }
+
+  @Test(arguments: [BrowserEngine.chrome])
+  func autocompactionPairIsNestedRevisableAndMergedOnTheObject(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let user = try contributor.column("id")
+    let work = try ScratchCommit(owner: contributor)
+    let parent = "bibliographic_computation"
+    let slot = parent + "_autocompaction"
+    let active = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
+    func remove() {
+      _ = try? TestAdmin.query("DELETE FROM revisions WHERE requested_by_user_id = '\(user)'")
+      work.remove()
+    }
+    do {
+      _ = try TestAdmin.query("""
+        UPDATE bibliographic_madrigals SET metadata_json =
+          (metadata_json::jsonb || '{"title":"Web tests autocompaction","provider":"folger_shakespeare_library"}'::jsonb)::text
+        WHERE id = '\(work.madrigalID)'
+        """)
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
+        try await page.openHydrated("\(work.madrigalPath)/revise")
+        let auto = page.locator("#prompt-revision-autocompaction-\(parent)")
+        try await expect(auto).toHaveAttribute("data-expanded", "false")
+        try await expect(auto.locator(".accordion-details[data-expanded='false']")).toHaveCount(2)
+        try await auto.locator(".accordion-summary").first.click()
+        for (part, suffix) in [("system", "Web tests summarizer system."), ("task", "Web tests summarizer task.")] {
+          try await auto.locator("#prompt-revision-\(part)-accordion-\(slot) .accordion-summary").click()
+          try await expect(auto.locator("#prompt-revision-\(part)-accordion-\(slot)"))
+            .toHaveAttribute("data-open-finished", "true")
+          _ = try await page.evaluate(
+            """
+            (() => {
+              const area = document.querySelector("textarea[name='prompt-\(part)-\(slot)']")
+              area.value += '\\n\(suffix)'
+              area.dispatchEvent(new Event('input', { bubbles: true }))
+              return true
+            })()
+            """, as: Bool.self)
+        }
+        try await page.locator(".revision-form button[type='submit']").click()
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the object at its revision", where: Self.atLocution(work.madrigalPath))
+        let changed = page.locator(".locution-thread-event-changed")
+        try await expect(changed).toContainText("Autocompaction System Prompt")
+        try await expect(changed).toContainText("Autocompaction Task Prompt Template")
+      }
+      let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'").uppercased()
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
+        try await page.openHydrated("\(work.madrigalPath)/revisions/\(id)")
+        try await expect(page.locator(".prompt-change-heading")).toHaveText("Autocompaction Prompts")
+        try await expect(page.locator(".prompt-change-view .diff-view")).toHaveCount(2)
+        try await page.locator("button[form='revision-accept']").click()
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the object at its revision", where: Self.atLocution(work.madrigalPath))
+        let auto = page.locator("#prompt-instance-autocompaction-computation")
+        try await expect(auto, timeout: .seconds(20)).toHaveCount(1)
+        try await expect(auto.locator(".prompt-text-source").nth(0)).toContainText("Web tests summarizer system.")
+        try await expect(auto.locator(".prompt-text-source").nth(1)).toContainText("Web tests summarizer task.")
+        try await page.openHydrated("\(work.madrigalPath)/revise")
+        try await expect(page.locator("textarea[name='prompt-system-\(slot)']")).toContainText("Web tests summarizer system.")
+        try await expect(page.locator("textarea[name='prompt-task-\(slot)']")).toContainText("Web tests summarizer task.")
+      }
+      let still = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
+      #expect(still == active, "Acceptance merges the working copy; activation waits for Commit")
     } catch {
       remove()
       try await admin.remove()
@@ -372,6 +457,8 @@ struct RevisePagesTests {
           .toHaveText("Sentiment 1.1 Register")
         try await Self.expectChangedLinksLand(page, revision: id, on: revisionPath)
         try await page.openHydrated(madrigalPath)
+        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+          .toHaveAttribute("aria-busy", "false")
         try await page.expectNoErrors()
         try await event.locator("form[action$='/accept'] button").click()
         try await expect(page, timeout: .seconds(15))
@@ -410,6 +497,8 @@ struct RevisePagesTests {
         ).toHaveCount(1)
         try await Self.expectChangedLinksLand(page, revision: epilogueRevision, on: epilogueRevisionPath)
         try await page.openHydrated(epiloguePath)
+        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+          .toHaveAttribute("aria-busy", "false")
         try await event.locator("form[action$='/accept'] button").click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the epilogue at its locution", where: Self.atLocution(epiloguePath))

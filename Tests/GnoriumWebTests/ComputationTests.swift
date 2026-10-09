@@ -81,6 +81,8 @@ struct ComputationTests {
         // Canvas 2 is laid in blank: pending explication, not queryable.
         // The box refuses the call under the field; nothing is posted.
         try await page.openHydrated(reading.path + "?canvas=1")
+        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+          .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".disputorium-core-work #artifact-page-total"), timeout: .seconds(20)).toHaveText("3")
         try await expect(page.locator("#locution-thread-locution-canvas")).toHaveValue("1")
         try await expect(page.locator("#locution-thread-process")).toHaveValue("explication")
@@ -94,6 +96,8 @@ struct ComputationTests {
         // Canvas 1 has markup: explicated, queryable—and locked against a
         // commit: its row keeps its mark and loses its checkbox.
         try await page.openHydrated(reading.path + "?canvas=0")
+        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+          .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".disputorium-core-work #artifact-page-total"), timeout: .seconds(20)).toHaveText("3")
         try await expect(page.locator("#locution-thread-locution-canvas")).toHaveValue("0")
         try await page.locator("#locution-thread-locution-body").fill("@gnorium What does the selected evidence support?")
@@ -110,6 +114,8 @@ struct ComputationTests {
       #expect(evidence == "\(fixture.baseURL)/page-1|canvas|explication")
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(reading.path)
+        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+          .toHaveAttribute("aria-busy", "false")
         // The admin's roster: the explicated page has no checkbox, the
         // blank ones do.
         let rows = page.locator("#madrigal-canvases .roster-row")
@@ -226,15 +232,19 @@ struct ComputationTests {
           try await expect(sections.nth(0)).toHaveAttribute("data-process", "Computation")
           try await expect(sections.nth(1)).toHaveAttribute("data-process", process)
           for index in 0..<2 {
-            try await expect(sections.nth(index).getByText("System Prompt", exact: true)).toHaveCount(1)
-            try await expect(sections.nth(index).getByText("Task Prompt Template", exact: true)).toHaveCount(1)
+            try await expect(sections.nth(index).getByText("System Prompt", exact: true)).toHaveCount(2)
+            try await expect(sections.nth(index).getByText("Task Prompt Template", exact: true)).toHaveCount(2)
           }
           try await page.openHydrated(path.split(separator: "?").first.map(String.init)! + "/revise")
           let computation = page.locator(".prompt-revision-fields-process[data-process='\(slot)']")
           try await expect(computation.locator("textarea[name='prompt-system-\(slot)']")).toHaveCount(1)
           try await expect(computation.locator("textarea[name='prompt-task-\(slot)']")).toHaveCount(1)
-          try await expect(computation.locator(".accordion-details")).toHaveCount(2)
-          try await expect(computation.locator(".accordion-details[data-expanded='false']")).toHaveCount(2)
+          try await expect(computation.locator(".accordion-details")).toHaveCount(5)
+          try await expect(computation.locator(".accordion-details[data-expanded='false']")).toHaveCount(5)
+          let auto = computation.locator("#prompt-revision-autocompaction-\(slot)")
+          try await expect(auto.getByText("Autocompaction Prompts", exact: true)).toHaveCount(1)
+          try await expect(auto.locator("textarea[name='prompt-system-\(slot)_autocompaction']")).toHaveCount(1)
+          try await expect(auto.locator("textarea[name='prompt-task-\(slot)_autocompaction']")).toHaveCount(1)
           try await page.expectNoHorizontalOverflow()
         }
       }

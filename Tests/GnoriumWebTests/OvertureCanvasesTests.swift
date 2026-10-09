@@ -67,7 +67,7 @@ struct OvertureCanvasesTests {
         try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".prompt-instances-notice")).toHaveCount(0)
-        try await expect(page.locator(".prompt-instances-content .accordion-view")).toHaveCount(4)
+        try await expect(page.locator(".prompt-instances-content .accordion-view")).toHaveCount(10)
         try await expect(task).toContainText("Title page")
 
         // The pager moves the roster and the address.
@@ -243,9 +243,11 @@ struct OvertureCanvasesTests {
         try await page.openHydrated("\(scratch.overturePath)/revise")
         // The form's required fields, filled so the browser lets it go.
         try await page.locator("[data-revise-form] input[name='title']").first.fill("Web tests legend title")
-        let prompts = page.locator(".prompt-revision-fields-view")
+        let prompts = page.locator(".prompt-revision-fields-process[data-process='bibliographic_explication']")
         try await prompts.locator("#prompt-revision-system-accordion-bibliographic_explication .accordion-summary").first
           .click()
+        try await expect(prompts.locator("#prompt-revision-system-accordion-bibliographic_explication"))
+          .toHaveAttribute("data-open-finished", "true")
         _ = try await page.evaluate(
           """
           (() => {
@@ -265,6 +267,8 @@ struct OvertureCanvasesTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         // Accepted from the thread.
         try await page.openHydrated(scratch.overturePath)
+        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+          .toHaveAttribute("aria-busy", "false")
         let accept = page.locator("#revision-\(id) form[action$='/accept'] button")
         try await expect(accept).toBeVisible()
         try await accept.click()
