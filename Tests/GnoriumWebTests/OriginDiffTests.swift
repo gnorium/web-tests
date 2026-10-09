@@ -38,10 +38,19 @@ struct OriginDiffTests {
         COMMIT;
         """)
     }
-    func step(_ form: String, _ language: String, meaning: String? = nil, certainty: String? = nil) -> String {
+    let ids = Dictionary(
+      uniqueKeysWithValues: ["webtestskept", "webtestsremoved", "webtestsedited", "webtestsmoved", "webtestsadded"].map {
+        ($0, UUID().uuidString)
+      })
+    // `renamed`: its form as the revision corrects it, the step the same.
+    func step(
+      _ form: String, _ language: String, meaning: String? = nil, certainty: String? = nil, renamed: String? = nil
+    ) -> String {
       let meaningPart = meaning.map { #","meaning":"\#($0)""# } ?? ""
       let certaintyPart = certainty.map { #","certainty":"\#($0)""# } ?? ""
-      return #"{"relations":["borrowed_from"]\#(certaintyPart),"typed":{"form":"\#(form)","type":"noun","language":"\#(language)","voices":[]\#(meaningPart)},"origins":[]}"#
+      // Each step's own id, the same on both sides of the revision.
+      let id = ids[form, default: UUID().uuidString]
+      return #"{"id":"\#(id)","relations":["borrowed_from"]\#(certaintyPart),"typed":{"form":"\#(renamed ?? form)","type":"noun","language":"\#(language)","voices":[]\#(meaningPart)},"origins":[]}"#
     }
     do {
       let user = try admin.column("id")
@@ -49,7 +58,7 @@ struct OriginDiffTests {
       // Found: kept, removed, edited, moved. Proposed: moved (to the top),
       // kept, edited, added.
       let found = "[\(step("webtestskept", "lat")),\(step("webtestsremoved", "grc")),\(step("webtestsedited", "ine-pro", meaning: "bend")),\(step("webtestsmoved", "deu"))]"
-      let proposed = "[\(step("webtestsmoved", "deu")),\(step("webtestskept", "lat")),\(step("webtestsedited", "ine-pro", meaning: "to bend", certainty: "probable")),\(step("webtestsadded", "fra"))]"
+      let proposed = "[\(step("webtestsmoved", "deu")),\(step("webtestskept", "lat")),\(step("webtestsedited", "ine-pro", meaning: "to bend", certainty: "probable", renamed: "webtestseditedform")),\(step("webtestsadded", "fra"))]"
       _ = try TestAdmin.query(
         """
         BEGIN;
@@ -92,11 +101,13 @@ struct OriginDiffTests {
         // one framed, its "Diff:" line under it.
         let changed = node("changed")
         try await expect(changed).toContainText("webtestsedited")
-        try await expect(changed.locator(".diff-wrap-changed")).toHaveCount(2)
+        // Its form corrected too: still the same step, by its id.
+        try await expect(changed.locator(".diff-wrap-changed")).toHaveCount(3)
         let lines = changed.locator(".diff-wrap-changed > .field-diff-diff")
         try await expect(lines.nth(0)).toContainText("Diff:")
         try await expect(lines.nth(0)).toContainText("Probable")
-        try await expect(lines.nth(1)).toContainText("to bend")
+        try await expect(lines.nth(1)).toContainText("webtestseditedform")
+        try await expect(lines.nth(2)).toContainText("to bend")
         try await expect(changed.locator("input[name$='-meaning']")).toHaveCount(1)
         // Frames of the diff's own tokens, a border and an outline of one
         // color; no card tinted; the added step's fields green.

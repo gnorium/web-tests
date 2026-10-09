@@ -28,8 +28,8 @@ struct GraphTests {
   static func translated(_ work: ScratchWork, from source: ScratchWork) -> String {
     """
     WITH step AS (
-      INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
-        VALUES (gen_random_uuid(), '\(work.recordID.lowercased())', NULL, 0, '\(source.recordID.lowercased())', NULL, now())
+      INSERT INTO biblio_record_origins (id, step_id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
+        VALUES (gen_random_uuid(), gen_random_uuid(), '\(work.recordID.lowercased())', NULL, 0, '\(source.recordID.lowercased())', NULL, now())
         RETURNING id)
     INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
       SELECT gen_random_uuid(), id, 0, 'translation_of' FROM step;

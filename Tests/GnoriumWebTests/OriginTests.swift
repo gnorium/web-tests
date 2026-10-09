@@ -36,14 +36,14 @@ struct OriginTests {
       let deeper = UUID().uuidString.lowercased()
       _ = try TestAdmin.query(
         """
-        INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
-          VALUES ('\(step)', '\(translation.recordID.lowercased())', NULL, 0, NULL,
+        INSERT INTO biblio_record_origins (id, step_id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
+          VALUES ('\(step)', gen_random_uuid(), '\(translation.recordID.lowercased())', NULL, 0, NULL,
             '{"language":"ang","title":"\(typed)","type":"treatise","date":{"era":"anno_domini","year":890,"yearQualifier":"circa"}}', now());
         INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
           VALUES ('\(UUID().uuidString.lowercased())', '\(step)', 0, 'translation_of'),
             ('\(UUID().uuidString.lowercased())', '\(step)', 1, 'abridgment_of');
-        INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
-          VALUES ('\(deeper)', '\(translation.recordID.lowercased())', '\(step)', 0,
+        INSERT INTO biblio_record_origins (id, step_id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
+          VALUES ('\(deeper)', gen_random_uuid(), '\(translation.recordID.lowercased())', '\(step)', 0,
             '\(original.recordID.lowercased())', NULL, now());
         INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
           VALUES ('\(UUID().uuidString.lowercased())', '\(deeper)', 0, 'translation_of');
@@ -82,8 +82,8 @@ struct OriginTests {
       for level in 0..<typedDepth {
         let step = UUID().uuidString.lowercased()
         sql += """
-          INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
-            VALUES ('\(step)', '\(first.recordID.lowercased())', \(parent), 0, NULL,
+          INSERT INTO biblio_record_origins (id, step_id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
+            VALUES ('\(step)', gen_random_uuid(), '\(first.recordID.lowercased())', \(parent), 0, NULL,
               '{"language":"ang","title":"Web tests deep \(level + 1) \(first.suffix)","type":"treatise"}', now());
           INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
             VALUES ('\(UUID().uuidString.lowercased())', '\(step)', 0, 'translation_of');
@@ -94,12 +94,12 @@ struct OriginTests {
       let toSecond = UUID().uuidString.lowercased()
       let back = UUID().uuidString.lowercased()
       sql += """
-        INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
-          VALUES ('\(toSecond)', '\(first.recordID.lowercased())', \(parent), 0, '\(second.recordID.lowercased())', NULL, now());
+        INSERT INTO biblio_record_origins (id, step_id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
+          VALUES ('\(toSecond)', gen_random_uuid(), '\(first.recordID.lowercased())', \(parent), 0, '\(second.recordID.lowercased())', NULL, now());
         INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
           VALUES ('\(UUID().uuidString.lowercased())', '\(toSecond)', 0, 'translation_of');
-        INSERT INTO biblio_record_origins (id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
-          VALUES ('\(back)', '\(second.recordID.lowercased())', NULL, 0, '\(first.recordID.lowercased())', NULL, now());
+        INSERT INTO biblio_record_origins (id, step_id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
+          VALUES ('\(back)', gen_random_uuid(), '\(second.recordID.lowercased())', NULL, 0, '\(first.recordID.lowercased())', NULL, now());
         INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
           VALUES ('\(UUID().uuidString.lowercased())', '\(back)', 0, 'based_on');
         """
