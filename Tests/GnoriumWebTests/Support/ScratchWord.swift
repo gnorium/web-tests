@@ -3,7 +3,7 @@ import Foundation
 /// A lexico-record with one explicated version whose vignette holds a
 /// branch sentiment and a leaf under it, owned by the test's account: the
 /// record's own reference (beside its title, in its closed Metadata) and the
-/// leaf's (beside its definition, in its row's heading). Every row by its own
+/// leaf's (beside its description, in its row's heading). Every row by its own
 /// id, removed in the order the foreign keys allow—except its submission and
 /// Folksong, which are submitted input and frozen, so they stay. Its
 /// overture is committed, its antiphon submitted, and the madrigal that
@@ -72,9 +72,9 @@ struct ScratchWord {
       {"lemmaForm":{"title":"\(title)","inflections":[],"languageCode":"\(language)","origin":{"citations":[],"derivation":"","etymons":[]},\
       "class":"noun","sources":[{"locator":"s.v.","title":"Web tests dictionary","url":"https://dictionary.example.org/web-tests"}],\
       "spellings":[]},"quotations":\(utterances.0),"selectionRunIDs":["run"]\(utterances.2),"senses":[\
-      {"definition":"A branch sense.","id":"s-1","isLeaf":false,"labels":{"domain":[],"grammar":[],"region":[],"register":[]},\
+      {"description":"A branch sense.","id":"s-1","isLeaf":false,"labels":{"domain":[],"grammar":[],"region":[],"register":[]},\
       "position":0,"quotationIDs":[],"rank":0,"relations":[],"selectionRunID":"run","tei":"<sense><def>A branch sense.</def></sense>"},\
-      {"definition":"A leaf sense.","id":"s-1-1","isLeaf":true,"labels":{"domain":[],"grammar":[],"region":[],"register":[]},\
+      {"description":"A leaf sense.","id":"s-1-1","isLeaf":true,"labels":{"domain":[],"grammar":[],"region":[],"register":[]},\
       "parentID":"s-1","position":0,"quotationIDs":\(utterances.1),"rank":1,"relations":[],"selectionRunID":"run",\
       "sources":[{"locator":"sense 2","title":"Web tests senses","url":"https://senses.example.org/web-tests"}],\
       "tei":"<sense><def>A leaf sense.</def>\(note)</sense>"}]}

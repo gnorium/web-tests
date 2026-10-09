@@ -32,7 +32,7 @@ struct DistinctionTests {
         let note = row.locator(".lexicographic-explication-note-text")
         try await expect(note).toHaveCount(1)
         try await expect(note).toHaveText("Unlike sense 1, a leaf sense grows no further senses.")
-        // Once on the page: not in the definition, the Metadata or elsewhere.
+        // Once on the page: not in the description, the Metadata or elsewhere.
         #expect(try await page.locator("main").textContent().components(separatedBy: "grows no further senses").count == 2)
         try await expect(page.locator("main")).not.toContainText("Distinction")
 

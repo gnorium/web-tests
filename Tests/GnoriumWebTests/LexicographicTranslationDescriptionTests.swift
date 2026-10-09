@@ -5,13 +5,13 @@ import WebTestsTesting
 
 /// Lexicographic translation is only English ↔ the record's own language (user,
 /// 2026-10-07): for a record not in English, the sentiment's session writes its
-/// definition and free-text labels in the record's language, filed as its epilogue. The
-/// amendment's page shows the definition in German with its label,
+/// description and free-text labels in the record's language, filed as its epilogue. The
+/// amendment's page shows the description in German with its label,
 /// confidence and reason; permitted, the record is Translated and its row carries the
-/// record-level English toggle, selected initially, switching definitions and labels. An Arabic definition reads right to left.
+/// record-level English toggle, selected initially, switching descriptions and labels. An Arabic description reads right to left.
 /// Phone and desktop, nothing scrolling sideways.
-@Suite("Lexicographic translation: the definition in the record's language", .serialized)
-struct LexicographicTranslationDefinitionTests {
+@Suite("Lexicographic translation: the description in the record's language", .serialized)
+struct LexicographicTranslationDescriptionTests {
   struct Width: Decodable { let overflow: Double }
   struct Direction: Decodable { let direction: String }
   static let overflow = "({ overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth })"
@@ -20,7 +20,7 @@ struct LexicographicTranslationDefinitionTests {
   static let arabic = "معنى ورقي لا يقول شيئًا آخر."
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aGermanRecordsDefinitionIsProposedPermittedAndSwitchedFromEnglish(engine: BrowserEngine, layout: Layout)
+  func aGermanRecordsDescriptionIsProposedPermittedAndSwitchedFromEnglish(engine: BrowserEngine, layout: Layout)
     async throws
   {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -30,7 +30,7 @@ struct LexicographicTranslationDefinitionTests {
     let arabic = try ScratchWord(owner: admin, language: "ara")
     let amendment = UUID().uuidString.lowercased()
     let arabicAmendment = UUID().uuidString.lowercased()
-    let definition = #"{"confidence":"clear","definition":"\#(Self.german)","labels":[{"label":"in seafaring use","translation":"in der Seefahrt"}],"language_code":"deu","reason":"The English says it plainly."}"#
+    let description = #"{"confidence":"clear","description":"\#(Self.german)","labels":[{"label":"in seafaring use","translation":"in der Seefahrt"}],"language_code":"deu","reason":"The English says it plainly."}"#
     do {
       _ = try TestAdmin.query(
         """
@@ -40,27 +40,27 @@ struct LexicographicTranslationDefinitionTests {
           WHERE id = '\(word.versionID.lowercased())';
         -- The Arabic record translated: a version (status 2) permitted
         -- from a lexicographic epilogue, as the antecedent check requires.
-        INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition, target,
-            status, submitted_by_user_id, summary, definition_translation_json, evaluated_at, evaluated_by_user_id)
+        INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, description, target,
+            status, submitted_by_user_id, summary, description_translation_json, evaluated_at, evaluated_by_user_id)
           VALUES ('\(arabicAmendment)', '\(arabic.recordID.lowercased())', '\(arabic.versionID.lowercased())', 's-1-1',
-            'A leaf sense.', 'definition', 'permitted', (SELECT id FROM users WHERE username = 'gnorium'),
-            'Wrote the Arabic definition.', '{"language_code":"ara","definition":"\(Self.arabic)"}', now(),
+            'A leaf sense.', 'description', 'permitted', (SELECT id FROM users WHERE username = 'gnorium'),
+            'Wrote the Arabic description.', '{"language_code":"ara","description":"\(Self.arabic)"}', now(),
             (SELECT id FROM users WHERE username = 'gnorium'));
         INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_epilogue_id, status, record_json, created_at)
           SELECT gen_random_uuid(), lexico_record_id, '\(arabicAmendment)', 2,
-              jsonb_set(record_json::jsonb, '{senses,1,definitionTranslation}',
-                '{"languageCode":"ara","definition":"\(Self.arabic)","labels":{"domain":[],"grammar":[],"region":[],"register":[]}}')::text,
+              jsonb_set(record_json::jsonb, '{senses,1,descriptionTranslation}',
+                '{"languageCode":"ara","description":"\(Self.arabic)","labels":{"domain":[],"grammar":[],"region":[],"register":[]}}')::text,
               now() + interval '1 second'
             FROM lexico_record_versions WHERE id = '\(arabic.versionID.lowercased())';
-        INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition, target,
-            status, submitted_by_user_id, summary, definition_translation_json)
+        INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, description, target,
+            status, submitted_by_user_id, summary, description_translation_json)
           VALUES ('\(amendment)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', 's-1-1',
-            'A leaf sense.', 'definition', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'),
-            'Wrote the German definition.', '\(definition)');
+            'A leaf sense.', 'description', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'),
+            'Wrote the German description.', '\(description)');
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        // The amendment, proposed: the definition in German with its label and provenance.
+        // The amendment, proposed: the description in German with its label and provenance.
         try await page.openHydrated("/mission-control/epilogues/lexicographic/\(amendment)")
         let body = page.locator(".lexicographic-epilogue-body")
         try await expect(body.getByText("Description in German")).toBeVisible()

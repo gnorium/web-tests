@@ -263,10 +263,10 @@ struct RevisePagesTests {
 
   /// A lexicographic madrigal's Revise page offers what a bibliographic
   /// one's does, in parallel (user, 2026-10-07): its record's identity and
-  /// each sentiment's definition and labels, in its Sentiments tree. A
+  /// each sentiment's description and labels, in its Sentiments tree. A
   /// change is one revision of its fields, in the madrigal's thread, that
   /// an admin accepts there—written into the madrigal—and reverts.
-  /// An epilogue's definition in the record's language is revised the same
+  /// An epilogue's description in the record's language is revised the same
   /// way, the session's confidence cleared once a person changed it.
   @Test(arguments: [BrowserEngine.chrome])
   func lexicographicFieldsAreRevisedAsBibliographicOnesAre(engine: BrowserEngine) async throws {
@@ -294,21 +294,21 @@ struct RevisePagesTests {
     do {
       _ = try TestAdmin.query(
         """
-        INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, definition,
-            target, status, submitted_by_user_id, summary, definition_translation_json)
+        INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, description,
+            target, status, submitted_by_user_id, summary, description_translation_json)
           VALUES ('\(epilogue)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', 's-1-1',
-            'A leaf sense.', 'definition', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.',
-            '{"language_code":"fra","definition":"Un sens feuille.","labels":[],"confidence":"clear","reason":"Web tests."}');
+            'A leaf sense.', 'description', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.',
+            '{"language_code":"fra","description":"Un sens feuille.","labels":[],"confidence":"clear","reason":"Web tests."}');
         """)
       let madrigalPath = "/mission-control/madrigals/lexicographic/\(word.madrigalID)"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(madrigalPath)/revise")
         // Every sentiment's fields, under its number.
-        try await expect(page.locator("textarea[name='sentiment-0-definition']")).toHaveValue("A branch sense.")
-        try await expect(page.locator("textarea[name='sentiment-1-definition']")).toHaveValue("A leaf sense.")
+        try await expect(page.locator("textarea[name='sentiment-0-description']")).toHaveValue("A branch sense.")
+        try await expect(page.locator("textarea[name='sentiment-1-description']")).toHaveValue("A leaf sense.")
         try await expect(page.locator("input[name='sentiment-1-labels-json']")).toBeAttached()
         try await page.expectNoHorizontalOverflow()
-        let leaf = page.locator("textarea[name='sentiment-1-definition']")
+        let leaf = page.locator("textarea[name='sentiment-1-description']")
         try await leaf.fill("A leaf sense, as a person reads it.")
         // Its diff is drawn as it is made, as a bibliographic field's is.
         try await expect(page.locator("[data-diff-annotation][data-visible='true']").first).toBeAttached()
@@ -356,16 +356,16 @@ struct RevisePagesTests {
         try await page.locator("#revision-\(id)-verdict form[action$='/revert'] button").click()
         try await expect(page.locator("#revision-\(id)-verdict"), timeout: .seconds(15)).toHaveCount(0)
         #expect(!(try content().contains("as a person reads it")), "Reverted, it comes back out")
-        #expect(try content().contains("<def>A leaf sense.</def>"), "The TEI's definition with it")
+        #expect(try content().contains("<def>A leaf sense.</def>"), "The TEI's description with it")
       }
 
-      // An epilogue's definition in the record's language, the same way.
+      // An epilogue's description in the record's language, the same way.
       let epiloguePath = "/mission-control/epilogues/lexicographic/\(epilogue)"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(epiloguePath)/revise")
-        let definition = page.locator("textarea[name='definition']")
-        try await expect(definition).toHaveValue("Un sens feuille.")
-        try await definition.fill("Un sens feuille, corrigé.")
+        let description = page.locator("textarea[name='description']")
+        try await expect(description).toHaveValue("Un sens feuille.")
+        try await description.fill("Un sens feuille, corrigé.")
         try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the epilogue at its locution", where: Self.atLocution(epiloguePath))
@@ -384,9 +384,9 @@ struct RevisePagesTests {
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the epilogue at its locution", where: Self.atLocution(epiloguePath))
         let stored = try TestAdmin.query(
-          "SELECT definition_translation_json FROM lexicographic_epilogues WHERE id = '\(epilogue)'")
+          "SELECT description_translation_json FROM lexicographic_epilogues WHERE id = '\(epilogue)'")
         #expect(stored.contains("Un sens feuille, corrigé."), "stored: \(stored)")
-        #expect(stored.contains("\"confidence\":\"\""), "A person's definition has no confidence: \(stored)")
+        #expect(stored.contains("\"confidence\":\"\""), "A person's description has no confidence: \(stored)")
         // The epilogue's page reads it, its confidence "—".
         try await page.openHydrated(epiloguePath)
         try await expect(page.getByText("Un sens feuille, corrigé.").first).toBeAttached()

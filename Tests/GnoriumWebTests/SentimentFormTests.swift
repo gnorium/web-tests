@@ -6,7 +6,7 @@ import WebTestsTesting
 /// Submit Sentiment, the parallel of Submit Testament, the record page in
 /// edit mode: the record first (Lexico-record, Language, Script, Title,
 /// Type), then the tree with the new sentiment alone, open, its fields in
-/// its Metadata (its Form rows, Definition, the Grammar, Register, Domain,
+/// its Metadata (its Form rows, Description, the Grammar, Register, Domain,
 /// Region and Currency labels). No card, no placement widget. No utterance
 /// is cited, nothing is derived and no passage coins the word: the pipeline
 /// finds the utterances by the title and the forms. A region is offered
@@ -45,7 +45,7 @@ struct SentimentFormTests {
         (form) => {
           const chain = [
             '.record-choice-field-view', '#language', '#script', '#title', '#type', '.submit-sentiment-tree',
-            "[data-submission-draft='true']", '#definition', '#label-grammar',
+            "[data-submission-draft='true']", '#description', '#label-grammar',
             '#label-register', '#label-domain', '#label-region', '#label-currency',
           ];
           for (let i = 1; i < chain.length; i++) {
@@ -68,7 +68,7 @@ struct SentimentFormTests {
       try await expect(form.locator("#language")).toHaveValue("eng")
       try await expect(form.locator("[data-dropdown-id='language'] .dropdown-selected-text")).toHaveText("English")
       try await expect(form.locator("input[name='title']")).toHaveAttribute("placeholder", "Title")
-      try await expect(form.locator("#definition")).toHaveAttribute("placeholder", "Description")
+      try await expect(form.locator("#description")).toHaveAttribute("placeholder", "Description")
 
       // No Form rows: a sentiment's forms are its utterances', never typed.
       try await expect(form.locator("[data-item-list='title-form'], .title-form-json")).toHaveCount(0)
