@@ -123,7 +123,8 @@ struct UtteranceTests {
         try await expect(gloss.locator(".gloss-sheet-title .record-label-title")).toHaveText("scratchword")
         try await expect(gloss.locator(".gloss-sheet-title .record-label-meta")).toHaveCount(0)
         // Public, under the lexico-record quoting it.
-        let address = try await utterance.evaluate("(box) => box.getAttribute('data-utterance-gloss')")
+        let address = try await utterance.evaluate(
+          "(box) => box.closest('[data-utterance-gloss]').getAttribute('data-utterance-gloss')")
         #expect(address.string?.contains("/utterances/") == true && address.string?.hasPrefix("/lexico-records/") == true, "the gloss is at \(address), the record at \(scratchWord.path)")
         let work = scratch.reading.work
         let citation = gloss.locator(".chicago-citation-view")
@@ -144,6 +145,31 @@ struct UtteranceTests {
         #expect(landed == .string("\(scratch.reading.work.path)/vignettes/\(scratch.versionID)?semblance=2"))
         try await page.keyboard.press("Escape")
         try await expect(page.locator(".gloss-sheet[data-state='open']")).toHaveCount(0)
+
+        // On the record's Disputorium object, whose record need not be
+        // permitted yet, the same gloss is served under the object's page.
+        let objectPath = "/mission-control/madrigals/lexicographic/\(scratchWord.madrigalID)"
+        try await page.openHydrated(objectPath)
+        _ = try await page.evaluate(
+          """
+          (() => { const slot = document.querySelector('.attestation-view');
+            for (let d = slot.closest('.accordion-details'); d; d = d.parentElement.closest('.accordion-details'))
+              if (!d.open) d.querySelector(':scope > .accordion-summary').click();
+            slot.scrollIntoView({ block: 'center' }); return true })()
+          """)
+        let objectUtterance = page.locator(".attestation-view .utterance-view").first
+        try await expect(objectUtterance).toHaveCount(1)
+        let objectAddress = try await objectUtterance.evaluate(
+          "(box) => box.closest('[data-utterance-gloss]').getAttribute('data-utterance-gloss')")
+        #expect(
+          objectAddress.string?.hasPrefix(objectPath + "/utterances/") == true,
+          "the object's gloss is at \(objectAddress)")
+        try await objectUtterance.locator(".tei-word").filter(hasText: "begins").first.click()
+        let objectGloss = objectUtterance.locator(".gloss-sheet[data-state='open']")
+        try await expect(objectGloss.locator(".chicago-citation-view")).toHaveText(
+          "\(work.author), \(work.title) (1958), 3.")
+        try await expect(objectGloss.locator(".gloss-word-row").filter(hasText: "begins")).toHaveCount(1)
+        try await page.keyboard.press("Escape")
 
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
