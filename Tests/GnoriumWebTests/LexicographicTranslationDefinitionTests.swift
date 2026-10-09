@@ -63,7 +63,7 @@ struct LexicographicTranslationDefinitionTests {
         // The amendment, proposed: the definition in German with its label and provenance.
         try await page.openHydrated("/mission-control/epilogues/lexicographic/\(amendment)")
         let body = page.locator(".lexicographic-epilogue-body")
-        try await expect(body.getByText("Definition in German")).toBeVisible()
+        try await expect(body.getByText("Description in German")).toBeVisible()
         try await expect(body.getByText(Self.german)).toHaveAttribute("lang", "de")
         try await expect(body.getByText("in der Seefahrt")).toBeVisible()
         try await expect(body.getByText("The English says it plainly.")).toBeVisible()

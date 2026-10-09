@@ -68,7 +68,7 @@ struct SentimentFormTests {
       try await expect(form.locator("#language")).toHaveValue("eng")
       try await expect(form.locator("[data-dropdown-id='language'] .dropdown-selected-text")).toHaveText("English")
       try await expect(form.locator("input[name='title']")).toHaveAttribute("placeholder", "Title")
-      try await expect(form.locator("#definition")).toHaveAttribute("placeholder", "Definition")
+      try await expect(form.locator("#definition")).toHaveAttribute("placeholder", "Description")
 
       // No Form rows: a sentiment's forms are its utterances', never typed.
       try await expect(form.locator("[data-item-list='title-form'], .title-form-json")).toHaveCount(0)
