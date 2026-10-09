@@ -80,7 +80,30 @@ struct LexicographicTranslationDefinitionTests {
         let english = page.locator(".apparatus-rule-language-toggle")
         try await expect(english).toHaveAttribute("aria-pressed", "true")
         try await expect(row.locator(".record-row-title").first).toHaveText("A leaf sense.")
+        // Its definition in its box (user, 2026-10-10): the English `<def>`
+        // while English is on; the `<def xml:lang>` once it is off, as the
+        // label; the box's own Raw turns that box alone to its XML.
+        let box = row.locator(".sentiment-definition-view").first
+        let branch = page.locator("#record-row-s-1 .sentiment-definition-view").first
+        try await expect(box.locator("[data-definition-layer='english']")).toBeVisible()
+        try await expect(box.locator("[data-definition-layer='english'] .sentiment-definition-text")).toHaveText("A leaf sense.")
+        try await expect(box.locator("[data-definition-layer='native']")).toBeHidden()
+        try await expect(box.locator("[data-definition-layer='raw']")).toBeHidden()
         try await english.click()
+        try await expect(box.locator("[data-definition-layer='native']")).toBeVisible()
+        try await expect(box.locator("[data-definition-layer='native'] .sentiment-definition-text")).toHaveText(Self.german)
+        try await expect(box.locator("[data-definition-layer='native'] .sentiment-definition-text")).toHaveAttribute("lang", "de")
+        try await expect(box.locator("[data-definition-layer='english']")).toBeHidden()
+        // A sentiment not translated keeps its English words.
+        try await expect(branch.locator("[data-definition-layer='english']")).toBeVisible()
+        try await box.locator(".sentiment-definition-raw-toggle").click()
+        try await expect(box.locator("[data-definition-layer='raw']")).toBeVisible()
+        try await expect(box.locator("[data-definition-layer='raw']")).toContainText("<sense>")
+        try await expect(box.locator("[data-definition-layer='native']")).toBeHidden()
+        try await expect(branch.locator("[data-definition-layer='raw']")).toBeHidden()
+        try await expect(branch.locator(".sentiment-definition-raw-toggle")).toHaveAttribute("aria-pressed", "false")
+        try await box.locator(".sentiment-definition-raw-toggle").click()
+        try await expect(box.locator("[data-definition-layer='native']")).toBeVisible()
         try await expect(row.locator(".record-row-title").first).toHaveText(Self.german)
         try await expect(row.locator(".record-row-title").first).toHaveAttribute("lang", "de")
         try await expect(page.locator(".record-sidebar-status").first).toContainText("translated")
