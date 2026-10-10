@@ -157,7 +157,7 @@ struct EntriesAndCitationsTests {
         let inferenceSize = try await page.evaluate(
           "getComputedStyle(document.querySelector('.record-citations-placement small')).fontSize"
         ).string
-        #expect(inferenceSize == "12px")
+        #expect(inferenceSize == "16px")
         // Machine work needs no mark: no column says who linked it.
         try await expect(table.locator("th[data-table-column-id='status']")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()

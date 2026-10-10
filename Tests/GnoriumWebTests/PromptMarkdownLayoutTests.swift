@@ -60,7 +60,7 @@ struct PromptMarkdownLayoutTests {
             label: size(view.querySelector('.prompt-text-rendered .code-block-lang')) });
         })()
         """, as: String.self)
-      #expect(sizes == #"{"prose":["16px/26px"],"code":["16px"],"raw":"16px/22px","h2":"20px/30px","label":"12px/22px"}"#, "Prompt prose at 16 on 26: \(sizes)")
+      #expect(sizes == #"{"prose":["16px/26px"],"code":["16px"],"raw":"16px/22px","h2":"20px/30px","label":"16px/22px"}"#, "Prompt prose at 16 on 26: \(sizes)")
       try await view.locator(".prompt-text-raw-toggle button").click()
       try await expect(source).toBeVisible()
       try await expect(rendered).toBeHidden()

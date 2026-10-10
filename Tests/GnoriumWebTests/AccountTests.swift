@@ -86,7 +86,7 @@ struct AccountTests {
         try await page.locator(".account-provider-row .button-view").click()
         try await expect(page).toHaveURL("/account")
         try await expect(page.locator(".account-provider-password")).toBeVisible()
-        try await expect(page.locator(".account-provider-password .label-text")).toHaveCSS("font-size", "14px")
+        try await expect(page.locator(".account-provider-password .label-text")).toHaveCSS("font-size", "16px")
         let focused = try await page.evaluate("document.activeElement?.id === 'google-password'", as: Bool.self)
         #expect(focused, "Clicking Connect should reveal and focus password confirmation")
         let passwordAboveProvider = try await page.evaluate("document.querySelector('.account-provider-password').getBoundingClientRect().bottom <= document.querySelector('.account-provider-row').getBoundingClientRect().top", as: Bool.self)

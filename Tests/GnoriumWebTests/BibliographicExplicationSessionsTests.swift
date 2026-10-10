@@ -118,7 +118,7 @@ struct BibliographicExplicationSessionsTests {
               .filter(k => !prose.some(e => e.matches(k)));
             const codes = prose.flatMap(e => [...e.querySelectorAll(':scope p > code')]).length;
             // Headings on the scale's own pairs, never the prose's leading
-            // multiplied up; a fence's language label on its own 12/22.
+            // multiplied up; a fence's language label at the 16px floor, on 22.
             const pairs = { H1: '24px/34px', H2: '20px/30px', H3: '18px/28px', H4: '16px/26px' };
             const heads = prose.flatMap(e => [...e.querySelectorAll(':scope h1, :scope h2, :scope h3, :scope h4')])
               .filter(h => !h.closest('.computorium-session-compaction-summary'));
@@ -126,7 +126,7 @@ struct BibliographicExplicationSessionsTests {
               .filter(([tag, pair]) => pairs[tag] !== pair).map(r => 'heading ' + r.join(' '));
             const labels = prose.flatMap(e => [...e.querySelectorAll('.code-block-lang')]);
             const labelOff = labels.map(l => { const s = getComputedStyle(l); return s.fontSize + '/' + s.lineHeight; })
-              .filter(pair => pair !== '12px/22px').map(pair => 'label ' + pair);
+              .filter(pair => pair !== '16px/22px').map(pair => 'label ' + pair);
             return [...off.map(r => r.join(' ')), ...headOff, ...labelOff, ...kinds.map(k => 'missing ' + k),
               codes < 3 ? 'inline code missing' : '', heads.length ? '' : 'heading missing', labels.length ? '' : 'label missing']
               .filter(Boolean).join('; ');

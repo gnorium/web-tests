@@ -24,7 +24,7 @@ struct ContinueComposerTests {
           const f=e.form,b=document.querySelector('button[form=computorium-pursue]');
           const probe=document.createElement('span');probe.style.borderColor='var(--border-color-base)';document.body.append(probe);
           const neutral=getComputedStyle(probe).borderTopColor;probe.remove();
-          return s.fontSize==='14px' && !s.fontFamily.includes('Mono') && parseFloat(s.paddingTop)===16
+          return s.fontSize==='16px' && !s.fontFamily.includes('Mono') && parseFloat(s.paddingTop)===16
             && s.borderTopColor===neutral && e.getBoundingClientRect().width>250
             && f.id==='computorium-pursue' && b.form===f && !f.querySelector('legend') && !f.textContent.toLowerCase().includes('version');})()
         """, as: Bool.self), "Continue uses the plain full-width prompt box and header button targets its form")

@@ -148,7 +148,7 @@ struct RecordChoiceTests {
       #expect(row["display"].string == "inline")
       #expect(row["sameLine"].bool == true, "the chevron left the language's line")
       #expect(row["after"].bool == true)
-      #expect(row["size"].double == 10, "the chevron's long edge, its height, is size10")
+      #expect(row["size"].double == 16, "the chevron's long edge, its height, is the 16px text's size")
       if let trail = row["trail"].double { #expect(row["size"].double == trail) }
 
       // Afresh: found by typing, picked, and its amendment offered.
