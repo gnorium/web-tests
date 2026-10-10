@@ -21,7 +21,7 @@ struct DisputoriumVerboseTests {
         (()=>{const b=document.querySelector('.lexicographic-overture-view .disputorium-core-content > .apparatus-rule-view .verbose-toggle-button-control .button-view');
           const l=b.querySelector('.toggle-button-label');
           return b.getAttribute('data-size')+' '+getComputedStyle(l).fontSize;})()
-        """, as: String.self) == "small 16px")
+        """, as: String.self) == "small 14px")
       try await expect(page.locator("#apparatus-metadata")).toHaveAttribute("data-expanded", "true")
       #expect(try await page.evaluate("""
         (()=>{const work=document.querySelector('.lexicographic-overture-view .disputorium-core-work');const rule=work.previousElementSibling;
