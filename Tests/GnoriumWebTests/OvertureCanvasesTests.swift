@@ -66,7 +66,7 @@ struct OvertureCanvasesTests {
         let task = page.locator("[data-process='Explication'] .prompt-preview-task .prompt-text-source").first
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
-        try await expect(page.locator(".prompt-previews-notice")).toHaveCount(0)
+        try await expect(page.locator("[data-process='Explication'] .prompt-preview-task-notice")).toHaveCount(0)
         try await expect(page.locator(".prompt-previews-content .accordion-view")).toHaveCount(12)
         try await expect(task).toContainText("Title page")
 

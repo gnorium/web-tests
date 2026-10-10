@@ -428,7 +428,10 @@ struct ArbitrationTests {
             try await expect(sections.nth(index).locator("#\(id) .accordion-title").first).toHaveText(name)
             try await expect(sections.nth(index).locator("#\(id)")).toHaveAttribute("data-expanded", "false")
             try await expect(sections.nth(index).getByText("System Prompt", exact: true)).toHaveCount(2)
-            try await expect(sections.nth(index).getByText("Task Prompt Template", exact: true)).toHaveCount(2)
+            // Its task filled as sent (or why it cannot be), its
+            // autocompaction's a template (user, 2026-10-10).
+            try await expect(sections.nth(index).getByText("Task Prompt", exact: true)).toHaveCount(1)
+            try await expect(sections.nth(index).getByText("Task Prompt Template", exact: true)).toHaveCount(1)
             try await expect(sections.nth(index).getByText("Autocompaction", exact: true)).toHaveCount(1)
           }
           try await page.openHydrated(path.split(separator: "?").first.map(String.init)! + "/revise")
