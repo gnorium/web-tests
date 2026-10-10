@@ -63,16 +63,29 @@ struct DashboardLayoutTests {
             """, as: String.self)
           #expect(processes == "Arbitration Explication Translation", "\(tab): \(processes)")
         }
-        let figure = page.locator("a[href='/mission-control/locutions?createdOn=-7d..']").first
-        try await expect(figure).toBeAttached()
-        let shown = try await figure.innerText()
-        let count = shown.components(separatedBy: CharacterSet.decimalDigits.inverted).first { !$0.isEmpty } ?? ""
-        try await page.openHydrated("/mission-control/locutions?createdOn=-7d..")
-        // One page of rows on dev; a paged list is counted by the server test.
-        let listed = try await page.evaluate(
-          "document.querySelector('.pagination-view') ? 'paged' : String(document.querySelectorAll('.locution-view').length)",
-          as: String.self)
-        if listed != "paged" { #expect(count == listed, "figure \(count) vs list \(listed)") }
+        func figure() async throws -> String {
+          try await page.openHydrated("/mission-control/lexicographic")
+          let figure = page.locator("a[href='/mission-control/locutions?createdOn=-7d..']").first
+          try await expect(figure).toBeAttached()
+          let shown = try await figure.innerText()
+          return shown.components(separatedBy: CharacterSet.decimalDigits.inverted).first { !$0.isEmpty } ?? ""
+        }
+        // Other suites post locutions meanwhile: the list is compared with
+        // the figure read just before and just after it, when the two agree.
+        var compared = false
+        for _ in 0..<5 where !compared {
+          let before = try await figure()
+          try await page.openHydrated("/mission-control/locutions?createdOn=-7d..")
+          try await expect(page.locator(".locutions-view").first).toBeAttached()
+          // One page of rows on dev; a paged list is counted by the server test.
+          let listed = try await page.evaluate(
+            "document.querySelector('.pagination-view') ? 'paged' : String(document.querySelectorAll('.locution-view').length)",
+            as: String.self)
+          guard try await figure() == before else { continue }
+          if listed != "paged" { #expect(before == listed, "figure \(before) vs list \(listed)") }
+          compared = true
+        }
+        #expect(compared, "The locutions settled long enough to compare")
       }
     } catch {
       try await admin.remove(after: error)
