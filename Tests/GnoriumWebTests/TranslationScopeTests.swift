@@ -3,12 +3,15 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// No paid commit: intercept form.submit after exercising the real dialog,
+/// An epilogue's one process is translation (user, 2026-10-10): no
+/// process toggle, no scope—its commit names the pages ticked, untranslated
+/// or stale; a fresh one is locked, and its preview says it is translated.
+/// No paid commit: form.submit is intercepted after exercising the real
 /// checkbox, cloned phone sidebar, and artifact navigation.
 @Suite("Translation scope", .serialized)
 struct TranslationScopeTests {
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func translationScopeMatchesSelectedPreview(engine: BrowserEngine, layout: Layout) async throws {
+  func anEpiloguesCommitTranslatesTheTickedPages(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let fixture = try await FixtureServer.threePageManifest()
@@ -49,46 +52,43 @@ struct TranslationScopeTests {
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/epilogues/bibliographic/\(epilogue)")
-        // Two processes: the header's toggle chooses whose prompts show and
-        // what Commit commits for.
-        let toggle = page.locator(".mission-control-object-header-view .process-toggle-view")
+        try await expect(page.locator(".process-toggle-view")).toHaveCount(0)
         try await expect(page.locator(".prompt-previews-heading")).toHaveText("Prompts")
-        try await expect(toggle.locator(".toggle-button-group-button").first).toHaveAttribute("data-value", "bibliographic_explication")
-        try await toggle.locator(".toggle-button-group-button[data-value$='translation']").click()
-        // The translation's prompts are asked for as it is pressed: their
-        // answer waited for in full.
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
-        try await expect(page.locator(".prompt-previews-content")).toHaveAttribute("data-selected-process", "bibliographic_translation")
-        _ = try await page.evaluate("""
-          window.__translationSubmit = null;
-          window.addEventListener('submit', event => {
-            if (event.target.id !== 'commit-form') return;
-            event.preventDefault();
-            const data = new FormData(event.target);
-            window.__translationSubmit = { process: data.get('process'), scope: data.get('scope'), services: data.getAll('canvas[]') };
-          });
-          true;
-          """, as: Bool.self)
-        // Page 2 on screen: the translation preview is the chunk holding it,
-        // every page translated.
+        try await expect(page.locator(".prompt-previews-content")).toHaveAttribute("data-process", "bibliographic_translation")
+        try await expect(page.locator(".prompt-previews-process[data-process='Explication']")).toHaveCount(0)
+        try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_translation")
+        try await expect(page.locator(".commit-view input[name='scope']")).toHaveCount(0)
+        // Page 1 on screen, its translation stale: its prompt, as ticking
+        // it alone would send it.
+        let task = page.locator("[data-process='Translation'] .prompt-preview-task .prompt-text-source").first
+        try await expect(task, timeout: .seconds(20)).toContainText("Translate these pages from Italian into English: 1.")
+        // Page 2's is fresh: nothing is sent for it.
         try await page.locator("#artifact-page-input").fill("2")
         try await page.locator("#artifact-page-input").press("Enter")
         try await expect(page.locator("#artifact-page-input")).toHaveValue("2")
-        try await expect(page.locator(".prompt-previews-slot")).toHaveAttribute("aria-busy", "false")
-        try await expect(page.locator("[data-process='Translation'] .prompt-preview-task")).toHaveCount(1)
-        let task = try await page.locator("[data-process='Translation'] .prompt-preview-task .prompt-text-source").first.textContent()
-        #expect(task.contains("Translate these pages from Italian into English: 1–2."))
-        // Commit translates the stale pages while none is ticked, and the
-        // pages ticked once some are.
+        try await expect(page.locator("[data-process='Translation'] .prompt-preview-task-notice"), timeout: .seconds(20))
+          .toContainText("This evidence item has already been translated")
+        _ = try await page.evaluate("""
+          window.__translationSubmit = null;
+          window.addEventListener('submit', event => {
+            if (event.target.id !== 'commit-form' || event.defaultPrevented) return;
+            event.preventDefault();
+            const data = new FormData(event.target);
+            window.__translationSubmit = { process: data.get('process'), services: data.getAll('canvas[]') };
+          });
+          true;
+          """, as: Bool.self)
         let commit = page.locator(".commit-trigger")
         let submitted = { () async throws -> String in
           try await page.evaluate("JSON.stringify(window.__translationSubmit)", as: String.self)
         }
+        // Nothing ticked: refused under the roster, never sent.
         try await commit.click()
-        var payload = try await submitted()
-        #expect(payload.contains("\"process\":\"bibliographic_translation\""))
-        #expect(payload.contains("\"scope\":\"stale\""))
+        try await expect(page.locator(".field-validation-message-view").first)
+          .toContainText("Tick the evidence items this commit sends to translation.")
+        #expect(try await submitted() == "null")
         // Page 2's translation is fresh: locked against a commit, its
         // checkbox gone (user, 2026-10-09); page 1's is stale, and ticks.
         // (The navbar clones the sidebar into its menu: the first roster.)
@@ -97,11 +97,11 @@ struct TranslationScopeTests {
         try await expect(rows.nth(1)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(1).locator(".checkbox-icon-wrapper")).toBeHidden()
         _ = try await page.evaluate("""
-          document.querySelectorAll(".mission-control-sidebar-view input[name='canvas[]']")[0].checked = true; true
+          (() => { document.querySelectorAll(".mission-control-sidebar-view input[name='canvas[]']")[0].click(); return true })()
           """, as: Bool.self)
         try await commit.click()
-        payload = try await submitted()
-        #expect(payload.contains("\"scope\":\"ticked\""))
+        let payload = try await submitted()
+        #expect(payload.contains("\"process\":\"bibliographic_translation\""))
         #expect(payload.contains("\"services\":[\"\(service)\"]"))
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()

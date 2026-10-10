@@ -124,7 +124,7 @@ struct RevisePagesTests {
         #"""
         UPDATE bibliographic_madrigals SET
           metadata_json = (metadata_json::jsonb || '{"title":"Web tests original title","provider":"folger_shakespeare_library"}'::jsonb)::text,
-          proposed_content_json = '{"teiXml":"<TEI><teiHeader><date>1910</date></teiHeader><text><body><pb n=\"1\" facs=\"\#(fixture.baseURL)/page-1/full/1300,/0/default.jpg\"/><div><p>Old line</p></div><pb n=\"2\" facs=\"\#(fixture.baseURL)/page-2/full/1300,/0/default.jpg\"/><p>Kept line</p></body></text></TEI>"}'
+          proposed_content_json = '{"teiXml":"<TEI><teiHeader><date>1910</date></teiHeader><text><body><pb n=\"1\" facs=\"\#(fixture.baseURL)/page-1/full/1300,/0/default.jpg\"/><div><p>Old line</p></div><pb n=\"2\" facs=\"\#(fixture.baseURL)/page-2/full/1300,/0/default.jpg\"/><p>Kept line</p><pb n=\"3\" facs=\"\#(fixture.baseURL)/page-3/full/1300,/0/default.jpg\"/></body></text></TEI>"}'
         WHERE id = '\#(commit.madrigalID)'
         """#)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
@@ -136,14 +136,13 @@ struct RevisePagesTests {
 
         try await page.openHydrated("\(commit.madrigalPath)/revise")
         try await expect(page.locator(".testament-tree-diff-view")).toHaveCount(1)
-        try await expect(page.locator(".tei-page-edit textarea")).toHaveCount(2)
+        try await expect(page.locator(".tei-page-edit textarea")).toHaveCount(3)
         // One Suggest, at the end: none per page, none for the prompts, no
         // Diff toggle and no scope.
         try await expect(page.locator("button[type='submit']").filter(hasText: "Suggest")).toHaveCount(1)
         try await expect(page.locator(".testament-suggest")).toHaveCount(0)
         try await expect(page.locator(".prompt-revision-fields-diff-toggle")).toHaveCount(0)
         try await expect(page.locator("input[name='scope']")).toHaveCount(0)
-        // A process toggle, where there is one, is in the header.
         try await expect(page.locator(".prompt-revision-fields-view .process-toggle-view")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
 

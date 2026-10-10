@@ -2,8 +2,9 @@ import Foundation
 
 /// Two Disputorium objects waiting on a commit, owned by the test's
 /// account: a pending overture, with one way to commit, and a pending
-/// madrigal (its own overture committed, its antiphon submitted), with
-/// two. Every row by its own id, removed in the order the foreign keys
+/// madrigal (its own overture committed, its antiphon submitted) holding
+/// one page not read yet, so its one process is explication (user,
+/// 2026-10-10). Every row by its own id, removed in the order the foreign keys
 /// allow—except its submission and Folksong, which are submitted input and
 /// frozen: the Folksong is soft-deleted, as the site deletes one. Nothing here is ever committed: a test only opens and cancels.
 /// The madrigal's metadata holds what the witness's fields require (its
@@ -48,7 +49,7 @@ struct ScratchCommit {
       INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, canvas_service_ids_json, processing_status, created_at, updated_at)
         VALUES ('\(antiphonID)', '\(committedOvertureID)', '\(user)', '[]', 'submitted', now(), now());
       INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, proposed_content_json, metadata_json, processing_status, created_at, updated_at)
-        VALUES ('\(madrigalID)', '\(madrigalID)', '\(antiphonID)', '{"teiXml":""}', '{"language":"eng","sourceUrl":"\(sourceURL)","sourceKind":"iiif-manifest"}', 'pending', now(), now());
+        VALUES ('\(madrigalID)', '\(madrigalID)', '\(antiphonID)', '{"teiXml":"<TEI><text><body><pb n=\\"1\\" facs=\\"\(sourceURL.replacingOccurrences(of: "/manifest.json", with: ""))/page-1/full/max/0/default.jpg\\"/></body></text></TEI>"}', '{"language":"eng","sourceUrl":"\(sourceURL)","sourceKind":"iiif-manifest"}', 'pending', now(), now());
       COMMIT;
       """)
   }
