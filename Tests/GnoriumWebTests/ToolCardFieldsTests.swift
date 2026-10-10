@@ -293,8 +293,8 @@ struct ToolCardFieldsTests {
             const field = block.closest('.datum-value');
             const cs = getComputedStyle(block);
             const flush = cs.borderTopWidth === '0px' && cs.backgroundColor === 'rgba(0, 0, 0, 0)' && cs.paddingTop === '0px'
-              && block.getBoundingClientRect().top - field.getBoundingClientRect().top <= 17.5
-              && field.getBoundingClientRect().bottom - block.getBoundingClientRect().bottom <= 17.5;
+              && block.getBoundingClientRect().top - field.getBoundingClientRect().top <= 9.5
+              && field.getBoundingClientRect().bottom - block.getBoundingClientRect().bottom <= 9.5;
             return { count: plain.length, bare, flush };
           })()
           """, as: Wrappers.self)
@@ -315,7 +315,7 @@ struct ToolCardFieldsTests {
               && code.clientHeight <= 256 && code.scrollHeight > code.clientHeight
               && code.querySelectorAll('.hljs-tag').length > 0
               && code.getBoundingClientRect().top - value.getBoundingClientRect().top <= 1.5
-              && code.querySelector('.code-code').getBoundingClientRect().top - value.getBoundingClientRect().top <= 17.5
+              && code.querySelector('.code-code').getBoundingClientRect().top - value.getBoundingClientRect().top <= 9.5
               && value.getBoundingClientRect().bottom - code.getBoundingClientRect().bottom <= 1.5;
           })()
           """, as: Bool.self)
