@@ -147,9 +147,11 @@ struct BibliographicExplicationSessionsTests {
             const card = document.querySelector('.computorium-session-compaction-rendered')
             const prompt = document.querySelector('.computorium-session-compaction-prompt-fieldset')
             const summary = document.querySelector('.computorium-session-compaction-summary-fieldset')
-            return [bg(card) === white, bg(prompt) === seen, bg(summary) === seen, bg(summary.querySelector('legend')) === seen].join(' ')
+            // Their legends hold text alone: the even 16 inset (user, 2026-10-10).
+            const even = [prompt, summary].every(e => getComputedStyle(e).paddingBottom === '16px')
+            return [bg(card) === white, bg(prompt) === seen, bg(summary) === seen, bg(summary.querySelector('legend')) === seen, even].join(' ')
           })()
-          """, as: String.self) == "true true true true", "Compaction card white, its prompt and summary gray")
+          """, as: String.self) == "true true true true true", "Compaction card white, its prompt and summary gray, inset 16")
         let rawCount = try await page.locator(".computorium-session-view .computorium-session-output-raw").count()
         #expect(rawCount > 0)
       }
@@ -446,6 +448,11 @@ struct BibliographicExplicationSessionsTests {
             const kinds = [...start.children].map(e => e.classList.contains('computorium-session-raw-toggle') ? 'raw'
               : e.classList.contains('computorium-session-byline') ? 'info' : 'other').join(' ');
             if (kinds !== 'raw info') out.push('output legend ' + kinds);
+            // A legend holding a control insets its box 24 at the bottom, 16
+            // elsewhere (user, 2026-10-10).
+            const inset = (e) => { const s = getComputedStyle(e); return s.paddingTop + ' ' + s.paddingBottom; };
+            const output = document.querySelector('.computorium-session-output-fieldset');
+            if (inset(output) !== '16px 24px') out.push('output inset ' + inset(output));
             for (const field of document.querySelectorAll('.computorium-session-prompt-fieldset:has(.computorium-session-prompt-raw-toggle)')) {
               const legend = field.querySelector(':scope > .prompt-legend-view');
               const order = [...legend.children].map(e => e.classList.contains('computorium-session-prompt-raw-toggle') ? 'raw'
@@ -454,6 +461,7 @@ struct BibliographicExplicationSessionsTests {
               if (!order.startsWith('raw title')) out.push('prompt legend ' + order);
               const f = field.getBoundingClientRect(), l = legend.getBoundingClientRect();
               if (Math.abs(l.left - (f.left + 16)) > 1) out.push('prompt legend not at the bottom left: ' + (l.left - f.left));
+              if (inset(field) !== '16px 24px') out.push('prompt inset ' + inset(field));
             }
             return out.join('; ');
           })()
