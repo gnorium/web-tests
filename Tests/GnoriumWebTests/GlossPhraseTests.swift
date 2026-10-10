@@ -44,7 +44,7 @@ struct GlossPhraseTests {
       idiom = word
       _ = try TestAdmin.query(
         """
-        INSERT INTO word_lemma_refs (id, biblio_record_id, version_id, canvas_id, page, start_line, start_word,
+        INSERT INTO word_lemma_refs (id, biblio_record_id, version_id, resemblance_id, page, start_line, start_word,
             start_surface, end_line, end_word, end_surface, surface, lexico_record_id, sentiment_id, antedates, created_at)
           VALUES (gen_random_uuid(), '\(scratch.reading.work.recordID.lowercased())', '\(scratch.versionID)',
             '\(Self.idiomService)', 1, 1, 2, 'kicked', 1, 4, 'bucket', 'kicked the bucket',

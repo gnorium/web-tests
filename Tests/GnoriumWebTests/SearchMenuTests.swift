@@ -404,7 +404,7 @@ struct SearchMenuTests {
           owner: admin,
           anchor: anchored
             ? .init(
-              recordID: work.recordID, versionID: work.versionID, canvasID: "https://example.org/iiif/webtests-p1",
+              recordID: work.recordID, versionID: work.versionID, resemblanceID: "https://example.org/iiif/webtests-p1",
               page: 1, line: 1, word: 1, surface: "scratchword")
             : nil)
       } catch {

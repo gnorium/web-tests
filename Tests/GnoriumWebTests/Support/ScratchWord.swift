@@ -32,7 +32,7 @@ struct ScratchWord {
   struct Anchor {
     let recordID: String
     let versionID: String
-    let canvasID: String
+    let resemblanceID: String
     let page: Int
     let line: Int
     let word: Int
@@ -69,7 +69,7 @@ struct ScratchWord {
     } ?? ""
     let quotations = anchor.map {
       (
-        #"[{"biblioRecordID":"\#($0.recordID)","canvasID":"\#($0.canvasID)","end":{"line":\#($0.line),"surface":"\#($0.surface)","word":\#($0.word)},"id":"u-1","page":\#($0.page),"start":{"line":\#($0.line),"surface":"\#($0.surface)","word":\#($0.word)},"versionID":"\#($0.versionID)"}]"#,
+        #"[{"biblioRecordID":"\#($0.recordID)","resemblanceID":"\#($0.resemblanceID)","end":{"line":\#($0.line),"surface":"\#($0.surface)","word":\#($0.word)},"id":"u-1","page":\#($0.page),"start":{"line":\#($0.line),"surface":"\#($0.surface)","word":\#($0.word)},"versionID":"\#($0.versionID)"}]"#,
         #"["u-1"]"#,
         #","chronology":[{"testamentTitle":"Web tests testament","text":"The scratch word stood in a sentence.","quotationID":"u-1","year":1901,"yearEnd":1901}]"#)
     } ?? ("[]", "[]", "")

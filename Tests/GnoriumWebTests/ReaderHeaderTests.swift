@@ -7,13 +7,13 @@ import WebTestsTesting
 /// biblio page the title is already the page's heading or its node's
 /// description. The header names the page on screen at its start, by the
 /// manifest's canvas label, else its place in the sequence (1, 2, 3):
-/// never the markup's own `pb n`; Find and the canvas switch take its
+/// never the markup's own `pb n`; Find and the resemblance switch take its
 /// end. Raw sits at the footer's start, the bottom left of the box, as
 /// Raw does on every box (user, 2026-10-10), the pager and fullscreen at
 /// its end. Each bar one row 40 tall with its 1 border, each control
-/// small (32). Raw and Find need a markup, the canvas switch both a
+/// small (32). Raw and Find need a markup, the resemblance switch both a
 /// markup and a page image (user, 2026-10-09): the testament's manifest is served here
-/// (`FixtureServer`), one canvas labeled "p1". On every reader—a Disputorium object's, the record page's
+/// (`FixtureServer`), one resemblance labeled "p1". On every reader—a Disputorium object's, the record page's
 /// and an overture's alike. A throwaway admin owns a scratch work with a
 /// permitted testament, made by SQL and removed after.
 @Suite("Reader header", .serialized)
@@ -21,7 +21,7 @@ struct ReaderHeaderTests {
   static let manifestPath = "/reader-header-manifest.json"
   /// The fixture manifest's one canvas (`FixtureServer.manifests`).
   static let service = "\(manifestPath)/page-1"
-  /// Its page's `n` is no canvas label: the footer must not show it.
+  /// Its page's `n` is no resemblance label: the footer must not show it.
   static let tei = """
     <TEI><text><body><pb n="iv" facs="\(service)/full/1300,/0/default.jpg"/>\
     <p><s><w>The</w> <w>title</w> <w>page</w><pc>.</pc></s></p>\
@@ -36,7 +36,7 @@ struct ReaderHeaderTests {
     let rawAtFooterStart: Bool
     let labelAtHeaderStart: Bool
     let find: Bool
-    let canvas: Bool
+    let resemblance: Bool
     /// The header's height, its border with it.
     let height: Double
     /// The tallest control in the header's row.
@@ -66,7 +66,7 @@ struct ReaderHeaderTests {
           rawAtFooterStart: atStart(raw?.closest('.artifact-footer-start'), footer),
           labelAtHeaderStart: atStart(label, row) && !footer.querySelector('.artifact-canvas-label'),
           find: !!row.querySelector('.testament-find-button button')?.offsetParent,
-          canvas: !!row.querySelector('.artifact-canvas-toggle button')?.offsetParent,
+          resemblance: !!row.querySelector('.artifact-canvas-toggle button')?.offsetParent,
           height: view.querySelector(':scope > header').getBoundingClientRect().height,
           control: Math.max(0, ...controls.map((b) => b.getBoundingClientRect().height)),
           label: label.textContent.trim(),
@@ -119,9 +119,9 @@ struct ReaderHeaderTests {
         #expect(header.rawAtFooterStart, "\(place): Raw is not at the footer's start")
         #expect(header.labelAtHeaderStart, "\(place): the page's label is not at the header's start")
         #expect(header.find, "\(place): no Find button")
-        #expect(header.canvas, "\(place): no canvas switch")
-        #expect(abs(header.height - 41) < 0.5, "\(place): the header is \(header.height) tall, not 41")
-        #expect(abs(header.control - 32) < 0.5, "\(place): a control is \(header.control) tall, not 32")
+        #expect(header.resemblance, "\(place): no resemblance switch")
+        #expect(abs(header.height - 57) < 0.5, "\(place): the header is \(header.height) tall, not 57")
+        #expect(abs(header.control - 40) < 0.5, "\(place): a control is \(header.control) tall, not 40")
         // The manifest's canvas label, never the page's pb n.
         #expect(header.label == "p1", "\(place): the footer names the page \(header.label)")
         #expect(!header.icons.isEmpty && header.icons.allSatisfy { abs($0 - 16) < 0.5 }, "\(place): icons \(header.icons), not 16")
@@ -171,8 +171,8 @@ struct ReaderHeaderTests {
         try await page.expectNoHorizontalOverflow()
 
         // No page image (a source no manifest answers for): Raw and Find,
-        // which need the markup, and no canvas switch, which needs a
-        // canvas; the page named by its place.
+        // which need the markup, and no resemblance switch, which needs a
+        // resemblance; the page named by its place.
         _ = try TestAdmin.query(
           """
           UPDATE biblio_record_versions SET metadata_json = jsonb_set(metadata_json::jsonb, '{sourceUrl}', '"https://example.org/web-tests-none"')::text
@@ -188,7 +188,7 @@ struct ReaderHeaderTests {
         let bare = try await Self.header(page)
         #expect(bare.raw && bare.find, "no page image: Raw and Find need only the markup")
         #expect(bare.rawAtFooterStart && bare.labelAtHeaderStart, "no page image: the bars still hold their places")
-        #expect(!bare.canvas, "no page image, yet a canvas switch")
+        #expect(!bare.resemblance, "no page image, yet a resemblance switch")
       }
       try await clean()
     } catch {

@@ -3,17 +3,17 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A region's coordinates seen on the canvas while its markup is read or
+/// A region's coordinates seen on the resemblance while its markup is read or
 /// edited in Raw (user, 2026-10-10): with the caret in a `bbox="x y w h"`
 /// (the 0–1000 space over the whole image) on the Revise page, or the
 /// pointer on an element whose `facs="#…"` names a zone in a read-only Raw,
-/// the canvas pane draws the rectangle over the image, scaled to it; it
+/// the resemblance pane draws the rectangle over the image, scaled to it; it
 /// follows the value as it is typed and goes when the caret or the pointer
 /// leaves. The witness's pages served on this machine
 /// (`FixtureServer.threePageManifest`, 800 × 1100). Chrome, desktop.
 @Suite("Markup regions", .serialized)
 struct MarkupRegionTests {
-  /// Where the canvas on screen draws its region, against where the box
+  /// Where the resemblance on screen draws its region, against where the box
   /// (0–1000) falls on the image as displayed, with its dimmed backdrop and
   /// the 0–1000 grid laid over the image (its 500 line at the image's
   /// midpoint): "none" when there is no region and no grid, "ok" within a
@@ -104,7 +104,7 @@ struct MarkupRegionTests {
     Issue.record("\(comment.rawValue): \(last)")
   }
 
-  static func showCanvas(_ page: Page) async throws {
+  static func showResemblance(_ page: Page) async throws {
     let viewer = page.locator(".artifact-view").first
     try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
     if try await viewer.getAttribute("data-canvas-shown") != "true" {
@@ -116,7 +116,7 @@ struct MarkupRegionTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome])
-  func theCaretInABboxDrawsItsRegionOnTheCanvas(engine: BrowserEngine) async throws {
+  func theCaretInABboxDrawsItsRegionOnTheResemblance(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let fixture = try await FixtureServer.threePageManifest()
@@ -133,7 +133,7 @@ struct MarkupRegionTests {
         """#)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(commit.madrigalPath)/revise")
-        try await Self.showCanvas(page)
+        try await Self.showResemblance(page)
         try await expect(page.locator(".tei-page-edit .code-code").first).toBeVisible()
         try await Self.expectRegion(page, [120, 340, 760, 380], "none", "No region before the caret is in one")
 
@@ -154,7 +154,7 @@ struct MarkupRegionTests {
         #expect(try await page.evaluate(Self.caretScript("After"), as: Bool.self))
         try await Self.expectRegion(page, [120, 340, 500, 380], "none", "The caret left the figure")
 
-        // Edited on the canvas: its bottom-right handle dragged to (800,
+        // Edited on the resemblance: its bottom-right handle dragged to (800,
         // 900) writes the whole numbers into the bbox, the box following;
         // one undo takes the drag back whole.
         #expect(try await page.evaluate(Self.caretScript("bbox=\"120 3"), as: Bool.self))
@@ -168,14 +168,30 @@ struct MarkupRegionTests {
           let t = Double(step) / 5
           try await page.mouse.move(x: corner.x + (target.x - corner.x) * t, y: corner.y + (target.y - corner.y) * t)
         }
-        try await Self.expectEditor(page, contains: "bbox=\"120 340 680 560\"", "Written live as it is dragged")
+        // Whole numbers within one unit of (680, 560): where a screen pixel
+        // falls in the 0–1000 space rounds by the image's fitted scale.
+        func dragged() async throws -> (Int, Int)? {
+          let text = try await page.evaluate(Self.editorText, as: String.self)
+          guard let match = text.firstMatch(of: /bbox="120 340 (\d+) (\d+)"/),
+            let width = Int(match.1), let height = Int(match.2),
+            abs(width - 680) <= 1, abs(height - 560) <= 1
+          else { return nil }
+          return (width, height)
+        }
+        var live: (Int, Int)?
+        for _ in 0..<40 where live == nil {
+          live = try await dragged()
+          if live == nil { try await Task.sleep(for: .milliseconds(50)) }
+        }
+        #expect(live != nil, "Written live as it is dragged")
         try await page.mouse.up(x: target.x, y: target.y)
-        try await Self.expectEditor(page, contains: "bbox=\"120 340 680 560\"", "The drag's end written")
-        try await Self.expectRegion(page, [120, 340, 680, 560], "ok", "The box follows the drag")
+        let end = try await dragged()
+        let (width, height) = try #require(end, "The drag's end written")
+        try await Self.expectRegion(page, [120, 340, width, height], "ok", "The box follows the drag")
         let posted = try await page.evaluate(
           "document.querySelector(\".tei-page[data-active='true'] .tei-page-edit textarea\").value",
           as: String.self)
-        #expect(posted.contains("bbox=\"120 340 680 560\""), "The form posts the dragged value: \(posted)")
+        #expect(posted.contains("bbox=\"120 340 \(width) \(height)\""), "The form posts the dragged value: \(posted)")
         // The editor's own undo (Chrome under automation runs no Cmd+Z).
         _ = try await page.evaluate("document.execCommand('undo')", as: Bool.self)
         try await Self.expectEditor(page, contains: "bbox=\"120 340 500 380\"", "One undo takes the drag back")
@@ -216,7 +232,7 @@ struct MarkupRegionTests {
         """#)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated(commit.madrigalPath)
-        try await Self.showCanvas(page)
+        try await Self.showResemblance(page)
         let code = page.locator(".tei-page[data-active='true'] .tei-page-raw .code-code").first
         try await expect(code).toBeVisible()
         _ = try await code.evaluate("e => { e.scrollIntoView({block: 'center'}); return true }")
@@ -286,7 +302,18 @@ struct MarkupRegionTests {
         try await page.mouse.move(x: spot.x, y: spot.y)
         let readout = page.locator(".canvas-view[data-active='true'] .canvas-readout")
         try await expect(readout).toBeVisible()
-        try await expect(readout).toHaveText(expected)
+        // Within one unit of where the screen pixel falls: the readout
+        // rounds the pointer's place on the image's own box.
+        var shown = ""
+        for _ in 0..<40 {
+          shown = try await readout.textContent().trimmingCharacters(in: .whitespaces)
+          let a = shown.split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
+          let b = expected.split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
+          if a.count == 2, b.count == 2, abs(a[0] - b[0]) <= 1, abs(a[1] - b[1]) <= 1 { break }
+          shown = "✗ " + shown
+          try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(!shown.hasPrefix("✗"), "The readout \(shown) is not where the pointer is, \(expected)")
 
         // Finer levels as the image is enlarged: none of 1 at its fitted size;
         // zoomed in until 1 unit stands 4px apart, the 1s drawn.

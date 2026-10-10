@@ -89,10 +89,10 @@ struct LexicographicTranslationDefinitionTests {
         try await expect(box.locator("[data-definition-layer='english'] .sentiment-definition-text")).toHaveText("A leaf sense.")
         try await expect(box.locator("[data-definition-layer='native']")).toBeHidden()
         try await expect(box.locator("[data-definition-layer='raw']")).toBeHidden()
-        // Raw on its bottom legend: 24 below, 16 elsewhere (user, 2026-10-10).
+        // Raw, medium, on its bottom legend: 36 below, 16 elsewhere (user, 2026-10-10).
         #expect(try await page.evaluate(
           "(() => { const s = getComputedStyle(document.querySelector('#record-row-s-1-1 .sentiment-definition-view')); return [s.paddingTop, s.paddingInlineStart, s.paddingInlineEnd, s.paddingBottom].join(' '); })()",
-          as: String.self) == "16px 16px 16px 24px")
+          as: String.self) == "16px 16px 16px 36px")
         try await english.click()
         try await expect(box.locator("[data-definition-layer='native']")).toBeVisible()
         try await expect(box.locator("[data-definition-layer='native'] .sentiment-definition-text")).toHaveText(Self.german)

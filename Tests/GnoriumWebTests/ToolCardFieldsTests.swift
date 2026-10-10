@@ -121,9 +121,9 @@ struct ToolCardFieldsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, canvas_service_ids_json, processing_status)
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_runs (id, submission_id, process, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_runs (id, submission_id, process, resemblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(), '\(antiphonID)', 1200, now());
         COMMIT;
@@ -347,7 +347,7 @@ struct ToolCardFieldsTests {
           if block["type"] as? String != "tool", block["type"] as? String != "compaction" {
             block["text"] = block["content"]
           }
-          block["canvas"] = "1"
+          block["resemblance"] = "1"
           return String(decoding: try! JSONSerialization.data(withJSONObject: block), as: UTF8.self)
         }
         let chunksJS = String(decoding: try JSONSerialization.data(withJSONObject: chunks), as: UTF8.self)

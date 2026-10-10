@@ -55,7 +55,7 @@ struct QuotationTests {
         owner: admin,
         anchor: .init(
           recordID: scratch.reading.work.recordID, versionID: scratch.versionID,
-          canvasID: "https://example.org/iiif/webtests-p3", page: 3, line: 3, word: 3, surface: "scratchword"))
+          resemblanceID: "https://example.org/iiif/webtests-p3", page: 3, line: 3, word: 3, surface: "scratchword"))
       word = scratchWord
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(scratchWord.path)
@@ -142,7 +142,7 @@ struct QuotationTests {
           fetch(document.querySelector('#record-row-s-1-1 .chicago-citation-view a').href)
             .then(r => (r.ok ? '' : 'HTTP ' + r.status + ' ') + new URL(r.url).pathname + new URL(r.url).search)
           """)
-        #expect(landed == .string("\(scratch.reading.work.path)/vignettes/\(scratch.versionID)?canvas=2"))
+        #expect(landed == .string("\(scratch.reading.work.path)/vignettes/\(scratch.versionID)?resemblance=2"))
         try await page.keyboard.press("Escape")
         try await expect(page.locator(".gloss-sheet[data-state='open']")).toHaveCount(0)
 

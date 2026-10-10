@@ -55,7 +55,7 @@ struct GlossTests {
       let english = try ScratchWord(
         owner: admin,
         anchor: .init(
-          recordID: scratch.reading.work.recordID, versionID: scratch.versionID, canvasID: Self.service, page: 1,
+          recordID: scratch.reading.work.recordID, versionID: scratch.versionID, resemblanceID: Self.service, page: 1,
           line: 1, word: 2, surface: "scratchwords"))
       words.append(english)
       _ = try TestAdmin.query(
@@ -64,7 +64,7 @@ struct GlossTests {
         UPDATE lexico_record_versions SET record_json = jsonb_set(record_json::jsonb, '{senses,1,equivalents}',
             '[{"form":"\(german.title)","languageCode":"deu","recordPath":"\(german.path)#record-row-s-1-1","equivalence":"broader"}]')::text
           WHERE id = '\(english.versionID.lowercased())';
-        INSERT INTO word_lemma_refs (id, biblio_record_id, version_id, canvas_id, page, start_line, start_word,
+        INSERT INTO word_lemma_refs (id, biblio_record_id, version_id, resemblance_id, page, start_line, start_word,
             start_surface, end_line, end_word, end_surface, surface, lexico_record_id, sentiment_id, antedates, created_at)
           VALUES (gen_random_uuid(), '\(scratch.reading.work.recordID.lowercased())', '\(scratch.versionID)',
             '\(Self.service)', 1, 1, 2, 'scratchwords', 1, 2, 'scratchwords', 'scratchwords',
@@ -88,7 +88,7 @@ struct GlossTests {
         try await linked.click()
         let sheet = page.locator(".artifact-markup .gloss-sheet")
         try await expect(sheet).toHaveAttribute("data-state", "open")
-        // Over the markup pane only: the pane holds it, the canvas and
+        // Over the markup pane only: the pane holds it, the resemblance and
         // the page's chrome stay outside it.
         let pane = page.locator(".artifact-markup").first
         try await expect(pane.locator(".gloss-sheet")).toHaveCount(1)
@@ -195,7 +195,7 @@ struct GlossTests {
         // The gloss's address answers JSON too: its data and the same body.
         let json = try await page.evaluate(
           """
-          fetch('\(scratch.reading.work.path)/testaments/\(scratch.versionID)/glosses?canvas='
+          fetch('\(scratch.reading.work.path)/testaments/\(scratch.versionID)/glosses?resemblance='
             + encodeURIComponent('\(Self.service)') + '&line=1&word=2', { headers: { Accept: 'application/json' } })
             .then(r => r.json())
             .then(j => [j.surface, j.lemma, j.type, j.morphology, j.record.title, j.sentiment.id,

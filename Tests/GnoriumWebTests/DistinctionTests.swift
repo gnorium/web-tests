@@ -21,7 +21,7 @@ struct DistinctionTests {
       owner: admin, distinction: "Unlike sense {branch}, a leaf sense grows no further senses.",
       anchor: .init(
         recordID: testament.reading.work.recordID, versionID: testament.versionID,
-        canvasID: "https://example.org/iiif/webtests-p3", page: 3, line: 3, word: 3, surface: "scratchword"))
+        resemblanceID: "https://example.org/iiif/webtests-p3", page: 3, line: 3, word: 3, surface: "scratchword"))
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(word.path)

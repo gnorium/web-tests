@@ -42,7 +42,7 @@ struct ScratchLine {
       let column = index == 0 ? "bibliographic_overture_id" : "bibliographic_madrigal_id"
       let antecedent = index == 0 ? overtureID : madrigalIDs[index - 1]
       sql += """
-        INSERT INTO bibliographic_antiphons (id, \(column), requested_by_user_id, canvas_service_ids_json, processing_status, created_at, updated_at)
+        INSERT INTO bibliographic_antiphons (id, \(column), requested_by_user_id, resemblance_service_ids_json, processing_status, created_at, updated_at)
           VALUES ('\(antiphonIDs[index])', '\(antecedent)', '\(user)', '[]', 'submitted', now(), now());
 
         """

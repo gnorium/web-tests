@@ -43,7 +43,7 @@ struct TranslationScopeTests {
         UPDATE bibliographic_madrigals SET metadata_json =
           (metadata_json::jsonb || '{"language":"ita","sourceUrl":"\(fixture.baseURL)/manifest.json"}'::jsonb)::text
           WHERE id = '\(reading.madrigalID)';
-        INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, canvas_service_ids_json, requested_by_user_id, processing_status)
+        INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, resemblance_service_ids_json, requested_by_user_id, processing_status)
           VALUES ('\(serenade)', '\(reading.madrigalID)', 'eng', '[]', '\(user)', 'submitted');
         INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id, proposed_content_json, metadata_json, translation_json, processing_status)
           SELECT '\(epilogue)', '\(epilogue)', '\(reading.work.overtureID.lowercased())', '\(serenade)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
@@ -76,7 +76,7 @@ struct TranslationScopeTests {
             if (event.target.id !== 'commit-form' || event.defaultPrevented) return;
             event.preventDefault();
             const data = new FormData(event.target);
-            window.__translationSubmit = { process: data.get('process'), services: data.getAll('canvas[]') };
+            window.__translationSubmit = { process: data.get('process'), services: data.getAll('resemblance[]') };
           });
           true;
           """, as: Bool.self)
@@ -92,12 +92,12 @@ struct TranslationScopeTests {
         // Page 2's translation is fresh: locked against a commit, its
         // checkbox gone (user, 2026-10-09); page 1's is stale, and ticks.
         // (The navbar clones the sidebar into its menu: the first roster.)
-        let rows = page.locator("#epilogue-canvases").first.locator(".roster-row")
+        let rows = page.locator("#epilogue-resemblances").first.locator(".roster-row")
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "false")
         try await expect(rows.nth(1)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(1).locator(".checkbox-icon-wrapper")).toBeHidden()
         _ = try await page.evaluate("""
-          (() => { document.querySelectorAll(".mission-control-sidebar-view input[name='canvas[]']")[0].click(); return true })()
+          (() => { document.querySelectorAll(".mission-control-sidebar-view input[name='resemblance[]']")[0].click(); return true })()
           """, as: Bool.self)
         try await commit.click()
         let payload = try await submitted()

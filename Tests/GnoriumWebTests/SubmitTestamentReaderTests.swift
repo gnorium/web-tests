@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// Submit Testament reads the testament its Source URL names as the record
 /// page reads one (user, 2026-10-03): the server reads the IIIF manifest,
-/// and the record page's viewer shows its canvases, with no markup
+/// and the record page's viewer shows its resemblances, with no markup
 /// pane, since nothing is explicated yet. A URL cleared takes the viewer
 /// away, and the field's own validation asks for one. A manifest the server
 /// cannot read takes it away too, with an error under the field that blocks
@@ -24,11 +24,11 @@ struct SubmitTestamentReaderTests {
 
   /// A IIIF v3 manifest of three pages.
   static var manifest: Data {
-    let canvases = (1...3).map { index in
+    let resemblances = (1...3).map { index in
       let service = "/web-tests-iiif/submit-reader-\(index)"
       return #"{"type":"Canvas","width":1000,"height":1400,"label":{"none":["p\#(index)"]},"items":[{"items":[{"body":{"id":"\#(service)/full/max/0/default.jpg","service":[{"id":"\#(service)"}]}}]}]}"#
     }
-    return Data(#"{"type":"Manifest","label":{"none":["Web tests"]},"items":[\#(canvases.joined(separator: ","))]}"#.utf8)
+    return Data(#"{"type":"Manifest","label":{"none":["Web tests"]},"items":[\#(resemblances.joined(separator: ","))]}"#.utf8)
   }
 
   static func fixtures() async throws -> FixtureServer {
@@ -40,7 +40,7 @@ struct SubmitTestamentReaderTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func theSourceURLShowsItsCanvases(engine: BrowserEngine, layout: Layout) async throws {
+  func theSourceURLShowsItsResemblances(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)

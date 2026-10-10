@@ -93,6 +93,10 @@ struct TimeInputTests {
       // Always under the field, as a dropdown opens (user, 2026-10-10).
       let fieldBox = try #require(try await field.boundingBox())
       #expect(popoverBox.minY >= fieldBox.maxY, "the popover opens over the field: \(popoverBox), field \(fieldBox)")
+      // Exactly the field's width, as a dropdown's menu (user, 2026-10-10).
+      #expect(
+        abs(popoverBox.minX - fieldBox.minX) <= 1 && abs(popoverBox.width - fieldBox.width) <= 1,
+        "the popover is not the field's width: \(popoverBox), field \(fieldBox)")
       // Time start over Time end, one a row (user, 2026-10-10).
       let startBox = try #require(try await popover.locator(".time-input-parts > *").first.boundingBox())
       let endBox = try #require(try await popover.locator(".time-input-parts > *").last.boundingBox())

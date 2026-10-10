@@ -54,7 +54,7 @@ struct TestamentFormsTests {
     let citations = [UUID().uuidString.lowercased(), UUID().uuidString.lowercased()]
     func cite(_ id: String, _ surface: String, word: Int, node: String?) -> String {
       """
-      INSERT INTO citations (id, biblio_record_version_id, biblio_record_id, testament_id, permitted_at, canvas_id, page,
+      INSERT INTO citations (id, biblio_record_version_id, biblio_record_id, testament_id, permitted_at, resemblance_id, page,
         start_line, start_word, start_surface, end_line, end_word, end_surface, element, kind, surface, parts_json,
         language_code, status, cited_biblio_record_id, cited_node_id, resolved_at,
         created_at, entry_head)

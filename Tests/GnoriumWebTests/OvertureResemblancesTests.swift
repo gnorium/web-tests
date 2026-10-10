@@ -3,16 +3,16 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// An overture's Canvases roster, its testament's pager and its prompt
-/// preview stay on one canvas (user, 2026-10-07): the pager moves the
+/// An overture's Resemblances roster, its testament's pager and its prompt
+/// preview stay on one resemblance (user, 2026-10-07): the pager moves the
 /// roster's current row, a row moves the reader, and the preview always
-/// shows the page on screen. An admin ticks the canvases its commit sends
+/// shows the page on screen. An admin ticks the resemblances its commit sends
 /// to explication; a tick never moves the reader. Every object has one
 /// process, decided by its state (user, 2026-10-10): no process toggle
 /// anywhere. The solid kind tabs carry the sliding pill.
 /// Nothing is committed here.
-@Suite("Overture canvases", .serialized)
-struct OvertureCanvasesTests {
+@Suite("Overture resemblances", .serialized)
+struct OvertureResemblancesTests {
   /// Whether `inner` sits on `outer` within a pixel.
   static func sameBox(_ inner: BoundingBox, _ outer: BoundingBox) -> Bool {
     abs(inner.x - outer.x) < 1.5 && abs(inner.y - outer.y) < 1.5
@@ -28,7 +28,7 @@ struct OvertureCanvasesTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func rosterPagerAndPreviewShareTheCanvas(engine: BrowserEngine, layout: Layout) async throws {
+  func rosterPagerAndPreviewShareTheResemblance(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let fixture = try await FixtureServer.threePageManifest()
@@ -50,12 +50,12 @@ struct OvertureCanvasesTests {
         try await expect(viewer.locator(".artifact-object")).toBeVisible()
         try await expect(viewer.locator(".artifact-canvas-toggle, .artifact-raw-toggle, .testament-find-button"))
           .toHaveCount(0)
-        let roster = page.locator(".overture-canvases").first
+        let roster = page.locator(".overture-resemblances").first
         let rows = roster.locator(".roster-row")
         try await expect(rows).toHaveCount(3)
         try await expect(rows.nth(0)).toHaveAttribute("class", "roster-row roster-row-check roster-row-selected")
         // Each row is ticked for the commit, with the image service it names.
-        try await expect(roster.locator("input[name='canvas[]'][value='\(fixture.baseURL)/page-2']")).toHaveCount(1)
+        try await expect(roster.locator("input[name='resemblance[]'][value='\(fixture.baseURL)/page-2']")).toHaveCount(1)
         // An overture's pages have no markup yet: each a blue ring, pending
         // explication (user, 2026-10-09)—never a Computorium status.
         try await expect(roster.locator(".roster-status[data-mark='ring'][data-tone='blue']")).toHaveCount(3)
@@ -74,7 +74,7 @@ struct OvertureCanvasesTests {
         try await expect(viewer.locator("#artifact-page-input")).toHaveValue("2")
         try await expect(rows.nth(1)).toHaveAttribute("class", "roster-row roster-row-check roster-row-selected")
         try await expect(rows.nth(0)).toHaveAttribute("class", "roster-row roster-row-check")
-        #expect(try await page.url().hasSuffix("?canvas=1"))
+        #expect(try await page.url().hasSuffix("?resemblance=1"))
 
         if layout == .desktop {
           // A row moves the reader, and the preview follows; it ticks nothing.

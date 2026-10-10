@@ -55,23 +55,32 @@ struct DateRangePickerTests {
       if viewport.touch { try await field.tap() } else { try await field.click() }
       try await expect(popover).toBeVisible()
 
-      // The presets, beside the calendar—or above it on a phone.
+      // Exactly the field's width, as a dropdown's menu (user, 2026-10-10).
+      let popoverBox = try #require(try await popover.boundingBox())
+      let fieldBox = try #require(try await field.boundingBox())
+      #expect(popoverBox.minX >= 0 && popoverBox.maxX <= Double(viewport.width), "the popover runs off screen: \(popoverBox)")
+      #expect(
+        abs(popoverBox.minX - fieldBox.minX) <= 1 && abs(popoverBox.width - fieldBox.width) <= 1,
+        "the popover is not the field's width: \(popoverBox), field \(fieldBox)")
+
+      // The presets beside the calendar, or above it, one a row, in a
+      // popover narrower than 480 (user, 2026-10-10). The days stay 32 wide.
       let presets = popover.locator(".date-picker-preset")
       let labels = try await presets.allTextContents().map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
       #expect(labels == ["Today", "Last 7 days", "Last 30 days", "Last 90 days"], "presets: \(labels)")
       let presetsBox = try #require(try await popover.locator(".date-picker-presets").boundingBox())
       let gridBox = try #require(try await popover.locator(".date-picker-grid").boundingBox())
-      if layout == .phone {
-        #expect(presetsBox.maxY <= gridBox.minY + 1, "presets above the calendar on a phone")
-        // One preset a row there too (user, 2026-10-10).
+      if popoverBox.width < 480 {
+        #expect(presetsBox.maxY <= gridBox.minY + 1, "presets above the calendar in a narrow popover")
         let firstPreset = try #require(try await presets.first.boundingBox())
         let secondPreset = try #require(try await presets.nth(1).boundingBox())
-        #expect(firstPreset.maxY <= secondPreset.minY + 1, "presets side by side on a phone: \(firstPreset), \(secondPreset)")
+        #expect(firstPreset.maxY <= secondPreset.minY + 1, "presets side by side: \(firstPreset), \(secondPreset)")
       } else {
         #expect(presetsBox.maxX <= gridBox.minX + 1, "presets left of the calendar")
       }
-      let popoverBox = try #require(try await popover.boundingBox())
-      #expect(popoverBox.minX >= 0 && popoverBox.maxX <= Double(viewport.width), "the popover runs off screen: \(popoverBox)")
+      #expect(gridBox.maxX <= popoverBox.maxX + 1, "the calendar overflows the popover: \(gridBox), \(popoverBox)")
+      let dayBox = try #require(try await popover.locator(".date-picker-month-day").first.boundingBox())
+      #expect(dayBox.width >= 32 - 0.5, "a day narrower than 32: \(dayBox)")
       // Date start over Date end, one field a row (user, 2026-10-10).
       let startBox = try #require(try await popover.locator(".date-picker-ends > *").first.boundingBox())
       let endBox = try #require(try await popover.locator(".date-picker-ends > *").last.boundingBox())

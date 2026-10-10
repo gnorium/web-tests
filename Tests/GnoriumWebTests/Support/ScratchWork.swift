@@ -69,7 +69,7 @@ struct ScratchWork {
         VALUES ('\(ids["folksong"]!)', '\(ids["submission"]!)', '\(sourceURL)', 'eng', 'pending', '\(title)', 'report', 'First edition', 1958, now());
       INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_folksong_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
         VALUES ('\(ids["overture"]!)', '\(ids["submission"]!)', '\(ids["folksong"]!)', '\(sourceURL)', 'eng', 'pending', '\(user)', now(), now());
-      INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, canvas_service_ids_json, processing_status, created_at, updated_at)
+      INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, resemblance_service_ids_json, processing_status, created_at, updated_at)
         VALUES ('\(ids["antiphon"]!)', '\(ids["overture"]!)', '\(user)', '[]', 'submitted', now(), now());
       INSERT INTO biblio_records (id, corpus_id, title, title_slug, type, language, genres, year, date_display, created_at, updated_at)
         VALUES ('\(ids["record"]!)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)',

@@ -14,7 +14,7 @@ import WebTestsTesting
 @Suite("Prompt preview filling", .serialized)
 struct PromptPreviewFillingTests {
   @Test(arguments: [BrowserEngine.chrome])
-  func aMadrigalsPromptsAreFilledForTheSelectedCanvas(engine: BrowserEngine) async throws {
+  func aMadrigalsPromptsAreFilledForTheSelectedResemblance(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let fixture = try await FixtureServer.threePageManifest()
@@ -60,7 +60,7 @@ struct PromptPreviewFillingTests {
 
         // Page 3, unexplicated: its explication prompt, the neighbor's edge
         // sentence filled as its session fills it, no slot left.
-        try await page.locator("#madrigal-canvases .roster-row .roster-label").nth(2).click()
+        try await page.locator("#madrigal-resemblances .roster-row .roster-label").nth(2).click()
         try await expect(page.locator("#artifact-page-input").first).toHaveValue("3")
         try await expect(explication, timeout: .seconds(20)).toContainText("Beta page sentence.")
         try await expect(explication).not.toContainText("Alpha page sentence.")
@@ -80,7 +80,7 @@ struct PromptPreviewFillingTests {
         #expect(slots == "", "slots left: \(slots)")
 
         // Page 2: Arbitration's prompt for it.
-        try await page.locator("#madrigal-canvases .roster-row .roster-label").nth(1).click()
+        try await page.locator("#madrigal-resemblances .roster-row .roster-label").nth(1).click()
         try await expect(page.locator("#artifact-page-input").first).toHaveValue("2")
         try await expect(arbitration, timeout: .seconds(20)).toContainText("Beta page sentence.")
         try await expect(arbitration).not.toContainText("Alpha page sentence.")

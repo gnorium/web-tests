@@ -378,7 +378,7 @@ struct SubmissionTests {
     try await handle.click()
     try await handle.press("ArrowRight")
     try await expect(tree.locator(".outliner-feedback .alert-content"))
-      .toHaveText("Nothing can go under a digitization: its canvases attest it.")
+      .toHaveText("Nothing can go under a digitization: its resemblances attest it.")
     try await handle.press("Escape")
     try await expect(number).toHaveText("1.2")
 

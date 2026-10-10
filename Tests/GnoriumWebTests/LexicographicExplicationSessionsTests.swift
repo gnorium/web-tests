@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// Explication is one session, on the first of the title's ranked clusters
 /// (user, 2026-09-29; one sentiment per object, 2026-10-10): the antiphon's
-/// page lists that one session ("The cluster · 2 quotations"), never its
+/// page lists that one session ("Concordance"), never its
 /// title's other candidates, shows its trace—each quotation read and
 /// assigned, its last words—and no processes.
 @Suite("Lexicographic explication sessions", .serialized)
@@ -70,7 +70,7 @@ struct LexicographicExplicationSessionsTests {
         try await expect(page.locator("a[href*='process=']")).toHaveCount(0)
         let process = page.locator(".process-container")
         try await expect(process).toHaveAttribute(
-          "data-item-order", "The cluster · 2 quotations")
+          "data-item-order", "Concordance")
         let session = page.locator(".computorium-session-view")
         try await expect(session.getByText("read_quotation").first).toBeAttached()
         try await expect(session.getByText("assign", exact: true).first).toBeAttached()

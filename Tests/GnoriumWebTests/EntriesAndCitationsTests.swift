@@ -35,7 +35,7 @@ struct EntriesAndCitationsTests {
   {
     (1...count).map { line in
       """
-      INSERT INTO citations (id, biblio_record_version_id, biblio_record_id, testament_id, permitted_at, canvas_id, page,
+      INSERT INTO citations (id, biblio_record_version_id, biblio_record_id, testament_id, permitted_at, resemblance_id, page,
         start_line, start_word, start_surface, end_line, end_word, end_surface, element, kind, surface, parts_json,
         language_code, status, cited_biblio_record_id, cited_lexico_record_id, resolved_at, created_at,
         entry_heading, entry_head)
@@ -51,7 +51,7 @@ struct EntriesAndCitationsTests {
   /// `canon`'s entry for a work or a word, headed `heading`, on page 3.
   static func entry(in canon: ScratchWork, heading: String, work: String? = nil, word: String? = nil) -> String {
     """
-    INSERT INTO entries (id, biblio_record_version_id, work_record_id, testament_id, permitted_at, canvas_id, page,
+    INSERT INTO entries (id, biblio_record_version_id, work_record_id, testament_id, permitted_at, resemblance_id, page,
       start_line, start_word, start_surface, end_line, end_word, end_surface, kind, heading, parts_json, language_code,
       status, lexico_record_id, biblio_record_id, resolved_at, created_at)
       VALUES (gen_random_uuid(), '\(canon.versionID.lowercased())', '\(canon.recordID.lowercased())',
@@ -121,7 +121,7 @@ struct EntriesAndCitationsTests {
         try await expect(row.locator("a[href='\(catalogPath)']")).toHaveCount(1)
         try await expect(row).toContainText("Catalog")
         try await expect(row).toContainText("WEB TESTS HEADING")
-        try await expect(row.locator("a[href='\(catalogPath)/vignettes/\(catalog.versionID)?canvas=2']")).toHaveCount(1)
+        try await expect(row.locator("a[href='\(catalogPath)/vignettes/\(catalog.versionID)?resemblance=2']")).toHaveCount(1)
         try await expect(row).not.toContainText("Canon")
         // The works citing it in running text, one row each with how many.
         let citations = page.locator("#record-citations")
@@ -304,9 +304,9 @@ struct EntriesAndCitationsTests {
         try await expect(bar).toBeHidden()
         try await viewer.locator(".testament-find-button").click()
         try await expect(bar).toBeVisible()
-        // The header is 40 and a 1px border, its controls small, 32, 4
-        // above and under them; the find bar's box small too, its text
-        // 16px, 12 at the sides; its buttons 32, their icons alone in
+        // The header is 56 and a 1px border, its controls medium, 40, 8
+        // above and under them (user, 2026-10-10); the find bar's box
+        // medium too, its text 16px; its buttons 40, their icons alone in
         // their boxes so at the row's 16, as every icon-only control.
         let small = try await viewer.evaluate(
           """
@@ -316,16 +316,15 @@ struct EntriesAndCitationsTests {
             const pager = viewer.querySelector('.artifact-page-nav');
             const buttons = [...bar.querySelectorAll('.testament-find-steps button')];
             const h = (e) => Math.round(e.getBoundingClientRect().height);
-            return h(row) === 40 && pager.classList.contains('pagination-size-small')
-              && h(pager.querySelector('.pagination-prev')) === 32
+            return h(row) === 56 && pager.classList.contains('pagination-size-medium')
+              && h(pager.querySelector('.pagination-prev')) === 40
               && getComputedStyle(pager.querySelector('.page-box')).fontSize === '16px'
-              && el.closest('.search-input-view').dataset.size === 'small'
-              && h(el) === 32 && css.fontSize === '16px'
-              && css.paddingInlineStart === '12px' && css.paddingInlineEnd === '12px'
-              && buttons.length === 2 && buttons.every(b => h(b) === 32)
+              && el.closest('.search-input-view').dataset.size === 'medium'
+              && h(el) === 40 && css.fontSize === '16px'
+              && buttons.length === 2 && buttons.every(b => h(b) === 40)
               && buttons.every(b => h(b.querySelector('svg')) === 16); }
           """).bool == true
-        #expect(small, "The header and its find bar are rows of small controls, their text and icons 16px")
+        #expect(small, "The header and its find bar are rows of medium controls, their text and icons 16px")
         try await bar.locator("input").fill("scratchfind")
         let count = bar.locator(".testament-find-count")
         // The word broken over two lines is found whole.

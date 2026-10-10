@@ -25,13 +25,13 @@ struct CommitTests {
         if (event.target.id !== 'commit-form' || event.defaultPrevented) return;
         event.preventDefault();
         const data = new FormData(event.target);
-        window.__commit = { process: data.get('process'), scope: data.get('scope'), canvases: data.getAll('canvas[]') };
+        window.__commit = { process: data.get('process'), scope: data.get('scope'), resemblances: data.getAll('resemblance[]') };
       });
       return true;
     })()
     """
 
-  struct Posted: Decodable { let process: String; let scope: String?; let canvases: [String] }
+  struct Posted: Decodable { let process: String; let scope: String?; let resemblances: [String] }
 
   static func posted(_ page: Page) async throws -> Posted? {
     let json = try await page.evaluate("JSON.stringify(window.__commit)", as: String.self)
@@ -71,7 +71,7 @@ struct CommitTests {
           .toHaveTexts(["Revise", "Commit", "Delete"])
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_explication")
         try await expect(page.locator(".commit-view input[name='scope']")).toHaveCount(0)
-        let roster = page.locator(".overture-canvases").first
+        let roster = page.locator(".overture-resemblances").first
         try await expect(roster.locator(".roster-row"), timeout: .seconds(20)).toHaveCount(3)
         #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
         // Nothing ticked: refused under the roster, never sent.
@@ -81,14 +81,14 @@ struct CommitTests {
         #expect(try await Self.posted(page) == nil, "an empty commit was sent")
         // A tick clears it, and Commit posts that item.
         _ = try await page.evaluate(
-          "(() => { document.querySelectorAll(\".overture-canvases input[name='canvas[]']\")[1].click(); return true })()",
+          "(() => { document.querySelectorAll(\".overture-resemblances input[name='resemblance[]']\")[1].click(); return true })()",
           as: Bool.self)
         try await expect(page.locator(".field-validation-message-view")).toHaveCount(0)
         try await page.locator(".commit-trigger").click()
         let one = try #require(try await Self.posted(page))
         #expect(one.process == "bibliographic_explication")
         #expect(one.scope == nil)
-        #expect(one.canvases == ["\(fixture.baseURL)/page-2"])
+        #expect(one.resemblances == ["\(fixture.baseURL)/page-2"])
         try await page.expectNoErrors()
 
         // A madrigal with a page unexplicated: explication, its explicated
@@ -102,7 +102,7 @@ struct CommitTests {
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Commit", "Permit"])
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_explication")
-        let rows = page.locator("#madrigal-canvases").first.locator(".roster-row")
+        let rows = page.locator("#madrigal-resemblances").first.locator(".roster-row")
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(2)).toHaveAttribute("data-locked", "false")
 
@@ -121,12 +121,12 @@ struct CommitTests {
           .toContainText("Tick the evidence items this commit sends to translation.")
         #expect(try await Self.posted(page) == nil)
         _ = try await page.evaluate(
-          "(() => { document.querySelectorAll(\"#madrigal-canvases input[name='canvas[]']\")[0].click(); return true })()",
+          "(() => { document.querySelectorAll(\"#madrigal-resemblances input[name='resemblance[]']\")[0].click(); return true })()",
           as: Bool.self)
         try await page.locator(".commit-trigger").click()
         let translation = try #require(try await Self.posted(page))
         #expect(translation.process == "bibliographic_translation")
-        #expect(translation.canvases == ["\(fixture.baseURL)/page-1"])
+        #expect(translation.resemblances == ["\(fixture.baseURL)/page-1"])
 
         // English and every page explicated: nothing to commit for.
         _ = try TestAdmin.query("""

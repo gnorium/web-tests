@@ -11,10 +11,10 @@ import WebTestsTesting
 /// are a throwaway admin, a scratch testament and a scratch word.
 @Suite("Significance", .serialized)
 struct SignificanceTests {
-  static func anchor(versionID: String, recordID: String, canvas: String, page: Int, line: Int, word: Int, surface: String)
+  static func anchor(versionID: String, recordID: String, resemblance: String, page: Int, line: Int, word: Int, surface: String)
     -> String
   {
-    #"{"biblioRecordID":"\#(recordID)","canvasID":"\#(canvas)","end":{"line":\#(line),"surface":"\#(surface)","word":\#(word)},"id":"u-\#(page)-\#(line)-\#(word)","page":\#(page),"start":{"line":\#(line),"surface":"\#(surface)","word":\#(word)},"versionID":"\#(versionID)"}"#
+    #"{"biblioRecordID":"\#(recordID)","resemblanceID":"\#(resemblance)","end":{"line":\#(line),"surface":"\#(surface)","word":\#(word)},"id":"u-\#(page)-\#(line)-\#(word)","page":\#(page),"start":{"line":\#(line),"surface":"\#(surface)","word":\#(word)},"versionID":"\#(versionID)"}"#
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
@@ -35,28 +35,28 @@ struct SignificanceTests {
     do {
       let scratch = try ScratchTestament(owner: admin, tei: QuotationTests.tei)
       testament = scratch
-      let canvas = "https://example.org/iiif/webtests-p3"
+      let resemblance = "https://example.org/iiif/webtests-p3"
       let scratchWord = try ScratchWord(
         owner: admin,
         anchor: .init(
           recordID: scratch.reading.work.recordID, versionID: scratch.versionID,
-          canvasID: canvas, page: 3, line: 3, word: 3, surface: "scratchword"))
+          resemblanceID: resemblance, page: 3, line: 3, word: 3, surface: "scratchword"))
       word = scratchWord
       let chosen = Self.anchor(
-        versionID: scratch.versionID, recordID: scratch.reading.work.recordID, canvas: canvas, page: 3, line: 3,
+        versionID: scratch.versionID, recordID: scratch.reading.work.recordID, resemblance: resemblance, page: 3, line: 3,
         word: 3, surface: "scratchword")
       let plain = Self.anchor(
         versionID: scratch.versionID, recordID: scratch.reading.work.recordID,
-        canvas: "https://example.org/iiif/webtests-p1", page: 1, line: 1, word: 1, surface: "Page")
+        resemblance: "https://example.org/iiif/webtests-p1", page: 1, line: 1, word: 1, surface: "Page")
       let density = #"{"content_lemmas":["begin"],"contrast_markers":0,"density_version":"tei-sentence-density-v1","emphasis":0,"figurative":0,"title_emphasized":false,"title_frames":["term"],"lexical_density":0.5,"metalinguistic":{"gloss":0,"mentioned":0,"soCalled":0,"term":1},"nominalizations":0,"rarity_max":1.25,"rarity_mean":1.25,"sentence_type":"definition","subordination":0,"uncertain_lemmas":0}"#
       _ = try TestAdmin.query(
         """
-        INSERT INTO significance_selections (id, language_code, title, type, forms_json, anchor_json, version_id, canvas_id,
+        INSERT INTO significance_selections (id, language_code, title, type, forms_json, anchor_json, version_id, resemblance_id,
           start_line, start_word, end_line, end_word, text, dated_year, density_json, reasons_json, new_collocates_json,
           stale, computed_at)
         VALUES
           ('\(UUID().uuidString.lowercased())', 'eng', '\(scratchWord.title)', 'noun', '[]', '\(chosen)',
-            '\(scratch.versionID.lowercased())', '\(canvas)', 3, 3, 3, 3, 'Here the scratchword begins', 1901,
+            '\(scratch.versionID.lowercased())', '\(resemblance)', 3, 3, 3, 3, 'Here the scratchword begins', 1901,
             '\(density)', '["definition","term","earliest"]', '["begin"]', false, now()),
           ('\(UUID().uuidString.lowercased())', 'eng', '\(scratchWord.title)', 'noun', '[]', '\(plain)',
             '\(scratch.versionID.lowercased())', 'https://example.org/iiif/webtests-p1', 1, 1, 1, 1,
