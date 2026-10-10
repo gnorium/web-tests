@@ -293,7 +293,21 @@ enum InjectedScript {
         if (error) return error;
         if (!isVisible(el)) return { status: 'notVisible', detail: describe(el) + ' is not visible (' + hiddenReason(el) + ')' };
         let first = box(el);
-        if (first.y < 0 || first.x < 0 || first.y + first.height > innerHeight || first.x + first.width > innerWidth) {
+        // As Playwright's scrollIntoViewIfNeeded: scrolled when outside the
+        // viewport, and when a scrolling ancestor (an open dropdown's option
+        // list) clips its center, every scroller on the way scrolled with it.
+        const clipped = () => {
+          const cx = first.x + first.width / 2, cy = first.y + first.height / 2;
+          for (let p = el.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
+            const style = getComputedStyle(p);
+            if (!/(auto|scroll)/.test(style.overflowX + ' ' + style.overflowY)) continue;
+            const r = p.getBoundingClientRect();
+            const left = r.left + p.clientLeft, top = r.top + p.clientTop;
+            if (cx < left || cx >= left + p.clientWidth || cy < top || cy >= top + p.clientHeight) return true;
+          }
+          return false;
+        };
+        if (first.y < 0 || first.x < 0 || first.y + first.height > innerHeight || first.x + first.width > innerWidth || clipped()) {
           el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
           first = box(el);
         }

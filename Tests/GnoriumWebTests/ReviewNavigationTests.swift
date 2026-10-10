@@ -21,7 +21,7 @@ struct ReviewNavigationTests {
     }.joined(separator: ",")
     _ = try TestAdmin.query("""
       INSERT INTO prompt_vignettes
-        (id, hash, process, system_prompt, task_prompt, is_proprietary_content, created_at,
+        (id, hash, slot, system_prompt, task_prompt, is_proprietary_content, created_at,
          committed_object_type, committed_object_id, committed_by_user_id, committed_at)
       VALUES \(values);
       """)

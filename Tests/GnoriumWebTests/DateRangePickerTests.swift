@@ -63,11 +63,19 @@ struct DateRangePickerTests {
       let gridBox = try #require(try await popover.locator(".date-picker-grid").boundingBox())
       if layout == .phone {
         #expect(presetsBox.maxY <= gridBox.minY + 1, "presets above the calendar on a phone")
+        // One preset a row there too (user, 2026-10-10).
+        let firstPreset = try #require(try await presets.first.boundingBox())
+        let secondPreset = try #require(try await presets.nth(1).boundingBox())
+        #expect(firstPreset.maxY <= secondPreset.minY + 1, "presets side by side on a phone: \(firstPreset), \(secondPreset)")
       } else {
         #expect(presetsBox.maxX <= gridBox.minX + 1, "presets left of the calendar")
       }
       let popoverBox = try #require(try await popover.boundingBox())
       #expect(popoverBox.minX >= 0 && popoverBox.maxX <= Double(viewport.width), "the popover runs off screen: \(popoverBox)")
+      // Date start over Date end, one field a row (user, 2026-10-10).
+      let startBox = try #require(try await popover.locator(".date-picker-ends > *").first.boundingBox())
+      let endBox = try #require(try await popover.locator(".date-picker-ends > *").last.boundingBox())
+      #expect(startBox.maxY <= endBox.minY + 1, "Date start is not over Date end: \(startBox), \(endBox)")
 
       // A preset selects its days, through the reader's today, and stays
       // relative.

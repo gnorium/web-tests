@@ -90,6 +90,13 @@ struct TimeInputTests {
       try await expect(popover).toBeVisible()
       let popoverBox = try #require(try await popover.boundingBox())
       #expect(popoverBox.minX >= 0 && popoverBox.maxX <= Double(viewport.width), "the popover runs off screen: \(popoverBox)")
+      // Always under the field, as a dropdown opens (user, 2026-10-10).
+      let fieldBox = try #require(try await field.boundingBox())
+      #expect(popoverBox.minY >= fieldBox.maxY, "the popover opens over the field: \(popoverBox), field \(fieldBox)")
+      // Time start over Time end, one a row (user, 2026-10-10).
+      let startBox = try #require(try await popover.locator(".time-input-parts > *").first.boundingBox())
+      let endBox = try #require(try await popover.locator(".time-input-parts > *").last.boundingBox())
+      #expect(startBox.maxY <= endBox.minY + 1, "Time start is not over Time end: \(startBox), \(endBox)")
       try await popover.getByRole(.button, name: "Reset").click()
       try await expect(value).toHaveValue("")
       try await expect(field).toHaveValue("")

@@ -57,6 +57,9 @@ struct DatePickerTests {
       let popoverBox = try #require(try await popover.boundingBox())
       #expect(popoverBox.minX >= 0 && popoverBox.maxX <= Double(viewport.width), "the popover runs off screen: \(popoverBox)")
       #expect(popoverBox.minY >= 0, "the popover runs off the top: \(popoverBox)")
+      // Always under the field, as a dropdown opens (user, 2026-10-10).
+      let fieldBox = try #require(try await field.boundingBox())
+      #expect(popoverBox.minY >= fieldBox.maxY, "the popover opens over the field: \(popoverBox), field \(fieldBox)")
 
       // Keyboard: the focused day is today, the reader's; right a day and
       // Enter starts the range there, open at its end; right again and
