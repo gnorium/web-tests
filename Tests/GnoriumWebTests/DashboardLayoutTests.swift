@@ -127,6 +127,18 @@ struct DashboardLayoutTests {
           return [a.fontFamily===b.fontFamily && !a.fontFamily.includes('Mono'), a.fontSize===b.fontSize, a.color===b.color].join(' ');})()
         """, as: String.self)
       #expect(model == "true true true", "The telemetry model matches its neighbors: \(model)")
+      // A claimed worker's running mark is blue, as every running mark is
+      // (the roster's running sector), never the text color it would inherit.
+      try await expect(page.locator(".mission-control-dashboard-live-telemetry-worker")).toContainText("1 claimed")
+      let mark = try await page.evaluate("""
+        (()=>{const s=document.querySelector('.mission-control-dashboard-live-telemetry-worker .rotating-sector-view');
+          if(!s) return 'no mark';
+          const probe=document.createElement('span');probe.style.color='var(--color-blue)';document.body.appendChild(probe);
+          const blue=getComputedStyle(probe).color;probe.remove();
+          const text=getComputedStyle(s.parentElement).color;
+          return getComputedStyle(s).color===blue && blue!==text ? 'blue' : getComputedStyle(s).color+' vs '+blue;})()
+        """, as: String.self)
+      #expect(mark == "blue", "The worker's running mark is the running blue: \(mark)")
       try await page.expectNoHorizontalOverflow()
       try await page.expectNoErrors()
       try await page.openHydrated("/\(workerName)")

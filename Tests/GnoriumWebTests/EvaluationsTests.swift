@@ -52,14 +52,14 @@ struct EvaluationsTests {
       INSERT INTO evaluation_datasets (id, name, version, title, task, provenance, license, item_count, dataset_json)
         VALUES ('\(datasetID)', '\(name)', '1', 'Web test set \(name)', 'bibliographic-explication',
           'Machine-assisted: pending human review.', 'CC-BY-SA-4.0', 1, '\(sql(document))');
-      INSERT INTO evaluation_runs (id, evaluation_dataset_id, pipeline, provider, model, prompt_version, label, code_json,
+      INSERT INTO evaluation_runs (id, evaluation_dataset_id, process, provider, model, prompt_version, label, code_json,
           settings_json, metrics_json, items_json, notes, total_cost_usd, input_tokens, output_tokens, reasoning_tokens,
           cached_tokens, started_at, finished_at)
         VALUES ('\(runID)', '\(datasetID)', 'bibliographic_explication', 'deepseek', 'deepseek-flash', 'webtest', 'Web test run',
           '{"gnorium-server": "webtest"}', '{}',
           '\(sql(#"{"overall": \#(metrics), "groups": [{"language": "en", "script": "Latn", "direction": "ltr", "metrics": \#(metrics)}]}"#))',
           '\(sql("[\(result)]"))', '', 0.05, 1000, 100, 50, 800, now() - interval '10 minutes', now());
-      INSERT INTO model_calls (id, pipeline, stage, provider, model, input_tokens, output_tokens, latency_ms, started_at,
+      INSERT INTO model_calls (id, process, process, provider, model, input_tokens, output_tokens, latency_ms, started_at,
           finished_at, cost_usd, evaluation_run_id)
         VALUES (gen_random_uuid(), 'bibliographic_explication', 'explication', 'deepseek', 'deepseek-flash', 1000, 100, 1000,
           now() - interval '10 minutes', now() - interval '9 minutes', 0.05, '\(runID)');

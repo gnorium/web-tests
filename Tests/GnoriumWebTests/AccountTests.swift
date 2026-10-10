@@ -51,9 +51,9 @@ struct AccountTests {
         try await expect(links.locator("a[href='/account/profile']")).toHaveCount(0)
         try await expect(links.locator("a[href='/account/password']")).toHaveText("Password")
         try await expect(links.locator("a[href='/account/delete']")).toContainText("Delete Account")
-        try await expect(links.locator("a[href='/admin-console/mfa/setup']")).toHaveCount(asAdmin ? 1 : 0)
+        try await expect(links.locator("a[href='/admin-console/authentication/setup']")).toHaveCount(asAdmin ? 1 : 0)
         if asAdmin {
-          try await expect(links.locator("a[href='/admin-console/mfa/setup']")).toHaveText("Authentication")
+          try await expect(links.locator("a[href='/admin-console/authentication/setup']")).toHaveText("Authentication")
         }
         try await expect(links.locator("a[href='/admin-console']")).toHaveCount(asAdmin ? 1 : 0)
         try await expect(links.locator("form[action='/auth/sign-out']")).toHaveCount(0)

@@ -8,7 +8,7 @@ import WebTestsTesting
 /// Type), then the tree with the new sentiment alone, open, its fields in
 /// its Metadata (its Form rows, Label, the Grammar, Register, Domain,
 /// Region and Currency usage). No card, no placement widget. No quotation
-/// is cited, nothing is derived and no passage coins the word: the pipeline
+/// is cited, nothing is derived and no passage coins the word: the process
 /// finds the quotations by the title and the forms. A region is offered
 /// under its language. A picked lexico-record stands with its own fields,
 /// its tree in the tree section, and stays chosen; unset, the typed fields
@@ -16,7 +16,7 @@ import WebTestsTesting
 /// submits).
 @Suite("Sentiment form", .serialized)
 struct SentimentFormTests {
-  static let path = "/mission-control/submit/lexicographic/evidence-sentiment"
+  static let path = "/mission-control/submit/lexicographic/sentiment"
 
   @Test(arguments: gnorium.engines, Layout.allCases)
   func theRecordThenTheSentiment(engine: BrowserEngine, layout: Layout) async throws {

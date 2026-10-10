@@ -16,8 +16,8 @@ import WebTestsTesting
 @Suite("Fieldset spacing", .serialized)
 struct FieldsetSpacingTests {
   static let forms = [
-    "/mission-control/submit/bibliographic/evidence-testament",
-    "/mission-control/submit/lexicographic/evidence-sentiment",
+    "/mission-control/submit/bibliographic/testament",
+    "/mission-control/submit/lexicographic/sentiment",
     // A label field's label (FieldView, not a fieldset).
     "/account/password",
   ]

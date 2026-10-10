@@ -25,7 +25,7 @@ import WebTestsTesting
 /// `GNORIUM_SCREENSHOT_DIR` set, it saves what it sees there.
 @Suite("Testament levels")
 struct TestamentLevelsTests {
-  static let form = "/mission-control/submit/bibliographic/evidence-testament"
+  static let form = "/mission-control/submit/bibliographic/testament"
 
   @Test(arguments: gnorium.engines, Layout.allCases)
   func theWorkThenItsLevels(engine: BrowserEngine, layout: Layout) async throws {

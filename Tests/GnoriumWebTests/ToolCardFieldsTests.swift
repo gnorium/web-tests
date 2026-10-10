@@ -28,7 +28,7 @@ struct ToolCardFieldsTests {
   static let stub =
     #"{"ok": true, "tool": "read_conventions", "compacted": true, "note": "Stubbed; call again."}"#
   static let usage =
-    #"[{"stage":"explication","call_id":"model_1","provider":"DeepSeek","model":"deepseek-flash","input_tokens":23172,"output_tokens":1381,"reasoning_tokens":1241,"cost_usd":0.05463,"latency_ms":30312.5,"started_at":1,"finished_at":2}]"#
+    #"[{"process":"explication","call_id":"model_1","provider":"DeepSeek","model":"deepseek-flash","input_tokens":23172,"output_tokens":1381,"reasoning_tokens":1241,"cost_usd":0.05463,"latency_ms":30312.5,"started_at":1,"finished_at":2}]"#
 
   /// Each datum of the card as `depth|label=value`, a group's value `{}`.
   static func signature(_ id: String) -> String {
@@ -109,7 +109,7 @@ struct ToolCardFieldsTests {
     func cleanUp() {
       try? FileManager.default.removeItem(at: file)
       _ = try? TestAdmin.query(
-        "DELETE FROM bibliographic_explication_stage_runs WHERE id='\(runID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
+        "DELETE FROM bibliographic_explication_runs WHERE id='\(runID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
       work.remove()
     }
     do {
@@ -123,7 +123,7 @@ struct ToolCardFieldsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, canvas_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_stage_runs (id, submission_id, stage, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_runs (id, submission_id, process, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(), '\(antiphonID)', 1200, now());
         COMMIT;

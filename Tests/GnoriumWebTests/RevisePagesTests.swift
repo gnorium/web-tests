@@ -63,8 +63,8 @@ struct RevisePagesTests {
         let viewer = page.locator(".revise-bibliographic-object .artifact-view")
         try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
         try await expect(viewer.locator("#artifact-page-input")).toHaveValue("3")
-        try await expect(viewer.locator(".tei-transcript[data-active='true']")).toHaveAttribute("data-service-id", services[2])
-        try await expect(viewer.locator(".tei-transcript[data-active='true'] .tei-page-edit textarea")).toHaveCount(1)
+        try await expect(viewer.locator(".tei-page[data-active='true']")).toHaveAttribute("data-service-id", services[2])
+        try await expect(viewer.locator(".tei-page[data-active='true'] .tei-page-edit textarea")).toHaveCount(1)
         // The way back names the canvas on screen, and follows the pager.
         let back = page.locator(".breadcrumb-link[href='\(objectURL)?canvas=2']")
         try await expect(back).toHaveCount(1)
@@ -255,7 +255,7 @@ struct RevisePagesTests {
               return style.borderTopStyle !== 'none' || style.outlineStyle !== 'none'
             })
             const viewer = document.querySelector('.artifact-view')
-            const markup = viewer.querySelector('.artifact-transcript')
+            const markup = viewer.querySelector('.artifact-markup')
             const pager = viewer.querySelector('.artifact-page-nav input')
             if (markup.dataset.diffState !== 'changed') return `markup ${markup.dataset.diffState}`
             if (viewer.dataset.diffState || (pager && pager.dataset.diffState)) return 'card or pager ringed'
@@ -277,7 +277,7 @@ struct RevisePagesTests {
             probe.style.borderColor = 'var(--border-color-orange)'
             const orange = getComputedStyle(probe).borderTopColor; probe.remove()
             const card = document.querySelector('.artifact-view')
-            const pane = card.querySelector('.artifact-transcript')
+            const pane = card.querySelector('.artifact-markup')
             const style = getComputedStyle(pane)
             for (const side of ['Top', 'Right', 'Bottom', 'Left']) {
               if (style['border' + side + 'Style'] !== 'solid') return side + ' border ' + style['border' + side + 'Style']
@@ -294,7 +294,7 @@ struct RevisePagesTests {
             const view = pane.querySelector('.tei-view')
             const inner = getComputedStyle(view)
             if (inner.paddingLeft !== '1px' || inner.paddingTop !== '1px') return 'view inset ' + inner.padding
-            const text = getComputedStyle(view.querySelector("[data-transcript-layer='rendered']"))
+            const text = getComputedStyle(view.querySelector("[data-layer='rendering']"))
             if (text.paddingLeft !== '16px' || text.paddingTop !== '16px') return 'text inset ' + text.padding
             if (!flush(view.getBoundingClientRect().left, b.left + 1)) return 'view ' + (view.getBoundingClientRect().left - b.left)
             return 'ok ' + card.dataset.canvasShown
@@ -322,7 +322,7 @@ struct RevisePagesTests {
 
         // Accepted from the thread, back at its locution.
         try await page.openHydrated(commit.madrigalPath)
-        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+        try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         // The madrigal's Evidence roster marks explication (user,
         // 2026-10-09): a first reading's pages green discs, markup added;
@@ -424,7 +424,7 @@ struct RevisePagesTests {
         try await expect(page.locator(".prompt-change-view .diff-view")).toHaveCount(2)
         try await page.locator("button[form='revision-accept']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the object at its revision", where: Self.atLocution(work.madrigalPath))
-        let auto = page.locator("#prompt-instance-autocompaction-arbitration")
+        let auto = page.locator("#prompt-preview-autocompaction-arbitration")
         try await expect(auto, timeout: .seconds(20)).toHaveCount(1)
         try await expect(auto.locator(".prompt-text-source").nth(0)).toContainText("Web tests summarizer system.")
         try await expect(auto.locator(".prompt-text-source").nth(1)).toContainText("Web tests summarizer task.")
@@ -495,7 +495,7 @@ struct RevisePagesTests {
             const response = await fetch('\(commit.madrigalPath)', { headers: { Accept: 'text/html' } })
             const html = await response.text()
             const source = new DOMParser().parseFromString(html, 'text/html')
-              .querySelector('.prompt-instances-view')?.dataset.sourceUrl
+              .querySelector('.prompt-previews-view')?.dataset.sourceUrl
             if (!source) return 'no prompts section'
             const fragment = await fetch(source, { headers: { Accept: 'text/html' } })
             return fragment.headers.get('Link') ?? 'none'
@@ -627,7 +627,7 @@ struct RevisePagesTests {
           .toHaveText("Sentiment 1.1 Register")
         try await Self.expectChangedLinksLand(page, revision: id, on: revisionPath)
         try await page.openHydrated(madrigalPath)
-        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+        try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         try await page.expectNoErrors()
         try await event.locator("form[action$='/accept'] button").click()
@@ -682,7 +682,7 @@ struct RevisePagesTests {
         ).toHaveCount(1)
         try await Self.expectChangedLinksLand(page, revision: epilogueRevision, on: epilogueRevisionPath)
         try await page.openHydrated(epiloguePath)
-        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+        try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         try await event.locator("form[action$='/accept'] button").click()
         try await expect(page, timeout: .seconds(15))

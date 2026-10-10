@@ -20,7 +20,7 @@ import WebTestsTesting
 /// what it Contains. A throwaway admin owns two scratch works, removed after.
 @Suite("Carrier", .serialized)
 struct CarrierTests {
-  static let form = "/mission-control/submit/bibliographic/evidence-testament"
+  static let form = "/mission-control/submit/bibliographic/testament"
 
   @Test(arguments: gnorium.engines, Layout.allCases)
   func theCarrierShowsItsEventAndTheContainerItsHost(engine: BrowserEngine, layout: Layout) async throws {

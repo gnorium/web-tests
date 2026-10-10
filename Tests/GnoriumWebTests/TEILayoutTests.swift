@@ -122,7 +122,7 @@ struct TEILayoutTests {
         // the rendered text's inset is its layer's 16.
         try await expect(view).toHaveCSS("padding-top", "1px")
         try await expect(view).toHaveCSS("padding-left", "1px")
-        try await expect(page.locator(".tei-page-text[data-transcript-layer='rendered']").first)
+        try await expect(page.locator(".tei-page-text[data-layer='rendering']").first)
           .toHaveCSS("padding-left", "16px")
         let line = page.locator(".tei-page-text").first
         let abbreviation = line.locator(".tei-run-alternative").first
@@ -145,7 +145,7 @@ struct TEILayoutTests {
         let inset = try await code.evaluate(
           """
           el => {
-            const pane = el.closest('.artifact-transcript');
+            const pane = el.closest('.artifact-markup');
             const view = el.closest('.tei-view');
             const box = el.getBoundingClientRect(), p = pane.getBoundingClientRect(), v = view.getBoundingClientRect();
             return [box.left - v.left, box.top - v.top, v.left - (p.left + pane.clientLeft)];

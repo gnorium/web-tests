@@ -3,7 +3,7 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// An explication is one stage, the pipeline's own (user, 2026-09-29): no
+/// An explication is one process, the process's own (user, 2026-09-29): no
 /// Sight, Proof or Vouch cards, and one session a chunk of pages—never a
 /// row a page—whose trace shows the tool calls it read and saved with.
 @Suite("Bibliographic explication sessions", .serialized)
@@ -11,7 +11,7 @@ struct BibliographicExplicationSessionsTests {
   static let page = #"<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><pb n="1"/><p><s><w lemma="sea" type="noun">sea</w></s><lb/></p></body></text></TEI>"#
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aBibliographicExplicationShowsItsChunkSessionsAndNoStages(engine: BrowserEngine, layout: Layout) async throws {
+  func aBibliographicExplicationShowsItsChunkSessionsAndNoProcesses(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -45,7 +45,7 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, canvas_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_stage_runs (id, submission_id, stage, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_runs (id, submission_id, process, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)',
             (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1–2', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),
@@ -55,15 +55,15 @@ struct BibliographicExplicationSessionsTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)")
         try await ComputoriumMarks.check(page, process: "explication")
-        // No stage cards: the stage is the pipeline's name.
-        try await expect(page.locator(".stages-view")).toHaveCount(0)
-        try await expect(page.getByText("Stages", exact: true)).toHaveCount(0)
-        try await expect(page.locator("a[href*='stage=']")).toHaveCount(0)
-        try await expect(page.locator(".pipeline-container")).toHaveAttribute("data-active-stage", "explication")
+        // No process cards: the process is the process's name.
+        try await expect(page.locator(".processes-view")).toHaveCount(0)
+        try await expect(page.getByText("Processes", exact: true)).toHaveCount(0)
+        try await expect(page.locator("a[href*='process=']")).toHaveCount(0)
+        try await expect(page.locator(".process-container")).toHaveAttribute("data-active-process", "explication")
         // One session for the chunk, not a row for each of its pages (the
         // sidebar is drawn twice, for wide screens and the phone's menu).
         // The roster is Evidence, as the Disputorium's (user, 2026-10-09).
-        try await expect(page.locator(".computorium-core-sidebar-stages-heading").first).toHaveText("Evidence")
+        try await expect(page.locator(".computorium-core-sidebar-processes-heading").first).toHaveText("Evidence")
         let rows = page.locator(".computorium-core-sessions-slot").first.locator(".roster-row")
         try await expect(rows).toHaveCount(1)
         try await expect(rows.first).toHaveAttribute("data-computorium-session-label", "1–2")
@@ -202,7 +202,7 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, canvas_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_stage_runs (id, submission_id, stage, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_runs (id, submission_id, process, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)',
             (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),
@@ -280,17 +280,17 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, canvas_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_stage_runs
-          (id, submission_id, stage, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_runs
+          (id, submission_id, process, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 2, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(), '\(antiphonID)', 3000, now());
-        INSERT INTO bibliographic_explication_stage_runs
-          (id, submission_id, stage, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_runs
+          (id, submission_id, process, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(failedRunID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '[{"type":"thinking","content":"Historical partial thought."}]',
             'failed', gen_random_uuid(), '\(antiphonID)', 500, now() - interval '1 second');
-        INSERT INTO bibliographic_explication_stage_runs
-          (id, submission_id, stage, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_runs
+          (id, submission_id, process, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(otherRunID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '2', 1, 'DeepSeek', 'deepseek-flash', 'Another finished session.', 'passed', gen_random_uuid(), '\(antiphonID)', 100, now());
         COMMIT;
@@ -375,11 +375,11 @@ struct BibliographicExplicationSessionsTests {
         try await page.expectNoErrors()
       }
     } catch {
-      _ = try? TestAdmin.query("DELETE FROM bibliographic_explication_stage_runs WHERE id IN ('\(otherRunID)', '\(failedRunID)')")
+      _ = try? TestAdmin.query("DELETE FROM bibliographic_explication_runs WHERE id IN ('\(otherRunID)', '\(failedRunID)')")
       remove(runID: runID, antiphonID: antiphonID, work: work)
       try await admin.remove(after: error)
     }
-    _ = try? TestAdmin.query("DELETE FROM bibliographic_explication_stage_runs WHERE id IN ('\(otherRunID)', '\(failedRunID)')")
+    _ = try? TestAdmin.query("DELETE FROM bibliographic_explication_runs WHERE id IN ('\(otherRunID)', '\(failedRunID)')")
     remove(runID: runID, antiphonID: antiphonID, work: work)
     try await admin.remove()
   }
@@ -398,22 +398,22 @@ struct BibliographicExplicationSessionsTests {
     let runIDs = (0..<3).map { _ in UUID().uuidString.lowercased() }
     func cleanup() {
       _ = try? TestAdmin.query(
-        "DELETE FROM bibliographic_explication_stage_runs WHERE bibliographic_antiphon_id = '\(antiphonID)'")
+        "DELETE FROM bibliographic_explication_runs WHERE bibliographic_antiphon_id = '\(antiphonID)'")
       remove(runID: runIDs[0], antiphonID: antiphonID, work: work)
     }
     do {
       let user = try admin.column("id")
       let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())')"
-      let columns = "(id, submission_id, stage, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)"
+      let columns = "(id, submission_id, process, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)"
       _ = try TestAdmin.query("""
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, canvas_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_stage_runs \(columns)
+        INSERT INTO bibliographic_explication_runs \(columns)
           VALUES ('\(runIDs[0])', \(batch), 'explication', '1', 2, 'DeepSeek', 'deepseek-flash', 'The second attempt.', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now());
-        INSERT INTO bibliographic_explication_stage_runs \(columns)
+        INSERT INTO bibliographic_explication_runs \(columns)
           VALUES ('\(runIDs[1])', \(batch), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'The first attempt.', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now() - interval '1 second');
-        INSERT INTO bibliographic_explication_stage_runs \(columns)
+        INSERT INTO bibliographic_explication_runs \(columns)
           VALUES ('\(runIDs[2])', \(batch), 'explication', '2', 1, 'DeepSeek', 'deepseek-flash', 'Another page.', 'passed', gen_random_uuid(), '\(antiphonID)', 100, now());
         COMMIT;
         """)
@@ -469,11 +469,88 @@ struct BibliographicExplicationSessionsTests {
     try await admin.remove()
   }
 
+  /// A session's task prompt is the one it sent, filled—its canvas, its
+  /// neighbors, its conventions—as its trace recorded it (user,
+  /// 2026-10-10), never the template's slots; a run from before the trace
+  /// recorded it shows its vignette's template, as it always has.
+  @Test(arguments: [BrowserEngine.chrome])
+  func aSessionShowsTheTaskPromptItSent(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let work = try ScratchWork(owner: admin)
+    let antiphonID = UUID().uuidString.lowercased()
+    let runIDs = (0..<2).map { _ in UUID().uuidString.lowercased() }
+    func cleanup() {
+      _ = try? TestAdmin.query(
+        "DELETE FROM bibliographic_explication_runs WHERE bibliographic_antiphon_id = '\(antiphonID)'")
+      remove(runID: runIDs[0], antiphonID: antiphonID, work: work)
+    }
+    do {
+      let user = try admin.column("id")
+      let vignette = try TestAdmin.query(
+        "SELECT vignette_id FROM active_prompt_vignettes WHERE slot = 'bibliographic_explication'"
+      ).trimmingCharacters(in: .whitespacesAndNewlines)
+      let template = try TestAdmin.query("SELECT task_prompt FROM prompt_vignettes WHERE id = '\(vignette)'")
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+      let sent = "Transcribe the canvas \"1\", shown above, exactly as it appears on its surface.\n\nThe last sentence of the image before: none (this is the witness's first canvas image)"
+      func output(_ blocks: [[String: String]]) throws -> String {
+        String(decoding: try JSONSerialization.data(withJSONObject: blocks), as: UTF8.self)
+          .replacingOccurrences(of: "'", with: "''")
+      }
+      let recorded = try output([
+        ["type": "image_url", "content": "https://example.org/iiif/web-tests/full/1300,/0/default.jpg"],
+        ["type": "task_prompt_instance", "content": sent, "system_prompt": "Read the canvas as sent.", "template_id": vignette.uppercased()],
+        ["type": "text", "content": "Saved."],
+      ])
+      let old = try output([
+        ["type": "image_url", "content": "https://example.org/iiif/web-tests/full/1300,/0/default.jpg"],
+        ["type": "text", "content": "Saved."],
+      ])
+      let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())')"
+      let columns = "(id, submission_id, process, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, prompt_vignette_id, created_at)"
+      _ = try TestAdmin.query("""
+        BEGIN;
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, canvas_service_ids_json, processing_status)
+          VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
+        INSERT INTO bibliographic_explication_runs \(columns)
+          VALUES ('\(runIDs[0])', \(batch), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '\(recorded)', 'passed', gen_random_uuid(), '\(antiphonID)', 300, '\(vignette)', now());
+        INSERT INTO bibliographic_explication_runs \(columns)
+          VALUES ('\(runIDs[1])', \(batch), 'explication', '2', 1, 'DeepSeek', 'deepseek-flash', '\(old)', 'passed', gen_random_uuid(), '\(antiphonID)', 300, '\(vignette)', now());
+        COMMIT;
+        """)
+      let task = ".computorium-session-view .computorium-session-task-fieldset .computorium-session-prompt-body"
+      let system = ".computorium-session-view .computorium-session-prompt-fieldset:not(.computorium-session-task-fieldset) .computorium-session-prompt-body"
+      try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?canvas=1")
+        let shown = try await page.evaluate("document.querySelector('\(task)')?.textContent ?? ''", as: String.self)
+        #expect(shown == sent, "The task prompt as sent: \(shown)")
+        #expect(!shown.contains("{"), "No slot is left in the task prompt: \(shown)")
+        try await expect(page.locator(".computorium-session-view .computorium-session-task-fieldset .computorium-session-prompt-legend-title"))
+          .toHaveText("Task prompt")
+        let systemShown = try await page.evaluate("document.querySelector('\(system)')?.textContent ?? ''", as: String.self)
+        #expect(systemShown == "Read the canvas as sent.", "The system prompt as sent: \(systemShown)")
+        try await page.expectNoErrors()
+
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?canvas=2")
+        let before = try await page.evaluate("document.querySelector('\(task)')?.textContent ?? ''", as: String.self)
+        #expect(before.trimmingCharacters(in: .whitespacesAndNewlines) == template && before.contains("{evidence}"),
+          "A run that did not record its task shows its vignette's template")
+        try await page.expectNoErrors()
+      }
+    } catch {
+      cleanup()
+      try await admin.remove(after: error)
+    }
+    cleanup()
+    try await admin.remove()
+  }
+
   private func remove(runID: String, antiphonID: String, work: ScratchWork) {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      DELETE FROM bibliographic_explication_stage_runs WHERE id = '\(runID)';
+      DELETE FROM bibliographic_explication_runs WHERE id = '\(runID)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
       COMMIT;
       """)

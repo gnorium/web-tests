@@ -9,7 +9,7 @@ import WebTestsTesting
 /// any level, nor the work. Nothing is submitted.
 @Suite("Testament forms")
 struct TestamentFormsTests {
-  static let form = "/mission-control/submit/bibliographic/evidence-testament"
+  static let form = "/mission-control/submit/bibliographic/testament"
 
   @Test(arguments: gnorium.engines, Layout.allCases)
   func noFormIsTyped(engine: BrowserEngine, layout: Layout) async throws {

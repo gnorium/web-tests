@@ -6,7 +6,7 @@ import WebTestsTesting
 /// Translation is one session per chunk of pages (user, 2026-09-29): a
 /// serenade's page lists its chunks as sessions ("1–2"), shows the
 /// focused one's trace—each page opened, translated and committed, its
-/// last words—and no stages.
+/// last words—and no processes.
 @Suite("Translation sessions", .serialized)
 struct TranslationSessionsTests {
   static func trace() throws -> String {
@@ -54,7 +54,7 @@ struct TranslationSessionsTests {
         INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, requested_by_user_id,
           processing_status, processing_error)
           VALUES ('\(serenade)', '\(madrigal)', 'eng', '\(user)', 'failed', 'Web tests');
-        INSERT INTO bibliographic_translation_stage_runs (id, bibliographic_serenade_id, stage, chunk, attempt, provider, model, output,
+        INSERT INTO bibliographic_translation_runs (id, bibliographic_serenade_id, process, chunk, attempt, provider, model, output,
           result, duration_ms, created_at)
           VALUES (gen_random_uuid(), '\(serenade)', 'translation', '1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
             '\(try Self.trace())', 'passed', 1200, now());
@@ -63,11 +63,11 @@ struct TranslationSessionsTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/serenades/bibliographic/\(serenade)")
         try await ComputoriumMarks.check(page, process: "translation")
-        let pipeline = page.locator(".pipeline-container")
-        try await expect(pipeline).toHaveAttribute("data-active-stage", "translation")
-        try await expect(page.locator(".stages-view")).toHaveCount(0)
-        try await expect(page.locator("a[href*='stage=']")).toHaveCount(0)
-        try await expect(pipeline).toHaveAttribute("data-item-order", "1–2")
+        let process = page.locator(".process-container")
+        try await expect(process).toHaveAttribute("data-active-process", "translation")
+        try await expect(page.locator(".processes-view")).toHaveCount(0)
+        try await expect(page.locator("a[href*='process=']")).toHaveCount(0)
+        try await expect(process).toHaveAttribute("data-item-order", "1–2")
         let session = page.locator(".computorium-session-view")
         try await expect(session.getByText("open_page").first).toBeAttached()
         try await expect(session.getByText("write_translation").first).toBeAttached()
@@ -85,7 +85,7 @@ struct TranslationSessionsTests {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      DELETE FROM bibliographic_translation_stage_runs WHERE bibliographic_serenade_id = '\(serenade)';
+      DELETE FROM bibliographic_translation_runs WHERE bibliographic_serenade_id = '\(serenade)';
       DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';
       DELETE FROM bibliographic_madrigals WHERE id = '\(madrigal)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphon)';

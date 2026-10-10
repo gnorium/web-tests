@@ -86,11 +86,11 @@ struct GlossTests {
         try await expect(reader.locator(".tei-word[tabindex='0']")).toHaveTexts(["The"])
 
         try await linked.click()
-        let sheet = page.locator(".artifact-transcript .gloss-sheet")
+        let sheet = page.locator(".artifact-markup .gloss-sheet")
         try await expect(sheet).toHaveAttribute("data-state", "open")
         // Over the markup pane only: the pane holds it, the canvas and
         // the page's chrome stay outside it.
-        let pane = page.locator(".artifact-transcript").first
+        let pane = page.locator(".artifact-markup").first
         try await expect(pane.locator(".gloss-sheet")).toHaveCount(1)
         // Once the panel has slid in (the ellipsis menu's motion), it is the
         // pane's visible box: its padding box, its border aside.

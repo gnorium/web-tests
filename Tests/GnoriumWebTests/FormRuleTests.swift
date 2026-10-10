@@ -16,8 +16,8 @@ struct FormRuleTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         for (path, card) in [
-          ("/mission-control/submit/bibliographic/evidence-testament", ".submit-testament-form .record-view"),
-          ("/mission-control/submit/lexicographic/evidence-sentiment", ".submit-sentiment-form .record-view"),
+          ("/mission-control/submit/bibliographic/testament", ".submit-testament-form .record-view"),
+          ("/mission-control/submit/lexicographic/sentiment", ".submit-sentiment-form .record-view"),
         ] {
           try await page.openHydrated(path)
           try await check(page, card: card)

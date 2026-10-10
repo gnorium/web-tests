@@ -55,7 +55,7 @@ struct CanvasAttachmentTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, canvas_service_ids_json, processing_status, created_at, updated_at)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted', now(), now());
-        INSERT INTO bibliographic_explication_stage_runs (id, submission_id, stage, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_runs (id, submission_id, process, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'fixture', 'fixture', '[{"type":"thinking","content":"Preparing the canvas fixture."}]', 'passed',
             gen_random_uuid(), '\(antiphonID)', 1, now());
@@ -88,7 +88,7 @@ struct CanvasAttachmentTests {
         try await page.openHydrated("/\(name)")
         let image = page.locator("#computorium-session-tool-late-canvas .expandable-attachment-image-viewport")
         do { try await expect(image).toBeAttached() } catch {
-          print(try await page.evaluate("JSON.stringify({mock:window.__canvasMock,auto:document.querySelector('.pipeline-container')?.dataset.autoWatch,kind:document.querySelector('.pipeline-container')?.dataset.computoriumCoreKind,tools:document.querySelectorAll('.computorium-session-tool-call').length,url:window.__canvasMockURL,handlers:window.__canvasMockHandlers,focus:document.querySelector('.computorium-session-view')?.dataset.computoriumSessionCanvas,output:!!document.querySelector('.computorium-session-view .computorium-session-output-content')})",as:String.self))
+          print(try await page.evaluate("JSON.stringify({mock:window.__canvasMock,auto:document.querySelector('.process-container')?.dataset.autoWatch,kind:document.querySelector('.process-container')?.dataset.computoriumCoreKind,tools:document.querySelectorAll('.computorium-session-tool-call').length,url:window.__canvasMockURL,handlers:window.__canvasMockHandlers,focus:document.querySelector('.computorium-session-view')?.dataset.computoriumSessionCanvas,output:!!document.querySelector('.computorium-session-view .computorium-session-output-content')})",as:String.self))
           throw error
         }
         // Live, a tool card arrives closed and the thinking card open, each
@@ -114,12 +114,12 @@ struct CanvasAttachmentTests {
       }
     } catch {
       try? FileManager.default.removeItem(at:file)
-      _ = try? TestAdmin.query("DELETE FROM bibliographic_explication_stage_runs WHERE id='\(runID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
+      _ = try? TestAdmin.query("DELETE FROM bibliographic_explication_runs WHERE id='\(runID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
       work.remove()
       try await admin.remove(after:error)
     }
     try? FileManager.default.removeItem(at:file)
-    _ = try TestAdmin.query("DELETE FROM bibliographic_explication_stage_runs WHERE id='\(runID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
+    _ = try TestAdmin.query("DELETE FROM bibliographic_explication_runs WHERE id='\(runID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
     work.remove()
     try await admin.remove()
   }

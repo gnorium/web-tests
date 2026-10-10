@@ -47,9 +47,9 @@ struct AdminConsoleTests {
         try await Self.open(
           page, "/admin-console/database/_fluent_migrations/\(rowID)/edit", sheet: "table-row-editor-view",
           layout: layout, name: "row-edit")
-        try await Self.open(page, "/admin-console/mfa/manage", sheet: "manage-mfa-view", layout: layout, name: "mfa-manage")
+        try await Self.open(page, "/admin-console/authentication/manage", sheet: "manage-mfa-view", layout: layout, name: "mfa-manage")
         // Verify: the step after a password sign-in.
-        try await Self.open(page, "/admin-console/mfa/verify", sheet: "verify-mfa-view", layout: layout, name: "mfa-verify")
+        try await Self.open(page, "/admin-console/authentication/verify", sheet: "verify-mfa-view", layout: layout, name: "mfa-verify")
         let verify = page.locator("form.verify-mfa-form")
         try await expect(verify.getByLabel("Code")).toHaveAttribute("inputmode", "numeric")
         try await expect(verify.getByLabel("Code")).toHaveAttribute("maxlength", "6")
@@ -80,10 +80,10 @@ struct AdminConsoleTests {
         // never shows a code.
         try await page.locator("a.recovery-codes-continue").click()
         try await expect(page).toHaveURL("/admin-console")
-        try await expect(page.locator(".admin-console-sidebar-view a[href='/admin-console/mfa/manage']").first)
+        try await expect(page.locator(".admin-console-sidebar-view a[href='/admin-console/authentication/manage']").first)
           .toBeAttached()
-        try await page.openHydrated("/admin-console/mfa/setup")
-        try await expect(page).toHaveURL("/admin-console/mfa/manage")
+        try await page.openHydrated("/admin-console/authentication/setup")
+        try await expect(page).toHaveURL("/admin-console/authentication/manage")
         try await Self.check(page, sheet: "manage-mfa-view", layout: layout, name: "mfa-manage")
         try await expect(page.locator(".recovery-codes-list")).toHaveCount(0)
         let shownAgain = try await page.evaluate(
@@ -105,19 +105,19 @@ struct AdminConsoleTests {
         try await page.locator("#username").fill(admin.username)
         try await page.locator("#password").fill(admin.password)
         try await page.locator("form:has(#password) button[type='submit']").click()
-        try await expect(page).toHaveURL("/admin-console/mfa/verify")
+        try await expect(page).toHaveURL("/admin-console/authentication/verify")
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         try await page.locator("#verify-mfa-recovery-code").fill(codes[0])
         try await page.getByRole(.button, name: "Use Recovery Code").click()
         try await expect(page).toHaveURL("/admin-console")
 
         // It worked once.
-        try await page.openHydrated("/admin-console/mfa/verify")
+        try await page.openHydrated("/admin-console/authentication/verify")
         try await page.locator("#verify-mfa-recovery-code").fill(codes[0])
         try await page.getByRole(.button, name: "Use Recovery Code").click()
-        try await expect(page).toHaveURL("/admin-console/mfa/verify?error=invalid-recovery-code")
+        try await expect(page).toHaveURL("/admin-console/authentication/verify?error=invalid-recovery-code")
         try await expect(page.locator(".page-alerts .alert-view")).toContainText("used already")
-        try await page.openHydrated("/admin-console/mfa/manage")
+        try await page.openHydrated("/admin-console/authentication/manage")
         try await expect(page.locator(".manage-mfa-view")).toContainText("7 of 8 unused")
 
         // New codes take a current code: a wrong one changes nothing and
@@ -126,7 +126,7 @@ struct AdminConsoleTests {
         let codesBefore = try admin.column("recovery_codes_hash")
         try await page.locator("#manage-mfa-regenerate-code").fill("000000")
         try await page.getByRole(.button, name: "Regenerate Recovery Codes").click()
-        try await expect(page).toHaveURL("/admin-console/mfa/manage?error=invalid-regenerate")
+        try await expect(page).toHaveURL("/admin-console/authentication/manage?error=invalid-regenerate")
         try await expect(page.locator("#manage-mfa-regenerate-code-validation-message")).toContainText("didn't match")
         #expect(try admin.column("recovery_codes_hash") == codesBefore)
 
@@ -141,26 +141,26 @@ struct AdminConsoleTests {
         #expect(Set(fresh).isDisjoint(with: codes))
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         try await page.locator("a.recovery-codes-continue").click()
-        try await expect(page).toHaveURL("/admin-console/mfa/manage")
+        try await expect(page).toHaveURL("/admin-console/authentication/manage")
         try await expect(page.locator(".manage-mfa-view")).toContainText("8 of 8 unused")
 
         // Off, with a current code: a wrong one changes nothing.
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         try await page.locator("#manage-mfa-code").fill("000000")
         try await page.getByRole(.button, name: "Turn Off MFA").click()
-        try await expect(page).toHaveURL("/admin-console/mfa/manage?error=invalid-disable")
+        try await expect(page).toHaveURL("/admin-console/authentication/manage?error=invalid-disable")
         try await expect(page.locator("#manage-mfa-code-validation-message")).toContainText("didn't match")
         #expect(try admin.column("totp_enabled") == "true")
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         try await page.locator("#manage-mfa-code").fill(try Self.code(secret: secret))
         try await page.getByRole(.button, name: "Turn Off MFA").click()
-        try await expect(page).toHaveURL("/admin-console/mfa/setup?notice=disabled")
+        try await expect(page).toHaveURL("/admin-console/authentication/setup?notice=disabled")
         try await expect(page.locator(".page-alerts .alert-view")).toContainText("is off")
         #expect(try admin.column("totp_enabled") == "false")
         #expect(try admin.column("totp_secret") == "")
         #expect(try admin.column("recovery_codes_hash") == "")
         try await page.openHydrated("/admin-console")
-        try await expect(page.locator(".admin-console-sidebar-view a[href='/admin-console/mfa/setup']").first)
+        try await expect(page.locator(".admin-console-sidebar-view a[href='/admin-console/authentication/setup']").first)
           .toBeAttached()
       }
       let actions = try TestAdmin.query(
@@ -220,7 +220,7 @@ struct AdminConsoleTests {
   /// Sets up MFA from the setup page and returns its secret and the
   /// recovery codes the next page shows.
   static func enableMFA(_ page: Page, layout: Layout) async throws -> (secret: String, codes: [String]) {
-    try await Self.open(page, "/admin-console/mfa/setup", sheet: "setup-mfa-view", layout: layout, name: "mfa-setup")
+    try await Self.open(page, "/admin-console/authentication/setup", sheet: "setup-mfa-view", layout: layout, name: "mfa-setup")
     let form = page.locator("form.setup-mfa-form")
     try await expect(form.getByLabel("Code")).toHaveAttribute("inputmode", "numeric")
     try await expect(form.getByLabel("Code")).toHaveAttribute("autocomplete", "one-time-code")

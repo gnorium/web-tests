@@ -11,8 +11,8 @@ import WebTestsTesting
 @Suite("Watchtower figure links")
 struct WatchtowerFigureLinksTests {
   /// Every figure: an object's, opening a lifecycle list or the palinodes
-  /// register, and a stage's, opening the runs it counts.
-  static let figureLinks = ".watchtower-object-figures-view a[href], .watchtower-stage-figures a[href]"
+  /// register, and a process's, opening the runs it counts.
+  static let figureLinks = ".watchtower-object-figures-view a[href], .watchtower-process-figures a[href]"
 
   struct Figure: Decodable {
     let text: String
@@ -99,11 +99,11 @@ struct WatchtowerFigureLinksTests {
   func theArbitrationBadgeCentersItsIcon(engine: BrowserEngine, layout: Layout) async throws {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/")
-      let badges = page.locator(".watchtower-stage-number:has(.therefore-icon-view)")
+      let badges = page.locator(".watchtower-process-number:has(.therefore-icon-view)")
       try await expect(badges).toHaveCount(3)
       let offsets = try await page.evaluate(
         """
-        [...document.querySelectorAll('.watchtower-stage-number')]
+        [...document.querySelectorAll('.watchtower-process-number')]
           .filter(b => b.querySelector('.therefore-icon-view'))
           .map(b => {
             const badge = b.getBoundingClientRect()
@@ -118,7 +118,7 @@ struct WatchtowerFigureLinksTests {
     }
   }
 
-  /// On every stage card—the Disputorium's, the Computorium's and the
+  /// On every process card—the Disputorium's, the Computorium's and the
   /// nested Locution card's—the bibliographic and the lexicographic figure
   /// groups stand side by side as two equal halves at every width (user,
   /// 2026-10-09): each group's heading shares a row with the other's, and
@@ -154,23 +154,23 @@ struct WatchtowerFigureLinksTests {
       try await page.openHydrated("/")
       let figures = try await Self.figures(page)
       try #require(figures.count >= 38, "the Watchtower shows \(figures.count) figure links")
-      // Every stage has three run links: explication's and translation's,
+      // Every process has three run links: explication's and translation's,
       // and arbitration's on each of the three Disputorium objects' nested
       // cards, whose locution figures add three on each of their two rows.
       // 6 + 9 + 18 = 33.
       let runLinks = figures.filter { $0.href.hasPrefix("/mission-control/runs/") }.count
-      try #require(runLinks == 33, "the stages' and the nested Arbitration cards' run links: \(runLinks)")
+      try #require(runLinks == 33, "the processes' and the nested Arbitration cards' run links: \(runLinks)")
       for figure in figures {
         let count = try #require(Int(figure.text.prefix { $0.isNumber }))
         // Explication's figures count both kinds' runs: the list they open
         // and the same list on the other kind's tab.
         let (shown, listed) = try await Self.agreeing(page, figure.href, figure: count) {
           let listed = try await Self.listed(page, figure.href)
-          // Explication's and arbitration's stage figures count both
+          // Explication's and arbitration's process figures count both
           // kinds' runs; a locution figure, filtered to its object, one.
           guard listed >= 0,
-            figure.href.contains("stage=explication")
-              || (figure.href.contains("stage=arbitration") && !figure.href.contains("object="))
+            figure.href.contains("process=explication")
+              || (figure.href.contains("process=arbitration") && !figure.href.contains("object="))
           else { return listed }
           let other = try await Self.listed(
             page,
@@ -190,22 +190,22 @@ struct WatchtowerFigureLinksTests {
   /// first render, not only after Apply.
   static let pendingTestamentOvertures = "/mission-control/lifecycles/bibliographic?object=overture&status=pending"
 
-  /// A stage's figure opens the Runs page: its filter bar names the stage
+  /// A process's figure opens the Runs page: its filter bar names the process
   /// and the status, with no placeholder, and it lists as many runs as the
   /// figure.
   @Test(arguments: enginesAndLayouts)
-  func aStageFigureOpensItsRuns(engine: BrowserEngine, layout: Layout) async throws {
-    let href = "/mission-control/runs/bibliographic?stage=explication&status=failed&createdOn=-7d.."
+  func aProcessFigureOpensItsRuns(engine: BrowserEngine, layout: Layout) async throws {
+    let href = "/mission-control/runs/bibliographic?process=explication&status=failed&createdOn=-7d.."
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/")
-      let link = page.locator(".watchtower-stage-figures a[href='\(href)']").first
+      let link = page.locator(".watchtower-process-figures a[href='\(href)']").first
       let phrase = try await link.textContent()
       let count = try #require(Int(phrase.prefix { $0.isNumber }), "\(href) reads \(phrase)")
       try await link.click()
       try await expect(page, timeout: .seconds(15)).toHaveURL(href)
       try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
       let fields = try await page.locator(".filter-bar-field-picker .dropdown-selected-text").allTextContents()
-      #expect(fields.contains("Stage") && fields.contains("Status") && !fields.contains("Show"), "fields: \(fields)")
+      #expect(fields.contains("Process") && fields.contains("Status") && !fields.contains("Show"), "fields: \(fields)")
       let values = try await page.locator(".filter-bar-value-select .dropdown-selected-text").allTextContents()
       #expect(values.contains("Explication") && values.contains("Failed"), "values: \(values)")
       let placeholders = try await page.evaluate(

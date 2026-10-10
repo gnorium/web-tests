@@ -63,11 +63,11 @@ struct OvertureCanvasesTests {
         try await expect(roster.locator(".roster-status[data-status]")).toHaveCount(0)
 
         // The preview is the page on screen's, never a notice.
-        let task = page.locator("[data-process='Explication'] .prompt-instance-task .prompt-text-source").first
-        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+        let task = page.locator("[data-process='Explication'] .prompt-preview-task .prompt-text-source").first
+        try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
-        try await expect(page.locator(".prompt-instances-notice")).toHaveCount(0)
-        try await expect(page.locator(".prompt-instances-content .accordion-view")).toHaveCount(12)
+        try await expect(page.locator(".prompt-previews-notice")).toHaveCount(0)
+        try await expect(page.locator(".prompt-previews-content .accordion-view")).toHaveCount(12)
         try await expect(task).toContainText("Title page")
 
         // The pager moves the roster and the address.
@@ -93,13 +93,13 @@ struct OvertureCanvasesTests {
 
         // One process: no toggle anywhere; the heading names it.
         try await expect(page.locator(".process-toggle-view")).toHaveCount(0)
-        try await expect(page.locator(".prompt-instances-heading")).toHaveText("Prompts")
+        try await expect(page.locator(".prompt-previews-heading")).toHaveText("Prompts")
         // One accordion a process, its prompts nested inside (user,
         // 2026-10-10), closed until opened.
-        try await expect(page.locator("#prompt-instance-process .accordion-title").first).toHaveText("Explication")
-        try await expect(page.locator("#prompt-instance-process")).toHaveAttribute("data-expanded", "false")
-        try await expect(page.locator("#prompt-instance-process .accordion-title").nth(1)).toHaveText("System Prompt")
-        try await expect(page.locator("#prompt-instance-process .accordion-title").nth(3)).toHaveText("Autocompaction")
+        try await expect(page.locator("#prompt-preview-process .accordion-title").first).toHaveText("Explication")
+        try await expect(page.locator("#prompt-preview-process")).toHaveAttribute("data-expanded", "false")
+        try await expect(page.locator("#prompt-preview-process .accordion-title").nth(1)).toHaveText("System Prompt")
+        try await expect(page.locator("#prompt-preview-process .accordion-title").nth(3)).toHaveText("Autocompaction")
         try await shoot(page, "roster", layout)
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
@@ -112,7 +112,7 @@ struct OvertureCanvasesTests {
             (metadata_json::jsonb || '{"language":"ita"}'::jsonb)::text WHERE id = '\(scratch.madrigalID)'
           """)
         try await page.openHydrated(scratch.madrigalPath)
-        try await expect(page.locator(".prompt-instances-heading")).toHaveText("Prompts")
+        try await expect(page.locator(".prompt-previews-heading")).toHaveText("Prompts")
         let processes = page.locator(".mission-control-object-header-view .process-toggle-view")
         try await expect(processes).toHaveAttribute("data-mode", "slider")
         try await expect(processes).toHaveAttribute("data-sliding-pill", "ready")
@@ -130,9 +130,9 @@ struct OvertureCanvasesTests {
         try await expect(explication).toHaveAttribute("aria-pressed", "false")
         // The translation's prompts are asked for as it is pressed: their
         // answer waited for in full.
-        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+        try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
-        try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "bibliographic_translation")
+        try await expect(page.locator(".prompt-previews-content")).toHaveAttribute("data-selected-process", "bibliographic_translation")
         try await Self.settle()
         #expect(Self.sameBox(try #require(try await pill.boundingBox()), try #require(try await translation.boundingBox())),
           "the pill did not glide to the pressed process")
@@ -272,7 +272,7 @@ struct OvertureCanvasesTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         // Accepted from the thread.
         try await page.openHydrated(scratch.overturePath)
-        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+        try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         let accept = page.locator("#revision-\(id) form[action$='/accept'] button")
         try await expect(accept).toBeVisible()
@@ -285,11 +285,11 @@ struct OvertureCanvasesTests {
         // Merged in, each prompt's legend links the revision's page at the
         // prompt it is.
         try await page.openHydrated(scratch.overturePath)
-        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+        try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
-        try await expect(page.locator(".prompt-instance-system a[href$='/revisions/\(id)#prompt-change-system']"))
+        try await expect(page.locator(".prompt-preview-system a[href$='/revisions/\(id)#prompt-change-system']"))
           .toHaveCount(1)
-        try await expect(page.locator("[data-process='Explication'] .prompt-instance-task a[href$='/revisions/\(id)#prompt-change-task']").first)
+        try await expect(page.locator("[data-process='Explication'] .prompt-preview-task a[href$='/revisions/\(id)#prompt-change-task']").first)
           .toBeAttached()
 
         // The task prompt's link: its accordion opened and in view, the

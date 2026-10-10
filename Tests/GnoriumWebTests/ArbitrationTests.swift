@@ -71,7 +71,7 @@ struct ArbitrationTests {
           committed_at = NULL WHERE committed_by_user_id = '\(adminID)';
         DELETE FROM locutions WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)' AND kind = 'reply';
         UPDATE locutions SET arbitration_run_id = NULL WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
-        DELETE FROM arbitration_stage_runs WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
+        DELETE FROM arbitration_runs WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
         DELETE FROM locutions WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
         COMMIT;
         """)
@@ -82,7 +82,7 @@ struct ArbitrationTests {
         // Canvas 2 is laid in blank: pending explication, not queryable.
         // The box refuses the call under the field; nothing is posted.
         try await page.openHydrated(reading.path + "?canvas=1")
-        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+        try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".disputorium-core-work #artifact-page-total"), timeout: .seconds(20)).toHaveText("3")
         try await expect(page.locator("#locution-thread-locution-canvas")).toHaveValue("1")
@@ -97,7 +97,7 @@ struct ArbitrationTests {
         // Canvas 1 has markup: explicated, queryable—and locked against a
         // commit: its row keeps its mark and loses its checkbox.
         try await page.openHydrated(reading.path + "?canvas=0")
-        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+        try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".disputorium-core-work #artifact-page-total"), timeout: .seconds(20)).toHaveText("3")
         try await expect(page.locator("#locution-thread-locution-canvas")).toHaveValue("0")
@@ -115,7 +115,7 @@ struct ArbitrationTests {
       #expect(evidence == "\(fixture.baseURL)/page-1|canvas|explication")
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(reading.path)
-        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+        try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         // The admin's roster: the explicated page has no checkbox, the
         // blank ones do.
@@ -146,7 +146,7 @@ struct ArbitrationTests {
         // for that task to finish before replacing its result with a trace.
         var runID = ""
         for _ in 0..<300 {
-          runID = try TestAdmin.query("SELECT id FROM arbitration_stage_runs WHERE call_locution_id = '\(callID)' AND result = 'failed'")
+          runID = try TestAdmin.query("SELECT id FROM arbitration_runs WHERE call_locution_id = '\(callID)' AND result = 'failed'")
           if !runID.isEmpty { break }
           try await Task.sleep(for: .milliseconds(100))
         }
@@ -155,7 +155,7 @@ struct ArbitrationTests {
         }
         _ = try TestAdmin.query("""
           BEGIN;
-          UPDATE arbitration_stage_runs SET result = 'passed', output = '\(try Self.trace())',
+          UPDATE arbitration_runs SET result = 'passed', output = '\(try Self.trace())',
             provider = 'deepseek', model = 'deepseek-flash', duration_ms = 1200, error_message = NULL WHERE id = '\(runID)';
           UPDATE locutions SET call_status = 'done' WHERE id = '\(callID)';
           INSERT INTO locutions (id, locutable_type, locutable_id, author_id, parent_id, content, depth,
@@ -201,12 +201,12 @@ struct ArbitrationTests {
               && thinking.clientHeight <= 256 && thinking.scrollHeight > thinking.clientHeight;
           }
           """).bool == true, "The complete embedded session and its thinking keep their existing inner scroll limits")
-        // An admin submits through exactly the same pending stage.
+        // An admin submits through exactly the same pending process.
         try await page.locator("#locution-thread-locution-body").fill("@gnorium Read this evidence again.")
         try await page.locator(".locution-thread-submit").click()
         try await expect(page.locator(".locution-call-status").filter(hasText: "Pending"), timeout: .seconds(15)).toHaveCount(1)
         try await expect(page.locator(".locution-commit")).toHaveCount(1)
-        #expect(try TestAdmin.query("SELECT count(*) FROM arbitration_stage_runs WHERE locutable_id = '\(objectID)'") == "1")
+        #expect(try TestAdmin.query("SELECT count(*) FROM arbitration_runs WHERE locutable_id = '\(objectID)'") == "1")
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
@@ -254,7 +254,7 @@ struct ArbitrationTests {
     do {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(reading.path)
-        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+        try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         let roster = page.locator("#madrigal-canvases")
         let rows = roster.locator(".roster-row")
@@ -419,11 +419,11 @@ struct ArbitrationTests {
         ]
         for (path, process, slot) in cases {
           try await page.openHydrated(path)
-          let sections = page.locator(".prompt-instances-process")
+          let sections = page.locator(".prompt-previews-process")
           try await expect(sections, timeout: .seconds(20)).toHaveCount(2)
           try await expect(sections.nth(0)).toHaveAttribute("data-process", "Arbitration")
           try await expect(sections.nth(1)).toHaveAttribute("data-process", process)
-          for (index, name, id) in [(0, "Arbitration", "prompt-instance-process-arbitration"), (1, process, "prompt-instance-process")] {
+          for (index, name, id) in [(0, "Arbitration", "prompt-preview-process-arbitration"), (1, process, "prompt-preview-process")] {
             // One accordion a process, its three nested (user, 2026-10-10).
             try await expect(sections.nth(index).locator("#\(id) .accordion-title").first).toHaveText(name)
             try await expect(sections.nth(index).locator("#\(id)")).toHaveAttribute("data-expanded", "false")

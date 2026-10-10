@@ -20,7 +20,7 @@ import WebTestsTesting
 /// the test and removed after.
 @Suite("Submit Testament reader")
 struct SubmitTestamentReaderTests {
-  static let form = "/mission-control/submit/bibliographic/evidence-testament"
+  static let form = "/mission-control/submit/bibliographic/testament"
 
   /// A IIIF v3 manifest of three pages.
   static var manifest: Data {
@@ -69,7 +69,7 @@ struct SubmitTestamentReaderTests {
         try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
         try await expect(viewer.locator("#artifact-page-total")).toHaveText("3")
         try await expect(viewer.locator(".artifact-object")).toBeVisible()
-        try await expect(viewer.locator(".artifact-transcript")).toHaveCount(0)
+        try await expect(viewer.locator(".artifact-markup")).toHaveCount(0)
         try await expect(viewer.locator(".artifact-canvas-toggle")).toHaveCount(0)
         try await expect(viewer.locator(".artifact-raw-toggle, .testament-find-button")).toHaveCount(0)
         try await expect(message).toHaveCount(0)
@@ -91,7 +91,7 @@ struct SubmitTestamentReaderTests {
         #expect(frame == .number(0), "the hidden reader still takes room: \(frame)")
         let inPanes = try await page.evaluate(
           """
-          [...document.querySelectorAll('.artifact-transcript, .artifact-object, .tei-view')]
+          [...document.querySelectorAll('.artifact-markup, .artifact-object, .tei-view')]
             .some((pane) => pane.textContent.includes("can't be read"))
           """)
         #expect(inPanes == .bool(false), "the failure was written into a reader's pane")

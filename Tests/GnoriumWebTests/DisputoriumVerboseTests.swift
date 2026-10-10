@@ -31,7 +31,7 @@ struct DisputoriumVerboseTests {
           probe.style.borderColor='var(--border-color-green)';const green=getComputedStyle(probe).borderTopColor;probe.remove();
           return rule.classList.contains('apparatus-rule-view') && metadata && getComputedStyle(metadata).borderTopColor===neutral
             && fields.length>0 && fields.every(e=>getComputedStyle(e).borderTopColor===green)
-            && !work.querySelector('.prompt-instances-view');})()
+            && !work.querySelector('.prompt-previews-view');})()
         """, as: Bool.self))
       try await toggle.click()
       try await expect(toggle).toHaveAttribute("aria-pressed", "true")
@@ -59,7 +59,7 @@ struct DisputoriumVerboseTests {
       _ = try? TestAdmin.query(
         """
         BEGIN;
-        DELETE FROM bibliographic_explication_stage_runs WHERE id = '\(runID)';
+        DELETE FROM bibliographic_explication_runs WHERE id = '\(runID)';
         DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
         COMMIT;
         """)
@@ -84,7 +84,7 @@ struct DisputoriumVerboseTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, canvas_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_stage_runs (id, submission_id, stage, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_runs (id, submission_id, process, canvas, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(runID)',
             (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),

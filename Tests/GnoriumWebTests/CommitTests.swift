@@ -22,13 +22,13 @@ struct CommitTests {
         if (event.target.id !== 'commit-form') return;
         event.preventDefault();
         const data = new FormData(event.target);
-        window.__commit = { pipeline: data.get('pipeline'), scope: data.get('scope') };
+        window.__commit = { process: data.get('process'), scope: data.get('scope') };
       });
       return true;
     })()
     """
 
-  struct Posted: Decodable { let pipeline: String; let scope: String }
+  struct Posted: Decodable { let process: String; let scope: String }
 
   static func posted(_ page: Page) async throws -> Posted {
     try JSONDecoder().decode(
@@ -53,7 +53,7 @@ struct CommitTests {
         try await page.locator(".commit-trigger").click()
         try await expect(page.locator("body")).toBeAttached()
         let one = try await Self.posted(page)
-        #expect(one.pipeline == "bibliographic_explication")
+        #expect(one.process == "bibliographic_explication")
         try await page.expectNoErrors()
 
         // Two processes (an Italian witness is translated): the toggle leads
@@ -72,11 +72,11 @@ struct CommitTests {
         try await expect(buttons.nth(0)).toHaveAttribute("aria-pressed", "true")
         #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
         try await page.locator(".commit-trigger").click()
-        #expect(try await Self.posted(page).pipeline == "bibliographic_explication")
+        #expect(try await Self.posted(page).process == "bibliographic_explication")
         try await buttons.nth(1).click()
         try await expect(page).toHaveURL("the address keeps the process") { $0.query?.contains("process=translation") == true }
         try await page.locator(".commit-trigger").click()
-        #expect(try await Self.posted(page).pipeline == "bibliographic_translation")
+        #expect(try await Self.posted(page).process == "bibliographic_translation")
         // Revise is the object's alone, whichever process is chosen: its
         // prompts are suggested on their process's page.
         try await expect(page.locator(".mission-control-object-header-view a[data-value='revise']"))
@@ -85,7 +85,7 @@ struct CommitTests {
         // A reload keeps it, before any script runs.
         try await page.openHydrated(scratch.madrigalPath + "?process=translation")
         try await expect(buttons.nth(1)).toHaveAttribute("aria-pressed", "true")
-        try await expect(page.locator(".commit-pipeline")).toHaveAttribute("value", "bibliographic_translation")
+        try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_translation")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }

@@ -6,7 +6,7 @@ import WebTestsTesting
 /// Explication is one session per cluster of quotations (user, 2026-09-29):
 /// the antiphon's page lists its clusters as sessions ("Cluster 1 of 2 · 2
 /// quotations"), shows the focused one's trace—each quotation read and
-/// assigned, its last words—and no stages.
+/// assigned, its last words—and no processes.
 @Suite("Lexicographic explication sessions", .serialized)
 struct LexicographicExplicationSessionsTests {
   static func trace() throws -> String {
@@ -56,7 +56,7 @@ struct LexicographicExplicationSessionsTests {
             'Test via Stub', 3, 'quotation-v1', '["u-1","u-2","u-3"]');
         INSERT INTO quotation_clusters (id, quotation_clustering_id, position, quotation_ids_json)
           VALUES ('\(clusters[0])', '\(clustering)', 0, '["u-1","u-2"]'), ('\(clusters[1])', '\(clustering)', 1, '["u-3"]');
-        INSERT INTO lexicographic_explication_stage_runs (id, lexicographic_antiphon_id, stage, attempt, provider, model, output, result,
+        INSERT INTO lexicographic_explication_runs (id, lexicographic_antiphon_id, process, attempt, provider, model, output, result,
           duration_ms, quotation_cluster_id, created_at)
           VALUES ('\(run)', '\(antiphon)', 'explication', 1, 'openrouter', 'qwen/qwen3.8-max-0902', '\(try Self.trace())',
             'passed', 1200, '\(clusters[0])', now());
@@ -64,11 +64,11 @@ struct LexicographicExplicationSessionsTests {
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/antiphons/lexicographic/\(antiphon)")
-        try await expect(page.locator(".pipeline-container")).toHaveAttribute("data-active-stage", "explication")
-        try await expect(page.locator(".stages-view")).toHaveCount(0)
-        try await expect(page.locator("a[href*='stage=']")).toHaveCount(0)
-        let pipeline = page.locator(".pipeline-container")
-        try await expect(pipeline).toHaveAttribute(
+        try await expect(page.locator(".process-container")).toHaveAttribute("data-active-process", "explication")
+        try await expect(page.locator(".processes-view")).toHaveCount(0)
+        try await expect(page.locator("a[href*='process=']")).toHaveCount(0)
+        let process = page.locator(".process-container")
+        try await expect(process).toHaveAttribute(
           "data-item-order", "Cluster 1 of 2 · 2 quotations,Cluster 2 of 2 · 1 quotation")
         let session = page.locator(".computorium-session-view")
         try await expect(session.getByText("read_quotation").first).toBeAttached()
@@ -87,7 +87,7 @@ struct LexicographicExplicationSessionsTests {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      DELETE FROM lexicographic_explication_stage_runs WHERE lexicographic_antiphon_id = '\(antiphon)';
+      DELETE FROM lexicographic_explication_runs WHERE lexicographic_antiphon_id = '\(antiphon)';
       DELETE FROM quotation_clusterings WHERE lexicographic_antiphon_id = '\(antiphon)';
       DELETE FROM lexicographic_antiphons WHERE id = '\(antiphon)';
       COMMIT;

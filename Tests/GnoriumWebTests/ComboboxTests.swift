@@ -18,7 +18,7 @@ import WebTestsTesting
 /// and desktop; a throwaway admin owns every row submitted, removed after.
 @Suite("Combobox", .serialized)
 struct ComboboxTests {
-  static let form = "/mission-control/submit/bibliographic/evidence-testament"
+  static let form = "/mission-control/submit/bibliographic/testament"
 
   @Test(arguments: gnorium.engines, Layout.allCases)
   func aComboboxSuggestsAndKeepsWhatIsTyped(engine: BrowserEngine, layout: Layout) async throws {
@@ -166,7 +166,7 @@ struct ComboboxTests {
 
     // MARK: A citation's scheme: a combobox of a row, its panel as a
     // listed scheme's.
-    let citation = form.locator("[data-item-list='reference-citation'] .combobox-view\(live)").first
+    let citation = form.locator("[data-item-list='citation-number'] .combobox-view\(live)").first
     try await expect(citation.getByRole(.combobox, name: "Scheme")).toHaveCount(1)
 
     // A long suggestion wraps on a phone as on a desktop: nothing runs past

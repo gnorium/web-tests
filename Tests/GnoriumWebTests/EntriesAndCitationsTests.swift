@@ -339,7 +339,7 @@ struct EntriesAndCitationsTests {
         try await bar.locator("input").press("Enter")
         try await expect(count).toHaveText("2 of 3")
         #expect(try await Self.highlighted("find-current", on: page) == ["Scratchfind"])
-        try await expect(viewer.locator(".tei-transcript[data-active='true']")).toContainText("A Scratchfind again.")
+        try await expect(viewer.locator(".tei-page[data-active='true']")).toContainText("A Scratchfind again.")
         try await bar.locator("input").press("Enter")
         try await expect(count).toHaveText("3 of 3")
         // The hyphenated word: its range runs from the first line into the

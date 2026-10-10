@@ -76,7 +76,7 @@ struct QuotationTests {
         // No caption under the reader: the source is in the quotation's gloss.
         try await expect(attestation.locator(".chicago-citation-view")).toHaveCount(0)
         // The page and the pages either side, each opened by its label.
-        try await expect(quotation.locator(".tei-transcript")).toHaveCount(3)
+        try await expect(quotation.locator(".tei-page")).toHaveCount(3)
         try await expect(quotation.locator(".tei-line-mark")).toHaveTexts(["2", "3", "4"])
         try await expect(quotation).not.toContainText("Page 1,")
         try await expect(quotation).not.toContainText("Page 5,")
@@ -185,9 +185,9 @@ struct QuotationTests {
         try await page.openHydrated(scratchWord.path)
         try await page.locator("#record-row-s-1-1 > .accordion-summary").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
-        let notice = attestation.locator(".reading-changed-view")
+        let notice = attestation.locator(".markup-changed-view")
         try await expect(notice).toHaveText(
-          "A later reading of this testament changed this word (Its reading changed in the later version: scratchword). It awaits explication again.")
+          "A later markup of this testament changed this word (Its reading changed in the later version: scratchword). It awaits explication again.")
         try await expect(attestation.locator(".quotation-view mark[data-highlight='title']")).toHaveText("scratchword")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()

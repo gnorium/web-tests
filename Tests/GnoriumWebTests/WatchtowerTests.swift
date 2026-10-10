@@ -43,22 +43,22 @@ struct WatchtowerTests {
     }
   }
 
-  /// Each stage card carries its pipeline's place in the flow (user,
+  /// Each process card carries its group's place in the flow (user,
   /// 2026-09-29): explication 1, translation 2; explication, of both kinds,
-  /// and translation show one pipeline and one card each.
+  /// and translation show one process and one card each.
   @Test(arguments: gnorium.engines)
-  func stageCardsCarryTheirPipelinesNumber(engine: BrowserEngine) async throws {
+  func processCardsCarryTheirGroupsNumber(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium) { page in
       try await page.openHydrated("/")
-      for (pipeline, numbers) in [
+      for (process, numbers) in [
         ("Explication", ["1"]), ("Translation", ["2"]),
       ] {
-        let card = page.locator(".watchtower-pipeline-view[data-pipeline='\(pipeline)']").first
-        try await expect(card.locator(".watchtower-stage-number")).toHaveTexts(numbers)
+        let card = page.locator(".watchtower-processes-view[data-process='\(process)']").first
+        try await expect(card.locator(".watchtower-process-number")).toHaveTexts(numbers)
       }
-      // No heading over a stage's block: the block names its stage.
-      try await expect(page.locator(".watchtower-pipeline-name")).toHaveCount(0)
-      try await expect(page.locator(".watchtower-stage-name")).toHaveTexts(
+      // No heading over a process's block: the block names its process.
+      try await expect(page.locator(".watchtower-group-name")).toHaveCount(0)
+      try await expect(page.locator(".watchtower-process-name")).toHaveTexts(
         ["ARBITRATION", "EXPLICATION", "ARBITRATION", "TRANSLATION", "ARBITRATION"])
     }
   }

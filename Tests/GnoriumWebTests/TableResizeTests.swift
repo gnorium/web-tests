@@ -249,7 +249,7 @@ struct TableResizeTests {
         let link = page.locator(".mission-control-workers-table a[href='/mission-control/workers/1']")
         try await expect(link).toHaveCount(1)
         try await expect(link).toHaveText("Worker 1")
-        try await expect(page.locator(".mission-control-workers-table th[data-table-column-id='pipeline']")).toHaveCount(0)
+        try await expect(page.locator(".mission-control-workers-table th[data-table-column-id='process']")).toHaveCount(0)
         if layout == .phone { try await link.tap() }
         else { try await link.click() }
         try await expect(page.locator("h1")).toHaveText("Worker 1")

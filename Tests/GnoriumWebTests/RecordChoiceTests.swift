@@ -18,7 +18,7 @@ import WebTestsTesting
 /// madrigal, record and explicated version, made by SQL—removed after.
 @Suite("Record choice", .serialized)
 struct RecordChoiceTests {
-  static let form = "/mission-control/submit/bibliographic/evidence-testament"
+  static let form = "/mission-control/submit/bibliographic/testament"
 
   @Test(arguments: gnorium.engines, Layout.allCases)
   func choosingARecordAndPlacingTheTestament(engine: BrowserEngine, layout: Layout) async throws {

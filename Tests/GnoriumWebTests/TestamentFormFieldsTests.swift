@@ -11,7 +11,7 @@ import WebTestsTesting
 /// removed after.
 @Suite("Testament form fields")
 struct TestamentFormFieldsTests {
-  static let form = "/mission-control/submit/bibliographic/evidence-testament"
+  static let form = "/mission-control/submit/bibliographic/testament"
 
   @Test(arguments: gnorium.engines, Layout.allCases)
   func theRemovedFieldsAreGone(engine: BrowserEngine, layout: Layout) async throws {

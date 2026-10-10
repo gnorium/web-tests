@@ -132,10 +132,10 @@ struct CanvasTests {
         try await expect(viewer).toHaveAttribute("data-canvas-shown", "false")
         try await expect(object).toBeHidden()
         let container = try #require(try await viewer.locator(".artifact-viewer-container").boundingBox())
-        let transcript = try #require(try await viewer.locator(".artifact-transcript").boundingBox())
+        let transcript = try #require(try await viewer.locator(".artifact-markup").boundingBox())
         #expect(abs(transcript.width - container.width) < 2, "the transcript takes the whole width")
         try await viewer.locator(".pagination-next").first.click()
-        try await expect(viewer.locator(".artifact-transcript .tei-transcript[data-active='true']"))
+        try await expect(viewer.locator(".artifact-markup .tei-page[data-active='true']"))
           .toHaveAttribute("data-service-id", services[1])
         #expect(try await page.evaluate(Self.imageRequestsScript(fixture)).double == 0, "an image was fetched while off")
 
@@ -218,7 +218,7 @@ struct CanvasTests {
             #expect(canvas.tiles == 0, "page \(other + 1), off screen, holds tiles")
           }
           try await expect(
-            viewer.locator(".artifact-transcript .tei-transcript[data-active='true']")
+            viewer.locator(".artifact-markup .tei-page[data-active='true']")
           ).toHaveAttribute("data-service-id", services[index])
         }
 

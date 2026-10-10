@@ -57,7 +57,7 @@ struct MarkupRegionTests {
 
   /// The editor's text.
   static let editorText =
-    "document.querySelector(\".tei-transcript[data-active='true'] .tei-page-edit .code-code\").textContent"
+    "document.querySelector(\".tei-page[data-active='true'] .tei-page-edit .code-code\").textContent"
 
   static func expectEditor(_ page: Page, contains needle: String, _ comment: Comment) async throws {
     var last = ""
@@ -74,7 +74,7 @@ struct MarkupRegionTests {
   static func caretScript(_ needle: String, offset: Int? = nil) -> String {
     """
     (() => {
-      const code = document.querySelector(".tei-transcript[data-active='true'] .tei-page-edit .code-code");
+      const code = document.querySelector(".tei-page[data-active='true'] .tei-page-edit .code-code");
       const walker = document.createTreeWalker(code, NodeFilter.SHOW_TEXT);
       code.focus();
       for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -173,7 +173,7 @@ struct MarkupRegionTests {
         try await Self.expectEditor(page, contains: "bbox=\"120 340 680 560\"", "The drag's end written")
         try await Self.expectRegion(page, [120, 340, 680, 560], "ok", "The box follows the drag")
         let posted = try await page.evaluate(
-          "document.querySelector(\".tei-transcript[data-active='true'] .tei-page-edit textarea\").value",
+          "document.querySelector(\".tei-page[data-active='true'] .tei-page-edit textarea\").value",
           as: String.self)
         #expect(posted.contains("bbox=\"120 340 680 560\""), "The form posts the dragged value: \(posted)")
         // The editor's own undo (Chrome under automation runs no Cmd+Z).
@@ -217,7 +217,7 @@ struct MarkupRegionTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated(commit.madrigalPath)
         try await Self.showCanvas(page)
-        let code = page.locator(".tei-transcript[data-active='true'] .tei-page-raw .code-code").first
+        let code = page.locator(".tei-page[data-active='true'] .tei-page-raw .code-code").first
         try await expect(code).toBeVisible()
         _ = try await code.evaluate("e => { e.scrollIntoView({block: 'center'}); return true }")
         // The middle of a word of the code, on screen.
@@ -245,7 +245,7 @@ struct MarkupRegionTests {
         let zone = [100, 200, 300, 400]
         try await Self.expectRegion(page, zone, "none", "No region before the pointer is on one")
         let figure = try await point("illustration")
-        print("DEBUG", try await page.evaluate("(() => { const t = document.querySelector(\".tei-transcript[data-active='true']\"); const p = document.caretPositionFromPoint(\(figure.x), \(figure.y)); return JSON.stringify({zones: t.dataset.zones, node: p && p.offsetNode.textContent, off: p && p.offset, code: t.querySelector('.tei-page-raw .code-code').textContent.slice(0, 300)}) })()", as: String.self))
+        print("DEBUG", try await page.evaluate("(() => { const t = document.querySelector(\".tei-page[data-active='true']\"); const p = document.caretPositionFromPoint(\(figure.x), \(figure.y)); return JSON.stringify({zones: t.dataset.zones, node: p && p.offsetNode.textContent, off: p && p.offset, code: t.querySelector('.tei-page-raw .code-code').textContent.slice(0, 300)}) })()", as: String.self))
         try await page.mouse.move(x: figure.x, y: figure.y)
         try await Self.expectRegion(page, zone, "ok", "The pointer on the figure draws its zone")
         let after = try await point("After")

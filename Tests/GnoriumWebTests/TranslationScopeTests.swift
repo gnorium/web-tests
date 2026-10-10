@@ -52,21 +52,21 @@ struct TranslationScopeTests {
         // Two processes: the header's toggle chooses whose prompts show and
         // what Commit commits for.
         let toggle = page.locator(".mission-control-object-header-view .process-toggle-view")
-        try await expect(page.locator(".prompt-instances-heading")).toHaveText("Prompts")
+        try await expect(page.locator(".prompt-previews-heading")).toHaveText("Prompts")
         try await expect(toggle.locator(".toggle-button-group-button").first).toHaveAttribute("data-value", "bibliographic_explication")
         try await toggle.locator(".toggle-button-group-button[data-value$='translation']").click()
         // The translation's prompts are asked for as it is pressed: their
         // answer waited for in full.
-        try await expect(page.locator(".prompt-instances-slot"), timeout: .seconds(20))
+        try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
-        try await expect(page.locator(".prompt-instances-content")).toHaveAttribute("data-selected-pipeline", "bibliographic_translation")
+        try await expect(page.locator(".prompt-previews-content")).toHaveAttribute("data-selected-process", "bibliographic_translation")
         _ = try await page.evaluate("""
           window.__translationSubmit = null;
           window.addEventListener('submit', event => {
             if (event.target.id !== 'commit-form') return;
             event.preventDefault();
             const data = new FormData(event.target);
-            window.__translationSubmit = { pipeline: data.get('pipeline'), scope: data.get('scope'), services: data.getAll('canvas[]') };
+            window.__translationSubmit = { process: data.get('process'), scope: data.get('scope'), services: data.getAll('canvas[]') };
           });
           true;
           """, as: Bool.self)
@@ -75,9 +75,9 @@ struct TranslationScopeTests {
         try await page.locator("#artifact-page-input").fill("2")
         try await page.locator("#artifact-page-input").press("Enter")
         try await expect(page.locator("#artifact-page-input")).toHaveValue("2")
-        try await expect(page.locator(".prompt-instances-slot")).toHaveAttribute("aria-busy", "false")
-        try await expect(page.locator("[data-process='Translation'] .prompt-instance-task")).toHaveCount(1)
-        let task = try await page.locator("[data-process='Translation'] .prompt-instance-task .prompt-text-source").first.textContent()
+        try await expect(page.locator(".prompt-previews-slot")).toHaveAttribute("aria-busy", "false")
+        try await expect(page.locator("[data-process='Translation'] .prompt-preview-task")).toHaveCount(1)
+        let task = try await page.locator("[data-process='Translation'] .prompt-preview-task .prompt-text-source").first.textContent()
         #expect(task.contains("Translate these pages from Italian into English: 1–2."))
         // Commit translates the stale pages while none is ticked, and the
         // pages ticked once some are.
@@ -87,7 +87,7 @@ struct TranslationScopeTests {
         }
         try await commit.click()
         var payload = try await submitted()
-        #expect(payload.contains("\"pipeline\":\"bibliographic_translation\""))
+        #expect(payload.contains("\"process\":\"bibliographic_translation\""))
         #expect(payload.contains("\"scope\":\"stale\""))
         // Page 2's translation is fresh: locked against a commit, its
         // checkbox gone (user, 2026-10-09); page 1's is stale, and ticks.

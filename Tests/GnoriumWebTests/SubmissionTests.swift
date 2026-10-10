@@ -28,8 +28,8 @@ import WebTestsTesting
 /// removed after.
 @Suite("Submission", .serialized)
 struct SubmissionTests {
-  static let testamentForm = "/mission-control/submit/bibliographic/evidence-testament"
-  static let sentimentForm = "/mission-control/submit/lexicographic/evidence-sentiment"
+  static let testamentForm = "/mission-control/submit/bibliographic/testament"
+  static let sentimentForm = "/mission-control/submit/lexicographic/sentiment"
 
   /// A screenshot for a person to look at, on a desktop page: the page made
   /// tall enough to hold the tree from `top`, then put back.
@@ -188,7 +188,7 @@ struct SubmissionTests {
     // the carrier and its making there, not removable; its citations its
     // copy's.
     let carrier = tree.locator(".dropdown-view:has(#testament-carrier)")
-    let citations = "fieldset:has([data-item-list='reference-citation'])"
+    let citations = "fieldset:has([data-item-list='citation-number'])"
     try await choose(carrier, "manuscript")
     try await expect(node(tree, "edition")).toHaveAttribute("data-outliner-removed", "true")
     try await expect(node(tree, "impression")).toHaveAttribute("data-outliner-removed", "true")

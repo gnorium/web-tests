@@ -13,7 +13,7 @@ import WebTestsTesting
 /// work, removed after.
 @Suite("Voices", .serialized)
 struct VoicesTests {
-  static let form = "/mission-control/submit/bibliographic/evidence-testament"
+  static let form = "/mission-control/submit/bibliographic/testament"
 
   @Test(arguments: gnorium.engines, Layout.allCases)
   func typedRows(engine: BrowserEngine, layout: Layout) async throws {

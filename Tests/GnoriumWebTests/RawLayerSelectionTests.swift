@@ -16,7 +16,7 @@ struct RawLayerSelectionTests {
   /// whether it stands in the code text.
   static let state = """
     (() => {
-      const pane = document.querySelector('.artifact-transcript');
+      const pane = document.querySelector('.artifact-markup');
       const selection = getSelection();
       const node = selection.focusNode;
       const inCode = !!(node && (node.nodeType === 3 ? node.parentElement : node).closest('.code-code'));
@@ -50,7 +50,7 @@ struct RawLayerSelectionTests {
         try await expect(text).toBeVisible()
         _ = try await text.evaluate("e => { e.scrollIntoView({block: 'center'}); return true }")
         let box = try #require(try await text.boundingBox())
-        let pane = try #require(try await page.locator(".artifact-transcript").first.boundingBox())
+        let pane = try #require(try await page.locator(".artifact-markup").first.boundingBox())
         // The fourth line, the long one (div, p, s, then the words).
         let y = box.y + 22 * 3 + 11
         try await page.mouse.down(x: box.x + 2, y: y)

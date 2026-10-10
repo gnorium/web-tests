@@ -20,7 +20,7 @@ import WebTestsTesting
 /// scratch works, removed after.
 @Suite("Origin", .serialized)
 struct OriginTests {
-  static let form = "/mission-control/submit/bibliographic/evidence-testament"
+  static let form = "/mission-control/submit/bibliographic/testament"
 
   @Test(arguments: gnorium.engines, Layout.allCases)
   func originRowsAndTheRecordPage(engine: BrowserEngine, layout: Layout) async throws {
@@ -544,7 +544,7 @@ struct OriginTests {
       // A word's origin may name nothing: an Imitation or a Coinage hides
       // the row's record field and typed fields; another relation brings
       // them back.
-      try await page.openHydrated("/mission-control/submit/lexicographic/evidence-sentiment")
+      try await page.openHydrated("/mission-control/submit/lexicographic/sentiment")
       let wordRow = page.locator(".origin-field-view [data-origin-row='true']").first
       try await expect(wordRow.locator(".origin-record-field-view")).toHaveCount(1)
       let wordRelation = wordRow.locator(".dropdown-view").first

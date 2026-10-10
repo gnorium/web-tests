@@ -20,7 +20,7 @@ struct PromptVignetteRunsTests {
     let placeholder = UUID().uuidString
     _ = try TestAdmin.query(
       """
-      INSERT INTO prompt_vignettes(id, hash, stage, system_prompt, task_prompt,
+      INSERT INTO prompt_vignettes(id, hash, slot, system_prompt, task_prompt,
         is_proprietary_content, created_at, committed_object_type, committed_object_id, committed_by_user_id,
         committed_at)
       VALUES ('\(id)', '\(id)', 'bibliographic_explication', 'Web tests system.', 'Web tests task {page}',
