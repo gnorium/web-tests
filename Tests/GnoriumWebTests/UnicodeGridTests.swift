@@ -28,7 +28,8 @@ struct UnicodeGridTests {
           })()
           """, as: BrandGeometry.self)
         #expect(abs(geometry.brand - min(320, geometry.available - 64)) < 1)
-        #expect(abs(geometry.logo - geometry.brand) < 1)
+        // The logo is its SVG's own 256 (user, 2026-10-10).
+        #expect(abs(geometry.logo - min(256, geometry.brand)) < 1)
         #expect(geometry.title <= geometry.brand)
         #expect(abs(geometry.search - min(640, geometry.available - 64)) < 1)
         try await page.expectNoHorizontalOverflow()
