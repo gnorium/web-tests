@@ -62,6 +62,16 @@ struct AvatarTests {
         try await expect(page.locator(".edit-profile-avatar-add")).toBeVisible()
         try await expect(page.locator(".edit-profile-avatar-remove")).toBeHidden()
         try await expect(page.locator(".edit-profile-avatar .avatar-view")).toHaveCSS("cursor", "auto")
+        // The "Avatar" heading is centered over the disc too.
+        let offset = try await page.evaluate(
+          """
+          (() => {
+            const text = document.querySelector('.edit-profile-avatar-field > legend .label-text').getBoundingClientRect();
+            const disc = document.querySelector('.edit-profile-avatar .avatar-view').getBoundingClientRect();
+            return Math.abs((text.left + text.width / 2) - (disc.left + disc.width / 2));
+          })()
+          """, as: Double.self)
+        #expect(offset < 1, "the heading's center is \(offset)px off the disc's")
 
         // Too large: the field says so, nothing is sent.
         try await page.locator("#avatar-file").setInputFiles([large.path])
