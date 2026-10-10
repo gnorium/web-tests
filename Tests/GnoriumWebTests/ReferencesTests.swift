@@ -3,12 +3,10 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// OED-style credits (user, 2026-09-28): a record page, and a record
-/// version's page, credit no sources—no References, no list, no mark—and
-/// the version links to the madrigal it was permitted from. A word's
-/// madrigal numbers each fact's sources: its page's title (else host and
-/// path) linked, its host. A fact with no fetched source is marked
-/// Unsourced. Nothing scrolls sideways. A throwaway admin owns a scratch
+/// A record lists no references (user, 2026-10-10): a record page, a
+/// record version's page and a word's madrigal credit no sources—no
+/// References, no Sources, no mark—and the version links to the madrigal
+/// it was permitted from. Nothing scrolls sideways. A throwaway admin owns a scratch
 /// work and a scratch word with research references, made by SQL and
 /// removed after.
 @Suite("References", .serialized)
@@ -44,11 +42,9 @@ struct ReferencesTests {
     try await admin.remove()
   }
 
-  /// A word: its record and version pages credit nothing; its madrigal's
-  /// Sources number each fact's, and the branch sentiment, which rests on
-  /// nothing, is Unsourced.
+  /// A word: its record, version and madrigal pages credit nothing.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aWordIsCreditedOnItsMadrigalNotItsRecord(engine: BrowserEngine, layout: Layout) async throws {
+  func aWordCreditsNoSourcesAnywhere(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -67,23 +63,10 @@ struct ReferencesTests {
         }
         try await expect(page.locator("a[href='\(madrigal)']")).not.toHaveCount(0)
 
+        // Its madrigal lists none either: no Sources section.
         try await page.openHydrated(madrigal)
-        let sources = page.locator("#object-sources")
-        try await expect(sources).not.toHaveAttribute("open")
-        try await page.locator("#object-sources > .accordion-summary").click()
-        try await expect(sources).toHaveAttribute("data-open-finished", "true")
-        let fields = sources.locator(".sources-field")
-        let title = fields.filter(hasText: "Title").first
-        try await expect(title.locator("ol.sources-list > li")).toHaveCount(1)
-        try await expect(title.locator(".reference-credit-place a"))
-          .toHaveAttribute("href", "https://dictionary.example.org/web-tests")
-        try await expect(title.locator(".reference-credit-source")).toHaveText("dictionary.example.org")
-        let branch = fields.filter(hasText: "Sentiment 1").first
-        try await expect(branch.locator(".info-chip-view")).toHaveText("Unsourced")
-        let leaf = fields.filter(hasText: "Sentiment 1.1").first
-        try await expect(leaf.locator(".reference-credit-place a"))
-          .toHaveAttribute("href", "https://senses.example.org/web-tests")
-        try await expect(leaf.locator(".info-chip-view")).toHaveCount(0)
+        try await expect(page.locator("#object-sources, .sources-view, .reference-credit-view")).toHaveCount(0)
+        #expect(!(try await page.locator("body").textContent()).contains("dictionary.example.org"))
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }
