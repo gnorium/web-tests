@@ -71,7 +71,7 @@ struct ArbitrationTests {
           committed_at = NULL WHERE committed_by_user_id = '\(adminID)';
         DELETE FROM locutions WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)' AND kind = 'reply';
         UPDATE locutions SET arbitration_run_id = NULL WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
-        DELETE FROM arbitration_runs WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
+        DELETE FROM bibliographic_arbitration_runs WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
         DELETE FROM locutions WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
         COMMIT;
         """)
@@ -146,7 +146,7 @@ struct ArbitrationTests {
         // for that task to finish before replacing its result with a trace.
         var runID = ""
         for _ in 0..<300 {
-          runID = try TestAdmin.query("SELECT id FROM arbitration_runs WHERE call_locution_id = '\(callID)' AND result = 'failed'")
+          runID = try TestAdmin.query("SELECT id FROM bibliographic_arbitration_runs WHERE call_locution_id = '\(callID)' AND result = 'failed'")
           if !runID.isEmpty { break }
           try await Task.sleep(for: .milliseconds(100))
         }
@@ -155,7 +155,7 @@ struct ArbitrationTests {
         }
         _ = try TestAdmin.query("""
           BEGIN;
-          UPDATE arbitration_runs SET result = 'passed', output = '\(try Self.trace())',
+          UPDATE bibliographic_arbitration_runs SET result = 'passed', output = '\(try Self.trace())',
             provider = 'deepseek', model = 'deepseek-flash', duration_ms = 1200, error_message = NULL WHERE id = '\(runID)';
           UPDATE locutions SET call_status = 'done' WHERE id = '\(callID)';
           INSERT INTO locutions (id, locutable_type, locutable_id, author_id, parent_id, content, depth,
@@ -206,7 +206,7 @@ struct ArbitrationTests {
         try await page.locator(".locution-thread-submit").click()
         try await expect(page.locator(".locution-call-status").filter(hasText: "Pending"), timeout: .seconds(15)).toHaveCount(1)
         try await expect(page.locator(".locution-commit")).toHaveCount(1)
-        #expect(try TestAdmin.query("SELECT count(*) FROM arbitration_runs WHERE locutable_id = '\(objectID)'") == "1")
+        #expect(try TestAdmin.query("SELECT count(*) FROM bibliographic_arbitration_runs WHERE locutable_id = '\(objectID)'") == "1")
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
@@ -409,7 +409,7 @@ struct ArbitrationTests {
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, tei,
           target, status, submitted_by_user_id, summary, definition_translation_json)
           VALUES ('\(epilogue)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', 's-1-1',
-            '<sense><def>A leaf sense.</def></sense>', 'definition', 'proposed', '\(user)', 'Web tests arbitration prompts.',
+            '<sense><def>A leaf sense.</def></sense>', 'definition', 'committed', '\(user)', 'Web tests arbitration prompts.',
             '{"languageCode":"fra","tei":"<def xml:lang=\\"fr\\">Un sens feuille.</def>","confidence":"clear","reason":"Web tests."}');
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in

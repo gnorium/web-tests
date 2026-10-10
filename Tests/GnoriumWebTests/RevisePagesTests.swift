@@ -555,7 +555,7 @@ struct RevisePagesTests {
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, tei,
             target, status, submitted_by_user_id, summary, definition_translation_json)
           VALUES ('\(epilogue)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', 's-1-1',
-            '<sense><def>A leaf sense.</def></sense>', 'definition', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.',
+            '<sense><def>A leaf sense.</def></sense>', 'definition', 'committed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.',
             '{"languageCode":"fra","tei":"<def xml:lang=\\"fr\\">Un sens feuille.</def>","confidence":"clear","reason":"Web tests."}');
         """)
       let madrigalPath = "/mission-control/madrigals/lexicographic/\(word.madrigalID)"

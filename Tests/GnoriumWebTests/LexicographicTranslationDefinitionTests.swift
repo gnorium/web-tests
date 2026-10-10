@@ -57,12 +57,12 @@ struct LexicographicTranslationDefinitionTests {
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, tei, target,
             status, submitted_by_user_id, summary, definition_translation_json)
           VALUES ('\(amendment)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', 's-1-1',
-            '<sense><def>A leaf sense.</def></sense>', 'definition', 'proposed', (SELECT id FROM users WHERE username = 'gnorium'),
+            '<sense><def>A leaf sense.</def></sense>', 'definition', 'committed', (SELECT id FROM users WHERE username = 'gnorium'),
             'Wrote the German definition.', '\(definition)');
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        // The amendment, proposed: the definition in German with its provenance; no usage translated.
+        // The amendment, committed: the definition in German with its provenance; no usage translated.
         try await page.openHydrated("/mission-control/epilogues/lexicographic/\(amendment)")
         let body = page.locator(".lexicographic-epilogue-body")
         try await expect(body.getByText("Definition in German")).toBeVisible()
