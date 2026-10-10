@@ -3,9 +3,10 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// Explication is one session per cluster of quotations (user, 2026-09-29):
-/// the antiphon's page lists its clusters as sessions ("Cluster 1 of 2 · 2
-/// quotations"), shows the focused one's trace—each quotation read and
+/// Explication is one session, on the first of the title's ranked clusters
+/// (user, 2026-09-29; one sentiment per object, 2026-10-10): the antiphon's
+/// page lists that one session ("The cluster · 2 quotations"), never its
+/// title's other candidates, shows its trace—each quotation read and
 /// assigned, its last words—and no processes.
 @Suite("Lexicographic explication sessions", .serialized)
 struct LexicographicExplicationSessionsTests {
@@ -31,7 +32,7 @@ struct LexicographicExplicationSessionsTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func anAntiphonIsOneSessionPerCluster(engine: BrowserEngine, layout: Layout) async throws {
+  func anAntiphonIsOneSessionOnItsFirstCluster(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -69,7 +70,7 @@ struct LexicographicExplicationSessionsTests {
         try await expect(page.locator("a[href*='process=']")).toHaveCount(0)
         let process = page.locator(".process-container")
         try await expect(process).toHaveAttribute(
-          "data-item-order", "Cluster 1 of 2 · 2 quotations,Cluster 2 of 2 · 1 quotation")
+          "data-item-order", "The cluster · 2 quotations")
         let session = page.locator(".computorium-session-view")
         try await expect(session.getByText("read_quotation").first).toBeAttached()
         try await expect(session.getByText("assign", exact: true).first).toBeAttached()
