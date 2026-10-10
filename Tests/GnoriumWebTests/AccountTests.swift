@@ -58,20 +58,45 @@ struct AccountTests {
         try await expect(links.locator("a[href='/admin-console']")).toHaveCount(asAdmin ? 1 : 0)
         try await expect(links.locator("form[action='/auth/sign-out']")).toHaveCount(0)
         try await expect(page.locator("a[href='/auth/sign-out']")).toHaveCount(0)
-        // Every row has its icon, and every row is as wide as the list.
+        // Every row is a plain link, one per row, with its icon at the text's
+        // size: the link color (Delete Account too: red is for the button on
+        // its page), no button background.
         let rows = try await page.evaluate(
           """
-          [...document.querySelectorAll('nav.account-links .button-view')].map(b => ({
-            label: b.textContent.trim(),
-            icon: !!b.querySelector('svg'),
-            width: Math.round(b.getBoundingClientRect().width),
-            list: Math.round(b.closest('nav').getBoundingClientRect().width)
-          }))
+          [...document.querySelectorAll('nav.account-links > *')].map(a => {
+            const svg = a.querySelector('svg'), style = getComputedStyle(a)
+            return {
+              label: a.textContent.trim(),
+              link: a.matches('a.link-view') && !a.matches('.button-view'),
+              iconSize: svg ? Math.round(svg.getBoundingClientRect().height) : 0,
+              fontSize: parseFloat(style.fontSize),
+              color: style.color,
+              background: style.backgroundColor,
+              top: Math.round(a.getBoundingClientRect().top)
+            }
+          })
           """, as: [Row].self)
         #expect(rows.count == (asAdmin ? 5 : 3))
-        for row in rows {
-          #expect(row.icon, "\(row.label) has no icon")
-          #expect(row.width == row.list)
+        for (index, row) in rows.enumerated() {
+          #expect(row.link, "\(row.label) is not a plain link")
+          #expect(row.iconSize == 16 && Double(row.iconSize) == row.fontSize, "\(row.label): icon \(row.iconSize), text \(row.fontSize)")
+          #expect(row.color == rows[0].color, "\(row.label) is \(row.color)")
+          #expect(row.background == "rgba(0, 0, 0, 0)", "\(row.label) has background \(row.background)")
+          if index > 0 { #expect(row.top > rows[index - 1].top, "\(row.label) shares a row") }
+        }
+        try await expect(links).toHaveCSS("flex-direction", "column")
+        // Delete Account turns red on hover, its icon with it.
+        let deleteLink = links.locator("a[href='/account/delete']")
+        try await expect(links.locator("a.link-red-hover[href='/account/delete']")).toHaveCount(1)
+        if layout != .phone {
+          try await deleteLink.hover()
+          let hovered = try await page.evaluate(
+            """
+            (() => { const a = document.querySelector("nav.account-links a[href='/account/delete']")
+              return [getComputedStyle(a).color, getComputedStyle(a.querySelector('svg')).color] })()
+            """, as: [String].self)
+          #expect(hovered[0] != rows[0].color, "Delete Account stays \(hovered[0]) on hover")
+          #expect(hovered[1] == hovered[0], "The icon is \(hovered[1]), the text \(hovered[0])")
         }
 
         let linked = try await page.evaluate(
@@ -110,9 +135,12 @@ struct AccountTests {
 
   struct Row: Decodable {
     let label: String
-    let icon: Bool
-    let width: Double
-    let list: Double
+    let link: Bool
+    let iconSize: Int
+    let fontSize: Double
+    let color: String
+    let background: String
+    let top: Int
   }
 
   /// Changing one's email address: Edit Profile keeps the new address
