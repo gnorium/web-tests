@@ -143,6 +143,10 @@ struct RecordBreadcrumbsTests {
         let lexicoTab = page.locator(".records-tabs #tab-lexico-records")
         let biblioTab = page.locator(".records-tabs #tab-biblio-records")
         try await expect(lexicoTab).toBeVisible()
+        // A tab is a large control (user, 2026-10-10): 12 around the 22px
+        // line inside a 1px transparent border, 48.
+        let tabHeight = try #require(try await lexicoTab.boundingBox()).height
+        #expect(abs(tabHeight - 48) < 0.5, "a records tab is \(tabHeight)px tall, not 48")
         try await expect(biblioTab).toHaveAttribute("href", "/biblio-records/eng?status=translated")
         try await expect(lexicoTab).toHaveAttribute("href", "/lexico-records/eng?status=translated")
         try await lexicoTab.click()

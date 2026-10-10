@@ -79,6 +79,61 @@ struct WatchtowerTests {
     }
   }
 
+  /// A status mark sits in its permit row's line (user, 2026-10-10): the
+  /// words of the row's first line—mono verb, sans arrow, status word and
+  /// names—share one baseline, and the 16px mark centers on the capitals
+  /// of the word beside it, by the font's cap height, within half a pixel.
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func statusMarksCenterOnTheirRowsCapitals(engine: BrowserEngine, layout: Layout) async throws {
+    guard gnorium.engines.contains(engine) else { return }
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      try await page.openHydrated("/")
+      let rows = try await page.evaluate("""
+        (() => {
+          const ctx = document.createElement('canvas').getContext('2d');
+          // A text run's baseline (a zero box on it) and cap height (its font's H).
+          const measure = node => {
+            const probe = document.createElement('span');
+            probe.style.cssText = 'display:inline-block;width:0;height:0';
+            node.parentNode.insertBefore(probe, node.nextSibling);
+            const baseline = probe.getBoundingClientRect().bottom;
+            probe.remove();
+            const style = getComputedStyle(node.parentElement);
+            ctx.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+            return { text: node.textContent.trim(), baseline, cap: ctx.measureText('H').actualBoundingBoxAscent };
+          };
+          return [...document.querySelectorAll('.watchtower-routes-row:has(.watchtower-routes-mark)')].map(row => {
+            const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
+            const runs = [];
+            for (let node; (node = walker.nextNode());) if (node.textContent.trim()) runs.push(measure(node));
+            const word = measure(row.querySelector('.watchtower-routes-mark-text').firstChild);
+            const icon = row.querySelector('.watchtower-routes-mark .icon-view').getBoundingClientRect();
+            const line = runs.filter(r => Math.abs(r.baseline - word.baseline) < 8);
+            return {
+              row: runs.map(r => r.text).join(' '),
+              baselines: Math.max(...line.map(r => r.baseline)) - Math.min(...line.map(r => r.baseline)),
+              tops: Math.max(...line.map(r => r.baseline - r.cap)) - Math.min(...line.map(r => r.baseline - r.cap)),
+              offset: (icon.top + icon.bottom) / 2 - (word.baseline - word.cap / 2),
+            };
+          });
+        })()
+        """, as: [Row].self)
+      try #require(!rows.isEmpty, "the Watchtower shows no status mark")
+      for row in rows {
+        #expect(row.baselines < 0.5, "\(row.row): its first line's words are \(row.baselines)px off one baseline")
+        #expect(row.tops < 0.5, "\(row.row): its first line's capitals are \(row.tops)px apart at the top")
+        #expect(abs(row.offset) < 0.5, "\(row.row): the mark is \(row.offset)px off its word's capitals")
+      }
+    }
+  }
+
+  struct Row: Decodable {
+    let row: String
+    let baselines: Double
+    let tops: Double
+    let offset: Double
+  }
+
   static let statusLabels = ["Status"]
 
   static func statusRow(_ page: Page) async throws -> Locator {

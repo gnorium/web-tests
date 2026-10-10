@@ -10,8 +10,9 @@ import WebTestsTesting
 /// the filter keeps.
 @Suite("Watchtower figure links")
 struct WatchtowerFigureLinksTests {
-  /// Every figure: an object's, opening a lifecycle list or the palinodes
-  /// register, and a process's, opening the runs it counts.
+  /// Every figure: an object's, opening its object's own list (user,
+  /// 2026-10-10)—Folksongs, Overtures, Antiphons, Madrigals, Serenades,
+  /// Epilogues, Palinodes—and a process's, opening the runs it counts.
   static let figureLinks = ".watchtower-object-figures-view a[href], .watchtower-process-figures a[href]"
 
   struct Figure: Decodable {
@@ -160,6 +161,9 @@ struct WatchtowerFigureLinksTests {
       // 6 + 9 + 18 = 33.
       let runLinks = figures.filter { $0.href.hasPrefix("/mission-control/runs/") }.count
       try #require(runLinks == 33, "the processes' and the nested Arbitration cards' run links: \(runLinks)")
+      // An object's figure opens its own list, never the lifecycles.
+      let lifecycles = figures.filter { $0.href.contains("/lifecycles/") }.map(\.href)
+      #expect(lifecycles.isEmpty, "object figures open the lifecycles: \(lifecycles)")
       for figure in figures {
         let count = try #require(Int(figure.text.prefix { $0.isNumber }))
         // Explication's figures count both kinds' runs: the list they open
@@ -174,8 +178,7 @@ struct WatchtowerFigureLinksTests {
           else { return listed }
           let other = try await Self.listed(
             page,
-            figure.href.replacingOccurrences(of: "/lifecycles/bibliographic", with: "/lifecycles/lexicographic")
-              .replacingOccurrences(of: "/runs/bibliographic", with: "/runs/lexicographic"))
+            figure.href.replacingOccurrences(of: "/runs/bibliographic", with: "/runs/lexicographic"))
           return other < 0 ? -1 : listed + other
         }
         #expect(listed == shown, "\(figure.text) (now \(shown)) opens \(listed) rows: \(figure.href)")
@@ -184,11 +187,10 @@ struct WatchtowerFigureLinksTests {
   }
 
   /// The case that was broken: the sentiments' committed overtures.
-  static let committedSentimentOvertures =
-    "/mission-control/lifecycles/lexicographic?object=overture&status=committed&createdOn=-7d.."
+  static let committedSentimentOvertures = "/mission-control/overtures/lexicographic?status=committed&createdOn=-7d.."
   /// The testaments' pending overtures, whose list must be filtered on the
   /// first render, not only after Apply.
-  static let pendingTestamentOvertures = "/mission-control/lifecycles/bibliographic?object=overture&status=pending"
+  static let pendingTestamentOvertures = "/mission-control/overtures/bibliographic?status=pending"
 
   /// A process's figure opens the Runs page: its filter bar names the process
   /// and the status, with no placeholder, and it lists as many runs as the
@@ -233,9 +235,9 @@ struct WatchtowerFigureLinksTests {
   @Test(arguments: enginesAndLayouts)
   func aFigureOpensItsFilteredList(engine: BrowserEngine, layout: Layout) async throws {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-      for (href, object, status, tab) in [
-        (Self.committedSentimentOvertures, "Overture", "Committed", "lexicographic"),
-        (Self.pendingTestamentOvertures, "Overture", "Pending", "bibliographic"),
+      for (href, status, tab) in [
+        (Self.committedSentimentOvertures, "Committed", "lexicographic"),
+        (Self.pendingTestamentOvertures, "Pending", "bibliographic"),
       ] {
         try await page.openHydrated("/")
         let link = page.locator(".watchtower-object-figures-view a[href='\(href)']").first
@@ -248,7 +250,6 @@ struct WatchtowerFigureLinksTests {
         // The filter bar names what the link asked for, and no row stands
         // on a placeholder.
         let values = try await page.locator(".filter-bar-value-select .dropdown-selected-text").allTextContents()
-        #expect(values.contains(object), "\(href): the filter values are \(values)")
         #expect(values.contains(status), "\(href): the filter values are \(values)")
         let placeholders = try await page.evaluate(
           """
@@ -259,42 +260,30 @@ struct WatchtowerFigureLinksTests {
 
         // The figure is the length of the list it opens (read again until
         // they agree, see `agreeing`). The rows, after hydration, are the
-        // filtered ones, each a lifecycle holding the object in that status.
+        // filtered ones: overtures in that status.
         let (count, listed) = try await Self.agreeing(page, href, figure: shown) {
           try await Self.listed(page, href)
         }
         #expect(listed == count, "\(href): the list holds \(listed) for the figure's \(count)")
-        let table = page.locator(".\(tab)-lifecycles-table")
         let total = try await page.evaluate(
           """
           (() => {
-            const table = document.querySelector('.\(tab)-lifecycles-table')
+            const table = document.querySelector('.\(tab)-overtures-table')
             return table ? Number(table.getAttribute('data-total-items')) : 0
           })()
           """, as: Int.self)
-        if total == 0 {
-          try await expect(page.locator(".mission-control-core-empty")).toBeVisible()
-        } else {
-          let headers = try await page.evaluate(
+        if total > 0 {
+          let statuses = try await page.evaluate(
             """
-            [...document.querySelectorAll('.\(tab)-lifecycles-table tbody tr[data-row-id]')]
-              .filter(r => !r.classList.contains('table-group-child')).length
-            """, as: Int.self)
-          #expect(headers == min(total, 25), "\(href): \(headers) lifecycles shown for \(total)")
-          let unfiltered = try await page.evaluate(
-            """
-            [...document.querySelectorAll('.\(tab)-lifecycles-table tbody tr[data-row-id]')]
-              .filter(r => !r.classList.contains('table-group-child'))
-              .filter(r => {
-                const group = r.getAttribute('data-group-id')
-                const rows = [...document.querySelectorAll(`.\(tab)-lifecycles-table tbody tr[data-group-id="${group}"]`)]
-                return !rows.some(row => {
-                  const cells = [...row.querySelectorAll('td, th')].map(c => c.textContent.trim())
-                  return cells.includes('\(object)') && cells.includes('\(status)')
-                })
-              }).length
-            """, as: Int.self)
-          #expect(unfiltered == 0, "\(href): \(unfiltered) lifecycles hold no \(object) \(status)")
+            (() => {
+              const table = document.querySelector('.\(tab)-overtures-table')
+              const column = [...table.querySelectorAll('thead th')].findIndex(th => th.textContent.trim() === 'Status')
+              return [...table.querySelectorAll('tbody tr[data-row-id]')]
+                .map(row => row.children[column]?.textContent.trim() ?? '')
+            })()
+            """, as: [String].self)
+          #expect(statuses.count == min(total, 25), "\(href): \(statuses.count) overtures shown for \(total)")
+          #expect(statuses.allSatisfy { $0 == status }, "\(href): the rows' statuses are \(statuses)")
         }
       }
     }

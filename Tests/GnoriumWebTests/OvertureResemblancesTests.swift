@@ -162,6 +162,10 @@ struct OvertureResemblancesTests {
           try #require(try await thumb.boundingBox()), try #require(try await active.boundingBox())),
           "the pill is not under the active tab")
         try await expect(active).toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
+        // A solid tab is a large control, as a quiet one is (user,
+        // 2026-10-10): 48.
+        let tabHeight = try #require(try await active.boundingBox()).height
+        #expect(abs(tabHeight - 48) < 0.5, "a solid tab is \(tabHeight)px tall, not 48")
         try await shoot(page, "tabs", layout)
 
         try await list.locator("[role='tab'][data-tab-name='lexicographic']").click()
