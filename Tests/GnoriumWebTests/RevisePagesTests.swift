@@ -178,7 +178,7 @@ struct RevisePagesTests {
         try await expect(code.locator(".diff-row[data-diff-line='removed']")).toHaveCount(1)
         try await expect(code.locator(".diff-row[data-diff-line='inserted']")).toHaveCount(1)
         try await expect(code.locator(".diff-row[data-diff-line='unchanged']")).toHaveCount(2)
-        // Its own process's block: the Computation pair stands first.
+        // Its own process's block: the Arbitration pair stands first.
         let prompts = page.locator(".prompt-revision-fields-view .prompt-revision-fields-process[data-process='\(slot)']")
         // The process in its accordion, each prompt in its own inside,
         // closed as on the object's page.
@@ -310,7 +310,7 @@ struct RevisePagesTests {
         // the other processes closed.
         try await expect(page.locator(".prompt-change-view .diff-view").first).toBeVisible()
         try await expect(page.locator("#prompt-change-process-\(slot)")).toHaveAttribute("data-expanded", "true")
-        try await expect(page.locator("#prompt-change-process-bibliographic_computation")).toHaveAttribute("data-expanded", "false")
+        try await expect(page.locator("#prompt-change-process-bibliographic_arbitration")).toHaveAttribute("data-expanded", "false")
         try await expect(page.locator("#prompt-change-autocompaction-\(slot)")).toHaveAttribute("data-expanded", "false")
         try await expect(page.getByText("Web tests suggestion.").first).toBeAttached()
         try await page.expectNoHorizontalOverflow()
@@ -369,7 +369,7 @@ struct RevisePagesTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let user = try contributor.column("id")
     let work = try ScratchCommit(owner: contributor)
-    let parent = "bibliographic_computation"
+    let parent = "bibliographic_arbitration"
     let slot = parent + "_autocompaction"
     let active = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
     func remove() {
@@ -424,7 +424,7 @@ struct RevisePagesTests {
         try await expect(page.locator(".prompt-change-view .diff-view")).toHaveCount(2)
         try await page.locator("button[form='revision-accept']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the object at its revision", where: Self.atLocution(work.madrigalPath))
-        let auto = page.locator("#prompt-instance-autocompaction-computation")
+        let auto = page.locator("#prompt-instance-autocompaction-arbitration")
         try await expect(auto, timeout: .seconds(20)).toHaveCount(1)
         try await expect(auto.locator(".prompt-text-source").nth(0)).toContainText("Web tests summarizer system.")
         try await expect(auto.locator(".prompt-text-source").nth(1)).toContainText("Web tests summarizer task.")
@@ -463,7 +463,7 @@ struct RevisePagesTests {
         try await expect(page.locator(".apparatus-rule-view .verbose-toggle-button-view, .apparatus-rule-view button").first)
           .toBeVisible()
 
-        // Its own process's block: the Computation pair stands first.
+        // Its own process's block: the Arbitration pair stands first.
         let prompts = page.locator(".prompt-revision-fields-view .prompt-revision-fields-process[data-process='\(slot)']")
         try await prompts.locator("#prompt-revision-process-\(slot) .accordion-summary").first.click()
         try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()

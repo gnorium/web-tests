@@ -6,8 +6,8 @@ import WebTestsTesting
 /// A call is submitted by a person, committed by an admin, and answered with
 /// the ordinary Computorium session inside its locution. Recorded sessions
 /// are seeded as in ToolCardFieldsTests; no provider request is made.
-@Suite("Disputorium computation", .serialized)
-struct ComputationTests {
+@Suite("Disputorium arbitration", .serialized)
+struct ArbitrationTests {
   static let reply = "The selected evidence supports this reading."
   static let task = "Answer this query about the evidence item shown: Evidence fixture 2."
   static let toolDefinition =
@@ -18,7 +18,7 @@ struct ComputationTests {
       ["type": "task_prompt_instance", "content": task],
       ["type": "tools", "content": toolDefinition],
       ["type": "thinking", "content": String(repeating: "Reading the selected evidence carefully.\n\n", count: 90)],
-      ["type": "tool", "name": "read_record", "arguments": "{}", "status": "ok", "call_id": "computation_read",
+      ["type": "tool", "name": "read_record", "arguments": "{}", "status": "ok", "call_id": "arbitration_read",
        "result": #"{"nodes":[{"id":"work","label":"Work","number":"1","fields":[{"id":"title","label":"Title","value":"Web tests evidence"}]}],"evidence":{"id":"selected-evidence","kind":"canvas","label":"Title page","markup":"<p>Evidence fixture 2.</p>"}}"#],
       ["type": "tools", "content": toolDefinition],
       ["type": "text", "content": reply],
@@ -47,10 +47,10 @@ struct ComputationTests {
     // then supplies the recorded result. It never enables a worker or model.
     let stopped = try TestAdmin.query("""
       SELECT (NOT p.enabled OR NOT c.enabled)::text FROM computorium_worker_pool p
-        CROSS JOIN computorium_worker_controls c WHERE p.singleton = true AND c.kind = 'computation'
+        CROSS JOIN computorium_worker_controls c WHERE p.singleton = true AND c.kind = 'arbitration'
       """)
     guard stopped == "true" else {
-      throw WebTestError("The computation browser fixture requires stopped dev workers so Commit cannot call a provider.")
+      throw WebTestError("The arbitration browser fixture requires stopped dev workers so Commit cannot call a provider.")
     }
     let fixture = try await FixtureServer.threePageManifest()
     defer { fixture.stop() }
@@ -70,8 +70,8 @@ struct ComputationTests {
         UPDATE prompt_vignettes SET committed_object_type = NULL, committed_object_id = NULL, committed_by_user_id = NULL,
           committed_at = NULL WHERE committed_by_user_id = '\(adminID)';
         DELETE FROM locutions WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)' AND kind = 'reply';
-        UPDATE locutions SET computation_run_id = NULL WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
-        DELETE FROM computation_stage_runs WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
+        UPDATE locutions SET arbitration_run_id = NULL WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
+        DELETE FROM arbitration_stage_runs WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
         DELETE FROM locutions WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
         COMMIT;
         """)
@@ -146,20 +146,20 @@ struct ComputationTests {
         // for that task to finish before replacing its result with a trace.
         var runID = ""
         for _ in 0..<300 {
-          runID = try TestAdmin.query("SELECT id FROM computation_stage_runs WHERE call_locution_id = '\(callID)' AND result = 'failed'")
+          runID = try TestAdmin.query("SELECT id FROM arbitration_stage_runs WHERE call_locution_id = '\(callID)' AND result = 'failed'")
           if !runID.isEmpty { break }
           try await Task.sleep(for: .milliseconds(100))
         }
         guard UUID(uuidString: runID) != nil else {
-          throw WebTestError("Commit did not create and finish the stopped computation fixture.")
+          throw WebTestError("Commit did not create and finish the stopped arbitration fixture.")
         }
         _ = try TestAdmin.query("""
           BEGIN;
-          UPDATE computation_stage_runs SET result = 'passed', output = '\(try Self.trace())',
+          UPDATE arbitration_stage_runs SET result = 'passed', output = '\(try Self.trace())',
             provider = 'deepseek', model = 'deepseek-flash', duration_ms = 1200, error_message = NULL WHERE id = '\(runID)';
           UPDATE locutions SET call_status = 'done' WHERE id = '\(callID)';
           INSERT INTO locutions (id, locutable_type, locutable_id, author_id, parent_id, content, depth,
-            kind, computation_run_id, evidence_id, evidence_kind, created_at)
+            kind, arbitration_run_id, evidence_id, evidence_kind, created_at)
             VALUES ('\(replyID)', 'bibliographic_madrigal', '\(objectID)',
               (SELECT id FROM users WHERE username = 'gnorium'), '\(callID)', '\(Self.reply)', 1,
               'reply', '\(runID)', '\(fixture.baseURL)/page-1', 'canvas', now());
@@ -187,7 +187,7 @@ struct ComputationTests {
         try await expect(tools).toHaveCount(2)
         try await tools.first.locator(".accordion-summary").first.click()
         try await expect(tools.first).toContainText("Read the exact human Revise fields and attached evidence.")
-        let tool = session.locator("#computorium-session-tool-computation_read")
+        let tool = session.locator("#computorium-session-tool-arbitration_read")
         try await tool.locator(".accordion-summary").first.click()
         try await expect(tool.locator(".computorium-session-tool-call-definition")).toHaveCount(0)
         try await expect(tool.locator(".datum-label").filter(hasText: "nodes[0]")).toHaveCount(1)
@@ -206,7 +206,7 @@ struct ComputationTests {
         try await page.locator(".locution-thread-submit").click()
         try await expect(page.locator(".locution-call-status").filter(hasText: "Pending"), timeout: .seconds(15)).toHaveCount(1)
         try await expect(page.locator(".locution-commit")).toHaveCount(1)
-        #expect(try TestAdmin.query("SELECT count(*) FROM computation_stage_runs WHERE locutable_id = '\(objectID)'") == "1")
+        #expect(try TestAdmin.query("SELECT count(*) FROM arbitration_stage_runs WHERE locutable_id = '\(objectID)'") == "1")
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
@@ -389,7 +389,7 @@ struct ComputationTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome])
-  func computationPromptsLeadBothProcessesAndAreRevisable(engine: BrowserEngine) async throws {
+  func arbitrationPromptsLeadBothProcessesAndAreRevisable(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let fixture = try await FixtureServer.threePageManifest()
@@ -409,21 +409,21 @@ struct ComputationTests {
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, tei,
           target, status, submitted_by_user_id, summary, definition_translation_json)
           VALUES ('\(epilogue)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', 's-1-1',
-            '<sense><def>A leaf sense.</def></sense>', 'definition', 'proposed', '\(user)', 'Web tests computation prompts.',
+            '<sense><def>A leaf sense.</def></sense>', 'definition', 'proposed', '\(user)', 'Web tests arbitration prompts.',
             '{"languageCode":"fra","tei":"<def xml:lang=\\"fr\\">Un sens feuille.</def>","confidence":"clear","reason":"Web tests."}');
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         let cases = [
-          (scratch.overturePath, "Explication", "bibliographic_computation"),
-          ("/mission-control/epilogues/lexicographic/\(epilogue)?process=translation", "Translation", "lexicographic_computation"),
+          (scratch.overturePath, "Explication", "bibliographic_arbitration"),
+          ("/mission-control/epilogues/lexicographic/\(epilogue)?process=translation", "Translation", "lexicographic_arbitration"),
         ]
         for (path, process, slot) in cases {
           try await page.openHydrated(path)
           let sections = page.locator(".prompt-instances-process")
           try await expect(sections, timeout: .seconds(20)).toHaveCount(2)
-          try await expect(sections.nth(0)).toHaveAttribute("data-process", "Computation")
+          try await expect(sections.nth(0)).toHaveAttribute("data-process", "Arbitration")
           try await expect(sections.nth(1)).toHaveAttribute("data-process", process)
-          for (index, name, id) in [(0, "Computation", "prompt-instance-process-computation"), (1, process, "prompt-instance-process")] {
+          for (index, name, id) in [(0, "Arbitration", "prompt-instance-process-arbitration"), (1, process, "prompt-instance-process")] {
             // One accordion a process, its three nested (user, 2026-10-10).
             try await expect(sections.nth(index).locator("#\(id) .accordion-title").first).toHaveText(name)
             try await expect(sections.nth(index).locator("#\(id)")).toHaveAttribute("data-expanded", "false")
@@ -432,13 +432,13 @@ struct ComputationTests {
             try await expect(sections.nth(index).getByText("Autocompaction", exact: true)).toHaveCount(1)
           }
           try await page.openHydrated(path.split(separator: "?").first.map(String.init)! + "/revise")
-          let computation = page.locator(".prompt-revision-fields-process[data-process='\(slot)']")
-          try await expect(computation.locator("textarea[name='prompt-system-\(slot)']")).toHaveCount(1)
-          try await expect(computation.locator("textarea[name='prompt-task-\(slot)']")).toHaveCount(1)
-          try await expect(computation.locator(".accordion-details")).toHaveCount(6)
-          try await expect(computation.locator(".accordion-details[data-expanded='false']")).toHaveCount(6)
-          try await expect(computation.locator("#prompt-revision-process-\(slot) .accordion-title").first).toHaveText("Computation")
-          let auto = computation.locator("#prompt-revision-autocompaction-\(slot)")
+          let arbitration = page.locator(".prompt-revision-fields-process[data-process='\(slot)']")
+          try await expect(arbitration.locator("textarea[name='prompt-system-\(slot)']")).toHaveCount(1)
+          try await expect(arbitration.locator("textarea[name='prompt-task-\(slot)']")).toHaveCount(1)
+          try await expect(arbitration.locator(".accordion-details")).toHaveCount(6)
+          try await expect(arbitration.locator(".accordion-details[data-expanded='false']")).toHaveCount(6)
+          try await expect(arbitration.locator("#prompt-revision-process-\(slot) .accordion-title").first).toHaveText("Arbitration")
+          let auto = arbitration.locator("#prompt-revision-autocompaction-\(slot)")
           try await expect(auto.getByText("Autocompaction", exact: true)).toHaveCount(1)
           try await expect(auto.locator("textarea[name='prompt-system-\(slot)_autocompaction']")).toHaveCount(1)
           try await expect(auto.locator("textarea[name='prompt-task-\(slot)_autocompaction']")).toHaveCount(1)

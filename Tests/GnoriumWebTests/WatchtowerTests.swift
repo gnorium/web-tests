@@ -59,7 +59,7 @@ struct WatchtowerTests {
       // No heading over a stage's block: the block names its stage.
       try await expect(page.locator(".watchtower-pipeline-name")).toHaveCount(0)
       try await expect(page.locator(".watchtower-stage-name")).toHaveTexts(
-        ["COMPUTATION", "EXPLICATION", "COMPUTATION", "TRANSLATION", "COMPUTATION"])
+        ["ARBITRATION", "EXPLICATION", "ARBITRATION", "TRANSLATION", "ARBITRATION"])
     }
   }
 

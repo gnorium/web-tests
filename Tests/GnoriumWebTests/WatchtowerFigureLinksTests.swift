@@ -91,12 +91,12 @@ struct WatchtowerFigureLinksTests {
     return (figure, last)
   }
 
-  /// Computation's badge, outside the numbered sequence, wears the
+  /// Arbitration's badge, outside the numbered sequence, wears the
   /// therefore sign as an icon centered in its disc (a text glyph's ink
   /// sits on the baseline, below the center): the icon's box and the
   /// badge's share a center, within a pixel, at both layouts.
   @Test(arguments: enginesAndLayouts)
-  func theComputationBadgeCentersItsIcon(engine: BrowserEngine, layout: Layout) async throws {
+  func theArbitrationBadgeCentersItsIcon(engine: BrowserEngine, layout: Layout) async throws {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/")
       let badges = page.locator(".watchtower-stage-number:has(.therefore-icon-view)")
@@ -155,22 +155,22 @@ struct WatchtowerFigureLinksTests {
       let figures = try await Self.figures(page)
       try #require(figures.count >= 38, "the Watchtower shows \(figures.count) figure links")
       // Every stage has three run links: explication's and translation's,
-      // and computation's on each of the three Disputorium objects' nested
+      // and arbitration's on each of the three Disputorium objects' nested
       // cards, whose locution figures add three on each of their two rows.
       // 6 + 9 + 18 = 33.
       let runLinks = figures.filter { $0.href.hasPrefix("/mission-control/runs/") }.count
-      try #require(runLinks == 33, "the stages' and the nested Computation cards' run links: \(runLinks)")
+      try #require(runLinks == 33, "the stages' and the nested Arbitration cards' run links: \(runLinks)")
       for figure in figures {
         let count = try #require(Int(figure.text.prefix { $0.isNumber }))
         // Explication's figures count both kinds' runs: the list they open
         // and the same list on the other kind's tab.
         let (shown, listed) = try await Self.agreeing(page, figure.href, figure: count) {
           let listed = try await Self.listed(page, figure.href)
-          // Explication's and computation's stage figures count both
+          // Explication's and arbitration's stage figures count both
           // kinds' runs; a locution figure, filtered to its object, one.
           guard listed >= 0,
             figure.href.contains("stage=explication")
-              || (figure.href.contains("stage=computation") && !figure.href.contains("object="))
+              || (figure.href.contains("stage=arbitration") && !figure.href.contains("object="))
           else { return listed }
           let other = try await Self.listed(
             page,

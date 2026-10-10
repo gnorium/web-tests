@@ -193,7 +193,7 @@ struct TableResizeTests {
         try await handle.dblclick()
       }
       // Each process links its prompt page and its vignettes: explication,
-      // translation and computation, on both sides.
+      // translation and arbitration, on both sides.
       try await expect(page.locator("main a[href*='/mission-control/prompts/']")).toHaveCount(6)
       try await page.expectNoErrors()
       try await page.expectNoHorizontalOverflow()

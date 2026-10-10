@@ -41,6 +41,45 @@ struct DashboardLayoutTests {
     }
   }
 
+  /// The Prompts table lists Arbitration first, then Explication and
+  /// Translation (user, 2026-10-10); New locutions (1w) links to the
+  /// Locutions list under its own Created on filter and is its length.
+  @Test(arguments: [BrowserEngine.chrome])
+  func promptsListArbitrationFirstAndNewLocutionsIsItsListsLength(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    do {
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
+        for tab in ["bibliographic", "lexicographic"] {
+          try await page.openHydrated("/mission-control/\(tab)")
+          let processes = try await page.evaluate(
+            """
+            (() => {
+              const table = [...document.querySelectorAll('.mission-control-dashboard-section')]
+                .find(s => s.querySelector('h2')?.textContent.trim() === 'Prompts');
+              return [...table.querySelectorAll('tbody tr')].map(r => r.querySelector('td').textContent.trim()).join(' ');
+            })()
+            """, as: String.self)
+          #expect(processes == "Arbitration Explication Translation", "\(tab): \(processes)")
+        }
+        let figure = page.locator("a[href='/mission-control/locutions?createdOn=-7d..']").first
+        try await expect(figure).toBeAttached()
+        let shown = try await figure.innerText()
+        let count = shown.components(separatedBy: CharacterSet.decimalDigits.inverted).first { !$0.isEmpty } ?? ""
+        try await page.openHydrated("/mission-control/locutions?createdOn=-7d..")
+        // One page of rows on dev; a paged list is counted by the server test.
+        let listed = try await page.evaluate(
+          "document.querySelector('.pagination-view') ? 'paged' : String(document.querySelectorAll('.locution-view').length)",
+          as: String.self)
+        if listed != "paged" { #expect(count == listed, "figure \(count) vs list \(listed)") }
+      }
+    } catch {
+      try await admin.remove(after: error)
+    }
+    try await admin.remove()
+  }
+
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func dashboardAndWorkerKeepGeometryAndExactAmounts(engine: BrowserEngine, layout: Layout) async throws {
     guard gnorium.engines.contains(engine) else { return }
