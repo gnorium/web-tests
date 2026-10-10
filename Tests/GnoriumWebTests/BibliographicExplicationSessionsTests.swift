@@ -67,8 +67,9 @@ struct BibliographicExplicationSessionsTests {
         let rows = page.locator(".computorium-core-sessions-slot").first.locator(".roster-row")
         try await expect(rows).toHaveCount(1)
         try await expect(rows.first).toHaveAttribute("data-computorium-session-label", "1–2")
-        // Its search is the site's search box, medium: 40 tall, its text
-        // 16px, as every field's.
+        // Its search is the site's search box, medium: a field's 56 tall (16
+        // inside its border on every side, a 22px line), its text 16px, as
+        // every field's. Hidden on a phone, so its inset is read, not its box.
         let roster = page.locator(".computorium-core-sessions-slot").first
         let search = roster.locator(".roster-search-input .search-input")
         let medium = try await search.evaluate(
@@ -77,7 +78,8 @@ struct BibliographicExplicationSessionsTests {
             return !!row && el.closest('.search-input-view').dataset.size === 'medium'
               && el.placeholder === 'Search evidence' && el.getAttribute('aria-label') === 'Search evidence'
               && getComputedStyle(el).fontSize === '16px'
-              && getComputedStyle(el).height === '40px'; }
+              && getComputedStyle(el).paddingTop === '16px' && getComputedStyle(el).paddingBottom === '16px'
+              && getComputedStyle(el).lineHeight === '22px'; }
           """).bool == true
         #expect(medium, "The roster's search is a medium search input, its text 16px")
         // It filters the rows, as it did.
