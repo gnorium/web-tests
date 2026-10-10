@@ -59,7 +59,7 @@ struct AccountTests {
         try await expect(links.locator("form[action='/auth/sign-out']")).toHaveCount(0)
         try await expect(page.locator("a[href='/auth/sign-out']")).toHaveCount(0)
         // Every row is a plain link, one per row, with its icon's long edge at
-        // the text's size: the link color (Delete Account too: red is for the button on
+        // the text's size: plain weight, base color at rest (Delete Account too: red on hover; the red button is on
         // its page), no button background.
         let rows = try await page.evaluate(
           """
@@ -67,7 +67,7 @@ struct AccountTests {
             const svg = a.querySelector('svg'), style = getComputedStyle(a)
             return {
               label: a.textContent.trim(),
-              link: a.matches('a.link-view') && !a.matches('.button-view'),
+              link: a.matches('a.link-view.link-plain') && !a.matches('.button-view'),
               iconSize: svg ? Math.round(Math.max(svg.getBoundingClientRect().width, svg.getBoundingClientRect().height)) : 0,
               fontSize: parseFloat(style.fontSize),
               color: style.color,
@@ -106,7 +106,7 @@ struct AccountTests {
           try await page.screenshot(
             to: URL(fileURLWithPath: directory).appendingPathComponent("account-\(layout)-\(asAdmin ? "admin" : "user").png"))
         }
-        try await expect(page.locator(".account-provider-row .button-view")).toHaveCSS("height", "40px")
+        try await expect(page.locator(".account-provider-row .button-view")).toHaveCSS("height", "48px")
         try await expect(page.locator(".account-provider-password")).not.toBeVisible()
         try await page.locator(".account-provider-row .button-view").click()
         try await expect(page).toHaveURL("/account")

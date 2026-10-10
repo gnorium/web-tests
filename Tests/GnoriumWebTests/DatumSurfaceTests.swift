@@ -3,8 +3,8 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A datum is a read-only field's box to the pixel: 8px inset on every side,
-/// one line 22px high, a 1px border, so 40px tall (a list that wraps by
+/// A datum is a read-only field's box to the pixel: 12px inset on every side,
+/// one line 22px high, a 1px border, so 48px tall (a list that wraps by
 /// design grows by whole lines); its value on the disabled
 /// field's gray at every depth (white only where `data-sent`), its label
 /// and the view itself transparent. Read on the seeded lexicographic
@@ -40,19 +40,19 @@ struct DatumSurfaceTests {
             const ground = view.dataset.sent === 'true' ? white : gray;
             const box = value.getBoundingClientRect();
             const wraps = [...value.querySelectorAll('*')].some(e => getComputedStyle(e).whiteSpace === 'normal');
-            const lines = (box.height - 18) / 22;
+            const lines = (box.height - 26) / 22;
             const problems = [
               !clear(getComputedStyle(view).backgroundColor) && 'view ground',
               !clear(getComputedStyle(label).backgroundColor) && 'label ground',
               v.backgroundColor !== ground && 'value ground ' + v.backgroundColor,
-              [v.paddingTop, v.paddingRight, v.paddingBottom, v.paddingLeft].some(p => p !== '8px')
+              [v.paddingTop, v.paddingRight, v.paddingBottom, v.paddingLeft].some(p => p !== '12px')
                 && 'padding ' + [v.paddingTop, v.paddingRight, v.paddingBottom, v.paddingLeft].join(' '),
               [v.borderTopWidth, v.borderRightWidth, v.borderBottomWidth, v.borderLeftWidth].some(b => b !== '1px')
                 && 'border ' + v.borderTopWidth,
               v.lineHeight !== '22px' && 'line height ' + v.lineHeight,
-              // One line, 40px; a list that wraps by design (a terms list)
+              // One line, 48px; a list that wraps by design (a terms list)
               // grows by whole 22px lines.
-              (wraps ? !(lines >= 1 && Math.abs(lines - Math.round(lines)) < 0.03) : Math.abs(box.height - 40) > 0.5)
+              (wraps ? !(lines >= 1 && Math.abs(lines - Math.round(lines)) < 0.03) : Math.abs(box.height - 48) > 0.5)
                 && 'height ' + box.height,
             ].filter(Boolean);
             if (problems.length) out.push(name + ': ' + problems.join(', '));
