@@ -41,7 +41,7 @@ struct SystemAccountProfileTests {
           let href =
             noun == "locution"
             ? "/mission-control/locutions/\(kind)?object=\(kind)_\(object)&createdBy=gnorium"
-            : "/mission-control/runs/\(kind)?object=\(object)"
+            : "/mission-control/nocturnes/\(kind)?object=\(object)"
           let link = panel.locator("a[href='\(href)']")
           try await expect(link).toHaveCount(1)
           // "1 locution", "9 locutions": number first, the noun agreeing.

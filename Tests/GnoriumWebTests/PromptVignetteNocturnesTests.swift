@@ -3,19 +3,20 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A prompt vignette's runs are its associated runs (user, 2026-10-07): its
-/// page's "See associated runs." opens the Runs page filtered by it
-/// (`?vignette=`), the filter bar showing it as any filter value, the
-/// list its own empty state when no run used it. A placeholder—a version
-/// no commit has run with—has no Pedigree and no runs. Chrome, desktop.
-@Suite("Prompt vignette runs", .serialized)
-struct PromptVignetteRunsTests {
+/// A prompt vignette's nocturnes are its associated nocturnes (user,
+/// 2026-10-07): its page's "See associated nocturnes." opens the Nocturnes
+/// page filtered by it (`?vignette=`), the filter bar showing it as any
+/// filter value, the list its own empty state when no nocturne used it. A
+/// placeholder—a version no commit has run with—has no Pedigree and no
+/// nocturnes. Chrome, desktop.
+@Suite("Prompt vignette nocturnes", .serialized)
+struct PromptVignetteNocturnesTests {
   @Test(arguments: [BrowserEngine.chrome])
-  func aVignettesRunsAreTheRunsListFilteredByIt(engine: BrowserEngine) async throws {
+  func aVignettesNocturnesAreTheNocturnesListFilteredByIt(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
-    // A version a commit ran with, of an object long gone, which no run
-    // used; and a placeholder.
+    // A version a commit ran with, of an object long gone, which no
+    // nocturne used; and a placeholder.
     let id = UUID().uuidString
     let placeholder = UUID().uuidString
     _ = try TestAdmin.query(
@@ -45,14 +46,14 @@ struct PromptVignetteRunsTests {
       try await expect(labels.nth(2)).toHaveText("Committed")
       try await expect(page.locator(".pedigree-view a[href*='/mission-control/prompts/vignettes/']")).toHaveCount(0)
       try await expect(page.getByText("Suggested")).toHaveCount(0)
-      let runs = page.locator(".associated-links-view a")
-      try await expect(runs).toHaveText("runs")
-      try await expect(page.locator(".associated-links-view")).toHaveText("See associated runs.")
-      try await runs.click()
-      try await expect(page, timeout: .seconds(15)).toHaveURL("the runs, filtered by the vignette") {
-        $0.path == "/mission-control/runs/bibliographic" && ($0.query ?? "") == "vignette=\(id)"
+      let nocturnes = page.locator(".associated-links-view a")
+      try await expect(nocturnes).toHaveText("nocturnes")
+      try await expect(page.locator(".associated-links-view")).toHaveText("See associated nocturnes.")
+      try await nocturnes.click()
+      try await expect(page, timeout: .seconds(15)).toHaveURL("the nocturnes, filtered by the vignette") {
+        $0.path == "/mission-control/nocturnes/bibliographic" && ($0.query ?? "") == "vignette=\(id)"
       }
-      // The filter bar holds it as any filter value; no run used it.
+      // The filter bar holds it as any filter value; no nocturne used it.
       try await expect(page.locator(".filter-bar-view").getByText("Vignette ID").first).toBeAttached()
       try await expect(page.locator(".filter-bar-view").getByText(id).first).toBeAttached()
       try await expect(page.locator(".mission-control-core-empty")).toHaveCount(1)

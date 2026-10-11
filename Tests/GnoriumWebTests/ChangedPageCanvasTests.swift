@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// A page changed at its source (user, 2026-10-11): the reader's image panel
-/// shows the archived copy of the image the run was sent—one plain image,
+/// shows the archived copy of the image the nocturne was sent—one plain image,
 /// not IIIF tiles—and it zooms and pans exactly as the live canvas does. The
 /// witness's pages served on this machine (`FixtureServer.threePageManifest`,
 /// 800 × 1100), its archived copy beside them. Chrome, desktop.

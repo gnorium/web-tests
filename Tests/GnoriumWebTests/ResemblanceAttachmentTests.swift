@@ -44,7 +44,7 @@ struct ResemblanceAttachmentTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
-    let runID = UUID().uuidString.lowercased()
+    let nocturneID = UUID().uuidString.lowercased()
     let antiphonID = UUID().uuidString.lowercased()
     let name = "resemblance-live-\(UUID().uuidString).html"
     let file = URL(fileURLWithPath: "/Users/Madhavik/Downloads/Gnorium/gnorium-web/Public").appendingPathComponent(name)
@@ -55,8 +55,8 @@ struct ResemblanceAttachmentTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status, created_at, updated_at)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted', now(), now());
-        INSERT INTO bibliographic_explication_runs (id, submission_id, process, resemblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
-          VALUES ('\(runID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
+        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, attempt, provider, model, output, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          VALUES ('\(nocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'fixture', 'fixture', '[{"type":"thinking","content":"Preparing the resemblance fixture."}]', 'passed',
             gen_random_uuid(), '\(antiphonID)', 1, now());
         COMMIT;
@@ -114,12 +114,12 @@ struct ResemblanceAttachmentTests {
       }
     } catch {
       try? FileManager.default.removeItem(at:file)
-      _ = try? TestAdmin.query("DELETE FROM bibliographic_explication_runs WHERE id='\(runID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
+      _ = try? TestAdmin.query("DELETE FROM bibliographic_explication_nocturnes WHERE id='\(nocturneID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
       work.remove()
       try await admin.remove(after:error)
     }
     try? FileManager.default.removeItem(at:file)
-    _ = try TestAdmin.query("DELETE FROM bibliographic_explication_runs WHERE id='\(runID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
+    _ = try TestAdmin.query("DELETE FROM bibliographic_explication_nocturnes WHERE id='\(nocturneID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
     work.remove()
     try await admin.remove()
   }

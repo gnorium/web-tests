@@ -40,7 +40,7 @@ struct LexicographicExplicationSessionsTests {
     let antiphon = UUID().uuidString.lowercased()
     let clustering = UUID().uuidString.lowercased()
     let clusters = [UUID().uuidString.lowercased(), UUID().uuidString.lowercased()]
-    let run = UUID().uuidString.lowercased()
+    let nocturne = UUID().uuidString.lowercased()
     do {
       let user = try admin.column("id")
       // Failed and needing a person: no worker takes it up, nothing is spent.
@@ -57,9 +57,9 @@ struct LexicographicExplicationSessionsTests {
             'Test via Stub', 3, 'quotation-v1', '["u-1","u-2","u-3"]');
         INSERT INTO quotation_clusters (id, quotation_clustering_id, position, quotation_ids_json)
           VALUES ('\(clusters[0])', '\(clustering)', 0, '["u-1","u-2"]'), ('\(clusters[1])', '\(clustering)', 1, '["u-3"]');
-        INSERT INTO lexicographic_explication_runs (id, lexicographic_antiphon_id, process, attempt, provider, model, output, result,
+        INSERT INTO lexicographic_explication_nocturnes (id, lexicographic_antiphon_id, process, attempt, provider, model, output, result,
           duration_ms, quotation_cluster_id, created_at)
-          VALUES ('\(run)', '\(antiphon)', 'explication', 1, 'openrouter', 'qwen/qwen3.8-max-0902', '\(try Self.trace())',
+          VALUES ('\(nocturne)', '\(antiphon)', 'explication', 1, 'openrouter', 'qwen/qwen3.8-max-0902', '\(try Self.trace())',
             'passed', 1200, '\(clusters[0])', now());
         COMMIT;
         """)
@@ -88,7 +88,7 @@ struct LexicographicExplicationSessionsTests {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      DELETE FROM lexicographic_explication_runs WHERE lexicographic_antiphon_id = '\(antiphon)';
+      DELETE FROM lexicographic_explication_nocturnes WHERE lexicographic_antiphon_id = '\(antiphon)';
       DELETE FROM quotation_clusterings WHERE lexicographic_antiphon_id = '\(antiphon)';
       DELETE FROM lexicographic_antiphons WHERE id = '\(antiphon)';
       COMMIT;

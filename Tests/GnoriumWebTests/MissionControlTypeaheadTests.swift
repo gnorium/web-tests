@@ -8,7 +8,7 @@ import WebTestsTesting
 /// combobox, its text 16px; typed text, case and diacritics aside, asks the
 /// list's `…/created-by?q=` and shows what matches; the arrow keys and
 /// Enter choose one, Escape closes the list, and Apply filters by it. The
-/// Runs list, whose runs the machine creates ("gnorium") whatever the data.
+/// Nocturnes list, whose nocturnes the machine creates ("gnorium") whatever the data.
 /// Needs an admin, made for the test and removed after (see `TestAdmin`).
 @Suite("Mission Control typeahead", .serialized)
 struct MissionControlTypeaheadTests {
@@ -26,7 +26,7 @@ struct MissionControlTypeaheadTests {
 
   private func run(engine: BrowserEngine, viewport: Viewport, admin: TestAdmin) async throws {
     try await withPage(engine, gnorium, viewport: viewport, cookies: [admin.cookie]) { page in
-      try await page.openHydrated("/mission-control/runs/bibliographic")
+      try await page.openHydrated("/mission-control/nocturnes/bibliographic")
       try await page.expectNoErrors()
       try await page.locator(".filter-bar-add-btn").first.click()
       let row = page.locator(".filter-bar-row").last

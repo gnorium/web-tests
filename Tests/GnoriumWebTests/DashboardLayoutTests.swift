@@ -137,7 +137,7 @@ struct DashboardLayoutTests {
           return boxes.every(e=>{const s=getComputedStyle(e);return parseFloat(s.borderTopWidth)>0 && parseFloat(s.paddingTop)>0 && parseFloat(s.borderRadius)>0;})
             && boxes[0].getBoundingClientRect().bottom<boxes[1].getBoundingClientRect().top;})()
         """, as: Bool.self), "Provider and sponsorship are distinct ordered boxes")
-      // A running run's model reads as the Runs page has it, in the row's
+      // A running nocturne's model reads as the Nocturnes page has it, in the row's
       // own sans, size and color (user, 2026-10-08): never mono.
       let model = try await page.evaluate("""
         (()=>{const m=document.querySelector('.mission-control-dashboard-live-telemetry-model');

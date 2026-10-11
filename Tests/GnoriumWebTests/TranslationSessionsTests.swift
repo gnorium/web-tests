@@ -54,7 +54,7 @@ struct TranslationSessionsTests {
         INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, requested_by_user_id,
           processing_status, processing_error)
           VALUES ('\(serenade)', '\(madrigal)', 'eng', '\(user)', 'failed', 'Web tests');
-        INSERT INTO bibliographic_translation_runs (id, bibliographic_serenade_id, process, chunk, attempt, provider, model, output,
+        INSERT INTO bibliographic_translation_nocturnes (id, bibliographic_serenade_id, process, chunk, attempt, provider, model, output,
           result, duration_ms, created_at)
           VALUES (gen_random_uuid(), '\(serenade)', 'translation', '1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
             '\(try Self.trace())', 'passed', 1200, now());
@@ -85,7 +85,7 @@ struct TranslationSessionsTests {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      DELETE FROM bibliographic_translation_runs WHERE bibliographic_serenade_id = '\(serenade)';
+      DELETE FROM bibliographic_translation_nocturnes WHERE bibliographic_serenade_id = '\(serenade)';
       DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';
       DELETE FROM bibliographic_madrigals WHERE id = '\(madrigal)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphon)';

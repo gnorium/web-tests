@@ -70,8 +70,8 @@ struct ArbitrationTests {
         UPDATE prompt_vignettes SET committed_object_type = NULL, committed_object_id = NULL, committed_by_user_id = NULL,
           committed_at = NULL WHERE committed_by_user_id = '\(adminID)';
         DELETE FROM locutions WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)' AND kind = 'reply';
-        UPDATE locutions SET arbitration_run_id = NULL WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
-        DELETE FROM bibliographic_arbitration_runs WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
+        UPDATE locutions SET arbitration_session_id = NULL WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
+        DELETE FROM bibliographic_arbitration_sessions WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
         DELETE FROM locutions WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
         COMMIT;
         """)
@@ -158,25 +158,25 @@ struct ArbitrationTests {
         try await call.locator(".locution-commit").click()
         // Stopped admission completes without contacting a provider. Wait
         // for that task to finish before replacing its result with a trace.
-        var runID = ""
+        var sessionID = ""
         for _ in 0..<300 {
-          runID = try TestAdmin.query("SELECT id FROM bibliographic_arbitration_runs WHERE call_locution_id = '\(callID)' AND result = 'failed'")
-          if !runID.isEmpty { break }
+          sessionID = try TestAdmin.query("SELECT id FROM bibliographic_arbitration_sessions WHERE call_locution_id = '\(callID)' AND result = 'failed'")
+          if !sessionID.isEmpty { break }
           try await Task.sleep(for: .milliseconds(100))
         }
-        guard UUID(uuidString: runID) != nil else {
+        guard UUID(uuidString: sessionID) != nil else {
           throw WebTestError("Commit did not create and finish the stopped arbitration fixture.")
         }
         _ = try TestAdmin.query("""
           BEGIN;
-          UPDATE bibliographic_arbitration_runs SET result = 'passed', output = '\(try Self.trace())',
-            provider = 'deepseek', model = 'deepseek-flash', duration_ms = 1200, error_message = NULL WHERE id = '\(runID)';
+          UPDATE bibliographic_arbitration_sessions SET result = 'passed', output = '\(try Self.trace())',
+            provider = 'deepseek', model = 'deepseek-flash', duration_ms = 1200, error_message = NULL WHERE id = '\(sessionID)';
           UPDATE locutions SET call_status = 'done' WHERE id = '\(callID)';
           INSERT INTO locutions (id, locutable_type, locutable_id, author_id, parent_id, content, depth,
-            kind, arbitration_run_id, evidence_id, evidence_kind, created_at)
+            kind, arbitration_session_id, evidence_id, evidence_kind, created_at)
             VALUES ('\(replyID)', 'bibliographic_madrigal', '\(objectID)',
               (SELECT id FROM users WHERE username = 'gnorium'), '\(callID)', '\(Self.reply)', 1,
-              'reply', '\(runID)', '\(fixture.baseURL)/page-1', 'canvas', now());
+              'reply', '\(sessionID)', '\(fixture.baseURL)/page-1', 'canvas', now());
           COMMIT;
           """)
         try await page.openHydrated(reading.path)
@@ -194,7 +194,14 @@ struct ArbitrationTests {
         try await expect(reply.locator(".locution-call-evidence").first).toHaveText("Resemblance 1")
         try await expect(reply.locator("a:has(.locution-call-evidence)").first).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID.uppercased())?resemblance=0")
         try await expect(session.locator(".computorium-session-prompt-fieldset legend")).toHaveCount(2)
-        try await expect(session.locator(".computorium-session-output-legend")).toHaveCount(1)
+        // Embedded in the reply (user, 2026-10-12): its output box bare—no
+        // legend, so no Raw toggle and no byline—and the reply's header
+        // names the model that answered.
+        try await expect(session.locator(".computorium-session-output-fieldset.computorium-session-output-embedded")).toHaveCount(1)
+        try await expect(session.locator(".computorium-session-output-legend")).toHaveCount(0)
+        try await expect(session.locator(".computorium-session-raw-toggle")).toHaveCount(0)
+        try await expect(session.locator(".computorium-session-byline")).toHaveCount(0)
+        try await expect(reply.locator(".locution-header .locution-model")).toHaveCount(1)
         // The tools offered, where the trace recorded them, before each
         // model call: the thinking's, and the reply's after the call
         // (user, 2026-10-10).
@@ -221,7 +228,7 @@ struct ArbitrationTests {
         try await page.locator(".locution-thread-submit").click()
         try await expect(page.locator(".locution-commit"), timeout: .seconds(15)).toHaveCount(1)
         try await expect(page.locator(".locution-call-status")).toHaveCount(0)
-        #expect(try TestAdmin.query("SELECT count(*) FROM bibliographic_arbitration_runs WHERE locutable_id = '\(objectID)'") == "1")
+        #expect(try TestAdmin.query("SELECT count(*) FROM bibliographic_arbitration_sessions WHERE locutable_id = '\(objectID)'") == "1")
         try await page.expectNoHorizontalOverflow()
       }
     } catch {

@@ -12,7 +12,8 @@ import WebTestsTesting
 struct WatchtowerFigureLinksTests {
   /// Every figure: an object's, opening its object's own list (user,
   /// 2026-10-10)—Folksongs, Overtures, Antiphons, Madrigals, Serenades,
-  /// Epilogues, Palinodes—and a process's, opening the runs it counts.
+  /// Epilogues, Palinodes—and a process's, opening the nocturnes it counts
+  /// (arbitration's, the calls' locutions by their Arbitration).
   static let figureLinks = ".watchtower-object-figures-view a[href], .watchtower-process-figures a[href]"
 
   struct Figure: Decodable {
@@ -155,30 +156,36 @@ struct WatchtowerFigureLinksTests {
       try await page.openHydrated("/")
       let figures = try await Self.figures(page)
       try #require(figures.count >= 38, "the Watchtower shows \(figures.count) figure links")
-      // Every process has three run links: explication's and translation's,
-      // and arbitration's on each of the three Disputorium objects' nested
-      // cards, whose locution figures add three on each of their two rows.
-      // 6 + 9 + 18 = 33.
-      let runLinks = figures.filter { $0.href.hasPrefix("/mission-control/runs/") }.count
-      try #require(runLinks == 33, "the processes' and the nested Arbitration cards' run links: \(runLinks)")
+      // Explication and translation have three nocturne links each: 6.
+      let nocturneLinks = figures.filter { $0.href.hasPrefix("/mission-control/nocturnes/") }.count
+      try #require(nocturneLinks == 6, "the processes' nocturne links: \(nocturneLinks)")
+      // Arbitration's open the Locutions list by Arbitration (an arbitration
+      // session is no nocturne): three on its process card nested in each of
+      // the three Disputorium objects' cards, whose object figures add three
+      // on each of their two rows. 9 + 18 = 27.
+      let arbitrationLinks = figures.filter {
+        $0.href.hasPrefix("/mission-control/locutions/") && $0.href.contains("arbitration=")
+      }.count
+      try #require(arbitrationLinks == 27, "the nested Arbitration cards' locution links: \(arbitrationLinks)")
       // An object's figure opens its own list, never the lifecycles.
       let lifecycles = figures.filter { $0.href.contains("/lifecycles/") }.map(\.href)
       #expect(lifecycles.isEmpty, "object figures open the lifecycles: \(lifecycles)")
       for figure in figures {
         let count = try #require(Int(figure.text.prefix { $0.isNumber }))
-        // Explication's figures count both kinds' runs: the list they open
-        // and the same list on the other kind's tab.
+        // Explication's figures count both kinds' nocturnes: the list they
+        // open and the same list on the other kind's tab.
         let (shown, listed) = try await Self.agreeing(page, figure.href, figure: count) {
           let listed = try await Self.listed(page, figure.href)
           // Explication's and arbitration's process figures count both
-          // kinds' runs; a locution figure, filtered to its object, one.
+          // kinds' (nocturnes, sessions); an object's arbitration figure,
+          // filtered to its object, one.
           guard listed >= 0,
             figure.href.contains("process=explication")
-              || (figure.href.contains("process=arbitration") && !figure.href.contains("object="))
+              || (figure.href.contains("arbitration=") && !figure.href.contains("object="))
           else { return listed }
           let other = try await Self.listed(
             page,
-            figure.href.replacingOccurrences(of: "/runs/bibliographic", with: "/runs/lexicographic"))
+            figure.href.replacingOccurrences(of: "/bibliographic", with: "/lexicographic"))
           return other < 0 ? -1 : listed + other
         }
         #expect(listed == shown, "\(figure.text) (now \(shown)) opens \(listed) rows: \(figure.href)")
@@ -192,12 +199,12 @@ struct WatchtowerFigureLinksTests {
   /// first render, not only after Apply.
   static let pendingTestamentOvertures = "/mission-control/overtures/bibliographic?status=pending"
 
-  /// A process's figure opens the Runs page: its filter bar names the process
-  /// and the status, with no placeholder, and it lists as many runs as the
-  /// figure.
+  /// A process's figure opens the Nocturnes page: its filter bar names the
+  /// process and the status, with no placeholder, and it lists as many
+  /// nocturnes as the figure.
   @Test(arguments: enginesAndLayouts)
-  func aProcessFigureOpensItsRuns(engine: BrowserEngine, layout: Layout) async throws {
-    let href = "/mission-control/runs/bibliographic?process=explication&status=failed&createdOn=-7d.."
+  func aProcessFigureOpensItsNocturnes(engine: BrowserEngine, layout: Layout) async throws {
+    let href = "/mission-control/nocturnes/bibliographic?process=explication&status=failed&createdOn=-7d.."
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/")
       let link = page.locator(".watchtower-process-figures a[href='\(href)']").first
@@ -216,18 +223,18 @@ struct WatchtowerFigureLinksTests {
           .filter(e => e.getAttribute('data-selected') !== 'true').length
         """, as: Int.self)
       #expect(placeholders == 0, "\(placeholders) filter rows show a placeholder")
-      // A run its worker lost is failed, not a status of its own.
+      // A nocturne its worker lost is failed, not a status of its own.
       let stalled = try await page.evaluate("document.body.innerHTML.includes('Stalled')", as: Bool.self)
-      #expect(!stalled, "the runs list offers a Stalled status")
-      // The figure counts both kinds' explication runs: this list, and the
+      #expect(!stalled, "the nocturnes list offers a Stalled status")
+      // The figure counts both kinds' explication nocturnes: this list, and the
       // same list on the Lexicographic tab, which keeps the filters.
-      let lexicographic = href.replacingOccurrences(of: "/runs/bibliographic", with: "/runs/lexicographic")
+      let lexicographic = href.replacingOccurrences(of: "/nocturnes/bibliographic", with: "/nocturnes/lexicographic")
       try await expect(page.locator("a[href='\(lexicographic)']").first).toBeAttached()
       let bibliographic = count - (try await Self.listed(page, lexicographic))
       if bibliographic == 0 {
         try await expect(page.locator(".mission-control-core-empty")).toBeVisible()
       } else {
-        try await expect(page.locator(".bibliographic-runs-table")).toHaveAttribute("data-total-items", "\(bibliographic)")
+        try await expect(page.locator(".bibliographic-nocturnes-table")).toHaveAttribute("data-total-items", "\(bibliographic)")
       }
     }
   }

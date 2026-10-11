@@ -17,7 +17,7 @@ struct BibliographicExplicationSessionsTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
     let antiphonID = UUID().uuidString.lowercased()
-    let runID = UUID().uuidString.lowercased()
+    let nocturneID = UUID().uuidString.lowercased()
     do {
       let user = try admin.column("id")
       let autoID = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = 'bibliographic_explication_autocompaction'").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -45,8 +45,8 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_runs (id, submission_id, process, resemblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
-          VALUES ('\(runID)',
+        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, attempt, provider, model, output, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          VALUES ('\(nocturneID)',
             (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1–2', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),
             '\(antiphonID)', 1200, now());
@@ -160,10 +160,10 @@ struct BibliographicExplicationSessionsTests {
         #expect(rawCount > 0)
       }
     } catch {
-      remove(runID: runID, antiphonID: antiphonID, work: work)
+      remove(nocturneID: nocturneID, antiphonID: antiphonID, work: work)
       try await admin.remove(after: error)
     }
-    remove(runID: runID, antiphonID: antiphonID, work: work)
+    remove(nocturneID: nocturneID, antiphonID: antiphonID, work: work)
     try await admin.remove()
   }
 
@@ -179,7 +179,7 @@ struct BibliographicExplicationSessionsTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
     let antiphonID = UUID().uuidString.lowercased()
-    let runID = UUID().uuidString.lowercased()
+    let nocturneID = UUID().uuidString.lowercased()
     func image(_ width: Int, _ height: Int) -> String {
       let svg = "<svg xmlns='http://www.w3.org/2000/svg' width='\(width)' height='\(height)'><rect width='100%' height='100%' fill='#ccc'/></svg>"
       return "data:image/svg+xml;base64," + Data(svg.utf8).base64EncodedString()
@@ -208,8 +208,8 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_runs (id, submission_id, process, resemblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
-          VALUES ('\(runID)',
+        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, attempt, provider, model, output, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          VALUES ('\(nocturneID)',
             (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(),
             '\(antiphonID)', 1200, now());
@@ -251,10 +251,10 @@ struct BibliographicExplicationSessionsTests {
         #expect(overflow == .bool(false))
       }
     } catch {
-      remove(runID: runID, antiphonID: antiphonID, work: work)
+      remove(nocturneID: nocturneID, antiphonID: antiphonID, work: work)
       try await admin.remove(after: error)
     }
-    remove(runID: runID, antiphonID: antiphonID, work: work)
+    remove(nocturneID: nocturneID, antiphonID: antiphonID, work: work)
     try await admin.remove()
   }
 
@@ -265,9 +265,9 @@ struct BibliographicExplicationSessionsTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
     let antiphonID = UUID().uuidString.lowercased()
-    let runID = UUID().uuidString.lowercased()
-    let otherRunID = UUID().uuidString.lowercased()
-    let failedRunID = UUID().uuidString.lowercased()
+    let nocturneID = UUID().uuidString.lowercased()
+    let otherNocturneID = UUID().uuidString.lowercased()
+    let failedNocturneID = UUID().uuidString.lowercased()
     do {
       let user = try admin.column("id")
       let blocks: [[String: String]] = [
@@ -286,18 +286,18 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_runs
-          (id, submission_id, process, resemblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
-          VALUES ('\(runID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
+        INSERT INTO bibliographic_explication_nocturnes
+          (id, submission_id, process, resemblance, attempt, provider, model, output, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          VALUES ('\(nocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 2, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(), '\(antiphonID)', 3000, now());
-        INSERT INTO bibliographic_explication_runs
-          (id, submission_id, process, resemblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
-          VALUES ('\(failedRunID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
+        INSERT INTO bibliographic_explication_nocturnes
+          (id, submission_id, process, resemblance, attempt, provider, model, output, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          VALUES ('\(failedNocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '[{"type":"thinking","content":"Historical partial thought."}]',
             'failed', gen_random_uuid(), '\(antiphonID)', 500, now() - interval '1 second');
-        INSERT INTO bibliographic_explication_runs
-          (id, submission_id, process, resemblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
-          VALUES ('\(otherRunID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
+        INSERT INTO bibliographic_explication_nocturnes
+          (id, submission_id, process, resemblance, attempt, provider, model, output, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          VALUES ('\(otherNocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '2', 1, 'DeepSeek', 'deepseek-flash', 'Another finished session.', 'passed', gen_random_uuid(), '\(antiphonID)', 100, now());
         COMMIT;
         """)
@@ -381,12 +381,12 @@ struct BibliographicExplicationSessionsTests {
         try await page.expectNoErrors()
       }
     } catch {
-      _ = try? TestAdmin.query("DELETE FROM bibliographic_explication_runs WHERE id IN ('\(otherRunID)', '\(failedRunID)')")
-      remove(runID: runID, antiphonID: antiphonID, work: work)
+      _ = try? TestAdmin.query("DELETE FROM bibliographic_explication_nocturnes WHERE id IN ('\(otherNocturneID)', '\(failedNocturneID)')")
+      remove(nocturneID: nocturneID, antiphonID: antiphonID, work: work)
       try await admin.remove(after: error)
     }
-    _ = try? TestAdmin.query("DELETE FROM bibliographic_explication_runs WHERE id IN ('\(otherRunID)', '\(failedRunID)')")
-    remove(runID: runID, antiphonID: antiphonID, work: work)
+    _ = try? TestAdmin.query("DELETE FROM bibliographic_explication_nocturnes WHERE id IN ('\(otherNocturneID)', '\(failedNocturneID)')")
+    remove(nocturneID: nocturneID, antiphonID: antiphonID, work: work)
     try await admin.remove()
   }
 
@@ -401,26 +401,26 @@ struct BibliographicExplicationSessionsTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
     let antiphonID = UUID().uuidString.lowercased()
-    let runIDs = (0..<3).map { _ in UUID().uuidString.lowercased() }
+    let nocturneIDs = (0..<3).map { _ in UUID().uuidString.lowercased() }
     func cleanup() {
       _ = try? TestAdmin.query(
-        "DELETE FROM bibliographic_explication_runs WHERE bibliographic_antiphon_id = '\(antiphonID)'")
-      remove(runID: runIDs[0], antiphonID: antiphonID, work: work)
+        "DELETE FROM bibliographic_explication_nocturnes WHERE bibliographic_antiphon_id = '\(antiphonID)'")
+      remove(nocturneID: nocturneIDs[0], antiphonID: antiphonID, work: work)
     }
     do {
       let user = try admin.column("id")
       let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())')"
-      let columns = "(id, submission_id, process, resemblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, created_at)"
+      let columns = "(id, submission_id, process, resemblance, attempt, provider, model, output, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)"
       _ = try TestAdmin.query("""
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_runs \(columns)
-          VALUES ('\(runIDs[0])', \(batch), 'explication', '1', 2, 'DeepSeek', 'deepseek-flash', 'The second attempt.', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now());
-        INSERT INTO bibliographic_explication_runs \(columns)
-          VALUES ('\(runIDs[1])', \(batch), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'The first attempt.', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now() - interval '1 second');
-        INSERT INTO bibliographic_explication_runs \(columns)
-          VALUES ('\(runIDs[2])', \(batch), 'explication', '2', 1, 'DeepSeek', 'deepseek-flash', 'Another page.', 'passed', gen_random_uuid(), '\(antiphonID)', 100, now());
+        INSERT INTO bibliographic_explication_nocturnes \(columns)
+          VALUES ('\(nocturneIDs[0])', \(batch), 'explication', '1', 2, 'DeepSeek', 'deepseek-flash', 'The second attempt.', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now());
+        INSERT INTO bibliographic_explication_nocturnes \(columns)
+          VALUES ('\(nocturneIDs[1])', \(batch), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'The first attempt.', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now() - interval '1 second');
+        INSERT INTO bibliographic_explication_nocturnes \(columns)
+          VALUES ('\(nocturneIDs[2])', \(batch), 'explication', '2', 1, 'DeepSeek', 'deepseek-flash', 'Another page.', 'passed', gen_random_uuid(), '\(antiphonID)', 100, now());
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -483,7 +483,7 @@ struct BibliographicExplicationSessionsTests {
 
   /// A session's task prompt is the one it sent, filled—its resemblance, its
   /// neighbors, its conventions—as its trace recorded it (user,
-  /// 2026-10-10), never the template's slots; a run from before the trace
+  /// 2026-10-10), never the template's slots; a nocturne from before the trace
   /// recorded it shows its vignette's template, as it always has.
   @Test(arguments: [BrowserEngine.chrome])
   func aSessionShowsTheTaskPromptItSent(engine: BrowserEngine) async throws {
@@ -492,11 +492,11 @@ struct BibliographicExplicationSessionsTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
     let antiphonID = UUID().uuidString.lowercased()
-    let runIDs = (0..<2).map { _ in UUID().uuidString.lowercased() }
+    let nocturneIDs = (0..<2).map { _ in UUID().uuidString.lowercased() }
     func cleanup() {
       _ = try? TestAdmin.query(
-        "DELETE FROM bibliographic_explication_runs WHERE bibliographic_antiphon_id = '\(antiphonID)'")
-      remove(runID: runIDs[0], antiphonID: antiphonID, work: work)
+        "DELETE FROM bibliographic_explication_nocturnes WHERE bibliographic_antiphon_id = '\(antiphonID)'")
+      remove(nocturneID: nocturneIDs[0], antiphonID: antiphonID, work: work)
     }
     do {
       let user = try admin.column("id")
@@ -520,15 +520,15 @@ struct BibliographicExplicationSessionsTests {
         ["type": "text", "content": "Saved."],
       ])
       let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())')"
-      let columns = "(id, submission_id, process, resemblance, attempt, provider, model, output, result, run_batch_id, bibliographic_antiphon_id, duration_ms, prompt_vignette_id, created_at)"
+      let columns = "(id, submission_id, process, resemblance, attempt, provider, model, output, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, prompt_vignette_id, created_at)"
       _ = try TestAdmin.query("""
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_runs \(columns)
-          VALUES ('\(runIDs[0])', \(batch), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '\(recorded)', 'passed', gen_random_uuid(), '\(antiphonID)', 300, '\(vignette)', now());
-        INSERT INTO bibliographic_explication_runs \(columns)
-          VALUES ('\(runIDs[1])', \(batch), 'explication', '2', 1, 'DeepSeek', 'deepseek-flash', '\(old)', 'passed', gen_random_uuid(), '\(antiphonID)', 300, '\(vignette)', now());
+        INSERT INTO bibliographic_explication_nocturnes \(columns)
+          VALUES ('\(nocturneIDs[0])', \(batch), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '\(recorded)', 'passed', gen_random_uuid(), '\(antiphonID)', 300, '\(vignette)', now());
+        INSERT INTO bibliographic_explication_nocturnes \(columns)
+          VALUES ('\(nocturneIDs[1])', \(batch), 'explication', '2', 1, 'DeepSeek', 'deepseek-flash', '\(old)', 'passed', gen_random_uuid(), '\(antiphonID)', 300, '\(vignette)', now());
         COMMIT;
         """)
       let task = ".computorium-session-view .computorium-session-task-fieldset .computorium-session-prompt-body"
@@ -547,7 +547,7 @@ struct BibliographicExplicationSessionsTests {
         try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?resemblance=2")
         let before = try await page.evaluate("document.querySelector('\(task)')?.textContent ?? ''", as: String.self)
         #expect(before.trimmingCharacters(in: .whitespacesAndNewlines) == template && before.contains("{evidence}"),
-          "A run that did not record its task shows its vignette's template")
+          "A nocturne that did not record its task shows its vignette's template")
         try await page.expectNoErrors()
       }
     } catch {
@@ -558,11 +558,11 @@ struct BibliographicExplicationSessionsTests {
     try await admin.remove()
   }
 
-  private func remove(runID: String, antiphonID: String, work: ScratchWork) {
+  private func remove(nocturneID: String, antiphonID: String, work: ScratchWork) {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      DELETE FROM bibliographic_explication_runs WHERE id = '\(runID)';
+      DELETE FROM bibliographic_explication_nocturnes WHERE id = '\(nocturneID)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
       COMMIT;
       """)
