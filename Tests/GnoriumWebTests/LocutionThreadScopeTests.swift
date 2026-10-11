@@ -112,13 +112,30 @@ struct LocutionThreadScopeTests {
       let quoted = "#locution-\(quotedID.uppercased())"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated(scratch.madrigalPath)
+        // Nothing above the thread moves once drawn (user, 2026-10-11): the
+        // prompts' loading boxes stand as tall as the previews that replace
+        // them, and no shift has moved the thread.
+        try await expect(page.locator(".prompt-previews-slot").first, timeout: .seconds(30)).toHaveAttribute("aria-busy", "false")
+        let reserved = try await page.evaluate("""
+          fetch(location.href).then(r => r.text()).then(html => {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const n = doc.querySelectorAll('.prompt-previews-loading').length;
+            return JSON.stringify({n, loaded: Math.round(document.querySelector('.prompt-previews-slot').getBoundingClientRect().height)});
+          })
+          """).string ?? ""
+        struct Reserved: Decodable { let n: Int; let loaded: Int }
+        let heights = try JSONDecoder().decode(Reserved.self, from: Data(reserved.utf8))
+        #expect(heights.n > 0 && heights.loaded == heights.n * 56 + (heights.n - 1) * 16, "Reserved as loaded: \(reserved)")
+        let shifted = try await page.evaluate("""
+          new Promise(done => { let sum = 0; new PerformanceObserver(list => { for (const e of list.getEntries())
+            if (e.sources.some(x => x.node && x.node.closest && x.node.closest('.disputorium-core-locutions'))) sum += e.value; })
+            .observe({type: 'layout-shift', buffered: true}); setTimeout(() => done(sum), 500); })
+          """).double ?? -1
+        #expect(shifted == 0, "No layout shift in the thread: \(shifted)")
         let replyButton = page.locator("\(quoted) .locution-reply-button")
         try await expect(replyButton).toBeVisible()
         try await expect(replyButton).toHaveAttribute("href", "?reply=\(quotedID.uppercased())#locution-thread-form")
-        // Followed as the link it is: a click by position races the
-        // thread's late layout (avatars, faded lines) on a busy machine.
-        _ = try await page.evaluate(
-          "(() => { document.querySelector('\(quoted) .locution-reply-button').click(); return 1 })()", as: Int.self)
+        try await replyButton.click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the page answering it", where: {
           $0.absoluteString.contains("reply=\(quotedID.uppercased())")
         })
