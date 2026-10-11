@@ -35,7 +35,14 @@ struct AvatarTests {
         // Before any accepted contribution: the gate's sentence, no file input.
         try await page.openHydrated("/account/profile")
         try await expect(page.locator(".edit-profile-avatar .field-validation-message-text"))
-          .toHaveText("Avatars open after your first accepted contribution.")
+          .toHaveText("Avatars open after an accepted contribution.")
+        // On one line at a desktop width, the form's full width to use.
+        let lines = try await page.evaluate(
+          """
+          (() => { const t = document.querySelector('.edit-profile-avatar .field-validation-message-text')
+            return Math.round(t.getBoundingClientRect().height / parseFloat(getComputedStyle(t).lineHeight)) })()
+          """, as: Int.self)
+        #expect(lines == 1, "the gate's sentence wraps to \(lines) lines")
         try await expect(page.locator("#avatar-file")).toHaveCount(0)
         try await expect(page.locator("#navbar-ellipsis-menu .ellipsis-account .avatar-letter")).toBeAttached()
 
