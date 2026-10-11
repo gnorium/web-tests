@@ -173,10 +173,12 @@ struct ArbitrationTests {
             provider = 'deepseek', model = 'deepseek-flash', duration_ms = 1200, error_message = NULL WHERE id = '\(sessionID)';
           UPDATE locutions SET call_status = 'done' WHERE id = '\(callID)';
           INSERT INTO locutions (id, locutable_type, locutable_id, author_id, parent_id, content, depth,
-            kind, arbitration_session_id, evidence_id, evidence_kind, created_at)
-            VALUES ('\(replyID)', 'bibliographic_madrigal', '\(objectID)',
+            kind, arbitration_session_id, evidence_id, evidence_kind, resemblance_service_id, resemblance_image_url, created_at)
+            SELECT '\(replyID)', 'bibliographic_madrigal', '\(objectID)',
               (SELECT id FROM users WHERE username = 'gnorium'), '\(callID)', '\(Self.reply)', 1,
-              'reply', '\(sessionID)', '\(fixture.baseURL)/page-1', 'canvas', now());
+              'reply', '\(sessionID)', '\(fixture.baseURL)/page-1', 'canvas',
+              c.resemblance_service_id, c.resemblance_image_url, now()
+            FROM locutions c WHERE c.id = '\(callID)';
           COMMIT;
           """)
         try await page.openHydrated(reading.path)
@@ -401,15 +403,16 @@ struct ArbitrationTests {
         #expect(crop.count == 4 && crop[2] > 0 && crop[3] > 0 && crop[0] + crop[2] <= 1000 && crop[1] + crop[3] <= 1000)
         try await expect(page.locator(".locution-call-evidence-crop").first)
           .toHaveText(crop.map(String.init).joined(separator: " "))
-        // The locution's action row: the reactions button first, the info
-        // icon after it (user, 2026-10-10).
+        // The locution's action row: its Raw first (user, 2026-10-12), then
+        // the reactions button, the info icon after it (user, 2026-10-10).
         let order = try await page.evaluate(
           """
           [...document.querySelector('.locution-view .reactions-controls').children]
-            .map(e => e.classList.contains('reaction-picker-view') ? 'picker'
-              : e.classList.contains('reactions-when') ? 'when' : 'other').slice(0, 2).join(' ')
+            .map(e => e.classList.contains('locution-raw-toggle') ? 'raw'
+              : e.classList.contains('reaction-picker-view') ? 'picker'
+              : e.classList.contains('reactions-when') ? 'when' : 'other').slice(0, 3).join(' ')
           """, as: String.self)
-        #expect(order == "picker when", Comment(rawValue: order))
+        #expect(order == "raw picker when", Comment(rawValue: order))
         try await page.expectNoErrors()
       }
     } catch {
