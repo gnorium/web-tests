@@ -159,12 +159,12 @@ struct WatchtowerFigureLinksTests {
       // Explication and translation have three nocturne links each: 6.
       let nocturneLinks = figures.filter { $0.href.hasPrefix("/mission-control/nocturnes/") }.count
       try #require(nocturneLinks == 6, "the processes' nocturne links: \(nocturneLinks)")
-      // Arbitration's open the Locutions list by Arbitration (an arbitration
-      // session is no nocturne): three on its process card nested in each of
+      // Arbitration's open the Locutions list (an arbitration session is no
+      // nocturne): its calls by Status, gnorium's replies by Created by: three on its process card nested in each of
       // the three Disputorium objects' cards, whose object figures add three
       // on each of their two rows. 9 + 18 = 27.
       let arbitrationLinks = figures.filter {
-        $0.href.hasPrefix("/mission-control/locutions/") && $0.href.contains("arbitration=")
+        $0.href.hasPrefix("/mission-control/locutions/")
       }.count
       try #require(arbitrationLinks == 27, "the nested Arbitration cards' locution links: \(arbitrationLinks)")
       // An object's figure opens its own list, never the lifecycles.
@@ -181,7 +181,7 @@ struct WatchtowerFigureLinksTests {
           // filtered to its object, one.
           guard listed >= 0,
             figure.href.contains("process=explication")
-              || (figure.href.contains("arbitration=") && !figure.href.contains("object="))
+              || (figure.href.hasPrefix("/mission-control/locutions/") && !figure.href.contains("object="))
           else { return listed }
           let other = try await Self.listed(
             page,

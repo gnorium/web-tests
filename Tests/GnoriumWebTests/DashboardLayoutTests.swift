@@ -65,7 +65,7 @@ struct DashboardLayoutTests {
         }
         func figure() async throws -> String {
           try await page.openHydrated("/mission-control/lexicographic")
-          let figure = page.locator("a[href='/mission-control/locutions/lexicographic?status=shown&createdOn=-7d..']").first
+          let figure = page.locator("a[href='/mission-control/locutions/lexicographic?status=submitted&status=pending&status=queued&status=running&status=passed&status=failed&createdOn=-7d..']").first
           try await expect(figure).toBeAttached()
           let shown = try await figure.innerText()
           return shown.components(separatedBy: CharacterSet.decimalDigits.inverted).first { !$0.isEmpty } ?? ""
@@ -75,7 +75,7 @@ struct DashboardLayoutTests {
         var compared = false
         for _ in 0..<5 where !compared {
           let before = try await figure()
-          try await page.openHydrated("/mission-control/locutions/lexicographic?status=shown&createdOn=-7d..")
+          try await page.openHydrated("/mission-control/locutions/lexicographic?status=submitted&status=pending&status=queued&status=running&status=passed&status=failed&createdOn=-7d..")
           try await expect(page.locator(".locutions-view").first).toBeAttached()
           // One page of rows on dev; a paged list is counted by the server test.
           let listed = try await page.evaluate(
