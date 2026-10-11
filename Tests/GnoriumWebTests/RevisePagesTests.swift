@@ -853,7 +853,16 @@ struct RevisePagesTests {
         "SELECT system_prompt FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)')")
       let task = try TestAdmin.query(
         "SELECT task_prompt FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)')")
-      for (id, proposed, offset, status) in [(a, system + "\nWeb tests A.", 2, "accepted"), (b, system + "\nWeb tests B.", 1, "pending")] {
+      let arbitration = "bibliographic_arbitration"
+      let arbitrationSystem = try TestAdmin.query(
+        "SELECT system_prompt FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(arbitration)')")
+      let arbitrationTask = try TestAdmin.query(
+        "SELECT task_prompt FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(arbitration)')")
+      // A changes Explication's prompts; B Arbitration's.
+      for (id, slot, system, task, proposed, offset, status) in [
+        (a, slot, system, task, system + "\nWeb tests A.", 2, "accepted"),
+        (b, arbitration, arbitrationSystem, arbitrationTask, arbitrationSystem + "\nWeb tests B.", 1, "pending"),
+      ] {
         let evaluated = status == "accepted" ? "'\(user)', now()" : "NULL, NULL"
         _ = try TestAdmin.query("""
           INSERT INTO revisions (id, revisable_type, revisable_id, prompt_slot, previous_system_prompt, system_prompt,
@@ -897,6 +906,23 @@ struct RevisePagesTests {
         try await expect(page, timeout: .seconds(15)).toHaveURL("the compare page", where: { $0.absoluteString.contains("/revisions/compare?from=") })
         try await expect(page.locator(".pedigree-view")).toContainText(a)
         try await expect(page.locator(".pedigree-view")).toContainText(b)
+        // Every process either touched, each with its diff (under Raw).
+        try await expect(page.locator(".prompt-change-view .prompt-text-view:has(.diff-view)")).toHaveCount(2)
+        try await expect(page.locator(".prompt-change-view .prompt-text-view:has(.diff-view)").nth(0)).toContainText("Web tests")
+        // A part's anchor, arrived at from elsewhere: the accordions on the
+        // way open and it is scrolled to; and on a change of fragment.
+        let target = "prompt-revision-system-accordion-\(slot)"
+        try await page.openHydrated("\(madrigalPath)/revise#\(target)")
+        try await expect(page.locator("#\(target)"), timeout: .seconds(10)).toHaveAttribute("data-expanded", "true")
+        try await expect(page.locator("#prompt-revision-process-\(slot)")).toHaveAttribute("data-expanded", "true")
+        let shown = try await page.evaluate(
+          "(() => { const r = document.getElementById('\(target)').getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; })()",
+          as: Bool.self)
+        #expect(shown, "Scrolled to the part")
+        let task = "prompt-revision-task-accordion-\(arbitration)"
+        _ = try await page.evaluate("(() => { location.hash = '\(task)'; return 1 })()", as: Int.self)
+        try await expect(page.locator("#\(task)"), timeout: .seconds(10)).toHaveAttribute("data-expanded", "true")
+        try await expect(page.locator("#prompt-revision-process-\(arbitration)")).toHaveAttribute("data-expanded", "true")
         try await page.expectNoErrors()
       }
     } catch {
