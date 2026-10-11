@@ -909,10 +909,17 @@ struct RevisePagesTests {
         try await expect(filed).toContainText("gnorium forwarded revision")
         try await expect(filed).toContainText("from madrigal")
         try await expect(filed.locator("a[href$='\(work.madrigalID)' i]").first).toBeAttached()
+        // In the madrigal's thread, after its suggestion: forwarded to the
+        // overture.
+        try await page.openHydrated(madrigalPath)
+        let forwarded = page.locator("#revision-\(c)-forwarded")
+        try await expect(forwarded).toContainText("gnorium forwarded revision")
+        try await expect(forwarded).toContainText("to overture")
+        try await expect(forwarded.locator("a[href$='\(overtureID)' i]").first).toBeAttached()
         // Its page: where it is filed, the clash, and Accept refused.
         try await page.openHydrated("\(madrigalPath)/revisions/\(c)")
         try await expect(page.locator(".revision-filing-view")).toContainText("Suggested on madrigal")
-        try await expect(page.locator(".revision-filing-view")).toContainText("forwarded to overture")
+        try await expect(page.locator(".revision-filing-view")).toContainText("forwarded by gnorium to overture")
         let clash = page.locator(".prompt-clash-view")
         try await expect(clash.locator(".prompt-clash-label").filter(hasText: "Old diff")).toHaveCount(1)
         try await expect(clash.locator(".prompt-clash-label").filter(hasText: "New diff")).toHaveCount(1)
