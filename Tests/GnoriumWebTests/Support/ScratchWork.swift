@@ -54,8 +54,13 @@ struct ScratchWork {
       "language":"eng","category":"report","edition":"First edition","year":1958,"genres":[],"isTranslation":false,\
       "translationChain":[],"activityStatements":[],"citations":[]}
       """
+    // Every node with its own UUID, as the server gives one
+    // (design-notes/node-uuids.md).
+    let node = { UUID().uuidString }
     let shape = """
-      {"edition-\(folksong)":{"parent":"work","position":0},"manifest-\(folksong)":{"parent":"edition-\(folksong)","position":0},"work":{"parent":null,"position":0}}
+      {"edition-\(folksong)":{"parent":"work","position":0,"uuid":"\(node())"},\
+      "manifest-\(folksong)":{"parent":"edition-\(folksong)","position":0,"uuid":"\(node())"},\
+      "work":{"parent":null,"position":0,"uuid":"\(node())"}}
       """
     let voice = """
       INSERT INTO biblio_record_voices (id, biblio_record_id, name, role, position)

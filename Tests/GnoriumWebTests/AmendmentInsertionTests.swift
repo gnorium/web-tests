@@ -46,7 +46,12 @@ struct AmendmentInsertionTests {
         """
         UPDATE biblio_record_versions
           SET metadata_json = replace(replace(metadata_json, 'https://example.org/web-tests', '\(fixture.baseURL)/manifest.json'), '"category":"report"', '"category":"report","carrier":"printed","copyLabel":"Copy 1"'),
-            shape_json = '{"copy-\(folksong)":{"parent":"edition-\(folksong)","position":0},"edition-\(folksong)":{"parent":"work","position":0},"manifest-\(folksong)":{"parent":"copy-\(folksong)","position":0},"work":{"parent":null,"position":0}}'
+            -- A copy node of its own UUID over the manifest; every node
+            -- it had keeps its own.
+            shape_json = jsonb_set(
+              shape_json::jsonb || jsonb_build_object('copy-\(folksong)', jsonb_build_object(
+                'parent', 'edition-\(folksong)', 'position', 0, 'uuid', '\(UUID().uuidString)')),
+              '{manifest-\(folksong),parent}', '"copy-\(folksong)"')::text
           WHERE id = '\(work.versionID.lowercased())';
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
