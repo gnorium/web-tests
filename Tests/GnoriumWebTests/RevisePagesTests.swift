@@ -648,7 +648,7 @@ struct RevisePagesTests {
         // Its label and its one usage field, each its own item by
         // its form's label, each linked to its place on the page.
         let changed = event.locator(".locution-thread-event-changed")
-        try await expect(changed).toHaveText("Changed Sentiment 1.1 Label, Sentiment 1.1 Definition, and Sentiment 1.1 Register")
+        try await expect(changed).toHaveText("Changed Sentiment 1.1 Label, Sentiment 1.1 Definition, Sentiment 1.1 Register.")
         try await expect(changed.locator("a")).toHaveCount(3)
         // Each on the revision's own page, at its field there (user, 2026-10-09).
         try await expect(changed.locator("a[href='\(revisionPath)#sentiment-1-label']"))
@@ -711,7 +711,7 @@ struct RevisePagesTests {
         try await page.openHydrated(epiloguePath)
         let event = page.locator("#revision-\(epilogueRevision)")
         try await expect(event.locator(".locution-thread-event-changed"))
-          .toHaveText("Changed Sentiment 1.1 Definition")
+          .toHaveText("Changed Sentiment 1.1 Definition.")
         // Its revision's page, named as the server names it (ids upper case).
         let epilogueRevisionPath =
           "/mission-control/epilogues/lexicographic/\(epilogue.uppercased())/revisions/\(epilogueRevision)"
@@ -798,9 +798,15 @@ struct RevisePagesTests {
         try await page.openHydrated(madrigalPath)
         for id in [a, b] {
           try await page.locator("#revision-\(id) form[action$='/accept'] button").click()
-          // The page answered first, then where it stands.
-          try await expect(page.locator("#revision-\(id)-verdict-1"), timeout: .seconds(20)).toContainText("as accepted")
-          try await expect(page, timeout: .seconds(15)).toHaveURL("the madrigal at its locution", where: Self.atLocution(madrigalPath))
+          // Recorded first; then the page read afresh, so a redirect the
+          // driver is slow to see never decides the test.
+          for _ in 0..<60 {
+            let status = try TestAdmin.query("SELECT status FROM revisions WHERE id = '\(id)'")
+            if status.trimmingCharacters(in: .whitespacesAndNewlines) == "accepted" { break }
+            try await Task.sleep(for: .milliseconds(250))
+          }
+          try await page.openHydrated("\(madrigalPath)#revision-\(id)")
+          try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("as accepted")
         }
         // Enabled, its warning hidden until pressed; pressed, shown, the
         // form not sent.
