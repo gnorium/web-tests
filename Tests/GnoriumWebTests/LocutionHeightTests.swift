@@ -6,7 +6,7 @@ import WebTestsTesting
 @Suite("Locution height", .serialized)
 struct LocutionHeightTests {
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func longLocutionScrollsInside512Pixels(engine: BrowserEngine, layout: Layout) async throws {
+  func aLongLocutionGrowsToItsContent(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -27,16 +27,14 @@ struct LocutionHeightTests {
         try await page.openHydrated("/mission-control/madrigals/lexicographic/\(word.madrigalID)")
         let body = page.locator("#locution-\(locution.uppercased()) .locution-body")
         try await expect(body).toContainText("Paragraph 100")
+        // No cap (user, 2026-10-12): the locution grows to its content, the
+        // page the one scrollport, so nothing nested fights it for the wheel.
         #expect(try await body.evaluate("""
           el => {
             const style = getComputedStyle(el);
-            const before = window.scrollY;
-            el.scrollTop = el.scrollHeight;
-            return style.maxHeight === '512px' && style.overflowY === 'auto'
-              && el.clientHeight === 512 && el.scrollHeight > 512
-              && el.scrollTop > 0 && window.scrollY === before;
+            return style.maxHeight === 'none' && el.scrollHeight <= el.clientHeight && el.clientHeight > 512;
           }
-          """).bool == true, "The body is a 512px scrollport and scrolling it does not scroll the page")
+          """).bool == true, "The body is as tall as its words, with no scrollport of its own")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }

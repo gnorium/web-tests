@@ -222,12 +222,11 @@ struct ArbitrationTests {
           el => {
             const body = el.querySelector('.locution-body');
             const thinking = el.querySelector('.computorium-session-output-thinking-body');
-            return getComputedStyle(body).maxHeight === '512px' && getComputedStyle(body).overflowY === 'auto'
-              && body.clientHeight <= 512 && body.scrollHeight > body.clientHeight
+            return getComputedStyle(body).maxHeight === 'none' && body.scrollHeight <= body.clientHeight
               && getComputedStyle(thinking).maxHeight === '256px' && getComputedStyle(thinking).overflowY === 'auto'
               && thinking.clientHeight <= 256 && thinking.scrollHeight > thinking.clientHeight;
           }
-          """).bool == true, "The complete embedded session and its thinking keep their existing inner scroll limits")
+          """).bool == true, "The reply grows to its session; its thinking keeps its own 256px scroll")
         // An admin submits through exactly the same pending process.
         try await page.locator("#locution-thread-locution-body").fill("@gnorium Read this evidence again.")
         try await page.locator(".locution-thread-submit").click()
