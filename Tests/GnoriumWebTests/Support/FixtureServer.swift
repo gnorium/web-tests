@@ -48,6 +48,11 @@ final class FixtureServer: @unchecked Sendable {
 
   func stop() { listener.cancel() }
 
+  /// Serve `file` at `path` too, from the next request on.
+  func serve(_ file: File, at path: String) {
+    queue.sync { files[path] = file }
+  }
+
   /// A one-page IIIF v3 manifest at `path`, for a form whose Source URL the
   /// server reads before it takes the submission: the testament's source is
   /// `baseURL + path`, a path no other test names.
@@ -88,7 +93,8 @@ final class FixtureServer: @unchecked Sendable {
 
   private func serve(_ connection: NWConnection) {
     connection.start(queue: queue)
-    connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [files] data, _, _, _ in
+    let files = self.files
+    connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { data, _, _, _ in
       let request = data.map { String(decoding: $0, as: UTF8.self) } ?? ""
       let target = request.split(separator: " ", maxSplits: 2).dropFirst().first.map(String.init) ?? "/"
       let path = String(target.split(separator: "?", maxSplits: 1).first ?? "/")

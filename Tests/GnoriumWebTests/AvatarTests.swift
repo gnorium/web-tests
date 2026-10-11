@@ -154,10 +154,10 @@ struct AvatarTests {
         try await page.openHydrated(href)
         let first = page.locator("#\(href.split(separator: "#").last.map(String.init) ?? "")")
         try await expect(first).toBeAttached()
-        // Byline and body in one block, 4px apart; 8px between that block
+        // Byline and body in one block, 8px apart; 8px between that block
         // and the footer row.
         try await expect(first.locator(".locution-content").first).toHaveCSS("row-gap", "8px")
-        try await expect(first.locator(".locution-said").first).toHaveCSS("row-gap", "4px")
+        try await expect(first.locator(".locution-said").first).toHaveCSS("row-gap", "8px")
         try await expect(first.locator(".locution-said .locution-header").first).toBeAttached()
         try await expect(first.locator(".locution-content > .reactions-view").first).toBeAttached()
       }
