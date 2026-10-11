@@ -206,7 +206,7 @@ struct ArbitrationTests {
         try await expect(session.locator(".computorium-session-byline")).toHaveCount(0)
         try await expect(reply.locator(".reactions-when")).toHaveAttribute("data-local-time-prefix", "By DeepSeek V4.1 Flash (deepseek-flash) on ")
         try await expect(reply.locator(".reactions-controls .locution-raw-toggle")).toHaveCount(1)
-        try await expect(reply.locator(".locution-reply-actions .replay-btn")).toHaveText("Replay")
+        try await expect(reply.locator(".reactions-controls .locution-raw-toggle + .replay-btn")).toHaveText("Replay")
         try await expect(reply.locator(".locution-anchor")).toHaveCount(0)
         try await expect(session.locator(".computorium-session-task-fieldset .computorium-session-input-attachments")).toContainText("1.jpg")
         // The tools offered, where the trace recorded them, before each
