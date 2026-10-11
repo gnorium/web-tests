@@ -745,11 +745,13 @@ struct RevisePagesTests {
   }
 
   /// An accepted revision a later accepted one built on cannot be reverted
-  /// alone: its Revert is disabled, in the thread and on its page, the one
-  /// refusal sentence its tooltip—shown on hover, focus and a plain tap
-  /// (user, 2026-10-10). The later one's Revert stays live.
+  /// alone: its Revert stays enabled, and pressing it shows the one
+  /// refusal sentence in a warning above it, as a form shows an action it
+  /// refuses—in place on the client, and by the server's answer (the page
+  /// at the warning) without it (user, 2026-10-11). The later one's Revert
+  /// is given.
   @Test(arguments: [BrowserEngine.chrome])
-  func aRevertALaterChangeBuiltOnIsDisabledWithItsReason(engine: BrowserEngine) async throws {
+  func aRevertALaterChangeBuiltOnSaysWhyWhenPressed(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -780,9 +782,7 @@ struct RevisePagesTests {
             '\(sql(task))', '\(sql(task))', 'pending', '\(user)', now() - interval '\(offset) minute')
           """)
       }
-      let trigger = "#revision-\(a)-verdict-1 form[action$='/revert'] .tooltip-view"
-      // The bubble, portaled to the body's end once hydrated, shown.
-      let bubble = ".tooltip-view[data-visible='true'] .tooltip-content"
+      let revert = "#revision-\(a)-verdict-1 form[action$='/revert']"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(madrigalPath)
         for id in [a, b] {
@@ -790,33 +790,33 @@ struct RevisePagesTests {
           try await expect(page, timeout: .seconds(15)).toHaveURL("the madrigal at its locution", where: Self.atLocution(madrigalPath))
           try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("accepted revision")
         }
-        try await expect(page.locator("#revision-\(a)-verdict-1 form[action$='/revert'] button")).toBeDisabled()
-        try await expect(page.locator("#revision-\(b)-verdict-1 form[action$='/revert'] button")).toBeEnabled()
-        try await expect(page.locator(trigger)).toHaveAttribute("data-disabled-trigger", "true")
-        // Hover shows the reason; focus does too.
-        try await page.locator(trigger).hover()
-        try await expect(page.locator(bubble).filter(hasText: refused)).toBeVisible()
-        // Its own page: the header's Revert disabled, the reason its tooltip.
+        // Enabled, its warning hidden until pressed; pressed, shown, the
+        // form not sent.
+        let button = page.locator("\(revert) button")
+        try await expect(button).toBeEnabled()
+        try await expect(page.locator("\(revert) .refusal-view")).toBeHidden()
+        try await button.click()
+        try await expect(page.locator("\(revert) .refusal-view")).toBeVisible()
+        try await expect(page.locator("\(revert) .refusal-view")).toContainText(refused)
+        let status = try TestAdmin.query("SELECT status FROM revisions WHERE id = '\(a)'")
+        #expect(status.trimmingCharacters(in: .whitespacesAndNewlines) == "accepted")
+        // Its own page: the header's Revert enabled, the same warning when
+        // pressed.
         try await page.openHydrated("\(madrigalPath)/revisions/\(a)")
-        try await expect(page.locator("button[form='revision-revert']")).toBeDisabled()
-        let header = ".mission-control-object-header-view .tooltip-view[data-disabled-trigger='true']"
-        try await expect(page.locator(header)).toHaveCount(1)
-        try await page.locator(header).focus()
-        try await expect(page.locator(bubble).filter(hasText: refused)).toBeVisible()
-        try await page.openHydrated("\(madrigalPath)/revisions/\(b)")
         try await expect(page.locator("button[form='revision-revert']")).toBeEnabled()
+        try await page.locator("button[form='revision-revert']").click()
+        try await expect(page.locator(".refusal-view").filter(hasText: refused)).toBeVisible()
         try await page.expectNoErrors()
       }
-      // At 375 on touch: a plain tap opens the reason and pins it; the next
-      // tap closes it (user, 2026-10-10).
-      try await withPage(engine, gnorium, viewport: Layout.phone.viewport(for: engine), cookies: [admin.cookie]) { page in
+      // Without the client (the form sent as a browser sends it, no
+      // script in the way): the server answers with the page at the warning.
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(madrigalPath)
-        try await expect(page.locator(trigger)).toHaveAttribute("data-disabled-trigger", "true")
-        try await page.locator(trigger).tap()
-        try await expect(page.locator(bubble).filter(hasText: refused)).toBeVisible()
-        try await page.locator(trigger).tap()
-        try await expect(page.locator(bubble).filter(hasText: refused)).toHaveCount(0)
-        try await page.expectNoErrors()
+        _ = try await page.evaluate("(() => { HTMLFormElement.prototype.submit.call(document.querySelector(\"\(revert)\")); return 1 })()", as: Int.self)
+        try await expect(page.locator("\(revert) .refusal-view"), timeout: .seconds(15)).toBeVisible()
+        try await expect(page.locator("\(revert) .refusal-view")).toContainText(refused)
+        let at = try await page.url()
+        #expect(at.hasSuffix("#refused-\(a)"), "At the warning: \(at)")
       }
     } catch {
       remove()

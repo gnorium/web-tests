@@ -336,7 +336,9 @@ struct EntriesAndCitationsTests {
         #expect(try await Self.highlighted("find-all", on: page) == ["scratchfind"])
         #expect(try await Self.highlighted("find-current", on: page) == ["scratchfind"])
         try await expect(viewer.locator("[data-find-current]")).toHaveCount(0)
-        // Enter: the next match, on the next page, which the reader turns to.
+        // Enter: the next match, on the next page, which the reader turns to
+        // (once the book's search has answered).
+        try await expect(bar).toHaveAttribute("data-busy", "false")
         try await bar.locator("input").press("Enter")
         try await expect(count).toHaveText("2 of 3")
         #expect(try await Self.highlighted("find-current", on: page) == ["Scratchfind"])
