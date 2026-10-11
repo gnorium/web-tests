@@ -195,13 +195,18 @@ struct ArbitrationTests {
         try await expect(reply.locator("a:has(.locution-call-evidence)").first).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID.uppercased())?resemblance=0")
         try await expect(session.locator(".computorium-session-prompt-fieldset legend")).toHaveCount(2)
         // Embedded in the reply (user, 2026-10-12): its output box bare—no
-        // legend, so no Raw toggle and no byline—and the reply's header
-        // names the model that answered.
+        // legend, so no session Raw and no byline—the model in the reply's
+        // ⓘ, the reply's own Raw at the start of its footer, Replay above it,
+        // and the page image in the task prompt, named by its resemblance.
         try await expect(session.locator(".computorium-session-output-fieldset.computorium-session-output-embedded")).toHaveCount(1)
         try await expect(session.locator(".computorium-session-output-legend")).toHaveCount(0)
         try await expect(session.locator(".computorium-session-raw-toggle")).toHaveCount(0)
         try await expect(session.locator(".computorium-session-byline")).toHaveCount(0)
-        try await expect(reply.locator(".locution-header .locution-model")).toHaveCount(1)
+        try await expect(reply.locator(".reactions-when")).toHaveAttribute("data-local-time-prefix", "By DeepSeek V4.1 Flash (deepseek-flash) on ")
+        try await expect(reply.locator(".reactions-controls .locution-raw-toggle")).toHaveCount(1)
+        try await expect(reply.locator(".locution-reply-actions .replay-btn")).toHaveText("Replay")
+        try await expect(reply.locator(".locution-anchor")).toHaveCount(0)
+        try await expect(session.locator(".computorium-session-task-fieldset .computorium-session-input-attachments")).toContainText("1.jpg")
         // The tools offered, where the trace recorded them, before each
         // model call: the thinking's, and the reply's after the call
         // (user, 2026-10-10).
