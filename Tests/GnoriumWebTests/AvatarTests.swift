@@ -146,8 +146,13 @@ struct AvatarTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     do {
       try await withPage(engine, gnorium, cookies: [admin.cookie]) { page in
+        // The list is a table: its first locution, opened in its thread.
         try await page.openHydrated("/mission-control/locutions")
-        let first = page.locator(".locution-view").first
+        let link = page.locator(".locutions-body .table-tbody a[href*='#locution-']").first
+        try await expect(link).toBeAttached()
+        let href = try #require(try await link.getAttribute("href"))
+        try await page.openHydrated(href)
+        let first = page.locator("#\(href.split(separator: "#").last.map(String.init) ?? "")")
         try await expect(first).toBeAttached()
         // Byline and body in one block, 4px apart; 8px between that block
         // and the footer row.

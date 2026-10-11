@@ -34,7 +34,7 @@ struct ResemblanceTests {
   struct Resemblance: Decodable { let service: String; let shown: Bool; let tiles: Int }
 
   static let resemblancesScript = """
-    (viewer) => JSON.stringify([...viewer.querySelectorAll('.resemblance-view')].map(s => ({
+    (viewer) => JSON.stringify([...viewer.querySelectorAll('.artifact-object .canvas-view')].map(s => ({
       service: s.dataset.serviceId,
       shown: getComputedStyle(s).display !== 'none',
       tiles: s.querySelectorAll('.canvas-tile-image').length,
@@ -143,17 +143,17 @@ struct ResemblanceTests {
         try await toggle.click()
         try await expect(toggle).toHaveAttribute("aria-pressed", "true")
         try await expect(object).toBeVisible()
-        try await expect(viewer.locator(".resemblance-view[data-active='true'] .canvas-tile-image").first)
+        try await expect(viewer.locator(".artifact-object .canvas-view[data-active='true'] .canvas-tile-image").first)
           .toHaveCount(1)
-        try await expect(viewer.locator(".resemblance-view[data-active='true']"))
+        try await expect(viewer.locator(".artifact-object .canvas-view[data-active='true']"))
           .toHaveAttribute("data-service-id", services[1])
 
         // Across the reader's pages.
         try await viewer.locator(".pagination-next").first.click()
         try await expect(toggle).toHaveAttribute("aria-pressed", "true")
-        try await expect(viewer.locator(".resemblance-view[data-active='true']"))
+        try await expect(viewer.locator(".artifact-object .canvas-view[data-active='true']"))
           .toHaveAttribute("data-service-id", services[2])
-        try await expect(viewer.locator(".resemblance-view[data-active='true'] .canvas-tile-image").first)
+        try await expect(viewer.locator(".artifact-object .canvas-view[data-active='true'] .canvas-tile-image").first)
           .toHaveCount(1)
 
         // Across navigation in the session.
@@ -162,7 +162,7 @@ struct ResemblanceTests {
         try await expect(again).toHaveAttribute("data-artifact-hydrated", "true")
         try await expect(again.locator(".artifact-canvas-toggle button")).toHaveAttribute("aria-pressed", "true")
         try await expect(again.locator(".artifact-object")).toBeVisible()
-        try await expect(again.locator(".resemblance-view[data-active='true'] .canvas-tile-image").first)
+        try await expect(again.locator(".artifact-object .canvas-view[data-active='true'] .canvas-tile-image").first)
           .toHaveCount(1)
         try await page.expectNoHorizontalOverflow()
       }
@@ -198,7 +198,9 @@ struct ResemblanceTests {
         try await page.openHydrated(reading.path)
         let viewer = page.locator(".artifact-view").first
         try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
-        try await expect(viewer.locator(".resemblance-view")).toHaveCount(3)
+        // Only the page on screen's canvas is drawn with the page; the
+        // others as they are turned to (user, 2026-10-11).
+        try await expect(viewer.locator(".artifact-object .canvas-view")).toHaveCount(1)
         try await expect(viewer.locator("#artifact-page-total")).toHaveText("3")
         // The page images, off by default, turned on.
         try await viewer.locator(".artifact-canvas-toggle button").click()
@@ -209,13 +211,14 @@ struct ResemblanceTests {
         }
         func expectShown(_ index: Int) async throws {
           // The backdrop is drawn once the image service's format is probed.
-          try await expect(viewer.locator(".resemblance-view[data-active='true'] .canvas-tile-image").first)
+          try await expect(viewer.locator(".artifact-object .canvas-view[data-active='true'] .canvas-tile-image").first)
             .toHaveCount(1)
           let read = try await resemblances()
-          #expect(read.map(\.shown) == (0..<3).map { $0 == index }, "only page \(index + 1) is shown")
-          #expect(read[index].tiles > 0, "the page on screen holds no tiles")
-          for (other, resemblance) in read.enumerated() where other != index {
-            #expect(resemblance.tiles == 0, "page \(other + 1), off screen, holds tiles")
+          let shown = read.filter(\.shown)
+          #expect(shown.map(\.service) == [services[index]], "only page \(index + 1) is shown")
+          #expect(shown.first.map { $0.tiles > 0 } == true, "the page on screen holds no tiles")
+          for resemblance in read where resemblance.service != services[index] {
+            #expect(resemblance.tiles == 0, "\(resemblance.service), off screen, holds tiles")
           }
           try await expect(
             viewer.locator(".artifact-markup .tei-page[data-active='true']")

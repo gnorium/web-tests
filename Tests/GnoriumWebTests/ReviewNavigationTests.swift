@@ -11,7 +11,7 @@ struct ReviewNavigationTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let userID = try admin.column("id")
-    let ids = (0..<26).map { _ in UUID().uuidString.uppercased() }
+    let ids = (0..<101).map { _ in UUID().uuidString.uppercased() }
     let values = ids.enumerated().map { index, id in
       """
       ('\(id)', '\(id)', 'bibliographic_explication', 'Web tests comparison \(index)', 'Web tests task', false,
@@ -33,7 +33,7 @@ struct ReviewNavigationTests {
         let path = "/mission-control/prompts/bibliographic/explication/vignettes?createdBy=\(admin.username)&sort=createdOn&order=asc"
         try await page.openHydrated(path)
         let rows = page.locator(".prompt-vignettes-table input[name='row-selection']")
-        try await expect(rows).toHaveCount(25)
+        try await expect(rows).toHaveCount(100)
         let first = try await rows.first.getAttribute("value")
         try await rows.first.click()
         #expect(try await page.evaluate("document.querySelector('.compare-button').disabled", as: Bool.self))
@@ -45,7 +45,7 @@ struct ReviewNavigationTests {
         try await rows.first.click()
         #expect(try await page.evaluate("!document.querySelector('.compare-button').disabled", as: Bool.self))
         try await page.locator(".prompt-vignettes-table .pagination-prev").first.click()
-        try await expect(rows).toHaveCount(25)
+        try await expect(rows).toHaveCount(100)
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         #expect(try await page.evaluate("document.querySelector('input[name=\"row-selection\"]').checked", as: Bool.self))
         // Deselecting and reselecting on the first page must retain the

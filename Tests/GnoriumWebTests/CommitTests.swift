@@ -25,13 +25,13 @@ struct CommitTests {
         if (event.target.id !== 'commit-form' || event.defaultPrevented) return;
         event.preventDefault();
         const data = new FormData(event.target);
-        window.__commit = { process: data.get('process'), scope: data.get('scope'), resemblances: data.getAll('resemblance[]') };
+        window.__commit = { process: data.get('process'), scope: data.get('scope'), ticked: data.get('ticked') };
       });
       return true;
     })()
     """
 
-  struct Posted: Decodable { let process: String; let scope: String?; let resemblances: [String] }
+  struct Posted: Decodable { let process: String; let scope: String?; let ticked: String? }
 
   static func posted(_ page: Page) async throws -> Posted? {
     let json = try await page.evaluate("JSON.stringify(window.__commit)", as: String.self)
@@ -81,14 +81,15 @@ struct CommitTests {
         #expect(try await Self.posted(page) == nil, "an empty commit was sent")
         // A tick clears it, and Commit posts that item.
         _ = try await page.evaluate(
-          "(() => { document.querySelectorAll(\".overture-resemblances input[name='resemblance[]']\")[1].click(); return true })()",
+          "(() => { document.querySelectorAll(\".overture-resemblances .roster-row input[form='commit-form']\")[1].click(); return true })()",
           as: Bool.self)
         try await expect(page.locator(".field-validation-message-view")).toHaveCount(0)
         try await page.locator(".commit-trigger").click()
         let one = try #require(try await Self.posted(page))
         #expect(one.process == "bibliographic_explication")
         #expect(one.scope == nil)
-        #expect(one.resemblances == ["\(fixture.baseURL)/page-2"])
+        // The ticked items' roster positions, in ranges (user, 2026-10-11).
+        #expect(one.ticked == "1")
         try await page.expectNoErrors()
 
         // A madrigal with a page unexplicated: explication, its explicated
@@ -121,12 +122,12 @@ struct CommitTests {
           .toContainText("Tick the evidence items this commit sends to translation.")
         #expect(try await Self.posted(page) == nil)
         _ = try await page.evaluate(
-          "(() => { document.querySelectorAll(\"#madrigal-resemblances input[name='resemblance[]']\")[0].click(); return true })()",
+          "(() => { document.querySelectorAll(\"#madrigal-resemblances .roster-row input[form='commit-form']\")[0].click(); return true })()",
           as: Bool.self)
         try await page.locator(".commit-trigger").click()
         let translation = try #require(try await Self.posted(page))
         #expect(translation.process == "bibliographic_translation")
-        #expect(translation.resemblances == ["\(fixture.baseURL)/page-1"])
+        #expect(translation.ticked == "0")
 
         // English and every page explicated: nothing to commit for.
         _ = try TestAdmin.query("""

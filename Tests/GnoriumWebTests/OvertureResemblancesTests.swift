@@ -55,7 +55,7 @@ struct OvertureResemblancesTests {
         try await expect(rows).toHaveCount(3)
         try await expect(rows.nth(0)).toHaveAttribute("class", "roster-row roster-row-check roster-row-selected")
         // Each row is ticked for the commit, with the image service it names.
-        try await expect(roster.locator("input[name='resemblance[]'][value='\(fixture.baseURL)/page-2']")).toHaveCount(1)
+        try await expect(roster.locator("input[form='commit-form'][value='\(fixture.baseURL)/page-2']")).toHaveCount(1)
         // An overture's pages have no markup yet: each a blue ring, pending
         // explication (user, 2026-10-09)—never a Computorium status.
         try await expect(roster.locator(".roster-status[data-mark='ring'][data-tone='blue']")).toHaveCount(3)

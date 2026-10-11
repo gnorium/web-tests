@@ -287,7 +287,7 @@ struct ArbitrationTests {
         try await expect(roster).toHaveAttribute("data-mode", "commit")
         try await expect(rows.nth(0).locator(".checkbox-icon-wrapper")).toBeHidden()
         try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked(false)
-        try await expect(rows.nth(0).locator(".checkbox-input")).toHaveAttribute("name", "resemblance[]")
+        try await expect(rows.nth(0).locator(".checkbox-input")).toHaveAttribute("form", "commit-form")
         try await expect(rows.nth(3).locator(".checkbox-icon-wrapper")).toBeVisible()
         try await body.fill("@gnorium Compare these two pages.")
         try await expect(roster).toHaveAttribute("data-mode", "attach")

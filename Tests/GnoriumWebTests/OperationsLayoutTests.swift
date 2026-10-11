@@ -71,7 +71,8 @@ struct OperationsLayoutTests {
         })()
         """, as: Bool.self)
       #expect(roster, "Resemblance search is a 16px search input with no divider; sidebar sections use 16px spacing")
-      try await expect(page.locator(".locution-thread-count")).toHaveText("1")
+      // Locutions are counted, not the events beside them.
+      try await expect(page.locator(".locution-thread-count")).toHaveText("0")
       try await expect(page.locator(".locution-thread-event")).toHaveCount(1)
       let events = try await page.evaluate("""
         (() => {

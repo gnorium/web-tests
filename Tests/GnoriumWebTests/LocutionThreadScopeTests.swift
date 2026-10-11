@@ -55,7 +55,8 @@ struct LocutionThreadScopeTests {
         try await expect(page.locator("#creation-\(laterID.uppercased())")).toHaveCount(1)
         try await expect(page.locator("#locution-\(laterLocutionID.uppercased())")).toHaveCount(1)
         try await expect(page.locator("#locution-\(earlierLocutionID.uppercased())")).toHaveCount(0)
-        try await expect(page.locator(".locution-thread-count")).toHaveText("2")
+        // Its one locution: the events beside it are not counted.
+        try await expect(page.locator(".locution-thread-count")).toHaveText("1")
 
         // The earlier one: its creation and its commit, never the later's.
         try await page.openHydrated(scratch.madrigalPath)
@@ -65,7 +66,7 @@ struct LocutionThreadScopeTests {
         try await expect(page.locator("#creation-\(laterID.uppercased())")).toHaveCount(0)
         try await expect(page.locator("#locution-\(earlierLocutionID.uppercased())")).toHaveCount(1)
         try await expect(page.locator("#locution-\(laterLocutionID.uppercased())")).toHaveCount(0)
-        try await expect(page.locator(".locution-thread-count")).toHaveText("3")
+        try await expect(page.locator(".locution-thread-count")).toHaveText("1")
         try await page.expectNoErrors()
       }
     } catch {

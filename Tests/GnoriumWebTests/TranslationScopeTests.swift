@@ -76,7 +76,7 @@ struct TranslationScopeTests {
             if (event.target.id !== 'commit-form' || event.defaultPrevented) return;
             event.preventDefault();
             const data = new FormData(event.target);
-            window.__translationSubmit = { process: data.get('process'), services: data.getAll('resemblance[]') };
+            window.__translationSubmit = { process: data.get('process'), ticked: data.get('ticked') };
           });
           true;
           """, as: Bool.self)
@@ -97,12 +97,13 @@ struct TranslationScopeTests {
         try await expect(rows.nth(1)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(1).locator(".checkbox-icon-wrapper")).toBeHidden()
         _ = try await page.evaluate("""
-          (() => { document.querySelectorAll(".mission-control-sidebar-view input[name='resemblance[]']")[0].click(); return true })()
+          (() => { document.querySelectorAll(".mission-control-sidebar-view .roster-row input[form='commit-form']")[0].click(); return true })()
           """, as: Bool.self)
         try await commit.click()
         let payload = try await submitted()
         #expect(payload.contains("\"process\":\"bibliographic_translation\""))
-        #expect(payload.contains("\"services\":[\"\(service)\"]"))
+        // Its roster position, as the commit posts ticks (user, 2026-10-11).
+        #expect(payload.contains("\"ticked\":\"0\""))
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }
