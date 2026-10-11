@@ -362,4 +362,57 @@ struct MarkupRegionTests {
     commit.remove()
     try await contributor.remove()
   }
+
+  /// The Raw editor keeps the browser's undo whole (user, 2026-10-11): a
+  /// line broken and joined is undone as typed; its numbers, drawn beside
+  /// the text and never in it, follow the lines.
+  @Test(arguments: [BrowserEngine.chrome])
+  func theEditorsUndoSurvivesALineBroken(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let fixture = try await FixtureServer.threePageManifest()
+    defer { fixture.stop() }
+    let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let commit = try ScratchCommit(owner: contributor, sourceURL: fixture.baseURL + "/manifest.json")
+    do {
+      _ = try TestAdmin.query(
+        #"""
+        UPDATE bibliographic_madrigals SET
+          proposed_content_json = '{"teiXml":"<TEI><text><body><pb n=\"1\" facs=\"\#(fixture.baseURL)/page-1/full/1300,/0/default.jpg\"/>\n<p>Before</p>\n<p>After</p></body></text></TEI>"}'
+        WHERE id = '\#(commit.madrigalID)'
+        """#)
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
+        try await page.openHydrated("\(commit.madrigalPath)/revise")
+        try await page.locator(".artifact-raw-toggle").first.click()
+        let code = page.locator(".tei-page-edit .code-code").first
+        try await expect(code).toBeVisible()
+        let numbers = page.locator(".tei-page-edit .code-gutter-lines > span")
+        let text = "(code) => code.textContent"
+        let before = try await code.evaluate(text).string ?? ""
+        let count = before.components(separatedBy: "\n").count
+        try await expect(numbers).toHaveCount(count)
+        // The caret after "Before", a line broken there and typed into.
+        _ = try await code.evaluate(
+          """
+          (code) => { const walker = document.createTreeWalker(code, NodeFilter.SHOW_TEXT);
+            let node; while ((node = walker.nextNode())) { const i = node.data.indexOf('Before');
+              if (i >= 0) { code.focus(); getSelection().collapse(node, i + 6); return true; } } return false; }
+          """)
+        try await page.keyboard.press("Enter")
+        try await page.keyboard.type("x")
+        try await expect(numbers).toHaveCount(count + 1)
+        #expect((try await code.evaluate(text).string ?? "").contains("Before\nx"))
+        // Undone as typed: the letter, then the line break.
+        _ = try await page.evaluate("document.execCommand('undo') && document.execCommand('undo')")
+        try await expect(numbers).toHaveCount(count)
+        #expect(try await code.evaluate(text).string == before)
+        #expect(try await page.locator(".tei-page-edit textarea").first.inputValue() == before)
+      }
+    } catch {
+      commit.remove()
+      try await contributor.remove(after: error)
+    }
+    commit.remove()
+    try await contributor.remove()
+  }
 }
