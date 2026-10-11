@@ -331,13 +331,16 @@ struct EntriesAndCitationsTests {
         try await expect(count).toHaveText("1 of 3")
         // Every match's characters and no more, the current one apart;
         // nothing is written into the transcript.
-        #expect(try await Self.highlighted("find-all", on: page) == ["scratchfind", "Scratchfind", "scratch-find"])
+        // A windowed reader marks the page on screen's matches; the count
+        // is the book's.
+        #expect(try await Self.highlighted("find-all", on: page) == ["scratchfind"])
         #expect(try await Self.highlighted("find-current", on: page) == ["scratchfind"])
         try await expect(viewer.locator("[data-find-current]")).toHaveCount(0)
         // Enter: the next match, on the next page, which the reader turns to.
         try await bar.locator("input").press("Enter")
         try await expect(count).toHaveText("2 of 3")
         #expect(try await Self.highlighted("find-current", on: page) == ["Scratchfind"])
+        #expect(try await Self.highlighted("find-all", on: page) == ["Scratchfind", "scratch-find"])
         try await expect(viewer.locator(".tei-page[data-active='true']")).toContainText("A Scratchfind again.")
         try await bar.locator("input").press("Enter")
         try await expect(count).toHaveText("3 of 3")

@@ -174,7 +174,13 @@ struct TranslationScopeTests {
         // The original: "sum" is no word of it.
         try await find.fill("sum")
         try await expect(count, timeout: .seconds(10)).toHaveText("0 of 0")
+        // On the next page: typing never turns the reader (user,
+        // 2026-10-11); the count is the book's alone until Next.
         try await find.fill("somma")
+        try await expect(count, timeout: .seconds(10)).toHaveText("1")
+        try await expect(viewer.locator(".artifact-markup .tei-page[data-active='true']"))
+          .toHaveAttribute("data-page-index", "0")
+        try await find.press("Enter")
         try await expect(count, timeout: .seconds(10)).toHaveText("1 of 1")
         try await expect(viewer.locator(".artifact-markup .tei-page[data-active='true']"), timeout: .seconds(10))
           .toHaveAttribute("data-page-index", "1")

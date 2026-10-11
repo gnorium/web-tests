@@ -6,8 +6,9 @@ import WebTestsTesting
 /// The navbar's "…" menu opens as a sheet under the navbar, never flush with
 /// the screen's top: the sheet and its panel start at the navbar's bottom
 /// (a pane sheet's zero top once overrode it in the shared style sheet).
-/// The navbar's icon buttons are large (48) and plain (user, 2026-10-10):
-/// no border, no ground, an 18px icon, a keyboard focus ring. The brand
+/// The navbar's icon buttons are large (48) and quiet (user, 2026-10-11):
+/// the page's main full-size controls, no border, a ground on hover, a
+/// keyboard focus ring. The brand
 /// scales with its slot, so the brand and three buttons fit at 320.
 @Suite("Navbar menu sheet")
 struct NavbarMenuSheetTests {
@@ -34,7 +35,7 @@ struct NavbarMenuSheetTests {
   }
 
   @Test(arguments: enginesAndLayouts)
-  func theIconButtonsAreLargeAndPlain(engine: BrowserEngine, layout: Layout) async throws {
+  func theIconButtonsAreLargeAndQuiet(engine: BrowserEngine, layout: Layout) async throws {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/")
       let buttons = try await page.evaluate(
@@ -43,8 +44,8 @@ struct NavbarMenuSheetTests {
           .map(b => { const r = b.getBoundingClientRect(); return [b.dataset.size, b.dataset.weight, Math.round(r.width), Math.round(r.height)].join(' ') })
         """, as: [String].self)
       #expect(!buttons.isEmpty)
-      #expect(buttons.allSatisfy { $0 == "large plain 48 48" }, "\(buttons)")
-      // Keyboard focus rings the plain button.
+      #expect(buttons.allSatisfy { $0 == "large quiet 48 48" }, "\(buttons)")
+      // Keyboard focus rings the quiet button.
       // Reached from the keyboard: focus the one before it, then Tab.
       try await page.locator("[data-navbar-ellipsis] button").filter(visible: true).first.focus()
       try await page.keyboard.press("Shift+Tab")

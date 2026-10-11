@@ -59,7 +59,7 @@ struct EvaluationsTests {
           '{"gnorium-server": "webtest"}', '{}',
           '\(sql(#"{"overall": \#(metrics), "groups": [{"language": "en", "script": "Latn", "direction": "ltr", "metrics": \#(metrics)}]}"#))',
           '\(sql("[\(result)]"))', '', 0.05, 1000, 100, 50, 800, now() - interval '10 minutes', now());
-      INSERT INTO model_calls (id, process, process, provider, model, input_tokens, output_tokens, latency_ms, started_at,
+      INSERT INTO model_calls (id, process, purpose, provider, model, input_tokens, output_tokens, latency_ms, started_at,
           finished_at, cost_usd, evaluation_run_id)
         VALUES (gen_random_uuid(), 'bibliographic_explication', 'explication', 'deepseek', 'deepseek-flash', 1000, 100, 1000,
           now() - interval '10 minutes', now() - interval '9 minutes', 0.05, '\(runID)');

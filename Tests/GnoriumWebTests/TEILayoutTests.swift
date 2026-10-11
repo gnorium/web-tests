@@ -257,4 +257,86 @@ struct TEILayoutTests {
     reading.remove()
     try await admin.remove()
   }
+
+  /// Paragraphs a paragraph's space apart, as a TEI reader sets a `<p>`;
+  /// verse lines close; a vertical `<space/>` that many of the text's
+  /// lines high, with or without dim="vertical" (user, 2026-10-11).
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func paragraphsStandApartAndSpaceHasItsHeight(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let tei = #"""
+      <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
+      <pb n="10" facs="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/>
+      <p>First paragraph.<lb/></p><p>Second paragraph.<lb/></p>
+      <lg><l>Verse one<lb/></l><l>Verse two<lb/></l></lg>
+      <space quantity="2" unit="lines"/>
+      <p>After two lines.<lb/></p>
+      <space dim="vertical" quantity="1" unit="lines"/>
+      <p>After one line.<lb/></p>
+      </body></text></TEI>
+      """#
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let reading = try ScratchReading(owner: admin, tei: tei)
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+        try await page.openHydrated(reading.path)
+        let measured = try await page.evaluate(
+          """
+          (() => {
+            const text = document.querySelector('.tei-page-text');
+            const line = (t) => [...text.querySelectorAll('.tei-line')].find(l => l.textContent.includes(t))
+              .closest('.tei-block').getBoundingClientRect();
+            const gap = (a, b) => Math.round(line(b).top - line(a).bottom);
+            const spaces = [...text.querySelectorAll('.tei-space')];
+            const lh = parseFloat(getComputedStyle(text.querySelector('.tei-line')).lineHeight);
+            return [gap('First', 'Second'), gap('Verse one', 'Verse two'), gap('Second', 'Verse one'),
+              spaces.length, ...spaces.map(s => Math.round(s.getBoundingClientRect().height / lh * 10) / 10)].join(' ');
+          })()
+          """, as: String.self)
+        #expect(measured == "16 2 16 2 2 1", "paragraph gap, verse gap, stanza gap, spaces and their heights in lines: \(measured)")
+      }
+    } catch {
+      reading.remove()
+      try await admin.remove(after: error)
+    }
+    reading.remove()
+    try await admin.remove()
+  }
+
+  /// The header's page label stands where the footer's Raw text stands
+  /// (user, 2026-10-11), at every width.
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func theCanvasLabelStandsOverRaw(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let fixture = try await FixtureServer.threePageManifest()
+    defer { fixture.stop() }
+    let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let commit = try ScratchCommit(owner: contributor, sourceURL: fixture.baseURL + "/manifest.json")
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [contributor.cookie]) { page in
+        try await page.openHydrated(commit.madrigalPath)
+        try await expect(page.locator(".artifact-canvas-label").first).not.toHaveText("")
+        // The page label's text over the Raw button's text.
+        let aligned = try await page.evaluate(
+          """
+          (() => {
+            const start = (el) => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().left; };
+            const label = document.querySelector('.artifact-canvas-label');
+            const raw = [...document.querySelectorAll('.artifact-raw-toggle button')].find(b => b.getClientRects().length);
+            const word = [...raw.querySelectorAll('*')].find(e => e.children.length === 0 && e.textContent.trim() === 'Raw');
+            if (!label.textContent.trim()) return 'no label';
+            return Math.abs(start(label) - start(word)) < 1 ? 'ok' : start(label) + ' vs ' + start(word);
+          })()
+          """, as: String.self)
+        #expect(aligned == "ok", "label and Raw: \(aligned)")
+      }
+    } catch {
+      commit.remove()
+      try await contributor.remove(after: error)
+    }
+    commit.remove()
+    try await contributor.remove()
+  }
 }

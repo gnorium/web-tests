@@ -100,18 +100,13 @@ struct ChangedPageCanvasTests {
           COMMIT;
           """)
         try await page.openHydrated(commit.madrigalPath)
-        let images = try await page.evaluate(
-          """
-          [...document.querySelectorAll(".artifact-view .canvas-view[data-active='true'] .canvas-tile-image")]
-            .map((i) => i.getAttribute('href')).join(' ')
-          """, as: String.self)
         let archived = try await Self.zoomAndPan(page)
         let after = try await page.evaluate(
           """
           [...document.querySelectorAll(".artifact-view .canvas-view[data-active='true'] .canvas-tile-image")]
             .map((i) => i.getAttribute('href')).join(' ')
           """, as: String.self)
-        #expect(images.contains("/web/20261011000000id_/page-1.jpg"), "The archived copy is shown: \(images)")
+        #expect(after.contains("/web/20261011000000id_/page-1.jpg"), "The archived copy is shown: \(after)")
         #expect(!after.contains("/page-1/"), "No IIIF tiles over the archived copy: \(after)")
         #expect(live == archived, "Zoom and pan: live \(live), archived \(archived)")
       }
