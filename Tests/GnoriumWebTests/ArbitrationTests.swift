@@ -316,7 +316,10 @@ struct ArbitrationTests {
         try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked()
         try await rows.nth(1).locator("input").click()
         try await page.locator(".locution-thread-submit").click()
-        try await expect(page.locator(".locution-call-status"), timeout: .seconds(15)).toHaveText("Pending")
+        // Pending: no status chip; an admin's Commit stands under the call's words.
+        try await expect(page.locator(".locution-said + .locution-call-actions .locution-commit"), timeout: .seconds(15))
+          .toHaveText("Commit")
+        try await expect(page.locator(".locution-call-status")).toHaveCount(0)
         let stored = try TestAdmin.query(
           "SELECT evidence_id || '|' || coalesce(evidence_ids, '') FROM locutions WHERE locutable_id = '\(objectID)' AND kind = 'call'")
         #expect(stored == "\(fixture.baseURL)/page-1|[\"\(fixture.baseURL)/page-1\",\"\(fixture.baseURL)/page-2\"]", Comment(rawValue: stored))
@@ -382,7 +385,10 @@ struct ArbitrationTests {
         try await expect(resemblance.locator(".canvas-crop")).toBeVisible()
         try await expect(roster).toHaveAttribute("data-mode", "attach")
         try await page.locator(".locution-thread-submit").click()
-        try await expect(page.locator(".locution-call-status"), timeout: .seconds(15)).toHaveText("Pending")
+        // Pending: no status chip; an admin's Commit stands under the call's words.
+        try await expect(page.locator(".locution-said + .locution-call-actions .locution-commit"), timeout: .seconds(15))
+          .toHaveText("Commit")
+        try await expect(page.locator(".locution-call-status")).toHaveCount(0)
         let stored = try TestAdmin.query(
           "SELECT evidence_crops FROM locutions WHERE locutable_id = '\(objectID)' AND kind = 'call'")
         let service = "\(fixture.baseURL)/page-1"

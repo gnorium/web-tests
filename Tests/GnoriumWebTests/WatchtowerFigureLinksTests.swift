@@ -289,7 +289,8 @@ struct WatchtowerFigureLinksTests {
                 .map(row => row.children[column]?.textContent.trim() ?? '')
             })()
             """, as: [String].self)
-          #expect(statuses.count == min(total, 25), "\(href): \(statuses.count) overtures shown for \(total)")
+          // A page holds 100 rows (PaginationView.perPage).
+          #expect(statuses.count == min(total, 100), "\(href): \(statuses.count) overtures shown for \(total)")
           #expect(statuses.allSatisfy { $0 == status }, "\(href): the rows' statuses are \(statuses)")
         }
       }

@@ -285,6 +285,7 @@ struct ToolCardFieldsTests {
         // values—is the field's content directly: no wrapper inside the
         // value box. A multi-line string is plain mono text at the field's
         // inset, no box in the box; only markup is a code view, flush.
+        // A datum box is large: 12 inside its 1px border (user, 2026-10-10).
         let wrappers = try await page.evaluate("""
           (() => {
             const plain = [...document.querySelectorAll('#computorium-session-tool-sp .datum-view:not(.tool-field-group) > .datum-value')];
@@ -293,8 +294,8 @@ struct ToolCardFieldsTests {
             const field = block.closest('.datum-value');
             const cs = getComputedStyle(block);
             const flush = cs.borderTopWidth === '0px' && cs.backgroundColor === 'rgba(0, 0, 0, 0)' && cs.paddingTop === '0px'
-              && block.getBoundingClientRect().top - field.getBoundingClientRect().top <= 9.5
-              && field.getBoundingClientRect().bottom - block.getBoundingClientRect().bottom <= 9.5;
+              && block.getBoundingClientRect().top - field.getBoundingClientRect().top <= 13.5
+              && field.getBoundingClientRect().bottom - block.getBoundingClientRect().bottom <= 13.5;
             return { count: plain.length, bare, flush };
           })()
           """, as: Wrappers.self)
