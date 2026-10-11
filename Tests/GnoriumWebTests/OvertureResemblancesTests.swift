@@ -254,7 +254,7 @@ struct OvertureResemblancesTests {
         try await expect(page, timeout: .seconds(15)).toHaveURL(
           "the overture at its locution",
           where: { url in url.path.lowercased() == scratch.overturePath.lowercased() && (url.fragment ?? "").hasPrefix("revision-") })
-        try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("accepted revision")
+        try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("as accepted")
 
         // Merged in, each prompt's legend links the revision's page at the
         // prompt it is.

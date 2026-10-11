@@ -356,7 +356,7 @@ struct RevisePagesTests {
         try await page.locator("#revision-\(id) form[action$='/accept'] button").click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the madrigal at its locution", where: Self.atLocution(commit.madrigalPath))
-        try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("accepted revision")
+        try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("as accepted")
 
         // The madrigal's Revisions list reads it, linking its own page.
         try await page.openHydrated("\(commit.madrigalPath)/revisions")
@@ -429,8 +429,13 @@ struct RevisePagesTests {
         try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the object at its revision", where: Self.atLocution(work.madrigalPath))
         let changed = page.locator(".locution-thread-event-changed")
-        try await expect(changed).toContainText("Autocompaction System Prompt")
-        try await expect(changed).toContainText("Autocompaction Task Prompt Template")
+        // Each part by its path, its steps apart by the breadcrumb's chevron
+        // (user, 2026-10-11).
+        let paths = try await changed.evaluate(
+          "e => [...e.querySelectorAll('.locution-thread-path')].map(p => [...p.children].filter(c => !c.classList.contains('breadcrumb-separator-view')).map(c => c.textContent).join(' › ')).join(' | ')")
+        #expect(
+          paths.string == "Arbitration › Autocompaction › System Prompt | Arbitration › Autocompaction › Task Prompt Template",
+          "\(paths)")
       }
       let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'").uppercased()
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
@@ -662,12 +667,18 @@ struct RevisePagesTests {
           .toHaveURL("the madrigal at its locution", where: Self.atLocution(madrigalPath))
         #expect(try content().contains("A leaf sense, as a person reads it."), "Accepted, it is written into the madrigal")
         #expect(try content().contains("<def>A leaf sense, defined.</def>"), "Its definition with it, as TEI")
-        try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("accepted revision")
+        try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("as accepted")
         try await page.locator("#revision-\(id)-verdict-1 form[action$='/revert'] button").click()
         // Every verdict stays an act of the thread (user, 2026-10-10): the
         // acceptance, then its revert, which nothing can be done about.
-        try await expect(page.locator("#revision-\(id)-verdict-2"), timeout: .seconds(15)).toContainText("reverted revision")
-        try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("accepted revision")
+        try await expect(page.locator("#revision-\(id)-verdict-2"), timeout: .seconds(15)).toContainText("as reverted")
+        try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("as accepted")
+        // One verb, the outcome colored; the act a later one acted on says so
+        // under it, a link to that act (user, 2026-10-11).
+        try await expect(page.locator("#revision-\(id)-verdict-1 .locution-thread-event-outcome[data-tone='green']")).toHaveText("accepted")
+        let note = page.locator("#revision-\(id)-verdict-1 .locution-thread-event-note")
+        try await expect(note).toContainText("Evaluated as reverted by")
+        try await expect(note).toHaveAttribute("href", "#revision-\(id)-verdict-2")
         // The revert undid the verdict: the revision is pending again, its
         // Accept and Reject on the suggestion, nothing on either act.
         try await expect(page.locator(
@@ -787,8 +798,9 @@ struct RevisePagesTests {
         try await page.openHydrated(madrigalPath)
         for id in [a, b] {
           try await page.locator("#revision-\(id) form[action$='/accept'] button").click()
+          // The page answered first, then where it stands.
+          try await expect(page.locator("#revision-\(id)-verdict-1"), timeout: .seconds(20)).toContainText("as accepted")
           try await expect(page, timeout: .seconds(15)).toHaveURL("the madrigal at its locution", where: Self.atLocution(madrigalPath))
-          try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("accepted revision")
         }
         // Enabled, its warning hidden until pressed; pressed, shown, the
         // form not sent.
@@ -872,20 +884,29 @@ struct RevisePagesTests {
           """)
       }
       _ = try TestAdmin.query("""
-        UPDATE revisions SET stale_json = '{"at":"2026-10-11T10:00:00Z","byID":"\(committed)","byType":"bibliographicMadrigal","parts":["system"]}'
+        UPDATE revisions SET stale_json = '{"at":"2026-10-11T10:00:00Z","byID":"\(committed)","byType":"bibliographicMadrigal","byUserID":"\(user)","parts":["system"]}'
         WHERE id = '\(a)'
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(madrigalPath)
-        let event = page.locator("#revision-\(a)-stale")
-        try await expect(event).toContainText("marked revision")
-        try await expect(event).toContainText("Explication System Prompt")
-        try await expect(event).toContainText("changed in the same lines by committed madrigal")
-        try await expect(event.locator("a[href$='/revise#prompt-revision-system-accordion-\(slot)']")).toHaveCount(1)
-        try await expect(event.locator("a[href*='\(committed)#prompt-preview-system']")).toHaveCount(1)
+        // Two acts, no body: the cause, the person who committed it, then
+        // gnorium's verdict (user, 2026-10-11).
+        let cause = page.locator("#revision-\(a)-stale-cause")
+        try await expect(cause).toContainText("committed madrigal")
+        try await expect(cause).toContainText("which changed")
+        try await expect(cause.locator(".locution-thread-path")).toContainText("Explication")
+        try await expect(cause.locator(".locution-thread-path .breadcrumb-separator-view")).toHaveCount(1)
+        try await expect(cause.locator("a[href$='\(work.madrigalID)#prompt-preview-system' i]")).toHaveCount(1)
+        try await expect(cause.locator("a[href*='\(committed)#prompt-preview-system']")).toHaveCount(1)
+        try await expect(cause.locator("a[href*='/revise']")).toHaveCount(0)
+        let verdict = page.locator("#revision-\(a)-stale")
+        try await expect(verdict).toContainText("evaluated revision")
+        try await expect(verdict.locator(".locution-thread-event-outcome[data-tone='orange']")).toHaveText("stale")
         // Its page's header and the list say Stale.
         try await page.openHydrated("\(madrigalPath)/revisions/\(a)")
         try await expect(page.locator(".mission-control-object-header-status-chip").first).toContainText("Stale")
+        try await expect(page.locator(".mission-control-object-header-status-chip .alert-icon-view, .mission-control-object-header-status-chip svg").first).toBeAttached()
+
         try await page.openHydrated("\(madrigalPath)/revisions")
         try await expect(page.locator(".revisions-table tr").filter(hasText: a)).toContainText("Stale")
         // One ticked: compared with the object as created.
