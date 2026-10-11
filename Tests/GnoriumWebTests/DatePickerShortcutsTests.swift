@@ -50,6 +50,8 @@ struct DatePickerShortcutsTests {
       try await expect(title).toHaveText(monthYear)
       try await expect(caption).toHaveAttribute("aria-label", "\(monthYear), choose month")
       try await expect(periods).toBeHidden()
+      // The popover keeps one height on every grid (user, 2026-10-12).
+      let dayHeight = try #require(try await popover.boundingBox()).height
 
       // The months: twelve, three to a row, this month current; the
       // arrows step a year.
@@ -62,8 +64,8 @@ struct DatePickerShortcutsTests {
       try await expect(periods.locator(".date-picker-period-view")).toHaveAttribute("role", "grid")
       try await expect(periods.locator("[aria-current='date']")).toHaveAttribute("data-value", "\(month)")
       try await expect(periods.locator("tr").first.locator(".date-picker-period-cell")).toHaveCount(3)
-      let monthBox = try #require(try await cells.first.boundingBox())
-      #expect(abs(monthBox.height - 40) <= 1, "a month cell is not a day cell's 40 tall: \(monthBox)")
+      let monthHeight = try #require(try await popover.boundingBox()).height
+      #expect(abs(monthHeight - dayHeight) <= 1, "the months' popover is \(monthHeight) tall, the days' \(dayHeight)")
       try await shoot(page, "months", layout)
       try await press(popover.getByRole(.button, name: "Previous year"))
       try await expect(title).toHaveText("\(year - 1)")
@@ -87,6 +89,8 @@ struct DatePickerShortcutsTests {
       try await expect(cells.first).toHaveAttribute("data-outside", "true")
       try await expect(cells.last).toHaveAttribute("data-outside", "true")
       try await expect(periods.locator("[aria-current='date']")).toHaveAttribute("data-value", "\(year)")
+      let yearHeight = try #require(try await popover.boundingBox()).height
+      #expect(abs(yearHeight - dayHeight) <= 1, "the years' popover is \(yearHeight) tall, the days' \(dayHeight)")
       try await shoot(page, "years", layout)
       try await press(popover.getByRole(.button, name: "Previous decade"))
       try await expect(title).toHaveText("\(decade - 10)–\(decade - 1)")
