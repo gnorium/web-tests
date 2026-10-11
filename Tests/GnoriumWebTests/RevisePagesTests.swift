@@ -826,6 +826,87 @@ struct RevisePagesTests {
     try await admin.remove()
   }
 
+  /// A stale prompt change (user, 2026-10-11): gnorium's act in the thread
+  /// names its conflicting part, linked to the Revise page at that part,
+  /// and the committed object; its page's header and the Revisions list say
+  /// Stale. The list compares one revision with the object as created, or
+  /// two with each other, on the revision page itself.
+  @Test(arguments: [BrowserEngine.chrome])
+  func aStaleChangeIsSaidAndRevisionsCompare(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let work = try ScratchCommit(owner: admin)
+    let madrigalPath = work.madrigalPath
+    let user = try admin.column("id")
+    let a = UUID().uuidString.uppercased()
+    let b = UUID().uuidString.uppercased()
+    let committed = UUID().uuidString.uppercased()
+    func remove() {
+      _ = try? TestAdmin.query("DELETE FROM revisions WHERE id IN ('\(a)', '\(b)')")
+      work.remove()
+    }
+    do {
+      let slot = "bibliographic_explication"
+      func sql(_ text: String) -> String { text.replacingOccurrences(of: "'", with: "''") }
+      let system = try TestAdmin.query(
+        "SELECT system_prompt FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)')")
+      let task = try TestAdmin.query(
+        "SELECT task_prompt FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)')")
+      for (id, proposed, offset, status) in [(a, system + "\nWeb tests A.", 2, "accepted"), (b, system + "\nWeb tests B.", 1, "pending")] {
+        let evaluated = status == "accepted" ? "'\(user)', now()" : "NULL, NULL"
+        _ = try TestAdmin.query("""
+          INSERT INTO revisions (id, revisable_type, revisable_id, prompt_slot, previous_system_prompt, system_prompt,
+            previous_task_prompt, task_prompt, status, requested_by_user_id, evaluated_by_user_id, evaluated_at, created_at)
+          VALUES ('\(id)', 'bibliographicMadrigal', '\(work.madrigalID)', '\(slot)', '\(sql(system))', '\(sql(proposed))',
+            '\(sql(task))', '\(sql(task))', '\(status)', '\(user)', \(evaluated), now() - interval '\(offset) minute')
+          """)
+      }
+      _ = try TestAdmin.query("""
+        UPDATE revisions SET stale_json = '{"at":"2026-10-11T10:00:00Z","byID":"\(committed)","byType":"bibliographicMadrigal","parts":["system"]}'
+        WHERE id = '\(a)'
+        """)
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
+        try await page.openHydrated(madrigalPath)
+        let event = page.locator("#revision-\(a)-stale")
+        try await expect(event).toContainText("marked revision")
+        try await expect(event).toContainText("Explication System Prompt")
+        try await expect(event).toContainText("changed in the same lines by committed madrigal")
+        try await expect(event.locator("a[href$='/revise#prompt-revision-system-accordion-\(slot)']")).toHaveCount(1)
+        try await expect(event.locator("a[href*='\(committed)#prompt-preview-system']")).toHaveCount(1)
+        // Its page's header and the list say Stale.
+        try await page.openHydrated("\(madrigalPath)/revisions/\(a)")
+        try await expect(page.locator(".mission-control-object-header-status-chip").first).toContainText("Stale")
+        try await page.openHydrated("\(madrigalPath)/revisions")
+        try await expect(page.locator(".revisions-table tr").filter(hasText: a)).toContainText("Stale")
+        // One ticked: compared with the object as created.
+        let compare = page.locator(".revisions-compare button")
+        try await expect(compare).toBeDisabled()
+        try await page.locator("input[name='row-selection'][value='\(a)']").check()
+        try await expect(compare).toBeEnabled()
+        try await compare.click()
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the compare page", where: { $0.absoluteString.contains("/revisions/compare?to=\(a)") })
+        try await expect(page.locator("h1, .page-heading").first).toContainText("Revisions Compared")
+        try await expect(page.locator(".pedigree-view")).toContainText("As created")
+        try await expect(page.locator("button[form='revision-revert'], button[form='revision-accept']")).toHaveCount(0)
+        // Two ticked: compared with each other, the older first.
+        try await page.openHydrated("\(madrigalPath)/revisions")
+        try await page.locator("input[name='row-selection'][value='\(a)']").check()
+        try await page.locator("input[name='row-selection'][value='\(b)']").check()
+        try await page.locator(".revisions-compare button").click()
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the compare page", where: { $0.absoluteString.contains("/revisions/compare?from=") })
+        try await expect(page.locator(".pedigree-view")).toContainText(a)
+        try await expect(page.locator(".pedigree-view")).toContainText(b)
+        try await page.expectNoErrors()
+      }
+    } catch {
+      remove()
+      try await admin.remove(after: error)
+    }
+    remove()
+    try await admin.remove()
+  }
+
   /// Every item of a revision's "Changed" line (on the page open now) links
   /// to its revision's own page, where an element holds its anchor; a
   /// resemblance's turns the reader there instead (user, 2026-10-09).

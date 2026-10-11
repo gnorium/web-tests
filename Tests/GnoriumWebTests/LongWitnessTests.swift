@@ -84,13 +84,14 @@ struct LongWitnessTests {
         try await expect(roster.locator(".roster-row")).toHaveAttribute("data-position", "298")
         try await search.fill("")
 
-        // Find searches the whole book on the server: its pages listed, a
-        // page found turned to.
+        // Find searches the whole book on the server: no list of pages
+        // under the bar (user, 2026-10-11), the book's count, and Next
+        // turns to the page found.
         try await viewer.locator(".testament-find-button button").click()
         try await viewer.locator(".testament-find-input input").fill("needle")
-        let result = viewer.locator(".testament-find-result")
-        try await expect(result.first, timeout: .seconds(10)).toHaveAttribute("data-page-index", "298")
-        try await result.first.click()
+        try await expect(viewer.locator(".testament-find-count"), timeout: .seconds(10)).toHaveText("1")
+        try await expect(viewer.locator(".testament-find-result")).toHaveCount(0)
+        try await viewer.locator(".testament-find-next").click()
         try await expect(viewer.locator(".artifact-markup .tei-page[data-active='true']"), timeout: .seconds(10))
           .toHaveAttribute("data-page-index", "298")
         // The match marked in the page, counted across the whole book.
