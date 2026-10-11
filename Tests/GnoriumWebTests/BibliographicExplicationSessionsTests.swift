@@ -67,25 +67,27 @@ struct BibliographicExplicationSessionsTests {
         let rows = page.locator(".computorium-core-sessions-slot").first.locator(".roster-row")
         try await expect(rows).toHaveCount(1)
         try await expect(rows.first).toHaveAttribute("data-computorium-session-label", "1–2")
-        // Its search is the site's search box, medium: a field's 40 tall (8
-        // inside its border on every side, a 22px line), its text 16px, as
-        // every field's. Hidden on a phone, so its inset is read, not its box.
+        // Its search is the site's search box, large as every field (user,
+        // 2026-10-10: medium only in furniture): 48 tall (12 inside its
+        // border on every side, a 22px line), its text 16px. Hidden on a
+        // phone, so its inset is read, not its box.
         let roster = page.locator(".computorium-core-sessions-slot").first
         let search = roster.locator(".roster-search-input .search-input")
-        let medium = try await search.evaluate(
+        let large = try await search.evaluate(
           """
           (el) => { const row = el.closest('.roster-view').querySelector('.roster-row');
-            return !!row && el.closest('.search-input-view').dataset.size === 'medium'
+            return !!row && el.closest('.search-input-view').dataset.size === 'large'
               && el.placeholder === 'Search evidence' && el.getAttribute('aria-label') === 'Search evidence'
               && getComputedStyle(el).fontSize === '16px'
-              && getComputedStyle(el).paddingTop === '8px' && getComputedStyle(el).paddingBottom === '8px'
+              && getComputedStyle(el).paddingTop === '12px' && getComputedStyle(el).paddingBottom === '12px'
               && getComputedStyle(el).lineHeight === '22px'; }
           """).bool == true
-        #expect(medium, "The roster's search is a medium search input, its text 16px")
-        // It filters the rows, as it did.
+        #expect(large, "The roster's search is a large search input, its text 16px")
+        // It filters the items, the list drawing those it leaves (user,
+        // 2026-10-11: a windowed roster).
         if layout == .desktop {
           try await search.fill("no such session")
-          try await expect(rows.first).toHaveAttribute("data-hidden", "true")
+          try await expect(rows).toHaveCount(0)
           try await search.fill("1–2")
           try await expect(rows.first).toHaveAttribute("data-hidden", "false")
         }
