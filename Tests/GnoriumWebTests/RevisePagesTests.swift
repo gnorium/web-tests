@@ -834,7 +834,7 @@ struct RevisePagesTests {
         try await expect(page.locator("\(revert) .refusal-view"), timeout: .seconds(15)).toBeVisible()
         try await expect(page.locator("\(revert) .refusal-view")).toContainText(refused)
         let at = try await page.url()
-        #expect(at.hasSuffix("#refused-\(a)"), "At the warning: \(at)")
+        #expect(at.hasSuffix("#refused-\(a)-revert"), "At the warning: \(at)")
       }
     } catch {
       remove()
@@ -844,24 +844,29 @@ struct RevisePagesTests {
     try await admin.remove()
   }
 
-  /// A stale prompt change (user, 2026-10-11): gnorium's act in the thread
-  /// names its conflicting part, linked to the Revise page at that part,
-  /// and the committed object; its page's header and the Revisions list say
-  /// Stale. The list compares one revision with the object as created, or
-  /// two with each other, on the revision page itself.
+  /// A shared prompt revision (user, 2026-10-11, design-notes/
+  /// shared-revisions.md): filed on another open object, it is in that
+  /// object's thread as gnorium's forwarding of it, and its page says where
+  /// it was suggested and forwarded. One that clashes with a change accepted since it was suggested
+  /// shows the clash before acceptance—its Old diff and New diff—and its
+  /// Accept, pressed, says why. The list compares one revision with the
+  /// object as created, or two with each other.
   @Test(arguments: [BrowserEngine.chrome])
-  func aStaleChangeIsSaidAndRevisionsCompare(engine: BrowserEngine) async throws {
+  func aSharedRevisionIsFiledAndAClashShowsBeforeAcceptance(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchCommit(owner: admin)
     let madrigalPath = work.madrigalPath
+    let overtureID = String(work.overturePath.split(separator: "/").last ?? "")
     let user = try admin.column("id")
     let a = UUID().uuidString.uppercased()
     let b = UUID().uuidString.uppercased()
-    let committed = UUID().uuidString.uppercased()
+    let c = UUID().uuidString.uppercased()
+    let refused =
+      "This change clashes with one accepted or committed since it was suggested: see its Old diff and New diff, and suggest it again."
     func remove() {
-      _ = try? TestAdmin.query("DELETE FROM revisions WHERE id IN ('\(a)', '\(b)')")
+      _ = try? TestAdmin.query("DELETE FROM revisions WHERE id IN ('\(a)', '\(b)', '\(c)')")
       work.remove()
     }
     do {
@@ -876,10 +881,13 @@ struct RevisePagesTests {
         "SELECT system_prompt FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(arbitration)')")
       let arbitrationTask = try TestAdmin.query(
         "SELECT task_prompt FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(arbitration)')")
-      // A changes Explication's prompts; B Arbitration's.
+      // A, accepted, adds a line to Explication's system prompt; C, pending
+      // and suggested before A was accepted, adds another at the same place:
+      // they clash. B changes Arbitration's.
       for (id, slot, system, task, proposed, offset, status) in [
         (a, slot, system, task, system + "\nWeb tests A.", 2, "accepted"),
         (b, arbitration, arbitrationSystem, arbitrationTask, arbitrationSystem + "\nWeb tests B.", 1, "pending"),
+        (c, slot, system, task, system + "\nWeb tests C.", 3, "pending"),
       ] {
         let evaluated = status == "accepted" ? "'\(user)', now()" : "NULL, NULL"
         _ = try TestAdmin.query("""
@@ -889,32 +897,34 @@ struct RevisePagesTests {
             '\(sql(task))', '\(sql(task))', '\(status)', '\(user)', \(evaluated), now() - interval '\(offset) minute')
           """)
       }
+      // C filed on the overture as well, as suggesting it files it.
       _ = try TestAdmin.query("""
-        UPDATE revisions SET stale_json = '{"at":"2026-10-11T10:00:00Z","byID":"\(committed)","byType":"bibliographicMadrigal","byUserID":"\(user)","parts":["system"]}'
-        WHERE id = '\(a)'
+        INSERT INTO revision_filings (revision_id, revisable_type, revisable_id)
+        VALUES ('\(c)', 'bibliographicOverture', '\(overtureID)')
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
-        try await page.openHydrated(madrigalPath)
-        // Two acts, no body: the cause, the person who committed it, then
-        // gnorium's verdict (user, 2026-10-11).
-        let cause = page.locator("#revision-\(a)-stale-cause")
-        try await expect(cause).toContainText("committed madrigal")
-        try await expect(cause).toContainText("which changed")
-        try await expect(cause.locator(".locution-thread-path")).toContainText("Explication")
-        try await expect(cause.locator(".locution-thread-path .breadcrumb-separator-view")).toHaveCount(1)
-        try await expect(cause.locator("a[href$='\(work.madrigalID)#prompt-preview-system' i]")).toHaveCount(1)
-        try await expect(cause.locator("a[href*='\(committed)#prompt-preview-system']")).toHaveCount(1)
-        try await expect(cause.locator("a[href*='/revise']")).toHaveCount(0)
-        let verdict = page.locator("#revision-\(a)-stale")
-        try await expect(verdict).toContainText("evaluated revision")
-        try await expect(verdict.locator(".locution-thread-event-outcome[data-tone='orange']")).toHaveText("stale")
-        // Its page's header and the list say Stale.
-        try await page.openHydrated("\(madrigalPath)/revisions/\(a)")
-        try await expect(page.locator(".mission-control-object-header-status-chip").first).toContainText("Stale")
-        try await expect(page.locator(".mission-control-object-header-status-chip .alert-icon-view, .mission-control-object-header-status-chip svg").first).toBeAttached()
+        // In the overture's thread: gnorium forwarded it from the madrigal.
+        try await page.openHydrated(work.overturePath)
+        let filed = page.locator("#revision-\(c)")
+        try await expect(filed).toContainText("gnorium forwarded revision")
+        try await expect(filed).toContainText("from madrigal")
+        try await expect(filed.locator("a[href$='\(work.madrigalID)' i]").first).toBeAttached()
+        // Its page: where it is filed, the clash, and Accept refused.
+        try await page.openHydrated("\(madrigalPath)/revisions/\(c)")
+        try await expect(page.locator(".revision-filing-view")).toContainText("Suggested on madrigal")
+        try await expect(page.locator(".revision-filing-view")).toContainText("forwarded to overture")
+        let clash = page.locator(".prompt-clash-view")
+        try await expect(clash.locator(".prompt-clash-label").filter(hasText: "Old diff")).toHaveCount(1)
+        try await expect(clash.locator(".prompt-clash-label").filter(hasText: "New diff")).toHaveCount(1)
+        try await expect(clash.locator(".locution-thread-path")).toContainText("Explication")
+        try await expect(clash).toContainText("Web tests C.")
+        try await expect(clash).toContainText("Web tests A.")
+        try await page.locator("button[form='revision-accept']").click()
+        try await expect(page.locator(".refusal-view").filter(hasText: refused)).toBeVisible()
+        let status = try TestAdmin.query("SELECT status FROM revisions WHERE id = '\(c)'")
+        #expect(status.trimmingCharacters(in: .whitespacesAndNewlines) == "pending")
 
         try await page.openHydrated("\(madrigalPath)/revisions")
-        try await expect(page.locator(".revisions-table tr").filter(hasText: a)).toContainText("Stale")
         // One ticked: compared with the object as created.
         let compare = page.locator(".revisions-compare button")
         try await expect(compare).toBeDisabled()
