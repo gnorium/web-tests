@@ -156,11 +156,11 @@ struct RevisePagesTests {
         // The fields, a markup and the system prompt, each diff drawn
         // as it is made.
         try await page.locator("[data-revise-form] input[name='title']").first.fill("Web tests title")
-        // The editor opens on the code as the Raw view lays it out, the
-        // stored one-line markup one element per line.
+        // The editor opens on the stored text as it is (a document is
+        // stored formatted; this one was written before, on one line).
         let initial = try await page.evaluate(
           "(() => document.querySelector('.tei-page-edit textarea').value)()", as: String.self)
-        #expect(initial == "<div>\n  <p>Old line</p>\n</div>", "The editor's initial text: \(initial)")
+        #expect(initial == "<div><p>Old line</p></div>", "The editor's initial text: \(initial)")
         _ = try await page.evaluate(
           """
           (() => {
@@ -186,6 +186,16 @@ struct RevisePagesTests {
         try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
         try await expect(prompts.locator("#prompt-revision-system-accordion-\(slot)"))
           .toHaveAttribute("data-open-finished", "true")
+        // Shown as on the object's page (user, 2026-10-11): rendered, Raw and
+        // its info button, the vignette linked; edited in raw mode only.
+        let system = prompts.locator("#prompt-revision-system-accordion-\(slot) .prompt-text-view")
+        try await expect(system).toHaveAttribute("data-raw", "false")
+        try await expect(system.locator(".prompt-text-rendered")).toBeVisible()
+        try await expect(system.locator("textarea")).toBeHidden()
+        try await expect(system.locator(".prompt-text-raw-info")).toHaveCount(1)
+        try await expect(system.locator(".prompt-text-vignette")).toHaveCount(1)
+        try await system.locator(".prompt-text-raw-toggle button").click()
+        try await expect(system.locator("textarea")).toBeVisible()
         // Appended where it is typed: the prompt runs past 60KB, which
         // Chrome's insertText (what `fill` sends) takes over 30s to type.
         _ = try await page.evaluate(
@@ -200,6 +210,9 @@ struct RevisePagesTests {
         let line = prompts.locator(".field-diff-diff").first
         try await expect(line).toBeVisible()
         try await expect(line).toContainText("Web tests suggestion.")
+        // Back to the rendering: it reads what the box now holds.
+        try await system.locator(".prompt-text-raw-toggle button").click()
+        try await expect(system.locator(".prompt-text-rendered")).toContainText("Web tests suggestion.")
         try await page.locator(".revision-form button[type='submit']").click()
         // Back on the madrigal, at the suggestion's locution.
         try await expect(page, timeout: .seconds(15))
@@ -313,9 +326,12 @@ struct RevisePagesTests {
         #expect(try await page.evaluate(ring, as: String.self) == "ok true", "Resemblance shown")
         try await page.locator(".artifact-canvas-toggle button").first.click()
         try await expect(page.locator(".artifact-view")).toHaveAttribute("data-canvas-shown", "false")
-        // The prompts as an object's read, the one changed open on its diff,
-        // the other processes closed.
-        try await expect(page.locator(".prompt-change-view .diff-view").first).toBeVisible()
+        // The prompts as an object's read, the one changed open, rendered,
+        // its diff under Raw (user, 2026-10-11); the other processes closed.
+        let changedPrompt = page.locator(".prompt-change-view .prompt-text-view:has(.diff-view)").first
+        try await expect(changedPrompt.locator(".diff-view")).toBeHidden()
+        try await changedPrompt.locator(".prompt-text-raw-toggle button").click()
+        try await expect(changedPrompt.locator(".diff-view")).toBeVisible()
         try await expect(page.locator("#prompt-change-process-\(slot)")).toHaveAttribute("data-expanded", "true")
         try await expect(page.locator("#prompt-change-process-bibliographic_arbitration")).toHaveAttribute("data-expanded", "false")
         try await expect(page.locator("#prompt-change-autocompaction-\(slot)")).toHaveAttribute("data-expanded", "false")
@@ -474,6 +490,10 @@ struct RevisePagesTests {
         let prompts = page.locator(".prompt-revision-fields-view .prompt-revision-fields-process[data-process='\(slot)']")
         try await prompts.locator("#prompt-revision-process-\(slot) .accordion-summary").first.click()
         try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
+        try await expect(prompts.locator("#prompt-revision-system-accordion-\(slot)"))
+          .toHaveAttribute("data-open-finished", "true")
+        try await prompts.locator("#prompt-revision-system-accordion-\(slot) .prompt-text-raw-toggle button").first.click()
+        try await expect(page.locator("textarea[name='prompt-system-\(slot)']")).toBeVisible()
         let result = try await page.evaluate(
           """
           (() => {

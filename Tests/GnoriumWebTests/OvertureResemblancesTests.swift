@@ -225,6 +225,8 @@ struct OvertureResemblancesTests {
           .click()
         try await expect(prompts.locator("#prompt-revision-system-accordion-bibliographic_explication"))
           .toHaveAttribute("data-open-finished", "true")
+        try await prompts.locator("#prompt-revision-system-accordion-bibliographic_explication .prompt-text-raw-toggle button")
+          .first.click()
         _ = try await page.evaluate(
           """
           (() => {

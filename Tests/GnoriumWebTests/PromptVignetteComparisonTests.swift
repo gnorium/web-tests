@@ -57,7 +57,15 @@ struct PromptVignetteComparisonTests {
       try await button.click()
       try await expect(page.locator(".prompt-compare-content")).toBeVisible()
       try await expect(page.locator(".diff-changed").first).toBeAttached()
-      try await expect(page.locator(".prompt-compare-unchanged")).toHaveText("Unchanged task {page}")
+      // Each prompt shown as a prompt is: rendered, its diff under Raw only
+      // (user, 2026-10-11); the unchanged one rendered with no diff.
+      let prompts = page.locator(".prompt-compare-content .prompt-text-view")
+      try await expect(prompts.nth(1).locator(".prompt-text-rendered")).toContainText("Unchanged task {page}")
+      try await expect(prompts.nth(1).locator(".diff-box")).toHaveCount(0)
+      try await expect(prompts.nth(0).locator(".diff-box")).toBeHidden()
+      try await expect(prompts.nth(0)).toHaveAttribute("data-prompt-text-hydrated", "true")
+      try await prompts.nth(0).locator(".prompt-text-raw-toggle button").click()
+      try await expect(prompts.nth(0).locator(".diff-box")).toBeVisible()
       let styled = try await page.evaluate("""
         (() => {
           const content = document.querySelector('.prompt-compare-content');
@@ -80,7 +88,6 @@ struct PromptVignetteComparisonTests {
       #expect(try await page.evaluate("""
         (() => {
           const box = document.querySelector('.diff-box');
-          const unchanged = document.querySelector('.prompt-compare-unchanged');
           const removed = document.querySelector('.diff-row[data-diff-line="removed"] .diff-changed');
           const inserted = document.querySelector('.diff-row[data-diff-line="inserted"] .diff-changed');
           const rgb = (node, property = 'color') => { const canvas=document.createElement('canvas');canvas.width=canvas.height=1;const ctx=canvas.getContext('2d');ctx.fillStyle=getComputedStyle(node)[property];ctx.fillRect(0,0,1,1);return ctx.getImageData(0,0,1,1).data; };
@@ -91,7 +98,6 @@ struct PromptVignetteComparisonTests {
             && getComputedStyle(box).maxHeight === 'none'
             && box.clientHeight >= box.scrollHeight - 1
             && getComputedStyle(box).backgroundColor === 'rgb(255, 255, 255)'
-            && getComputedStyle(unchanged).backgroundColor === 'rgb(255, 255, 255)'
             // Changed characters filled solid, red where they were and
             // green where they are, their text inverted; their lines tinted
             // lighter in the same hue.
