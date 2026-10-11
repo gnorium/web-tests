@@ -519,6 +519,24 @@ struct RevisePagesTests {
           """, as: String.self)
         #expect(result == "true true true", "scrolled, the caret's row in view, the page still: \(result)")
 
+        // Scrolled back to its top and clicked into (to select or read),
+        // the diff stays where the reader put it: the editor's losing focus
+        // redraws nothing, scrolls nothing, and moves no focus (user,
+        // 2026-10-11).
+        let box = page.locator("[data-field-diff-view]:has(textarea[name='prompt-system-\(slot)']) [data-diff-annotation] .diff-box")
+        _ = try await box.evaluate(
+          "el => { el.scrollTop = 0; el.querySelector('.diff-row').scrollIntoView({ block: 'center' }); el.scrollTop = 0; return true }")
+        let before = try await page.evaluate("JSON.stringify([window.scrollY])", as: String.self)
+        try await box.locator(".diff-row").first.click()
+        let after = try await page.evaluate(
+          """
+          (() => { const box = document.querySelector("[data-field-diff-view]:has(textarea[name='prompt-system-\(slot)']) [data-diff-annotation] .diff-box")
+            return JSON.stringify({ top: box.scrollTop, y: window.scrollY, active: document.activeElement?.tagName ?? '' }) })()
+          """, as: String.self)
+        #expect(after.contains("\"top\":0"), "the diff stayed at its top: \(after)")
+        #expect(after.contains("\"y\":\(before.dropFirst().dropLast())"), "the page did not move: \(before) → \(after)")
+        #expect(!after.contains("TEXTAREA"), "focus stayed off the editor: \(after)")
+
         // A fragment—the record's prompts, fetched into an object's page—
         // names the sheets its render registered.
         let link = try await page.evaluate(

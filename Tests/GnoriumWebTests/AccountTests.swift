@@ -58,8 +58,8 @@ struct AccountTests {
         try await expect(links.locator("a[href='/admin-console']")).toHaveCount(asAdmin ? 1 : 0)
         try await expect(links.locator("form[action='/auth/sign-out']")).toHaveCount(0)
         try await expect(page.locator("a[href='/auth/sign-out']")).toHaveCount(0)
-        // Every row is a plain link, one per row, with its icon's long edge at
-        // the text's size: plain weight, base color at rest (Delete Account too: red on hover; the red button is on
+        // Every row is a plain link, one per row, with no icon (user,
+        // 2026-10-11): plain weight, base color at rest (Delete Account too: red on hover; the red button is on
         // its page), no button background.
         let rows = try await page.evaluate(
           """
@@ -79,13 +79,14 @@ struct AccountTests {
         #expect(rows.count == (asAdmin ? 5 : 3))
         for (index, row) in rows.enumerated() {
           #expect(row.link, "\(row.label) is not a plain link")
-          #expect(row.iconSize == 16 && Double(row.iconSize) == row.fontSize, "\(row.label): icon \(row.iconSize), text \(row.fontSize)")
+          #expect(row.iconSize == 0, "\(row.label) has an icon")
+          #expect(row.fontSize == 16, "\(row.label): text \(row.fontSize)")
           #expect(row.color == rows[0].color, "\(row.label) is \(row.color)")
           #expect(row.background == "rgba(0, 0, 0, 0)", "\(row.label) has background \(row.background)")
           if index > 0 { #expect(row.top > rows[index - 1].top, "\(row.label) shares a row") }
         }
         try await expect(links).toHaveCSS("flex-direction", "column")
-        // Delete Account turns red on hover, its icon with it.
+        // Delete Account turns red on hover.
         let deleteLink = links.locator("a[href='/account/delete']")
         try await expect(links.locator("a.link-red-hover[href='/account/delete']")).toHaveCount(1)
         if layout != .phone {
@@ -93,10 +94,9 @@ struct AccountTests {
           let hovered = try await page.evaluate(
             """
             (() => { const a = document.querySelector("nav.account-links a[href='/account/delete']")
-              return [getComputedStyle(a).color, getComputedStyle(a.querySelector('svg')).color] })()
+              return [getComputedStyle(a).color] })()
             """, as: [String].self)
           #expect(hovered[0] != rows[0].color, "Delete Account stays \(hovered[0]) on hover")
-          #expect(hovered[1] == hovered[0], "The icon is \(hovered[1]), the text \(hovered[0])")
         }
 
         let linked = try await page.evaluate(

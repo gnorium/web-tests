@@ -92,7 +92,7 @@ struct ArbitrationTests {
         try await page.locator("#locution-thread-locution-body").fill("@gnorium What does the selected evidence support?")
         try await page.locator(".locution-thread-submit").click()
         try await expect(page.locator(".field-validation-message-view")).toContainText("This evidence item has not been explicated yet.")
-        try await expect(page.locator(".locution-call-status")).toHaveCount(0)
+        try await expect(page.locator(".locution-call-evidence")).toHaveCount(0)
         #expect(try TestAdmin.query("SELECT count(*) FROM locutions WHERE locutable_id = '\(objectID)'") == "0")
         // Resemblance 1 has markup: explicated, queryable—and locked against a
         // commit: its row keeps its mark and loses its checkbox.
@@ -103,7 +103,10 @@ struct ArbitrationTests {
         try await expect(page.locator("#locution-thread-locution-resemblance")).toHaveValue("0")
         try await page.locator("#locution-thread-locution-body").fill("@gnorium What does the selected evidence support?")
         try await page.locator(".locution-thread-submit").click()
-        try await expect(page.locator(".locution-call-status"), timeout: .seconds(15)).toHaveText("Pending")
+        // Posted pending: no status chip on a call (user, 2026-10-11), and
+        // no Commit for a contributor.
+        try await expect(page.locator(".locution-call-evidence"), timeout: .seconds(15)).toHaveCount(1)
+        try await expect(page.locator(".locution-call-status")).toHaveCount(0)
         try await expect(page.locator(".locution-commit")).toHaveCount(0)
       }
       let callID = try TestAdmin.query("""
@@ -134,7 +137,18 @@ struct ArbitrationTests {
             return ['.roster-marker', '.roster-status', '.roster-label'].every(s => x(rows[0], s) === x(rows[1], s)) })()
           """, as: Bool.self), "Locked and unlocked rows align")
         let call = page.locator("#locution-\(callID.uppercased())")
-        try await expect(call.locator(".locution-call-status")).toHaveText("Pending")
+        // No status chip; its Commit under its words, above its reactions,
+        // where an act's verdicts stand (user, 2026-10-11).
+        try await expect(call.locator(".locution-call-status")).toHaveCount(0)
+        try await expect(call.locator(".locution-header .locution-commit")).toHaveCount(0)
+        #expect(try await call.evaluate("""
+          el => {
+            const commit = el.querySelector('.locution-call-actions'), said = el.querySelector('.locution-said'),
+              reactions = el.querySelector('.reactions-view');
+            return !!commit && said.getBoundingClientRect().bottom <= commit.getBoundingClientRect().top
+              && commit.getBoundingClientRect().bottom <= reactions.getBoundingClientRect().top;
+          }
+          """).bool == true, "Commit sits between the call's words and its reactions")
         // The evidence item it attached, linked to it in the reader (user,
         // 2026-10-10).
         try await expect(call.locator(".locution-call-evidence")).toHaveText("Resemblance 1")
@@ -174,7 +188,8 @@ struct ArbitrationTests {
         try await expect(session.locator(".computorium-session-output-rendered")).toContainText(Self.reply)
         try await expect(reply).toContainText("By gnorium")
         // Committed, the call still names its item; its reply names it too.
-        try await expect(call.locator(".locution-call-status")).toHaveText("Done")
+        try await expect(call.locator(".locution-call-status")).toHaveCount(0)
+        try await expect(call.locator(".locution-commit")).toHaveCount(0)
         try await expect(call.locator(".locution-call-evidence")).toHaveText("Resemblance 1")
         try await expect(reply.locator(".locution-call-evidence").first).toHaveText("Resemblance 1")
         try await expect(reply.locator("a:has(.locution-call-evidence)").first).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID.uppercased())?resemblance=0")
@@ -204,8 +219,8 @@ struct ArbitrationTests {
         // An admin submits through exactly the same pending process.
         try await page.locator("#locution-thread-locution-body").fill("@gnorium Read this evidence again.")
         try await page.locator(".locution-thread-submit").click()
-        try await expect(page.locator(".locution-call-status").filter(hasText: "Pending"), timeout: .seconds(15)).toHaveCount(1)
-        try await expect(page.locator(".locution-commit")).toHaveCount(1)
+        try await expect(page.locator(".locution-commit"), timeout: .seconds(15)).toHaveCount(1)
+        try await expect(page.locator(".locution-call-status")).toHaveCount(0)
         #expect(try TestAdmin.query("SELECT count(*) FROM bibliographic_arbitration_runs WHERE locutable_id = '\(objectID)'") == "1")
         try await page.expectNoHorizontalOverflow()
       }
