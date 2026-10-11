@@ -126,13 +126,27 @@ struct EdgeFadeTests {
       """
       (() => {
         const busy = 'a, button, label, input, select, textarea, [role], [tabindex], [data-edge-fade], table, nav, header, dialog'
-        for (let y = 12; y < innerHeight; y += 24) {
-          for (let x = 12; x < innerWidth; x += 24) {
-            const e = document.elementFromPoint(x, y)
-            if (e && !e.closest(busy)) return { x, y }
-          }
+        // Nothing busy within a finger's reach either: a tap is adjusted
+        // to a control a few pixels off (Chrome's touch adjustment), and a
+        // tap beside a tab followed its link. Where the page in view has no
+        // such place (a phone's table fills it), from its top.
+        const quiet = (x, y) => {
+          const e = document.elementFromPoint(x, y)
+          return !!e && !e.closest(busy)
         }
-        return null
+        const reach = [[0, 0], [-24, 0], [24, 0], [0, -24], [0, 24], [-12, -12], [12, 12], [-12, 12], [12, -12]]
+        const find = () => {
+          for (let y = 24; y < innerHeight - 24; y += 8) {
+            for (let x = 24; x < innerWidth - 24; x += 8) {
+              if (reach.every(([dx, dy]) => quiet(x + dx, y + dy))) return { x, y }
+            }
+          }
+          return null
+        }
+        const here = find()
+        if (here) return here
+        window.scrollTo(0, 0)
+        return find()
       })()
       """, as: Point.self)
     return (point.x, point.y)

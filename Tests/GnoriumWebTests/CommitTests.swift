@@ -128,6 +128,11 @@ struct CommitTests {
         let translation = try #require(try await Self.posted(page))
         #expect(translation.process == "bibliographic_translation")
         #expect(translation.ticked == "0")
+        // The prompts the tick asked for read before the record changes
+        // under them: one read after it was refused (an English record has
+        // no translation), and the page reported the refusal.
+        try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
+          .toHaveAttribute("aria-busy", "false")
 
         // English and every page explicated: nothing to commit for.
         _ = try TestAdmin.query("""
