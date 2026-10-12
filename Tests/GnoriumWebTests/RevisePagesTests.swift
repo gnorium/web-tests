@@ -294,17 +294,17 @@ struct RevisePagesTests {
         let ring = """
           (() => {
             const probe = document.createElement('span'); document.body.append(probe)
-            probe.style.borderColor = 'var(--border-color-orange)'
-            const orange = getComputedStyle(probe).borderTopColor; probe.remove()
+            probe.style.borderColor = 'var(--border-color-yellow)'
+            const yellow = getComputedStyle(probe).borderTopColor; probe.remove()
             const card = document.querySelector('.artifact-view')
             const pane = card.querySelector('.artifact-markup')
             const style = getComputedStyle(pane)
             for (const side of ['Top', 'Right', 'Bottom', 'Left']) {
               if (style['border' + side + 'Style'] !== 'solid') return side + ' border ' + style['border' + side + 'Style']
-              if (style['border' + side + 'Color'] !== orange) return side + ' border ' + style['border' + side + 'Color']
+              if (style['border' + side + 'Color'] !== yellow) return side + ' border ' + style['border' + side + 'Color']
               if (style['padding' + side] !== '0px') return side + ' padding ' + style['padding' + side]
             }
-            if (style.outlineStyle !== 'solid' || style.outlineColor !== orange) return 'outline ' + style.outlineStyle + ' ' + style.outlineColor
+            if (style.outlineStyle !== 'solid' || style.outlineColor !== yellow) return 'outline ' + style.outlineStyle + ' ' + style.outlineColor
             if (style.outlineWidth !== '1px' || style.outlineOffset !== '-2px') return 'outline ' + style.outlineWidth + ' at ' + style.outlineOffset
             const viewer = card.querySelector('.artifact-viewer-container')
             const a = viewer.getBoundingClientRect(), b = pane.getBoundingClientRect()

@@ -5,10 +5,10 @@ import WebTestsTesting
 
 /// A revision's origins against those it found (`OriginDiffView`, user
 /// 2026-10-08), drawn as the testament tree diff draws a tree: on a
-/// lexicographic overture's revision page, a step it moves framed orange
+/// lexicographic overture's revision page, a step it moves framed yellow
 /// with its "Diff: 4 → 1", one it removes framed red where it stood, one it
 /// adds in its plain frame with its fields green, one it edits open on the
-/// form's own fields, each changed one framed orange with its "Diff:" line
+/// form's own fields, each changed one framed yellow with its "Diff:" line
 /// under it, and no card tinted; its thread's "Origin" links to that diff. A scratch lexicographic folksong,
 /// overture and revision of a throwaway admin, removed after. Headless
 /// Chrome only (user: web-tests never in Safari).
@@ -141,9 +141,9 @@ struct OriginDiffTests {
             const added = root.querySelector(
               ".origin-diff-node[data-origin-change='added'] .diff-wrap-added input[name$='-name']");
             return {
-              moved: ring(card('changed'), '--border-color-orange'),
+              moved: ring(card('changed'), '--border-color-yellow'),
               removed: ring(card('removed'), '--border-color-red'),
-              field: !!meaning && ring(meaning, '--border-color-orange'),
+              field: !!meaning && ring(meaning, '--border-color-yellow'),
               added: !!added && ring(added, '--border-color-green'),
               untinted,
               filled: root.querySelector('.origin-step-old, .origin-step-new') === null,
