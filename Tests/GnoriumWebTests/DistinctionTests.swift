@@ -26,8 +26,8 @@ struct DistinctionTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(word.path)
         // The leaf's row opens into its Metadata, its notes and quotations.
-        let row = page.locator("#record-row-s-1-1")
-        try await page.locator("#record-row-s-1-1 > .accordion-summary").click()
+        let row = page.locator("#record-row-\(word.leaf)")
+        try await page.locator("#record-row-\(word.leaf) > .accordion-summary").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
         let note = row.locator(".lexicographic-explication-note-text")
         try await expect(note).toHaveCount(1)

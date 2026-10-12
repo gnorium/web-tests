@@ -62,13 +62,13 @@ struct GlossTests {
         """
         BEGIN;
         UPDATE lexico_record_versions SET record_json = jsonb_set(record_json::jsonb, '{senses,1,equivalents}',
-            '[{"form":"\(german.title)","languageCode":"deu","recordPath":"\(german.path)#record-row-s-1-1","equivalence":"broader"}]')::text
+            '[{"form":"\(german.title)","languageCode":"deu","recordPath":"\(german.path)#record-row-\(german.leaf)","equivalence":"broader"}]')::text
           WHERE id = '\(english.versionID.lowercased())';
         INSERT INTO word_lemma_refs (id, biblio_record_id, version_id, resemblance_id, page, start_line, start_word,
             start_surface, end_line, end_word, end_surface, surface, lexico_record_id, sentiment_id, antedates, created_at)
           VALUES (gen_random_uuid(), '\(scratch.reading.work.recordID.lowercased())', '\(scratch.versionID)',
             '\(Self.service)', 1, 1, 2, 'scratchwords', 1, 2, 'scratchwords', 'scratchwords',
-            '\(english.recordID.lowercased())', 's-1-1', false, now());
+            '\(english.recordID.lowercased())', '\(english.leaf)', false, now());
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
@@ -137,11 +137,11 @@ struct GlossTests {
         try await expect(current).toHaveCSS("font-weight", "600")
         // No quotations; the page's own row ids are never reused.
         try await expect(details.locator(".attestation-view")).toHaveCount(0)
-        try await expect(details.locator("#record-row-s-1-1")).toHaveCount(0)
+        try await expect(details.locator("#record-row-\(english.leaf)")).toHaveCount(0)
         // The word's sentiment's Translations, open, each linked.
         let translation = details.locator(".lexicographic-equivalents-view a").filter(hasText: german.title)
         try await expect(translation).toBeVisible()
-        try await expect(translation).toHaveAttribute("href", "\(german.path)#record-row-s-1-1")
+        try await expect(translation).toHaveAttribute("href", "\(german.path)#record-row-\(german.leaf)")
         try await page.expectNoHorizontalOverflow()
 
         // Closed by a click, the word has the focus again, with no focus
@@ -208,8 +208,8 @@ struct GlossTests {
         // 2026-10-09): its testament's Chicago note, then its words, the
         // word clicked expanded with its own gloss's rows and its record.
         try await page.openHydrated(english.path)
-        try await page.locator("#record-row-s-1-1 > .accordion-summary").click()
-        let quotation = page.locator("#record-row-s-1-1 .quotation-view")
+        try await page.locator("#record-row-\(english.leaf) > .accordion-summary").click()
+        let quotation = page.locator("#record-row-\(english.leaf) .quotation-view")
         let word = quotation.locator(".tei-word").filter(hasText: "scratchwords")
         try await expect(word).toHaveCount(1)
         try await word.click()

@@ -56,7 +56,7 @@ struct ReferencesTests {
           try await page.openHydrated(path)
           try await expect(page.locator("#record-references, #references, .sources-view")).toHaveCount(0)
           try await expect(page.locator(".reference-credit-view")).toHaveCount(0)
-          try await expect(page.locator("#record-row-s-1-1 .record-row-title sup")).toHaveCount(0)
+          try await expect(page.locator("#record-row-\(word.leaf) .record-row-title sup")).toHaveCount(0)
           #expect(!(try await page.locator("body").textContent()).contains("dictionary.example.org"))
           try await page.expectNoHorizontalOverflow()
           try await page.expectNoErrors()

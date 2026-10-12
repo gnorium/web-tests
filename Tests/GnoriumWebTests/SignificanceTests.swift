@@ -82,8 +82,8 @@ struct SignificanceTests {
 
         // The record page: the quotation, once fetched, shows the same datums.
         try await page.openHydrated(scratchWord.path)
-        let row = page.locator("#record-row-s-1-1")
-        try await page.locator("#record-row-s-1-1 > .accordion-summary").click()
+        let row = page.locator("#record-row-\(scratchWord.leaf)")
+        try await page.locator("#record-row-\(scratchWord.leaf) > .accordion-summary").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
         let density = row.locator(".attestation-view .quotation-density-view")
         try await expect(density).toHaveCount(1)

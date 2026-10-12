@@ -23,7 +23,7 @@ struct SentimentEquivalentsTests {
     let english = try ScratchWord(owner: admin)
     let german = try ScratchWord(owner: admin, language: "deu")
     let vignette = UUID().uuidString.lowercased()
-    let term = #"[{"form":"\#(german.title)","languageCode":"deu","recordPath":"\#(german.path)#record-row-s-1-1","equivalence":"broader"}]"#
+    let term = #"[{"form":"\#(german.title)","languageCode":"deu","recordPath":"\#(german.path)#record-row-\#(german.leaf)","equivalence":"broader"}]"#
     do {
       // A later vignette of the English record: its sense lists the German word.
       // Provisional, with no antecedent: a madrigal makes one vignette.
@@ -37,16 +37,16 @@ struct SentimentEquivalentsTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         // The English record lists the German word under the sentiment's Translations.
         try await page.openHydrated(english.path)
-        let own = page.locator("#record-row-s-1-1 .lexicographic-equivalents-view")
+        let own = page.locator("#record-row-\(english.leaf) .lexicographic-equivalents-view")
         try await expect(own.getByText("German")).toBeAttached()
-        try await expect(own.locator("a[href='\(german.path)#record-row-s-1-1']")).toHaveText(german.title)
+        try await expect(own.locator("a[href='\(german.path)#record-row-\(german.leaf)']")).toHaveText(german.title)
         try await expect(own.getByText("(broader sense)")).toBeAttached()
 
         // The German record lists it back, read from its side.
         try await page.openHydrated(german.path)
-        let back = page.locator("#record-row-s-1-1 .lexicographic-equivalents-view")
+        let back = page.locator("#record-row-\(german.leaf) .lexicographic-equivalents-view")
         try await expect(back.getByText("English")).toBeAttached()
-        try await expect(back.locator("a[href='\(english.path)#record-row-s-1-1']")).toHaveText(english.title)
+        try await expect(back.locator("a[href='\(english.path)#record-row-\(english.leaf)']")).toHaveText(english.title)
         try await expect(back.getByText("(narrower sense)")).toBeAttached()
         #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
       }

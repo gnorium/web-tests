@@ -23,6 +23,11 @@ struct ScratchWord {
   let path: String
   /// Its record's id, as the server writes it: upper case.
   let recordID: String
+  /// Its sentiments' UUIDs (design-notes/node-uuids.md), each its own, as
+  /// the server gives them: the branch sense `s-1` and its leaf `s-1-1`.
+  /// Every stored reference and row anchor names a sentiment by these.
+  let branch: String
+  let leaf: String
   private let ids: [String: String]
 
   /// Where a quotation is in a testament: its record, version and page
@@ -58,6 +63,8 @@ struct ScratchWord {
     versionID = ids["version"]!.uppercased()
     self.ids = ids
     recordID = ids["record"]!.uppercased()
+    branch = UUID().uuidString
+    leaf = UUID().uuidString
     let title = title ?? "webtestsword\(ids["record"]!.prefix(8))"
     self.title = title
     path = "/lexico-records/\(language)/\(title)/noun"
@@ -73,15 +80,13 @@ struct ScratchWord {
         #"["u-1"]"#,
         #","chronology":[{"testamentTitle":"Web tests testament","text":"The scratch word stood in a sentence.","quotationID":"u-1","year":1901,"yearEnd":1901}]"#)
     } ?? ("[]", "[]", "")
-    // Each sentiment named by its id as its UUID (design-notes/node-uuids.md),
-    // so a stored reference and a row's anchor read as the tests write them.
     let vignette = """
       {"lemmaForm":{"title":"\(title)"\(romanized),"inflections":[],"languageCode":"\(language)","origin":{"citations":[],"derivation":"","etymons":[]},\
       "class":"noun","sources":[{"locator":"s.v.","title":"Web tests dictionary","url":"https://dictionary.example.org/web-tests"}],\
       "spellings":[]},"quotations":\(quotations.0),"selectionRunIDs":["run"]\(quotations.2),"senses":[\
-      {"id":"s-1","uuid":"s-1","isLeaf":false,"label":"A branch sense.","usage":{"domain":[],"grammar":[],"region":[],"register":[]},\
+      {"id":"s-1","uuid":"\(branch)","isLeaf":false,"label":"A branch sense.","usage":{"domain":[],"grammar":[],"region":[],"register":[]},\
       "position":0,"quotationIDs":[],"rank":0,"relations":[],"selectionRunID":"run","tei":"<sense><def>A branch sense.</def></sense>"},\
-      {"id":"s-1-1","uuid":"s-1-1","isLeaf":true,"label":"A leaf sense.","usage":{"domain":[],"grammar":[],"region":[],"register":[]},\
+      {"id":"s-1-1","uuid":"\(leaf)","isLeaf":true,"label":"A leaf sense.","usage":{"domain":[],"grammar":[],"region":[],"register":[]},\
       "parentID":"s-1","position":0,"quotationIDs":\(quotations.1),"rank":1,"relations":[],"selectionRunID":"run",\
       "sources":[{"locator":"sense 2","title":"Web tests senses","url":"https://senses.example.org/web-tests"}],\
       "tei":"<sense><def>A leaf sense.</def>\(note)</sense>"}]}

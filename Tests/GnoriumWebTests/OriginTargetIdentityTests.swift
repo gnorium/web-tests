@@ -36,8 +36,8 @@ struct OriginTargetIdentityTests {
     do {
       let user = try admin.column("id")
       let form = #"{"title":"webteststargetdiff","languageCode":"eng","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
-      let before = origin(unnamed ? nil : "s-1")
-      let after = origin("s-1-1")
+      let before = origin(unnamed ? nil : source.branch)
+      let after = origin(source.leaf)
       _ = try TestAdmin.query(
         """
         BEGIN;
@@ -63,7 +63,7 @@ struct OriginTargetIdentityTests {
         let changed = page.locator(".origin-diff-node[data-origin-change='changed']")
         try await expect(changed).toHaveCount(1)
         let field = changed.locator(".origin-record-field-view .field-diff-view").last
-        try await expect(field.locator("input[name$='-node']")).toHaveValue("s-1-1")
+        try await expect(field.locator("input[name$='-node']")).toHaveValue(source.leaf)
         try await expect(field.locator(".dropdown-trigger")).toContainText("1.1 \(unnamed ? "—" : label)")
         let diff = field.locator(".field-diff-diff")
         try await expect(diff).toContainText("Diff:")

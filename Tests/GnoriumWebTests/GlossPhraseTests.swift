@@ -48,7 +48,7 @@ struct GlossPhraseTests {
             start_surface, end_line, end_word, end_surface, surface, lexico_record_id, sentiment_id, antedates, created_at)
           VALUES (gen_random_uuid(), '\(scratch.reading.work.recordID.lowercased())', '\(scratch.versionID)',
             '\(Self.idiomService)', 1, 1, 2, 'kicked', 1, 4, 'bucket', 'kicked the bucket',
-            '\(word.recordID.lowercased())', 's-1-1', false, now());
+            '\(word.recordID.lowercased())', '\(word.leaf)', false, now());
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(scratch.reading.work.path)

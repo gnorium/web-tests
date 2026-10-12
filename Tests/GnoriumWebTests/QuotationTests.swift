@@ -59,7 +59,7 @@ struct QuotationTests {
       word = scratchWord
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(scratchWord.path)
-        let row = page.locator("#record-row-s-1-1")
+        let row = page.locator("#record-row-\(scratchWord.leaf)")
         let attestation = row.locator(".attestation-view")
         // Its first attestation against the margin, in the house style.
         try await expect(row.locator(".record-row-date").first).toHaveText("AD 1901")
@@ -69,7 +69,7 @@ struct QuotationTests {
           "performance.getEntriesByType('resource').filter(e => e.name.includes('/quotation?')).length")
         #expect(fetchedBefore == .number(0))
 
-        try await page.locator("#record-row-s-1-1 > .accordion-summary").click()
+        try await page.locator("#record-row-\(scratchWord.leaf) > .accordion-summary").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
         let quotation = attestation.locator(".quotation-view")
         try await expect(quotation).toHaveCount(1)
@@ -139,7 +139,7 @@ struct QuotationTests {
         // Its title opens the testament's page at the quotation's page.
         let landed = try await page.evaluate(
           """
-          fetch(document.querySelector('#record-row-s-1-1 .chicago-citation-view a').href)
+          fetch(document.querySelector('#record-row-\(scratchWord.leaf) .chicago-citation-view a').href)
             .then(r => (r.ok ? '' : 'HTTP ' + r.status + ' ') + new URL(r.url).pathname + new URL(r.url).search)
           """)
         #expect(landed == .string("\(scratch.reading.work.path)/vignettes/\(scratch.versionID)?resemblance=2"))
@@ -183,7 +183,7 @@ struct QuotationTests {
               '{}', 'flagged', 'Its reading changed in the later version: scratchword', 'u-1', now());
           """)
         try await page.openHydrated(scratchWord.path)
-        try await page.locator("#record-row-s-1-1 > .accordion-summary").click()
+        try await page.locator("#record-row-\(scratchWord.leaf) > .accordion-summary").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
         let notice = attestation.locator(".markup-changed-view")
         try await expect(notice).toHaveText(

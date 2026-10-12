@@ -44,7 +44,7 @@ struct LexicographicTranslationDefinitionTests {
         -- from a lexicographic epilogue, as the antecedent check requires.
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, tei, target,
             status, submitted_by_user_id, summary, definition_translation_json, evaluated_at, evaluated_by_user_id)
-          VALUES ('\(arabicAmendment)', '\(arabic.recordID.lowercased())', '\(arabic.versionID.lowercased())', 's-1-1',
+          VALUES ('\(arabicAmendment)', '\(arabic.recordID.lowercased())', '\(arabic.versionID.lowercased())', '\(arabic.leaf)',
             '<sense><def>A leaf sense.</def></sense>', 'definition', 'permitted', (SELECT id FROM users WHERE username = 'gnorium'),
             'Wrote the Arabic definition.', '{"languageCode":"ara","tei":"<def xml:lang=\\"ar\\">\(Self.arabic)</def>","confidence":"clear","reason":"Web tests."}', now(),
             (SELECT id FROM users WHERE username = 'gnorium'));
@@ -56,7 +56,7 @@ struct LexicographicTranslationDefinitionTests {
             FROM lexico_record_versions WHERE id = '\(arabic.versionID.lowercased())';
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, tei, target,
             status, submitted_by_user_id, summary, definition_translation_json)
-          VALUES ('\(amendment)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', 's-1-1',
+          VALUES ('\(amendment)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', '\(word.leaf)',
             '<sense><def>A leaf sense.</def></sense>', 'definition', 'committed', (SELECT id FROM users WHERE username = 'gnorium'),
             'Wrote the German definition.', '\(definition)');
         COMMIT;
@@ -76,7 +76,7 @@ struct LexicographicTranslationDefinitionTests {
 
         // One record-level English toggle, selected initially.
         try await page.openHydrated(word.path)
-        let row = page.locator("#record-row-s-1-1")
+        let row = page.locator("#record-row-\(word.leaf)")
         let english = page.locator(".apparatus-rule-language-toggle")
         try await expect(english).toHaveAttribute("aria-pressed", "true")
         try await expect(row.locator(".record-row-title").first).toHaveText("A leaf sense.")
@@ -84,14 +84,14 @@ struct LexicographicTranslationDefinitionTests {
         // while English is on; the `<def xml:lang>` once it is off, as the
         // label; the box's own Raw turns that box alone to its XML.
         let box = row.locator(".sentiment-definition-view").first
-        let branch = page.locator("#record-row-s-1 .sentiment-definition-view").first
+        let branch = page.locator("#record-row-\(word.branch) .sentiment-definition-view").first
         try await expect(box.locator("[data-definition-layer='english']")).toBeVisible()
         try await expect(box.locator("[data-definition-layer='english'] .sentiment-definition-text")).toHaveText("A leaf sense.")
         try await expect(box.locator("[data-definition-layer='native']")).toBeHidden()
         try await expect(box.locator("[data-definition-layer='raw']")).toBeHidden()
         // Raw, medium, on its bottom legend: 36 below, 16 elsewhere (user, 2026-10-10).
         #expect(try await page.evaluate(
-          "(() => { const s = getComputedStyle(document.querySelector('#record-row-s-1-1 .sentiment-definition-view')); return [s.paddingTop, s.paddingInlineStart, s.paddingInlineEnd, s.paddingBottom].join(' '); })()",
+          "(() => { const s = getComputedStyle(document.querySelector('#record-row-\(word.leaf) .sentiment-definition-view')); return [s.paddingTop, s.paddingInlineStart, s.paddingInlineEnd, s.paddingBottom].join(' '); })()",
           as: String.self) == "16px 16px 16px 36px")
         try await english.click()
         try await expect(box.locator("[data-definition-layer='native']")).toBeVisible()
@@ -121,10 +121,10 @@ struct LexicographicTranslationDefinitionTests {
         // Arabic reads right to left.
         try await page.openHydrated(arabic.path)
         try await page.locator(".apparatus-rule-language-toggle").click()
-        let rtl = page.locator("#record-row-s-1-1 .record-row-title").first
+        let rtl = page.locator("#record-row-\(arabic.leaf) .record-row-title").first
         try await expect(rtl).toHaveAttribute("lang", "ar")
         let direction = try await page.evaluate(
-          "(() => ({ direction: getComputedStyle(document.querySelector('#record-row-s-1-1 .record-row-title')).direction }))()",
+          "(() => ({ direction: getComputedStyle(document.querySelector('#record-row-\(arabic.leaf) .record-row-title')).direction }))()",
           as: Direction.self)
         #expect(direction.direction == "rtl")
         #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
