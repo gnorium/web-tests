@@ -6,9 +6,10 @@ import WebTestsTesting
 /// A page read as the image sets it (user, 2026-09-27): each block's
 /// alignment and indent from its rend; a page number and a running head set
 /// on one line a row, each in its place; a right-aligned catchword at the
-/// right. At every width the text reflows (user, 2026-10-07, held to on
-/// 2026-10-10): a block's lines run on as one paragraph, a break inside a
-/// word joining it with no space; a centered block centers its flow. The
+/// right. Its lines open as the scan breaks them, Reflow off (user,
+/// 2026-10-12); under Reflow a block's lines run on as one paragraph, a
+/// break inside a word joining it with no space; a centered block centers
+/// its flow. The
 /// page, from the Wikisource example the user
 /// gave ("On the Goodness of the Supreme Being", 1756, p. 10), encoded as the
 /// explication now writes it.
@@ -53,8 +54,14 @@ struct TEILayoutTests {
         try await expect(block).toHaveCount(1)
         let lines = block.locator(".tei-line")
         try await expect(lines).toHaveCount(3)
-        let first = try #require(try await lines.nth(0).boundingBox())
+        // Reflow off, as the reader opens: each line its own, as the scan
+        // breaks it.
+        try await expect(lines.nth(0)).toHaveCSS("display", "block")
+        try await expect(lines.nth(1)).toHaveCSS("display", "block")
         // Reflowed: the lines run on, the word broken inside joined.
+        try await page.locator(".artifact-reflow-toggle button").first.click()
+        try await expect(page.locator("[data-reflow='true']")).toHaveCount(1)
+        let first = try #require(try await lines.nth(0).boundingBox())
         try await expect(block).toHaveCSS("display", "block")
         try await expect(lines.nth(0)).toHaveCSS("display", "inline")
         try await expect(lines.nth(1)).toHaveAttribute("data-joins-previous", "true")

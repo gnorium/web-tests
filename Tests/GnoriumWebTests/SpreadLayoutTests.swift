@@ -63,9 +63,15 @@ struct SpreadLayoutTests {
         // Reflow on: one page after the other.
         try await page.locator(".artifact-reflow-toggle button").first.click()
         try await expect(page.locator("[data-reflow='true']").first).toHaveCount(1)
-        let above = try #require(try await pages.nth(0).boundingBox())
-        let below = try #require(try await pages.nth(1).boundingBox())
-        #expect(below.y >= above.y + above.height - 0.5, "the reflowed pages are not one after the other")
+        // The reader lays the text out again over a frame or two.
+        var stacked = false
+        for _ in 0..<30 where !stacked {
+          let above = try #require(try await pages.nth(0).boundingBox())
+          let below = try #require(try await pages.nth(1).boundingBox())
+          stacked = below.y >= above.y + above.height - 0.5
+          if !stacked { try await Task.sleep(for: .milliseconds(100)) }
+        }
+        #expect(stacked, "the reflowed pages are not one after the other")
         try await page.locator(".artifact-reflow-toggle button").first.click()
       }
     } catch {
