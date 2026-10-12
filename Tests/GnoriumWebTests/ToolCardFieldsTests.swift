@@ -301,8 +301,9 @@ struct ToolCardFieldsTests {
           """, as: Wrappers.self)
         #expect(wrappers.count >= 8 && wrappers.bare, "Plain values have no inner wrapper: \(wrappers)")
         #expect(wrappers.flush, "A multi-line value is mono text at the field's inset, no box: \(wrappers)")
-        // Markup the model sent is code: colored XML, the full width of its
-        // datum, capped at 256 and scrolled inside.
+        // Markup the model sent is code: XML colored by highlights over its
+        // text (`CodeSyntax`), never by markup written into it; the full
+        // width of its datum, capped at 256 and scrolled inside.
         let write = page.locator("#computorium-session-tool-wt")
         try await write.locator(".accordion-summary").first.click()
         let markup = try await page.evaluate("""
@@ -314,7 +315,8 @@ struct ToolCardFieldsTests {
               && Math.abs(code.getBoundingClientRect().width - value.getBoundingClientRect().width) <= 2.5
               && getComputedStyle(code).maxHeight === '256px' && getComputedStyle(code).overflowY === 'auto'
               && code.clientHeight <= 256 && code.scrollHeight > code.clientHeight
-              && code.querySelectorAll('.hljs-tag').length > 0
+              && [...(CSS.highlights.get('code-name') ?? [])].some(r => code.contains(r.startContainer))
+              && !code.querySelector('.hljs-tag')
               && code.getBoundingClientRect().top - value.getBoundingClientRect().top <= 1.5
               && code.querySelector('.code-code').getBoundingClientRect().top - value.getBoundingClientRect().top <= 9.5
               && value.getBoundingClientRect().bottom - code.getBoundingClientRect().bottom <= 1.5;
