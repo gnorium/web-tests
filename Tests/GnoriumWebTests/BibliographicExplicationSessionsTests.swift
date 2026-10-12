@@ -465,7 +465,9 @@ struct BibliographicExplicationSessionsTests {
                 : e.classList.contains('computorium-session-prompt-legend-vignette') ? 'id' : 'other').join(' ');
               if (!order.startsWith('raw title')) out.push('prompt legend ' + order);
               const f = field.getBoundingClientRect(), l = legend.getBoundingClientRect();
-              if (Math.abs(l.left - (f.left + 16)) > 1) out.push('prompt legend not at the bottom left: ' + (l.left - f.left));
+              // Inside its box, so centered in it, Raw and its words one group
+              // (user, 2026-10-12).
+              if (Math.abs((l.left + l.right) / 2 - (f.left + f.right) / 2) > 1) out.push('prompt legend not centered: ' + ((l.left + l.right) / 2 - (f.left + f.right) / 2));
               // Its legend inside the box, 16 above the bottom; the box keeps
               // the legend's height and 8 above it (user, 2026-10-12).
               if (Math.abs(f.bottom - 16 - l.bottom) > 1) out.push('prompt legend not inside at the bottom: ' + (f.bottom - l.bottom));
