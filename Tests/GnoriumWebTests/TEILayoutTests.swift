@@ -311,10 +311,11 @@ struct TEILayoutTests {
     try await admin.remove()
   }
 
-  /// The header's page label stands where the footer's Raw text stands
-  /// (user, 2026-10-11), at every width.
+  /// Once the manifest has named the page, the header's page label starts
+  /// where the rendered text starts, left-aligned: the text's inner inset
+  /// (user, 2026-10-12), at every width.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func theCanvasLabelStandsOverRaw(engine: BrowserEngine, layout: Layout) async throws {
+  func theCanvasLabelStandsOverTheText(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let fixture = try await FixtureServer.threePageManifest()
@@ -325,19 +326,26 @@ struct TEILayoutTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [contributor.cookie]) { page in
         try await page.openHydrated(commit.madrigalPath)
         try await expect(page.locator(".artifact-canvas-label").first).not.toHaveText("")
-        // The page label's text over the Raw button's text.
+        // The page label's text over the rendered text's start edge.
         let aligned = try await page.evaluate(
           """
           (() => {
             const start = (el) => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().left; };
             const label = document.querySelector('.artifact-canvas-label');
-            const raw = [...document.querySelectorAll('.artifact-raw-toggle button')].find(b => b.getClientRects().length);
-            const word = [...raw.querySelectorAll('*')].find(e => e.children.length === 0 && e.textContent.trim() === 'Raw');
+            const text = document.querySelector(".artifact-markup .tei-page[data-active='true'] .tei-page-text[data-layer='rendering']");
             if (!label.textContent.trim()) return 'no label';
-            return Math.abs(start(label) - start(word)) < 1 ? 'ok' : start(label) + ' vs ' + start(word);
+            if (!text) return 'no text';
+            // Where the text starts when it runs left-aligned: inside its
+            // page's content box, past its own inset (a short centered line
+            // stands further in).
+            const pane = text.closest('.tei-page');
+            const paneStyle = getComputedStyle(pane), textStyle = getComputedStyle(text);
+            const edge = pane.getBoundingClientRect().left + parseFloat(paneStyle.borderLeftWidth) + parseFloat(paneStyle.paddingLeft)
+              + parseFloat(textStyle.borderLeftWidth) + parseFloat(textStyle.paddingLeft);
+            return Math.abs(start(label) - edge) < 1 ? 'ok' : start(label) + ' vs ' + edge;
           })()
           """, as: String.self)
-        #expect(aligned == "ok", "label and Raw: \(aligned)")
+        #expect(aligned == "ok", "label and text: \(aligned)")
       }
     } catch {
       commit.remove()
