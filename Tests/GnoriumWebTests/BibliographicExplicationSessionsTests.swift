@@ -151,9 +151,9 @@ struct BibliographicExplicationSessionsTests {
             const card = document.querySelector('.computorium-session-compaction-rendered')
             const prompt = document.querySelector('.computorium-session-compaction-prompt-fieldset')
             const summary = document.querySelector('.computorium-session-compaction-summary-fieldset')
-            // Their legends hold text alone, inside at the bottom: the box
-            // keeps 16, the 22px line and 8 above it (user, 2026-10-12).
-            const even = [prompt, summary].every(e => getComputedStyle(e).paddingBottom === '46px')
+            // Their legends are the boxes' last rows: 16 on every side
+            // (user, 2026-10-12).
+            const even = [prompt, summary].every(e => getComputedStyle(e).paddingBottom === '16px')
             return [bg(card) === white, bg(prompt) === seen, bg(summary) === seen, bg(summary.querySelector('legend')) === seen, even].join(' ')
           })()
           """, as: String.self) == "true true true true true", "Compaction card white, its prompt and summary gray, legends inside")
@@ -468,11 +468,10 @@ struct BibliographicExplicationSessionsTests {
               // Inside its box, so centered in it, Raw and its words one group
               // (user, 2026-10-12).
               if (Math.abs((l.left + l.right) / 2 - (f.left + f.right) / 2) > 1) out.push('prompt legend not centered: ' + ((l.left + l.right) / 2 - (f.left + f.right) / 2));
-              // Its legend inside the box, 16 above the bottom; the box keeps
-              // the legend's height and 8 above it (user, 2026-10-12).
-              if (Math.abs(f.bottom - 16 - l.bottom) > 1) out.push('prompt legend not inside at the bottom: ' + (f.bottom - l.bottom));
-              const want = 16 + l.height + 8;
-              if (Math.abs(parseFloat(getComputedStyle(field).paddingBottom) - want) > 1) out.push('prompt inset ' + inset(field));
+              // Its legend the box's last row, inside it: the box's 16 and its
+              // border under it, 16 on every side (user, 2026-10-12).
+              if (Math.abs(f.bottom - 17 - l.bottom) > 1) out.push('prompt legend not inside at the bottom: ' + (f.bottom - l.bottom));
+              if (inset(field) !== '16px 16px') out.push('prompt inset ' + inset(field));
             }
             return out.join('; ');
           })()

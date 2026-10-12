@@ -38,6 +38,11 @@ struct DeleteAccountTests {
         try await expect(page.locator("#delete-account-confirm-validation-message")).toBeVisible()
         #expect(try admin.column("deleted_at") == "")
 
+        // Under load the unticked form can reach the server before the
+        // client's check is bound: the server answers "Tick the box" in the
+        // same place, and never sends a password back, so it is typed again.
+        try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
+        try await page.locator("#delete-account-password").fill(admin.password)
         try await page.locator("#delete-account-confirm").check()
         try await page.locator("form[action='/account/delete'] button[type='submit']").click()
         try await expect(page.locator(".page-alerts .alert-view")).toContainText("Your account is deleted")
