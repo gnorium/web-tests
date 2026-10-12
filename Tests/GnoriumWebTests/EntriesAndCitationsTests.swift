@@ -343,6 +343,9 @@ struct EntriesAndCitationsTests {
         try await expect(count).toHaveText("2 of 3")
         #expect(try await Self.highlighted("find-current", on: page) == ["Scratchfind"])
         #expect(try await Self.highlighted("find-all", on: page) == ["Scratchfind", "scratch-find"])
+        if let directory = ProcessInfo.processInfo.environment["GNORIUM_SCREENSHOT_DIR"] {
+          try await page.screenshot(to: URL(fileURLWithPath: directory).appendingPathComponent("find-\(layout).png"))
+        }
         try await expect(viewer.locator(".tei-page[data-active='true']")).toContainText("A Scratchfind again.")
         try await bar.locator("input").press("Enter")
         try await expect(count).toHaveText("3 of 3")

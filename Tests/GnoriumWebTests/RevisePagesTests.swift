@@ -177,6 +177,12 @@ struct RevisePagesTests {
         try await expect(code.locator(".diff-row[data-diff-line='removed']")).toHaveCount(1)
         try await expect(code.locator(".diff-row[data-diff-line='inserted']")).toHaveCount(1)
         try await expect(code.locator(".diff-row[data-diff-line='unchanged']")).toHaveCount(2)
+        if let directory = ProcessInfo.processInfo.environment["GNORIUM_SCREENSHOT_DIR"] {
+          _ = try await page.evaluate(
+            "(() => { document.querySelector(\".testament-diff[data-edited='true'] .diff-view\").scrollIntoView({block: 'center'}); return 1 })()",
+            as: Int.self)
+          try await page.screenshot(to: URL(fileURLWithPath: directory).appendingPathComponent("code-diff.png"))
+        }
         // Its own process's block: the Arbitration pair stands first.
         let prompts = page.locator(".prompt-revision-fields-view .prompt-revision-fields-process[data-process='\(slot)']")
         // The process in its accordion, each prompt in its own inside,
