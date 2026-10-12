@@ -308,6 +308,13 @@ struct EntriesAndCitationsTests {
         // above and under them (user, 2026-10-10); the find bar's box
         // medium too, its text 16px; its buttons 40, their icons alone in
         // their boxes so at the row's 16, as every icon-only control.
+        // Medium, a step down under the phone step on a phone; the find
+        // field stays medium there, its text 16px.
+        let control = try await page.controlHeight("medium")
+        let type = try await page.controlFontSize("medium")
+        let row = try await page.length("calc(\(control) + 2 * var(--spacing-8))")
+        let field = try await page.length("calc(2 * var(--spacing-8) + var(--line-height-small-22) + 2 * var(--border-width-base))")
+        let px = { (length: String) in Int(Double(length.replacingOccurrences(of: "px", with: "")) ?? -1) }
         let small = try await viewer.evaluate(
           """
           (viewer) => { const bar = viewer.querySelector('.testament-find-view');
@@ -316,13 +323,13 @@ struct EntriesAndCitationsTests {
             const pager = viewer.querySelector('.artifact-page-nav');
             const buttons = [...bar.querySelectorAll('.testament-find-steps button')];
             const h = (e) => Math.round(e.getBoundingClientRect().height);
-            return h(row) === 56 && pager.classList.contains('pagination-size-medium')
-              && h(pager.querySelector('.pagination-prev')) === 40
-              && getComputedStyle(pager.querySelector('.page-box')).fontSize === '16px'
+            return h(row) === \(px(row)) && pager.classList.contains('pagination-size-medium')
+              && h(pager.querySelector('.pagination-prev')) === \(px(control))
+              && getComputedStyle(pager.querySelector('.page-box')).fontSize === '\(type)'
               && el.closest('.search-input-view').dataset.size === 'medium'
-              && h(el) === 40 && css.fontSize === '16px'
-              && buttons.length === 2 && buttons.every(b => h(b) === 40)
-              && buttons.every(b => h(b.querySelector('svg')) === 16); }
+              && h(el) === \(px(field)) && css.fontSize === '16px'
+              && buttons.length === 2 && buttons.every(b => h(b) === \(px(control)))
+              && buttons.every(b => h(b.querySelector('svg')) === \(px(type))); }
           """).bool == true
         #expect(small, "The header and its find bar are rows of medium controls, their text and icons 16px")
         try await bar.locator("input").fill("scratchfind")

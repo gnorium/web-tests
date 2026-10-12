@@ -17,11 +17,10 @@ extension Page {
       .toHaveAttribute("data-wasm-status", "started")
   }
 
-  /// A ButtonView's height here for its `size` ("medium" or "large"): its
-  /// inset on every side of the 22px line inside its 1px border, read off
-  /// the size tokens, one step down (large to medium, medium to small)
-  /// under the phone step below the phone breakpoint (`ButtonView.phoneStep`).
-  func controlHeight(_ size: String) async throws -> String {
+  /// The size a control of `size` ("medium" or "large") is drawn at here:
+  /// itself, or one step down (large to medium, medium to small) under the
+  /// phone step below the phone breakpoint (`ButtonView.phoneStep`).
+  func controlSize(_ size: String) async throws -> String {
     try await evaluate(
       """
       (() => {
@@ -29,15 +28,40 @@ extension Page {
         const breakpoint = getComputedStyle(root).getPropertyValue('--max-width-breakpoint-phone-narrow').trim();
         const stepped = root.dataset.phoneStep === 'down' && matchMedia(`(max-width: ${breakpoint})`).matches;
         const sizes = ['small', 'medium', 'large'];
-        const stepIndex = sizes.indexOf('\(size)') - (stepped ? 1 : 0);
-        const inset = { small: '--spacing-4', medium: '--spacing-8', large: '--spacing-12' }[sizes[stepIndex]];
+        return sizes[sizes.indexOf('\(size)') - (stepped ? 1 : 0)];
+      })()
+      """, as: String.self)
+  }
+
+  /// A CSS length here, in px ("40px"): a probe's height set to it, so
+  /// tokens (`var(--spacing-8)`) and `calc()` resolve as the page has them.
+  func length(_ css: String) async throws -> String {
+    try await evaluate(
+      """
+      (() => {
         const probe = document.createElement('div');
-        probe.style.cssText = `position: absolute; visibility: hidden; height: calc(2 * var(${inset}) + var(--line-height-small-22) + 2 * var(--border-width-base))`;
+        probe.style.cssText = 'position: absolute; visibility: hidden; height: \(css)';
         document.body.appendChild(probe);
         const height = getComputedStyle(probe).height;
         probe.remove();
         return height;
       })()
       """, as: String.self)
+  }
+
+  /// A ButtonView's height here for its `size` ("medium" or "large"): its
+  /// inset on every side of the 22px line inside its 1px border, read off
+  /// the size tokens, at the size it is drawn (`controlSize`).
+  func controlHeight(_ size: String) async throws -> String {
+    let inset = ["small": "--spacing-4", "medium": "--spacing-8", "large": "--spacing-12"][try await controlSize(size)] ?? ""
+    return try await length("calc(2 * var(\(inset)) + var(--line-height-small-22) + 2 * var(--border-width-base))")
+  }
+
+  /// A control's type size here for its `size`, at the size it is drawn
+  /// (`controlSize`): its own icon's size too.
+  func controlFontSize(_ size: String) async throws -> String {
+    let token = ["small": "--font-size-small-14", "medium": "--font-size-medium-16", "large": "--font-size-large-18"][
+      try await controlSize(size)] ?? ""
+    return try await length("var(\(token))")
   }
 }
