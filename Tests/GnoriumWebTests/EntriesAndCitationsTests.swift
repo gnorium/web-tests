@@ -93,10 +93,12 @@ struct EntriesAndCitationsTests {
           + Self.cite(1, by: catalog, work: citedID, entry: "ANOTHER HEADING") + Self.cite(3, by: letters, work: citedID)
           + "\nCOMMIT;")
       // A current inferred placement is separate from the untouched explication decision.
+      // A node is named by its UUID (0112, user 2026-10-12): the edition's,
+      // which its row's anchor carries too.
       let targetNode = try TestAdmin.query(
-        "SELECT key FROM biblio_record_versions, jsonb_object_keys(shape_json::jsonb) AS key WHERE id = '\(cited.versionID.lowercased())' AND key LIKE 'edition-%';"
+        "SELECT value->>'uuid' FROM biblio_record_versions, jsonb_each(shape_json::jsonb) WHERE id = '\(cited.versionID.lowercased())' AND key LIKE 'edition-%';"
       ).trimmingCharacters(in: .whitespacesAndNewlines)
-      #expect(targetNode.hasPrefix("edition-"))
+      #expect(UUID(uuidString: targetNode) != nil, "the edition's UUID, not \(targetNode)")
       _ = try TestAdmin.query(
         """
         INSERT INTO inferred_citation_placements
