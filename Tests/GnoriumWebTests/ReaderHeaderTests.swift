@@ -113,18 +113,21 @@ struct ReaderHeaderTests {
         try await page.screenshot(
           to: URL(fileURLWithPath: folder).appendingPathComponent("reader-\(name)-\(width).png"))
       }
-      func check(_ header: Header, _ place: String) {
+      // A medium control as drawn here (a step down under the phone step),
+      // its icon its type's size, and the header its control and its 17
+      // (user, 2026-10-12): read off the tokens, never a number per layout.
+      func check(_ header: Header, _ place: String, control: Double, icon: Double) {
         #expect(header.titles == 0, "\(place): the header still has a title")
         #expect(header.raw, "\(place): no Raw switch in the footer")
         #expect(header.rawAtFooterStart, "\(place): Raw is not at the footer's start")
         #expect(header.labelAtHeaderStart, "\(place): the page's label is not at the header's start")
         #expect(header.find, "\(place): no Find button")
         #expect(header.resemblance, "\(place): no resemblance switch")
-        #expect(abs(header.height - 57) < 0.5, "\(place): the header is \(header.height) tall, not 57")
-        #expect(abs(header.control - 40) < 0.5, "\(place): a control is \(header.control) tall, not 40")
+        #expect(abs(header.height - (control + 17)) < 0.5, "\(place): the header is \(header.height) tall, not \(control + 17)")
+        #expect(abs(header.control - control) < 0.5, "\(place): a control is \(header.control) tall, not \(control)")
         // The manifest's canvas label, never the page's pb n.
         #expect(header.label == "p1", "\(place): the footer names the page \(header.label)")
-        #expect(!header.icons.isEmpty && header.icons.allSatisfy { abs($0 - 16) < 0.5 }, "\(place): icons \(header.icons), not 16")
+        #expect(!header.icons.isEmpty && header.icons.allSatisfy { abs($0 - icon) < 0.5 }, "\(place): icons \(header.icons), not \(icon)")
         #expect(header.total == "1", "\(place): the pager's total is \(header.total)")
         #expect(header.zoom == 0, "\(place): an empty zoom slot is drawn")
       }
@@ -132,6 +135,9 @@ struct ReaderHeaderTests {
         // As the server draws it, before any manifest is read: the pager
         // counts the markup's pages, never "of —".
         try await page.openHydrated(scratch.reading.path)
+        let px = { (length: String) in Double(length.replacingOccurrences(of: "px", with: "")) ?? 0 }
+        let control = px(try await page.controlHeight("medium"))
+        let icon = px(try await page.controlFontSize("medium"))
         let served = try await page.evaluate(
           """
           (async () => {
@@ -145,7 +151,7 @@ struct ReaderHeaderTests {
         // A Disputorium object's reader.
         try await expect(page.locator(".artifact-view .artifact-header-row").first).toBeVisible()
         try await expect(page.locator(".artifact-view .artifact-canvas-label").first).toHaveText("p1")
-        check(try await Self.header(page), "madrigal")
+        check(try await Self.header(page), "madrigal", control: control, icon: icon)
         try await shoot(page, "madrigal")
         try await page.expectNoHorizontalOverflow()
 
@@ -157,7 +163,7 @@ struct ReaderHeaderTests {
             .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
           """)
         try await expect(page.locator(".artifact-view .artifact-canvas-label").first).toHaveText("p1")
-        check(try await Self.header(page), "record page")
+        check(try await Self.header(page), "record page", control: control, icon: icon)
         try await shoot(page, "record")
         try await page.expectNoHorizontalOverflow()
 
@@ -166,7 +172,7 @@ struct ReaderHeaderTests {
         try await page.openHydrated("/mission-control/overtures/bibliographic/\(work.overtureID)")
         try await expect(page.locator(".artifact-view .artifact-header-row").first).toBeVisible()
         try await expect(page.locator(".artifact-view .artifact-canvas-label").first).toHaveText("p1")
-        check(try await Self.header(page), "overture")
+        check(try await Self.header(page), "overture", control: control, icon: icon)
         try await shoot(page, "overture")
         try await page.expectNoHorizontalOverflow()
 

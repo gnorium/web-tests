@@ -17,9 +17,10 @@ extension Page {
       .toHaveAttribute("data-wasm-status", "started")
   }
 
-  /// The size a control of `size` ("medium" or "large") is drawn at here:
-  /// itself, or one step down (large to medium, medium to small) under the
-  /// phone step below the phone breakpoint (`ButtonView.phoneStep`).
+  /// The size a control of `size` ("small", "medium" or "large") is drawn
+  /// at here: itself, or one step down (large to medium, medium to small,
+  /// small to mini) under the phone step below the phone breakpoint
+  /// (`ButtonView.phoneStep`).
   func controlSize(_ size: String) async throws -> String {
     try await evaluate(
       """
@@ -27,7 +28,7 @@ extension Page {
         const root = document.documentElement;
         const breakpoint = getComputedStyle(root).getPropertyValue('--max-width-breakpoint-phone-narrow').trim();
         const stepped = root.dataset.phoneStep === 'down' && matchMedia(`(max-width: ${breakpoint})`).matches;
-        const sizes = ['small', 'medium', 'large'];
+        const sizes = ['mini', 'small', 'medium', 'large'];
         return sizes[sizes.indexOf('\(size)') - (stepped ? 1 : 0)];
       })()
       """, as: String.self)
@@ -53,14 +54,18 @@ extension Page {
   /// inset on every side of the 22px line inside its 1px border, read off
   /// the size tokens, at the size it is drawn (`controlSize`).
   func controlHeight(_ size: String) async throws -> String {
-    let inset = ["small": "--spacing-4", "medium": "--spacing-8", "large": "--spacing-12"][try await controlSize(size)] ?? ""
+    let inset = ["mini": "--spacing-0", "small": "--spacing-4", "medium": "--spacing-8", "large": "--spacing-12"][
+      try await controlSize(size)] ?? ""
     return try await length("calc(2 * var(\(inset)) + var(--line-height-small-22) + 2 * var(--border-width-base))")
   }
 
   /// A control's type size here for its `size`, at the size it is drawn
   /// (`controlSize`): its own icon's size too.
   func controlFontSize(_ size: String) async throws -> String {
-    let token = ["small": "--font-size-small-14", "medium": "--font-size-medium-16", "large": "--font-size-large-18"][
+    let token = [
+      "mini": "--font-size-x-small-12", "small": "--font-size-small-14", "medium": "--font-size-medium-16",
+      "large": "--font-size-large-18",
+    ][
       try await controlSize(size)] ?? ""
     return try await length("var(\(token))")
   }
