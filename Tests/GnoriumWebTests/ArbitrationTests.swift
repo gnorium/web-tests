@@ -151,7 +151,9 @@ struct ArbitrationTests {
           """).bool == true, "Commit sits between the call's words and its reactions")
         // The evidence item it attached, linked to it in the reader (user,
         // 2026-10-10).
-        try await expect(call.locator(".locution-call-evidence")).toHaveText("Resemblance 1")
+        // Its byline names the item it attached, linked to the page turned
+        // to it (user, 2026-10-12): "… submitted locution ‹id› on Resemblance 1".
+        try await expect(call.locator(".locution-header")).toContainText("submitted locution \(callID.uppercased()) on Resemblance 1")
         try await expect(call.locator("a:has(.locution-call-evidence)")).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID.uppercased())?resemblance=0")
         try await expect(call.locator(".locution-commit")).toHaveText("Commit")
         try await expect(call.locator(".locution-commit-form[action$='/locutions/\(callID.uppercased())/commit']")).toHaveCount(1)
@@ -188,13 +190,15 @@ struct ArbitrationTests {
         try await expect(session.locator(".computorium-session-prompt-fieldset")).toHaveCount(2)
         try await expect(session).toContainText(Self.task)
         try await expect(session.locator(".computorium-session-output-rendered")).toContainText(Self.reply)
-        try await expect(reply).toContainText("By gnorium")
+        try await expect(reply).toContainText("gnorium submitted locution")
         // Committed, the call still names its item; its reply names it too.
         try await expect(call.locator(".locution-call-status")).toHaveCount(0)
         try await expect(call.locator(".locution-commit")).toHaveCount(0)
         try await expect(call.locator(".locution-call-evidence")).toHaveText("Resemblance 1")
-        try await expect(reply.locator(".locution-call-evidence").first).toHaveText("Resemblance 1")
-        try await expect(reply.locator("a:has(.locution-call-evidence)").first).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID.uppercased())?resemblance=0")
+        // The reply names the call it answers, not the evidence again.
+        try await expect(reply.locator(".locution-call-evidence")).toHaveCount(0)
+        try await expect(reply.locator(".locution-header")).toContainText("gnorium submitted locution \(replyID.uppercased()) replying to locution \(callID.uppercased())")
+        try await expect(reply.locator(".locution-header a[href='#locution-\(callID.uppercased())']")).toHaveCount(1)
         try await expect(session.locator(".computorium-session-prompt-fieldset legend")).toHaveCount(2)
         // Embedded in the reply (user, 2026-10-12): its output box bare—no
         // legend, so no session Raw and no byline—the model in the reply's
@@ -206,7 +210,7 @@ struct ArbitrationTests {
         try await expect(session.locator(".computorium-session-byline")).toHaveCount(0)
         try await expect(reply.locator(".reactions-when")).toHaveAttribute("data-local-time-prefix", "By DeepSeek V4.1 Flash (deepseek-flash) on ")
         try await expect(reply.locator(".reactions-controls .locution-raw-toggle")).toHaveCount(1)
-        try await expect(reply.locator(".reactions-controls .locution-raw-toggle + .replay-btn")).toHaveText("Replay")
+        try await expect(reply.locator(".reactions-controls > .replay-btn:first-child")).toHaveText("Replay")
         try await expect(reply.locator(".locution-anchor")).toHaveCount(0)
         try await expect(session.locator(".computorium-session-task-fieldset .computorium-session-input-attachments")).toContainText("1.jpg")
         // The tools offered, where the trace recorded them, before each
@@ -329,10 +333,13 @@ struct ArbitrationTests {
         let stored = try TestAdmin.query(
           "SELECT evidence_id || '|' || coalesce(evidence_ids, '') FROM locutions WHERE locutable_id = '\(objectID)' AND kind = 'call'")
         #expect(stored == "\(fixture.baseURL)/page-1|[\"\(fixture.baseURL)/page-1\",\"\(fixture.baseURL)/page-2\"]", Comment(rawValue: stored))
+        // Both named in the byline, each its own link: "on Resemblance 1
+        // and Resemblance 2" (user, 2026-10-12).
         let links = page.locator(".locution-call-evidence")
         try await expect(links).toHaveCount(2)
         try await expect(links.nth(0)).toHaveText("Resemblance 1")
         try await expect(links.nth(1)).toHaveText("Resemblance 2")
+        try await expect(page.locator(".locution-header").first).toContainText("on Resemblance 1 and Resemblance 2")
         try await page.expectNoErrors()
       }
     } catch {
@@ -403,8 +410,8 @@ struct ArbitrationTests {
         #expect(crop.count == 4 && crop[2] > 0 && crop[3] > 0 && crop[0] + crop[2] <= 1000 && crop[1] + crop[3] <= 1000)
         try await expect(page.locator(".locution-call-evidence-crop").first)
           .toHaveText(crop.map(String.init).joined(separator: " "))
-        // The locution's action row: its Raw first (user, 2026-10-12), then
-        // the reactions button, the info icon after it (user, 2026-10-10).
+        // The locution's action row: the reactions button, then Raw right
+        // before the info icon (user, 2026-10-12).
         let order = try await page.evaluate(
           """
           [...document.querySelector('.locution-view .reactions-controls').children]
@@ -412,7 +419,7 @@ struct ArbitrationTests {
               : e.classList.contains('reaction-picker-view') ? 'picker'
               : e.classList.contains('reactions-when') ? 'when' : 'other').slice(0, 3).join(' ')
           """, as: String.self)
-        #expect(order == "raw picker when", Comment(rawValue: order))
+        #expect(order == "picker raw when", Comment(rawValue: order))
         try await page.expectNoErrors()
       }
     } catch {
