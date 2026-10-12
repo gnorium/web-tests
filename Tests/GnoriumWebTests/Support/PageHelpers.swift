@@ -16,4 +16,28 @@ extension Page {
     try await expect(locator("html"), timeout: .seconds(20), fileID: file, filePath: filePath, line: line)
       .toHaveAttribute("data-wasm-status", "started")
   }
+
+  /// A ButtonView's height here for its `size` ("medium" or "large"): its
+  /// inset on every side of the 22px line inside its 1px border, read off
+  /// the size tokens, one step down (large to medium, medium to small)
+  /// under the phone step below the phone breakpoint (`ButtonView.phoneStep`).
+  func controlHeight(_ size: String) async throws -> String {
+    try await evaluate(
+      """
+      (() => {
+        const root = document.documentElement;
+        const breakpoint = getComputedStyle(root).getPropertyValue('--max-width-breakpoint-phone-narrow').trim();
+        const stepped = root.dataset.phoneStep === 'down' && matchMedia(`(max-width: ${breakpoint})`).matches;
+        const sizes = ['small', 'medium', 'large'];
+        const stepIndex = sizes.indexOf('\(size)') - (stepped ? 1 : 0);
+        const inset = { small: '--spacing-4', medium: '--spacing-8', large: '--spacing-12' }[sizes[stepIndex]];
+        const probe = document.createElement('div');
+        probe.style.cssText = `position: absolute; visibility: hidden; height: calc(2 * var(${inset}) + var(--line-height-small-22) + 2 * var(--border-width-base))`;
+        document.body.appendChild(probe);
+        const height = getComputedStyle(probe).height;
+        probe.remove();
+        return height;
+      })()
+      """, as: String.self)
+  }
 }

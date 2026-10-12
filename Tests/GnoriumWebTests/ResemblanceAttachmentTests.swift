@@ -105,6 +105,15 @@ struct ResemblanceAttachmentTests {
         // The detail in place: in the result box with every field the model
         // received, its image its `image` datum's width and no taller than the bound,
         // no chip and no lightbox (user, 2026-10-07).
+        // Opened, its image takes its height once it has loaded: wait for
+        // that before measuring it.
+        var sized = false
+        for _ in 0..<50 where !sized {
+          sized = try await page.evaluate(
+            "(()=>{const vp=document.querySelector('#computorium-session-tool-late-resemblance .computorium-session-tool-call-result-box .expandable-attachment-image-viewport');return !!vp&&vp.getBoundingClientRect().height>0})()",
+            as: Bool.self)
+          if !sized { try await Task.sleep(for: .milliseconds(100)) }
+        }
         let parity = try await page.evaluate("""
           (()=>{const card=document.querySelector('#computorium-session-tool-late-resemblance');const box=card.querySelector('.computorium-session-tool-call-result-box');const view=box&&box.querySelector('.expandable-attachment-view[data-presentation="inline"]');const vp=view&&view.querySelector('.expandable-attachment-image-viewport');const r=vp?vp.getBoundingClientRect():{height:0,width:0};const v=view&&view.closest('.datum-value');const cs=v?getComputedStyle(v):null;const w=v?v.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight):Infinity;return !!view && view.dataset.attachmentHydrated==='true' && r.height>0 && r.height<=innerHeight*.64+1 && r.width>=w-1 && !card.querySelector('.expandable-attachment-dialog') && box.textContent.includes('source_width') && box.textContent.includes('sent_width');})()
           """, as:Bool.self)

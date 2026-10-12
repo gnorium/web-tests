@@ -106,7 +106,8 @@ struct AccountTests {
           try await page.screenshot(
             to: URL(fileURLWithPath: directory).appendingPathComponent("account-\(layout)-\(asAdmin ? "admin" : "user").png"))
         }
-        try await expect(page.locator(".account-provider-row .button-view")).toHaveCSS("height", "48px")
+        // Large, a step down under the phone step on a phone.
+        try await expect(page.locator(".account-provider-row .button-view")).toHaveCSS("height", try await page.controlHeight("large"))
         try await expect(page.locator(".account-provider-password")).not.toBeVisible()
         try await page.locator(".account-provider-row .button-view").click()
         try await expect(page).toHaveURL("/account")
