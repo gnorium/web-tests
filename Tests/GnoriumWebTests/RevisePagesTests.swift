@@ -822,14 +822,12 @@ struct RevisePagesTests {
         try await page.openHydrated(madrigalPath)
         for id in [a, b] {
           try await page.locator("#revision-\(id) form[action$='/accept'] button").click()
-          // Recorded first; then the page read afresh, so a redirect the
-          // driver is slow to see never decides the test.
-          for _ in 0..<60 {
-            let status = try TestAdmin.query("SELECT status FROM revisions WHERE id = '\(id)'")
-            if status.trimmingCharacters(in: .whitespacesAndNewlines) == "accepted" { break }
-            try await Task.sleep(for: .milliseconds(250))
+          // Accepted, the server answers with the page at the revision
+          // (`#revision-<id>`): waited for, then its verdict read there.
+          try await expect(page).toHaveURL("at #revision-\(id)") {
+            $0.fragment?.lowercased() == "revision-\(id)".lowercased()
           }
-          try await page.openHydrated("\(madrigalPath)#revision-\(id)")
+          try await page.waitForLoadState()
           try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("as accepted")
         }
         // Enabled, its warning hidden until pressed; pressed, shown, the

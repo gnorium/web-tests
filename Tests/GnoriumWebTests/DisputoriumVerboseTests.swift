@@ -16,12 +16,15 @@ struct DisputoriumVerboseTests {
       try await page.openHydrated("/mission-control/overtures/lexicographic/C0FFEE00-0000-4000-8000-000000000130")
       let toggle = page.locator(".lexicographic-overture-view .disputorium-core-content > .apparatus-rule-view .verbose-toggle-button-control")
       try await expect(toggle).toHaveAttribute("aria-pressed", "false")
-      // A medium button's label is 16px, like the pager and legend beside it.
-      #expect(try await page.evaluate("""
+      // A medium button's label is 16px, like the pager and legend beside it;
+      // on a phone one step down, small's 14px (ButtonView.phoneStep).
+      let label = try await page.evaluate("""
         (()=>{const b=document.querySelector('.lexicographic-overture-view .disputorium-core-content > .apparatus-rule-view .verbose-toggle-button-control .button-view');
           const l=b.querySelector('.toggle-button-label');
-          return b.getAttribute('data-size')+' '+getComputedStyle(l).fontSize;})()
-        """, as: String.self) == "medium 16px")
+          const stepped=document.documentElement.dataset.phoneStep==='down'&&matchMedia('(max-width: 479px)').matches;
+          return [b.getAttribute('data-size')+' '+getComputedStyle(l).fontSize, 'medium '+(stepped?'14px':'16px')];})()
+        """, as: [String].self)
+      #expect(label[0] == label[1], "\(label)")
       try await expect(page.locator("#apparatus-metadata")).toHaveAttribute("data-expanded", "true")
       #expect(try await page.evaluate("""
         (()=>{const work=document.querySelector('.lexicographic-overture-view .disputorium-core-work');const rule=work.previousElementSibling;

@@ -44,7 +44,9 @@ struct NavbarMenuSheetTests {
           .map(b => { const r = b.getBoundingClientRect(); return [b.dataset.size, b.dataset.weight, Math.round(r.width), Math.round(r.height)].join(' ') })
         """, as: [String].self)
       #expect(!buttons.isEmpty)
-      #expect(buttons.allSatisfy { $0 == "large quiet 48 48" }, "\(buttons)")
+      // Large, 48; on a phone one step down, medium's 40 (ButtonView.phoneStep).
+      let side = try await Self.stepped(page) ? 40 : 48
+      #expect(buttons.allSatisfy { $0 == "large quiet \(side) \(side)" }, "\(buttons)")
       // Keyboard focus rings the quiet button.
       // Reached from the keyboard: focus the one before it, then Tab.
       try await page.locator("[data-navbar-ellipsis] button").filter(visible: true).first.focus()
@@ -56,6 +58,14 @@ struct NavbarMenuSheetTests {
       #expect(ring.hasPrefix("solid 2px"), "focused: \(ring)")
       try await page.expectNoHorizontalOverflow()
     }
+  }
+
+  /// Whether the phone step is on: every sized control one step down on a
+  /// phone (`ButtonView.phoneStep`, the root's data-phone-step under 480px).
+  static func stepped(_ page: Page) async throws -> Bool {
+    try await page.evaluate(
+      "document.documentElement.dataset.phoneStep === 'down' && matchMedia('(max-width: 479px)').matches",
+      as: Bool.self)
   }
 
   struct NavbarGeometry: Decodable {
@@ -96,7 +106,9 @@ struct NavbarMenuSheetTests {
           })()
           """, as: NavbarGeometry.self)
         #expect(g.scrollWidth <= g.clientWidth, "\(width): \(g)")
-        #expect(g.buttons.count == 6 && g.buttons.allSatisfy { abs($0 - 48) < 0.5 }, "\(width): \(g.buttons)")
+        // Large, 48; on a phone one step down, medium's 40 (ButtonView.phoneStep).
+        let side: Double = try await Self.stepped(page) ? 40 : 48
+        #expect(g.buttons.count == 6 && g.buttons.allSatisfy { abs($0 - side) < 0.5 }, "\(width): \(g.buttons)")
         #expect(g.firstButtonLeft - g.brandRight >= 8, "\(width): \(g)")
         #expect(g.lastButtonRight <= g.viewportWidth, "\(width): \(g)")
         #expect(abs(g.logo - 2 * g.title) < 0.5, "\(width): \(g)")
