@@ -51,9 +51,21 @@ struct RawLayerSelectionTests {
         _ = try await text.evaluate("e => { e.scrollIntoView({block: 'center'}); return true }")
         let box = try #require(try await text.boundingBox())
         let pane = try #require(try await page.locator(".artifact-markup").first.boundingBox())
-        // The fourth line, the long one (div, p, s, then the words).
-        let y = box.y + 22 * 3 + 11
-        try await page.mouse.down(x: box.x + 2, y: y)
+        // The long line (the words), from its first character: a drag from
+        // the text selects (a drag from the gutter or the ground pans, user
+        // 2026-10-12).
+        let start = try await text.evaluate(
+          """
+          e => { const lines = [...e.querySelectorAll('.code-line')];
+            const line = lines.reduce((a, b) => (b.textContent.length > a.textContent.length ? b : a));
+            const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+            const node = walker.nextNode(); const at = node.data.search(/\\S/); const r = document.createRange();
+            r.setStart(node, at); r.setEnd(node, at + 1); const b = r.getBoundingClientRect();
+            return [b.left + 1, b.top + b.height / 2] }
+          """)
+        let startX = start.array?.first?.double ?? box.x
+        let y = start.array?.last?.double ?? box.y
+        try await page.mouse.down(x: startX, y: y)
         for step in 1...8 { try await page.mouse.move(x: box.x + Double(step) * 80, y: y) }
         // Held past the pane's edge, as a person holds it.
         for _ in 0..<20 {
@@ -67,10 +79,11 @@ struct RawLayerSelectionTests {
         #expect(state[2] == "true", "The selection is in the code's own text: \(state)")
       }
 
-      // Colored by highlights over its text, not markup written into it.
+      // Colored by highlights over its text, not markup written into it
+      // (its lines' own blocks aside).
       #expect(
         try await page.evaluate(
-          "(() => (CSS.highlights.get('code-name')?.size ?? 0) > 0 && !document.querySelector('.tei-page-edit .code-code span'))()",
+          "(() => (CSS.highlights.get('code-name')?.size ?? 0) > 0 && !document.querySelector('.tei-page-edit .code-code span:not(.code-line)'))()",
           as: Bool.self))
 
       // Typed into, the text is what the form posts, and the diff follows.

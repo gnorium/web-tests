@@ -316,7 +316,8 @@ struct MarkupRegionTests {
         #expect(!shown.hasPrefix("✗"), "The readout \(shown) is not where the pointer is, \(expected)")
 
         // Finer levels as the image is enlarged: none of 1 at its fitted size;
-        // zoomed in until 1 unit stands 4px apart, the 1s drawn.
+        // zoomed in to its actual size (the most it zooms, user 2026-10-12),
+        // each level whose units stand 4px apart drawn.
         let grid = page.locator(".canvas-view[data-active='true'] .canvas-grid")
         let fitted = try await grid.getAttribute("data-levels") ?? ""
         #expect(!fitted.split(separator: " ").contains("1") && fitted.hasPrefix("100"), "Fitted levels: \(fitted)")
@@ -336,10 +337,11 @@ struct MarkupRegionTests {
             const grid = document.querySelector(".artifact-view .canvas-view[data-active='true'] .canvas-grid");
             const image = document.querySelector(".artifact-view .canvas-view[data-active='true'] .canvas-tile-compositor")
               .getBoundingClientRect();
-            return grid.dataset.levels + '|' + (Math.min(image.width, image.height) / 1000 >= 4);
+            const want = [100, 50, 10, 5, 1].filter((u) => Math.min(image.width, image.height) * u / 1000 >= 4);
+            return grid.dataset.levels === want.join(' ') ? 'ok' : grid.dataset.levels + ' vs ' + want.join(' ');
           })()
           """, as: String.self)
-        #expect(levels == "100 50 10 5 1|true", "Zoomed in, the 1-unit lines: \(levels)")
+        #expect(levels == "ok", "Zoomed in, the levels: \(levels)")
         // Fullscreen refits the image; the levels follow its spacing.
         try await page.locator("#artifact-fullscreen-btn").first.click()
         try await Task.sleep(for: .milliseconds(400))
