@@ -23,7 +23,7 @@ struct EpilogueTranslationTests {
     let two = fixture.baseURL + "/page-2"
     let tei = "<TEI><text><body><pb n=\"1\" facs=\"\(one)/full/max/0/default.jpg\"/><p>Regola del tre per numeri</p><pb n=\"2\" facs=\"\(two)/full/max/0/default.jpg\"/><p>Somma</p></body></text></TEI>"
     func translation(_ first: String) -> String {
-      "<TEI><text><body><pb n=\"1\" facs=\"\(one)/full/max/0/default.jpg\" corresp=\"#e1\"/><p corresp=\"#p1.e2\">\(first)</p><pb n=\"2\" facs=\"\(two)/full/max/0/default.jpg\" corresp=\"#e3\"/><p corresp=\"#p2.e2\">The sum</p></body></text></TEI>"
+      "<TEI><text><body><pb n=\"1\" facs=\"\(one)/full/max/0/default.jpg\" corresp=\"#e1\"/><p corresp=\"#page-1.e2\">\(first)</p><pb n=\"2\" facs=\"\(two)/full/max/0/default.jpg\" corresp=\"#e3\"/><p corresp=\"#page-2.e2\">The sum</p></body></text></TEI>"
     }
     let reading: ScratchReading
     do { reading = try ScratchReading(owner: admin, tei: tei, sourceURL: fixture.baseURL + "/manifest.json") }
@@ -40,7 +40,11 @@ struct EpilogueTranslationTests {
       reading.remove()
     }
     func layer(_ text: String, note: String?, stale: Bool) throws -> String {
-      var segment: [String: Any] = ["key": "s1", "element": "p", "source": "Regola del tre per numeri", "translation": text]
+      // The note kept by its block's pointer, as the translation's clone
+      // of the block carries it.
+      var segment: [String: Any] = [
+        "key": "s1", "element": "p", "source": "Regola del tre per numeri", "translation": text, "pointer": "#page-1.e2",
+      ]
       if let note { segment["note"] = note }
       let object: [String: Any] = [
         "sourceLanguage": "ita", "targetLanguage": "eng", "tei": translation(text), "pages": [
