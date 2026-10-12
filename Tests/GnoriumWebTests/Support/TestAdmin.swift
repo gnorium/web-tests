@@ -55,9 +55,10 @@ struct TestAdmin: Sendable {
     // A run killed mid-test leaves its account behind; sweep those (and only
     // those: web_tests_ accounts on the reserved .test domain, an hour old,
     // that the event log doesn't name; one it names is history, and without
-    // its password can't be deleted through the site, so it stays).
+    // its password can't be deleted through the site, so it stays; so does
+    // one with a locution, which can't stand without its author).
     try runSQL(
-      "DELETE FROM users WHERE username LIKE 'web\\_tests\\_%' AND email LIKE 'web\\_tests\\_%@gnorium.test' AND created_at < now() - interval '1 hour' AND NOT EXISTS (SELECT 1 FROM event_logs WHERE event_logs.user_id = users.id) AND NOT EXISTS (SELECT 1 FROM submissions WHERE submissions.user_id = users.id) AND NOT EXISTS (SELECT 1 FROM prompt_vignettes WHERE prompt_vignettes.committed_by_user_id = users.id);"
+      "DELETE FROM users WHERE username LIKE 'web\\_tests\\_%' AND email LIKE 'web\\_tests\\_%@gnorium.test' AND created_at < now() - interval '1 hour' AND NOT EXISTS (SELECT 1 FROM event_logs WHERE event_logs.user_id = users.id) AND NOT EXISTS (SELECT 1 FROM submissions WHERE submissions.user_id = users.id) AND NOT EXISTS (SELECT 1 FROM prompt_vignettes WHERE prompt_vignettes.committed_by_user_id = users.id) AND NOT EXISTS (SELECT 1 FROM locutions WHERE locutions.author_id = users.id);"
     )
     let suffix = randomHex(bytes: 5)
     // The username rule: 3–20 lowercase letters, digits and underscores.
