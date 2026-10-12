@@ -82,14 +82,20 @@ struct ResemblanceTests {
             const full = footer.querySelector(':scope > .artifact-fullscreen-button');
             const f = footer.getBoundingClientRect(), p = pager.getBoundingClientRect(),
               b = full.getBoundingClientRect();
-            // One line, never wrapped: every part of the pager on one row.
+            // One line, never wrapped: every part of the pager on one row,
+            // and the whole footer one row (user, 2026-10-12)—on a phone
+            // (below 480px) its controls one step down, 32, else 40.
             const tops = [...pager.children].map((c) => Math.round(c.getBoundingClientRect().top));
+            const middle = (e) => { const r = e.getBoundingClientRect(); return r.top + r.height / 2; };
+            const parts = [...footer.querySelectorAll(':scope > .artifact-footer-start > *'), pager, full];
+            const control = window.innerWidth < 480 ? 32 : 40;
             return pager.nextElementSibling === full && tops.every((t) => t === tops[0])
-              && Math.round(p.height) === 40
-              && Math.round(f.height) === 57 && Math.abs(p.top + p.height / 2 - (b.top + b.height / 2)) < 1
+              && parts.every((e) => Math.abs(middle(e) - middle(pager)) < 1)
+              && Math.round(p.height) === control
+              && Math.round(f.height) === control + 17 && Math.abs(p.top + p.height / 2 - (b.top + b.height / 2)) < 1
               && p.right <= b.left && b.right <= f.right && footer.scrollWidth <= footer.clientWidth; }
           """).bool == true
-        #expect(footerPager, "the pager sits in the footer, before fullscreen, and the footer fits")
+        #expect(footerPager, "the pager sits in the footer, before fullscreen, and the footer fits one row")
         // The header row's controls fit without scrolling sideways.
         let rowFits = try await viewer.evaluate(
           "(viewer) => { const r = viewer.querySelector('.artifact-header-row'); return r.scrollWidth <= r.clientWidth; }"
@@ -108,9 +114,13 @@ struct ResemblanceTests {
         // controls, 8 on every side of them, in a 56 bar (2026-10-10).
         let chevron = try #require(try await viewer.locator(".pagination-prev").first.boundingBox())
         let chevronIcon = try #require(try await viewer.locator(".pagination-prev svg").first.boundingBox())
-        #expect(abs(chevron.height - 40) < 1, "the pager's chevrons are medium, 40")
-        #expect(abs(max(chevronIcon.width, chevronIcon.height) - 16) < 1, "the pager's chevrons are 16")
-        #expect(abs(row.height - 56) < 1, "the header's row is 56")
+        // On a phone every sized control is one step down (user,
+        // 2026-10-12): small, 32, its icons 14, in a 48 bar.
+        let control: Double = layout == .phone ? 32 : 40
+        let glyph: Double = layout == .phone ? 14 : 16
+        #expect(abs(chevron.height - control) < 1, "the pager's chevrons are \(control)")
+        #expect(abs(max(chevronIcon.width, chevronIcon.height) - glyph) < 1, "the pager's chevrons are \(glyph)")
+        #expect(abs(row.height - (control + 16)) < 1, "the header's row is \(control + 16)")
         for (name, control, icon) in [
           ("Find", find, find.locator("svg")),
           ("Resemblance", toggle, toggle.locator("svg")),
