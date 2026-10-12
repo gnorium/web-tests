@@ -4,9 +4,11 @@ import WebTests
 import WebTestsTesting
 
 /// A sentiment's distinction (user, 2026-09-27): its explication's
-/// `<note type="usage" subtype="distinction">` is plain prose under the
-/// sentiment's Metadata and above its quotations, once, with no heading; a
-/// pointer to another sentiment reads as its number. A throwaway admin owns
+/// `<note type="usage" subtype="distinction">` is plain prose in its
+/// definition's box, under its label and above its Metadata (user,
+/// 2026-10-10, `SentimentDefinitionView`), its quotations below, rendered
+/// once (the box's Raw holds its XML), with no heading; a pointer to another
+/// sentiment reads as its number. A throwaway admin owns
 /// a scratch word made by SQL and removed after.
 @Suite("Distinction", .serialized)
 struct DistinctionTests {
@@ -32,15 +34,22 @@ struct DistinctionTests {
         let note = row.locator(".lexicographic-explication-note-text")
         try await expect(note).toHaveCount(1)
         try await expect(note).toHaveText("Unlike sense 1, a leaf sense grows no further senses.")
-        // Once on the page: not in the description, the Metadata or elsewhere.
-        #expect(try await page.locator("main").textContent().components(separatedBy: "grows no further senses").count == 2)
+        // Rendered once on the page: not in the Metadata or elsewhere; the
+        // definition box's Raw holds it only as XML.
+        let rendered = try await page.evaluate(
+          """
+          (() => { const main = document.querySelector('main').cloneNode(true);
+            main.querySelectorAll("[data-definition-layer='raw']").forEach(e => e.remove());
+            return main.textContent.split('grows no further senses').length - 1; })()
+          """, as: Int.self)
+        #expect(rendered == 1)
         try await expect(page.locator("main")).not.toContainText("Distinction")
 
         let metadata = try #require(try await page.locator("#record-metadata-s-1-1").boundingBox())
         let prose = try #require(try await note.boundingBox())
         let quotation = try #require(try await row.locator(".attestation-view").boundingBox())
-        #expect(metadata.y + metadata.height <= prose.y)
-        #expect(prose.y + prose.height <= quotation.y)
+        #expect(prose.y + prose.height <= metadata.y)
+        #expect(metadata.y + metadata.height <= quotation.y)
 
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
