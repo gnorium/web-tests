@@ -151,11 +151,12 @@ struct BibliographicExplicationSessionsTests {
             const card = document.querySelector('.computorium-session-compaction-rendered')
             const prompt = document.querySelector('.computorium-session-compaction-prompt-fieldset')
             const summary = document.querySelector('.computorium-session-compaction-summary-fieldset')
-            // Their legends hold text alone: the even 16 inset (user, 2026-10-10).
-            const even = [prompt, summary].every(e => getComputedStyle(e).paddingBottom === '16px')
+            // Their legends hold text alone, inside at the bottom: the box
+            // keeps 16, the 22px line and 8 above it (user, 2026-10-12).
+            const even = [prompt, summary].every(e => getComputedStyle(e).paddingBottom === '46px')
             return [bg(card) === white, bg(prompt) === seen, bg(summary) === seen, bg(summary.querySelector('legend')) === seen, even].join(' ')
           })()
-          """, as: String.self) == "true true true true true", "Compaction card white, its prompt and summary gray, inset 16")
+          """, as: String.self) == "true true true true true", "Compaction card white, its prompt and summary gray, legends inside")
         let rawCount = try await page.locator(".computorium-session-view .computorium-session-output-raw").count()
         #expect(rawCount > 0)
       }
@@ -465,7 +466,11 @@ struct BibliographicExplicationSessionsTests {
               if (!order.startsWith('raw title')) out.push('prompt legend ' + order);
               const f = field.getBoundingClientRect(), l = legend.getBoundingClientRect();
               if (Math.abs(l.left - (f.left + 16)) > 1) out.push('prompt legend not at the bottom left: ' + (l.left - f.left));
-              if (inset(field) !== '16px 36px') out.push('prompt inset ' + inset(field));
+              // Its legend inside the box, 16 above the bottom; the box keeps
+              // the legend's height and 8 above it (user, 2026-10-12).
+              if (Math.abs(f.bottom - 16 - l.bottom) > 1) out.push('prompt legend not inside at the bottom: ' + (f.bottom - l.bottom));
+              const want = 16 + l.height + 8;
+              if (Math.abs(parseFloat(getComputedStyle(field).paddingBottom) - want) > 1) out.push('prompt inset ' + inset(field));
             }
             return out.join('; ');
           })()
