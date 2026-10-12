@@ -27,7 +27,7 @@ struct DisputoriumVerboseTests {
         (()=>{const work=document.querySelector('.lexicographic-overture-view .disputorium-core-work');const rule=work.previousElementSibling;
           const metadata=work.querySelector('.record-metadata-change > .metadata-accordion-view > .accordion-view');
           const fields=[...work.querySelectorAll('#apparatus-metadata [data-metadata-added=true]')];
-          const probe=document.createElement('span');document.body.append(probe);probe.style.borderColor='var(--border-color-base)';const neutral=getComputedStyle(probe).borderTopColor;
+          const probe=document.createElement('span');document.body.append(probe);probe.style.borderColor='var(--border-color-subtle)';const neutral=getComputedStyle(probe).borderTopColor;
           probe.style.borderColor='var(--border-color-green)';const green=getComputedStyle(probe).borderTopColor;probe.remove();
           return rule.classList.contains('apparatus-rule-view') && metadata && getComputedStyle(metadata).borderTopColor===neutral
             && fields.length>0 && fields.every(e=>getComputedStyle(e).borderTopColor===green)
