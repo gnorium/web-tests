@@ -37,8 +37,12 @@ struct DropdownSearchTests {
       try await expect(input).toHaveAttribute("data-edge-fade-view", "true")
 
       // The box is medium whatever the dropdown's size: a field's 40 tall,
-      // its text 16px, 8 inside its border on every side, its icons 12.
+      // its text 16px, 8 inside its border on every side; on a phone, one
+      // step down like every sized control (`controlSize`): 32 tall, its
+      // text 14px, 4 inside.
       try await picker.locator(".dropdown-trigger").click()
+      let (height, font, padding) = try await page.controlSize("medium") == "small"
+        ? (32, "14px", "4px") : (40, "16px", "8px")
       let sized = try await page.evaluate(
         """
         (() => {
@@ -46,13 +50,13 @@ struct DropdownSearchTests {
           const box = view.querySelector('.search-input');
           const css = getComputedStyle(box);
           return view.getAttribute('data-size') === 'medium'
-            && Math.round(box.getBoundingClientRect().height) === 40
-            && css.fontSize === '16px'
-            && css.paddingTop === '8px' && css.paddingBottom === '8px'
-            && css.paddingInlineStart === '8px';
+            && Math.round(box.getBoundingClientRect().height) === \(height)
+            && css.fontSize === '\(font)'
+            && css.paddingTop === '\(padding)' && css.paddingBottom === '\(padding)'
+            && css.paddingInlineStart === '\(padding)';
         })()
         """, as: Bool.self)
-      #expect(sized, "The dropdown's search box is medium, its text 16px")
+      #expect(sized, "The dropdown's search box is medium (a step down on a phone)")
       try await picker.locator(".dropdown-trigger").click()
       try await expect(picker.locator(".dropdown-menu")).toHaveAttribute("data-open", "false")
 
