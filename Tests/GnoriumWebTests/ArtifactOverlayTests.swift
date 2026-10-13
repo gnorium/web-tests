@@ -66,4 +66,66 @@ struct ArtifactOverlayTests {
       try await page.expectNoErrors()
     }
   }
+
+  /// With the page's text block measured on its scan (`data-text-block`,
+  /// a skewed quadrilateral in the 0–1000 space), overlay on lays the scan
+  /// by the homography that takes those corners onto the rendered text
+  /// block's, easing in with the overlay's 400ms motion, and overlay off
+  /// takes it away again (user, 2026-10-13).
+  @Test(arguments: [1000, 440])
+  func overlayRegistersTheScansTextBlockUnderTheEditions(width: Int) async throws {
+    let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    let assets = root.appendingPathComponent("gnorium-web/Public")
+    let css = try ["layout-view.css", "tei-view.css", "artifact-view.css", "canvas-view.css"].map {
+      try String(contentsOf: assets.appendingPathComponent("style-sheets/" + $0), encoding: .utf8)
+    }.joined(separator: "\n")
+    let lines = (1...30).map { #"<span class="tei-line">Line \#($0) of the page, set across the frame's measure.</span>"# }.joined()
+    let html = "<!doctype html><html><head><meta charset=\"utf-8\"><style>" + css + #"""
+      body{margin:0}.artifact-view{width:100%;height:600px}.artifact-viewer-container{height:560px;flex:none}.tei-line{display:block;font-family:serif!important;white-space:nowrap}</style><link rel="icon" href="data:,"></head><body><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest"><div class="artifact-viewer-container"><div class="artifact-markup-frame"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan" data-active="true" data-text-block="120,90 880,104 868,912 108,898"><div class="tei-page-text" data-layer="rendering" data-framed="true"><div class="tei-text-block" style="--tei-frame-measure: 30; --tei-frame-margin: 5">
+      """# + lines + #"""
+      </div></div></div></div></div></div><div class="artifact-object"><div class="canvas-view" data-service-id="/scan"><div class="canvas-viewport"><div class="canvas-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
+      """#
+    let server = try await FixtureServer(files: [
+      "/": .init(contentType: "text/html", body: Data(html.utf8)),
+      "/loader.js": .init(contentType: "text/javascript", body: try Data(contentsOf: assets.appendingPathComponent("loader.js"))),
+      "/client.wasm": .init(contentType: "application/wasm", body: try Data(contentsOf: assets.appendingPathComponent("client.wasm"))),
+      "/manifest": .init(contentType: "application/json", body: Data(#"{"canvases":[{"id":"/scan","w":1200,"h":1600,"img":"/scan.svg"}]}"#.utf8)),
+      "/scan.svg": .init(contentType: "image/svg+xml", body: Data(#"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600"/>"#.utf8)),
+      "/fonts/noto-sans.woff2": .init(contentType: "font/woff2", body: try Data(contentsOf: assets.appendingPathComponent("fonts/noto-sans.woff2"))),
+    ])
+    defer { server.stop() }
+    let config = BrowserTestConfiguration(baseURL: URL(string: server.baseURL)!, engines: [.chrome], defaultTimeout: .seconds(30))
+    try await withPage(.chrome, config, viewport: .init(width: width, height: 600)) { page in
+      try await page.goto("/")
+      try await expect(page.locator("html")).toHaveAttribute("data-wasm-status", "started")
+      try await page.evaluate("new Promise(resolve=>setTimeout(resolve,700))")
+      let checks = try await page.evaluate(#"""
+        (async()=>{
+          const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),r=document.querySelector('.artifact-view');
+          const toggle=on=>r.querySelector('.artifact-overlay-toggle').dispatchEvent(new CustomEvent('toggle-button-update',{detail:on?'true':'false'}));
+          const surface=()=>r.querySelector('.canvas-tile-surface');
+          // Where the transforms put each zone corner: the scan's pan and zoom,
+          // then the registration's matrix3d, from the viewport's corner.
+          const landed=()=>{const v=r.querySelector('.canvas-viewport').getBoundingClientRect(),g=r.querySelector('.canvas-tile-compositor').getAttribute('transform').match(/-?[\d.]+/g).map(Number),m=new DOMMatrix(getComputedStyle(surface()).transform==='none'?undefined:getComputedStyle(surface()).transform);
+            return r.querySelector('.tei-page').dataset.textBlock.split(' ').map(p=>p.split(',').map(Number)).map(([x,y])=>{const q=m.transformPoint(new DOMPoint(g[0]+x/1000*1200*g[2],g[1]+y/1000*1600*g[2]));return [v.x+q.x/q.w,v.y+q.y/q.w]})};
+          // The rendered text block: its text's box, within the frame's measure.
+          const target=()=>{const f=r.querySelector('.tei-text-block'),e=f.getBoundingClientRect(),rg=document.createRange(),w=document.createTreeWalker(f,NodeFilter.SHOW_TEXT);let L=1e9,T=1e9,R=-1e9,B=-1e9;
+            while(w.nextNode()){if(!w.currentNode.data.trim())continue;rg.selectNodeContents(w.currentNode);const b=rg.getBoundingClientRect();L=Math.min(L,b.left);T=Math.min(T,b.top);R=Math.max(R,b.right);B=Math.max(B,b.bottom)}
+            L=Math.max(L,e.left);R=Math.min(R,e.right);return [[L,T],[R,T],[R,B],[L,B]]};
+          const off=()=>Math.max(...landed().map((p,i)=>Math.hypot(p[0]-target()[i][0],p[1]-target()[i][1])));
+          const none=getComputedStyle(surface()).transform==='none';
+          toggle(true);await wait(150);const midway=off();await wait(650);const registered=off();
+          const skewed=Math.abs(new DOMMatrix(getComputedStyle(surface()).transform).b)>0.001;
+          toggle(false);await wait(800);const cleared=getComputedStyle(surface()).transform==='none';
+          return [none,midway>registered+5,registered<2,skewed,cleared,Math.round(registered*100)/100].map(Number);
+        })()
+        """#, as: [Double].self)
+      #expect(checks[0] == 1, "no registration before the overlay")
+      #expect(checks[1] == 1, "the registration eases in with the overlay's motion")
+      #expect(checks[2] == 1, "the zone's corners land on the rendered text block's within 2px (off by \(checks[5]))")
+      #expect(checks[3] == 1, "the scan is turned by its measured skew")
+      #expect(checks[4] == 1, "overlay off takes the registration away")
+      try await page.expectNoErrors()
+    }
+  }
 }
