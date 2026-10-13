@@ -435,13 +435,12 @@ struct RevisePagesTests {
         try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the object at its revision", where: Self.atLocution(work.madrigalPath))
         let changed = page.locator(".locution-thread-event-changed")
-        // Each part by its path, its steps apart by the breadcrumb's chevron
-        // (user, 2026-10-11).
-        let paths = try await changed.evaluate(
-          "e => [...e.querySelectorAll('.locution-thread-path')].map(p => [...p.children].filter(c => !c.classList.contains('breadcrumb-separator-view')).map(c => c.textContent).join(' › ')).join(' | ')")
+        // Prose: each part's name as words, the list joined as English
+        // joins it, a period after (user, 2026-10-14).
+        let line = try await changed.evaluate("e => e.textContent.replace(/\\s+/g, ' ').trim()")
         #expect(
-          paths.string == "Arbitration › Autocompaction › System Prompt | Arbitration › Autocompaction › Task Prompt Template",
-          "\(paths)")
+          line.string == "Changed Arbitration Autocompaction System Prompt and Arbitration Autocompaction Task Prompt Template.",
+          "\(line)")
       }
       let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'").uppercased()
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
