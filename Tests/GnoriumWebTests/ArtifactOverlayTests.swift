@@ -59,10 +59,10 @@ struct ArtifactOverlayTests {
             let imageAfter=r.querySelector('.canvas-tile-compositor').getAttribute('transform');let textAfter=fixed();
             if(imageAfter===zoomed)throw new Error('scan pan did not move');
             const rules={active:r.dataset.overlayActive,detach:d.getAttribute('aria-pressed'),disabled:d.querySelector('button').disabled,imageOpacity:getComputedStyle(o).opacity,textOpacity:getComputedStyle(l).opacity,bg:getComputedStyle(r.querySelector('.artifact-markup')).backgroundColor};
-            toggle(false);await wait(600);const dim=window.innerWidth>480?0:1;return [before[dim]<mid[dim]&&mid[dim]<after[dim],JSON.stringify(textBefore)===JSON.stringify(textAfter)&&whole&&zoomAnimated&&minimumPan&&snapped&&touchPan&&disabledBlue,rules.detach==='true'&&rules.disabled,rules.imageOpacity==='0.5'&&rules.textOpacity==='1',rules.bg==='rgba(0, 0, 0, 0)',imageBefore!==imageAfter,d.getAttribute('aria-pressed')==='false'&&!d.querySelector('button').disabled,Math.abs(size()[dim]-before[dim])<1];
+            toggle(false);await wait(120);const zoomOffMid=Number(l.dataset.zoom);await wait(480);const zoomBack=Number(l.dataset.zoom);const zoomReturned=fitted<zoomOffMid&&zoomOffMid<zoomBack&&Math.abs(zoomBack-zoomStart)<0.01;const dim=window.innerWidth>480?0:1;return [zoomReturned,before[dim]<mid[dim]&&mid[dim]<after[dim],JSON.stringify(textBefore)===JSON.stringify(textAfter)&&whole&&zoomAnimated&&minimumPan&&snapped&&touchPan&&disabledBlue,rules.detach==='true'&&rules.disabled,rules.imageOpacity==='0.5'&&rules.textOpacity==='1',rules.bg==='rgba(0, 0, 0, 0)',imageBefore!==imageAfter,d.getAttribute('aria-pressed')==='false'&&!d.querySelector('button').disabled,Math.abs(size()[dim]-before[dim])<1];
            })()
         """#, as: [Bool].self)
-      #expect(checks.allSatisfy { $0 }, "geometry, opacity, scan gestures, whole-page fit, minimum-zoom calibration, center snap and disabled-on Detach")
+      #expect(checks.allSatisfy { $0 }, "zoom back animated, geometry, opacity, scan gestures, whole-page fit, minimum-zoom calibration, center snap and disabled-on Detach")
       try await page.expectNoErrors()
     }
   }

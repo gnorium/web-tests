@@ -87,5 +87,77 @@ struct PassageDiffSyncTests {
       try await page.expectNoErrors()
     }
   }
+  /// Scrolled a few px at a time, the other side follows in proportion,
+  /// never back and never in a leap: past rows only the diff has (removed
+  /// lines) and lines only the source has (between hunks) as well.
+  @Test(arguments: ["source", "diff"])
+  func smallStepsFollowContinuously(driver: String) async throws {
+    let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    let assets = root.appendingPathComponent("gnorium-web/Public")
+    let text = (1...40).map { "Line \($0): a deliberately long passage that wraps over several visual lines in the narrow editor." }.joined(separator: "\n")
+    // Five removed rows before line 20; lines 30–34 outside the hunks.
+    var rows = ""
+    for index in 1...40 where !(30...34).contains(index) {
+      if index == 20 {
+        for removed in 1...5 {
+          rows += "<div class='diff-row' data-diff-line='removed' data-diff-at='20'><span class='diff-sign'>−</span><span class='diff-content'>Removed \(removed)</span></div>"
+        }
+      }
+      rows += "<div class='diff-row' data-diff-line='unchanged' data-diff-at='\(index)'><span class='diff-sign'> </span><span class='diff-content'>Line \(index)</span></div>"
+    }
+    let diffCSS = try String(contentsOf: assets.appendingPathComponent("style-sheets/diff-view.css"), encoding: .utf8)
+    let html = """
+    <!doctype html><html><head><link rel='icon' href='data:,'><style>
+    \(diffCSS)
+    :root{--spacing-8:8px;--line-height-small-22:22px}
+    body{margin:0}
+    textarea{width:280px;height:160px;overflow:auto;font:16px/22px monospace;padding:0;box-sizing:border-box;white-space:pre-wrap;overflow-wrap:break-word}
+    .diff-box{height:160px;overflow:auto;width:280px}.diff-row{height:30px}
+    </style></head><body><form data-revise-form><div class='field-diff-view'><textarea>\(text)</textarea><div class='diff-box'>\(rows)</div></div></form><script src='/loader.js'></script></body></html>
+    """
+    let server = try await FixtureServer(files: [
+      "/": .init(contentType: "text/html", body: Data(html.utf8)),
+      "/loader.js": .init(contentType: "text/javascript", body: try Data(contentsOf: assets.appendingPathComponent("loader.js"))),
+      "/client.wasm": .init(contentType: "application/wasm", body: try Data(contentsOf: assets.appendingPathComponent("client.wasm")))
+    ])
+    defer { server.stop() }
+    let config = BrowserTestConfiguration(baseURL: URL(string: server.baseURL)!, engines: [.chrome], defaultTimeout: .seconds(30))
+    try await withPage(.chrome, config, viewport: .desktop) { page in
+      try await page.goto("/")
+      try await expect(page.locator("html")).toHaveAttribute("data-wasm-status", "started")
+      try await expect(page.locator("[data-passage-pair]")).toHaveCount(1)
+      // In stretches, each well inside one evaluation's time.
+      let lead = driver == "source" ? "document.querySelector('textarea')" : "document.querySelector('.diff-box')"
+      let follow = driver == "source" ? "document.querySelector('.diff-box')" : "document.querySelector('textarea')"
+      _ = try await page.evaluate("window.positions = []; window.next = 0; true")
+      var done = false
+      while !done {
+        done = try await page.evaluate(#"""
+        (async()=>{
+          const lead=\#(lead), follow=\#(follow);
+          const frames=async()=>{for(let i=0;i<2;i++)await new Promise(requestAnimationFrame)};
+          const range=lead.scrollHeight-lead.clientHeight;
+          for(let n=0;n<200&&window.next<range+3;n++,window.next+=3){
+            lead.scrollTop=Math.min(window.next,range);await frames();window.positions.push(follow.scrollTop);
+          }
+          return window.next>=range+3;
+        })()
+        """#, as: Bool.self)
+      }
+      let result = try await page.evaluate(#"""
+      (()=>{
+        const follow=\#(follow), positions=window.positions;
+        let back=0, leap=0;
+        for(let i=1;i<positions.length;i++){const d=positions[i]-positions[i-1];back=Math.min(back,d);leap=Math.max(leap,d)}
+        return {back, leap, end:positions[positions.length-1], followRange:follow.scrollHeight-follow.clientHeight, removed:5*30};
+      })()
+      """#, as: Steps.self)
+      #expect(result.back > -1, "the follower never moves back")
+      #expect(result.leap < Double(result.removed) / 2, "no step leaps a stretch only one side has")
+      #expect(abs(result.end - result.followRange) <= 1, "both reach their ends together")
+      try await page.expectNoErrors()
+    }
+  }
+  struct Steps: Decodable { let back: Double; let leap: Double; let end: Double; let followRange: Double; let removed: Int }
   struct Result: Decodable { let editorDrives: Double; let diffDrives: Double; let values: [[Double]]; let windowY: Double; let returned: Double; let tolerance: Double }
 }

@@ -3,7 +3,7 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A locution's reactions (user, 2026-10-12): their own row of pills over
+/// A locution's reactions (user, 2026-10-12): their own row of pills under
 /// the controls, each counted by the thread, the reader's own pill held
 /// pressed; a count opens who reacted, a table in a dialog loaded into the
 /// page—a second pass of the page's hydration, which leaves every ⓘ and
@@ -58,16 +58,16 @@ struct ReactionsTests {
         try await expect(thumbs).toHaveAttribute("data-reacted", "true")
         try await expect(thumbs.locator(".reactions-count")).toHaveText("2")
         try await expect(locution.locator(".reactions-reaction").nth(1)).toHaveAttribute("data-reacted", "false")
-        // The pills on their own row, the controls on the next.
+        // The controls on their own row, the pills on the next.
         let rows = try await locution.evaluate(
           """
           (el) => {
             const chips = el.querySelector('.reactions-chips').getBoundingClientRect();
             const controls = el.querySelector('.reactions-controls').getBoundingClientRect();
-            return controls.top >= chips.bottom - 1;
+            return chips.top >= controls.bottom - 1;
           }
           """)
-        #expect(rows == .bool(true), "The controls under the pills")
+        #expect(rows == .bool(true), "The pills under the controls")
         let icons = "[...document.querySelectorAll('.reactions-when')].every(w => w.querySelector('svg'))"
         #expect(try await page.evaluate(icons, as: Bool.self), "Every ⓘ holds its icon")
 
