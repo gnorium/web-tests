@@ -15,9 +15,9 @@ struct ReactionStabilityTests {
     else { try Test.cancel("Build the local client with make client first") }
     let html = """
       <!doctype html><html><head><meta charset="utf-8"><link rel="icon" href="data:,"><link rel="stylesheet" href="/reaction-picker.css"><style>
-      :root{--spacing-4:4px;--spacing-2:2px;--border-width-base:1px;--border-color-subtle:rgb(185,185,185);--border-radius-base:12px;--background-color-base:white;--font-family-emoji:serif}
+      :root{--spacing-4:4px;--border-width-base:1px;--border-color-subtle:rgb(185,185,185);--border-radius-base:12px;--background-color-base:white;--font-family-emoji:serif;--transition-duration-medium:250ms;--transition-timing-function-user:ease-out;--transition-property-fade:opacity}
       body { margin: 0; } .reactions-view { display:flex; flex-direction:column; gap:4px; }
-      .reaction-picker-view { display:contents; } .reaction-picker-choices-content { display:flex; }
+      .reaction-picker-view { display:contents; }
       button { height:40px; } .reactions-chips button { height:32px; }
       </style></head><body><div style="height:900px">Locution above</div>
       <div class="reactions-view" data-reaction-id="fixture">
@@ -50,16 +50,16 @@ struct ReactionStabilityTests {
         (async()=>{
           const trigger=document.querySelector('.reaction-picker-trigger'), panel=document.querySelector('.reaction-picker-choices'), content=panel.firstElementChild;
           const wait=ms=>new Promise(r=>setTimeout(r,ms));
-          const sample=()=>({height:panel.getBoundingClientRect().height,border:getComputedStyle(panel).borderBottomWidth,opacity:Number(getComputedStyle(content).opacity)});
-          trigger.click();await wait(180);const opening=sample();await wait(420);const full=sample();
-          trigger.click();await wait(180);const closing=sample();await wait(300);const hidden=panel.hidden;
-          trigger.click();await wait(100);trigger.click();await wait(70);trigger.click();await wait(600);
-          const reopened=!panel.hidden && panel.style.height==='';trigger.click();await wait(500);
+          const sample=()=>({height:panel.getBoundingClientRect().height,border:getComputedStyle(panel).outlineWidth,opacity:Number(getComputedStyle(content).opacity)});
+          trigger.click();await wait(100);const opening=sample();await wait(300);const full=sample();
+          trigger.click();await wait(100);const closing=sample();await wait(300);const hidden=panel.hidden;
+          trigger.click();await wait(60);trigger.click();await wait(50);trigger.click();await wait(400);
+          const reopened=!panel.hidden && panel.classList.contains('reaction-picker-settled') && panel.getBoundingClientRect().height===full.height;trigger.click();await wait(400);
           return {opening,full,closing,hidden,reopened};
         })()
         """#, as: Motion.self)
-      #expect(motion.opening.height > 2 && motion.opening.height < motion.full.height)
-      #expect(motion.closing.height > 2 && motion.closing.height < motion.full.height)
+      #expect(motion.opening.height > 0 && motion.opening.height < motion.full.height)
+      #expect(motion.closing.height > 0 && motion.closing.height < motion.full.height)
       #expect(motion.opening.border == "1px" && motion.closing.border == "1px")
       #expect(motion.opening.opacity > 0 && motion.opening.opacity < 1)
       #expect(motion.closing.opacity > 0 && motion.closing.opacity < 1)
