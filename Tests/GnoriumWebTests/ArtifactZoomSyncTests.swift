@@ -17,20 +17,31 @@ struct ArtifactZoomSyncTests {
     guard FileManager.default.fileExists(atPath: wasm.path),
       FileManager.default.fileExists(atPath: assets.appendingPathComponent("loader.js").path)
     else { try Test.cancel("Build gnorium-web's local client assets with make client first") }
+    let css = try ["layout-view.css", "tei-view.css", "artifact-view.css"].map {
+      try String(contentsOf: assets.appendingPathComponent("style-sheets/" + $0), encoding: .utf8)
+    }.joined(separator: "\n")
     let html = """
       <!doctype html><html><head><link rel="icon" href="data:,"><style>
+      \(css)
       body { margin: 0; }
-      .artifact-view { display: flex; }
-      .artifact-markup, .artifact-object { width: 500px; height: 400px; flex: none; }
+      .artifact-view { display: flex; flex-direction: row; gap: 0; padding: 0; border: 0; width: 1000px; }
+      .artifact-view .artifact-markup, .artifact-view .artifact-object { width: 500px; height: 400px; flex: none; }
+      .tei-view .tei-line { font-family: serif; }
       .artifact-markup { overflow: auto; overflow-anchor: none; }
       [data-layer] { width: \(width)px; height: 1000px; }
       .canvas-viewport { width: 500px; height: 400px; position: relative; overflow: hidden; }
       .canvas-tile-surface { position: absolute; inset: 0; width: 100%; height: 100%; }
       </style></head><body>
       <div class="artifact-view" data-manifest-url="/manifest">
-        <div class="artifact-markup"><div class="tei-page" data-service-id="/scan">
-          <div data-layer="rendering">Wording</div>
-        </div></div>
+        <div class="artifact-xml-toggle" style="display:none"><button></button></div>
+        <div class="artifact-reflow-toggle" style="display:none"><button></button></div>
+        <div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan">
+          <div class="tei-page-text" data-layer="rendering"><div class="tei-section">
+            <span class="tei-line">Wording</span><span class="tei-line">Second printed line</span>
+            <span class="tei-line">Third printed line</span>
+          </div></div>
+          <div data-layer="markup"><div class="code-view"><pre class="code-code">&lt;pb n="1"/&gt;</pre></div></div>
+        </div></div></div>
         <div class="artifact-object"><div class="canvas-view" data-service-id="/scan">
           <div class="canvas-viewport"><div class="canvas-spinner"></div></div>
         </div></div>
@@ -71,6 +82,30 @@ struct ArtifactZoomSyncTests {
                     v[2], (250 - v[0]) / (1200 * v[2]), (200 - v[1]) / (2000 * v[2])];
           };
           await settle();
+          // Cross actual size repeatedly. A zoom changes the scale, never
+          // the printed page's dimensions or the relative line positions.
+          const shape = () => {
+            const b = layer.getBoundingClientRect();
+            const z = Number(layer.dataset.zoom);
+            const text = layer.firstElementChild?.getBoundingClientRect();
+            return [b.width / z, b.height / z, text ? text.height / z : 0];
+          };
+          const initial = state();
+          const pairedFit = initial[0] / (initial[5] / 0.2);
+          const natural = shape();
+          const shapes = [];
+          for (let cycle = 0; cycle < 3; cycle++) {
+            for (let i = 0; i < 8; i++) { wheel(pane, 40); await settle(); shapes.push(shape()); }
+            for (let i = 0; i < 8; i++) { wheel(pane); await settle(); shapes.push(shape()); }
+          }
+          for (const size of shapes) {
+            for (let i = 0; i < size.length; i++) {
+              if (Math.abs(size[i] - natural[i]) > 0.2) throw new Error('page geometry changes during zoom: ' + JSON.stringify({natural,size}));
+            }
+          }
+          // Reset to a predictable scrolled state after the repeated cycle.
+          for (let i = 0; i < 12; i++) { wheel(pane, 40); await settle(); }
+          await settle();
           for (let i = 0; i < 5; i++) { wheel(pane); await settle(); }
           pane.scrollTop = 500;
           await settle();
@@ -93,7 +128,7 @@ struct ArtifactZoomSyncTests {
           wheel(pane, 40); wheel(image);
           await settle();
           const imageWins = state();
-          return {before, after, samples, expectedTextZoom, wordingWins, expectedImageZoom, imageWins};
+          return {before, after, samples, pairedFit, expectedTextZoom, wordingWins, expectedImageZoom, imageWins};
         })()
         """#, as: Results.self)
       #expect(results.before[2] > 100, "fixture reached a scrolled page")
@@ -107,9 +142,31 @@ struct ArtifactZoomSyncTests {
       #expect(abs(results.wordingWins[0] - results.expectedTextZoom) < 0.001, "latest wording gesture wins")
       #expect(abs(results.imageWins[5] - results.expectedImageZoom) < 0.001, "latest image gesture wins")
       for state in [results.wordingWins, results.imageWins] {
-        #expect(abs(state[0] / 0.375 - state[5] / 0.2) < 0.01, "zoom stays synchronized with the stable page frame")
+        #expect(abs(state[0] / results.pairedFit - state[5] / 0.2) < 0.01, "zoom stays synchronized with the stable page frame")
         #expect(abs(state[4] - state[7]) < 0.005, "vertical position stays synchronized")
       }
+      let modes = try await page.evaluate(#"""
+        (async () => {
+          const root = document.querySelector('.artifact-view');
+          const pane = root.querySelector('.artifact-markup');
+          const rendering = pane.querySelector('[data-layer="rendering"]');
+          const settle = async () => { for(let i=0;i<12;i++) await new Promise(r=>requestAnimationFrame(r)); };
+          const toggle = async (name,value) => {
+            root.querySelector(name).dispatchEvent(new CustomEvent('toggle-button-update',{detail:value?'true':'false'}));
+            await settle();
+          };
+          await toggle('.artifact-xml-toggle', true);
+          const raw = getComputedStyle(rendering).display === 'none' && pane.querySelector('[data-page-scale]') === null;
+          await toggle('.artifact-xml-toggle', false);
+          const rendered = pane.querySelector('[data-page-scale]') !== null && rendering.getBoundingClientRect().height > 0;
+          await toggle('.artifact-reflow-toggle', true);
+          const reflow = pane.querySelector('[data-page-scale]') === null && getComputedStyle(rendering).transform === 'none';
+          await toggle('.artifact-reflow-toggle', false);
+          const restored = pane.querySelector('[data-page-scale]') !== null && rendering.getBoundingClientRect().height > 0;
+          return [raw,rendered,reflow,restored];
+        })()
+        """#, as: [Bool].self)
+      #expect(modes.allSatisfy { $0 }, "Raw and Reflow leave and restore the scaled frame correctly")
       try await page.expectNoErrors()
     }
   }
@@ -118,6 +175,7 @@ struct ArtifactZoomSyncTests {
     let before: [Double]
     let after: [Double]
     let samples: [[Double]]
+    let pairedFit: Double
     let expectedTextZoom: Double
     let wordingWins: [Double]
     let expectedImageZoom: Double
