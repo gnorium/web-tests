@@ -35,6 +35,7 @@ struct ArtifactZoomSyncTests {
       <div class="artifact-view" data-manifest-url="/manifest">
         <div class="artifact-xml-toggle" style="display:none"><button></button></div>
         <div class="artifact-reflow-toggle" style="display:none"><button></button></div>
+        <div class="artifact-detach-toggle" style="display:none"><button></button></div>
         <div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan">
           <div class="tei-page-text" data-layer="rendering"><div class="tei-section">
             <span class="tei-line">Wording</span><span class="tei-line">Second printed line</span>
@@ -156,14 +157,35 @@ struct ArtifactZoomSyncTests {
             await settle();
           };
           await toggle('.artifact-xml-toggle', true);
-          const raw = getComputedStyle(rendering).display === 'none' && pane.querySelector('[data-page-scale]') === null;
+          const code = pane.querySelector('[data-layer="markup"]');
+          const raw = getComputedStyle(rendering).display === 'none'
+            && code.dataset.zoom === '1' && getComputedStyle(code).zoom === '1';
           await toggle('.artifact-xml-toggle', false);
           const rendered = pane.querySelector('[data-page-scale]') !== null && rendering.getBoundingClientRect().height > 0;
           await toggle('.artifact-reflow-toggle', true);
           const reflow = pane.querySelector('[data-page-scale]') === null && getComputedStyle(rendering).transform === 'none';
           await toggle('.artifact-reflow-toggle', false);
           const restored = pane.querySelector('[data-page-scale]') !== null && rendering.getBoundingClientRect().height > 0;
-          return [raw,rendered,reflow,restored];
+          const wait = ms => new Promise(resolve=>setTimeout(resolve,ms));
+          await toggle('.artifact-detach-toggle', false); await wait(500);
+          const imageZoom = () => Number(root.querySelector('.canvas-tile-compositor').getAttribute('transform').match(/[-\d.]+/g)[2]);
+          const baseline = Number(rendering.dataset.zoom);
+          const pairedRatio = baseline/imageZoom();
+          await toggle('.artifact-detach-toggle', true);
+          const wheel = () => {
+            const b=pane.getBoundingClientRect();
+            pane.dispatchEvent(new WheelEvent('wheel',{deltaY:-40,clientX:b.x+250,clientY:b.y+200,bubbles:true,cancelable:true}));
+          };
+          wheel(); await settle(); const enlarged = Number(rendering.dataset.zoom);
+          root.querySelector('.artifact-detach-toggle').dispatchEvent(new CustomEvent('toggle-button-update',{detail:'false'}));
+          await wait(90); const middle=Number(rendering.dataset.zoom);
+          await wait(500); const matched=Number(rendering.dataset.zoom);
+          const animated=enlarged>middle && middle>matched && Math.abs(matched-baseline)<.005;
+          await toggle('.artifact-detach-toggle', true); wheel(); await settle();
+          root.querySelector('.artifact-detach-toggle').dispatchEvent(new CustomEvent('toggle-button-update',{detail:'false'}));
+          await wait(90); wheel(); await settle();const readerZoom=Number(rendering.dataset.zoom);
+          await wait(500);const cancelled=Math.abs(Number(rendering.dataset.zoom)-readerZoom)<.005 && Math.abs(imageZoom()-readerZoom/pairedRatio)<.005;
+          return [raw,rendered,reflow,restored,animated,cancelled];
         })()
         """#, as: [Bool].self)
       #expect(modes.allSatisfy { $0 }, "Raw and Reflow leave and restore the scaled frame correctly")
