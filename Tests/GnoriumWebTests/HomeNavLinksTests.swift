@@ -18,7 +18,15 @@ struct HomeNavLinksTests {
       let tops = try await page.evaluate(
         "[...document.querySelectorAll('.home-nav-links .nav-link')].map(a => Math.round(a.getBoundingClientRect().top))",
         as: [Int].self)
-      if layout == .phone {
+      let fits = try await page.evaluate("""
+        (() => {
+          const row = document.querySelector('.home-nav-links');
+          const links = [...row.querySelectorAll('.nav-link')];
+          return links.reduce((sum, a) => sum + a.getBoundingClientRect().width, 0)
+            + parseFloat(getComputedStyle(row).columnGap) * (links.length - 1) <= row.clientWidth + 0.5;
+        })()
+        """, as: Bool.self)
+      if !fits {
         #expect(Set(tops).count == 3, "on a phone, one link a row: \(tops)")
         #expect(tops == tops.sorted(), "in order, top to bottom: \(tops)")
       } else {
@@ -27,6 +35,18 @@ struct HomeNavLinksTests {
       let size = try await page.evaluate(
         "getComputedStyle(document.querySelector('.home-nav-links .nav-link')).fontSize", as: String.self)
       #expect(size == "16px", "the links are 16px: \(size)")
+    }
+  }
+
+  @Test(arguments: [320, 375, 440, 768, 1400])
+  func linksUseTheirAvailableWidth(width: Int) async throws {
+    try await withPage(.chrome, gnorium, viewport: Viewport(width: width, height: 900)) { page in
+      try await page.openHydrated("/")
+      let tops = try await page.evaluate(
+        "[...document.querySelectorAll('.home-nav-links .nav-link')].map(a => Math.round(a.getBoundingClientRect().top))",
+        as: [Int].self)
+      #expect(Set(tops).count == 1 || Set(tops).count == 3, "all links wrap together")
+      if width >= 440 { #expect(Set(tops).count == 1, "a wide phone has room for one row") }
     }
   }
 }

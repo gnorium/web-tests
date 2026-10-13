@@ -45,7 +45,7 @@ struct RawLayerSelectionTests {
         ("\(commit.madrigalPath)/revise", ".tei-page-edit .code-code"),
       ] {
         try await page.openHydrated(url)
-        try await page.locator(".artifact-raw-toggle").first.click()
+        try await page.locator(".artifact-xml-toggle").first.click()
         let text = page.locator(code).first
         try await expect(text).toBeVisible()
         _ = try await text.evaluate("e => { e.scrollIntoView({block: 'center'}); return true }")

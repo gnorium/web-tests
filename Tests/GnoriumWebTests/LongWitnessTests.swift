@@ -98,10 +98,10 @@ struct LongWitnessTests {
         try await expect(viewer.locator(".testament-find-count")).toHaveText("1 of 1")
         #expect(try await page.evaluate("CSS.highlights.get('find-current')?.size ?? 0", as: Int.self) == 1)
         // Under Raw, its code is searched: the tag holding it found too.
-        try await viewer.locator(".artifact-raw-toggle button").click()
+        try await viewer.locator(".artifact-xml-toggle button").click()
         try await viewer.locator(".testament-find-input input").fill("<p>A needle")
         try await expect(viewer.locator(".testament-find-count"), timeout: .seconds(10)).toHaveText("1 of 1")
-        try await viewer.locator(".artifact-raw-toggle button").click()
+        try await viewer.locator(".artifact-xml-toggle button").click()
         try await viewer.locator(".testament-find-button button").click()
 
         // Commit posts the ranges.

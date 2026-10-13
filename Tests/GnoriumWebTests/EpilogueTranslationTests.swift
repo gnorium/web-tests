@@ -99,7 +99,7 @@ struct EpilogueTranslationTests {
         if let shots = Self.shots { try await page.screenshot(to: URL(fileURLWithPath: shots + "/stale-ring.png")) }
         // Under Raw, its change against the translation it replaces, code
         // against code, under the reader.
-        try await viewer.locator(".artifact-raw-toggle button").first.click()
+        try await viewer.locator(".artifact-xml-toggle button").first.click()
         let slot = page.locator(".testament-diff[data-active='true']")
         try await expect(slot).toBeVisible()
         try await expect(slot.locator(".testament-translation-diff")).toBeVisible()
@@ -108,7 +108,7 @@ struct EpilogueTranslationTests {
         try await expect(slot.locator(".resemblance-diff-view")).toHaveCount(0)
         if let shots = Self.shots { try await page.screenshot(to: URL(fileURLWithPath: shots + "/translation-diff.png")) }
         // Raw off: no diff; the noted block opens its note in the gloss.
-        try await viewer.locator(".artifact-raw-toggle button").first.click()
+        try await viewer.locator(".artifact-xml-toggle button").first.click()
         try await expect(slot).toBeHidden()
         let noted = pane.locator(".tei-page[data-active='true'] [data-layer='translated-rendering'] .tei-noted")
         try await expect(noted).toHaveCount(1)

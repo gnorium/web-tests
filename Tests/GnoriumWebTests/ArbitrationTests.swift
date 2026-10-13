@@ -206,10 +206,10 @@ struct ArbitrationTests {
         // and the page image in the task prompt, named by its resemblance.
         try await expect(session.locator(".computorium-session-output-fieldset.computorium-session-output-embedded")).toHaveCount(1)
         try await expect(session.locator(".computorium-session-output-legend")).toHaveCount(0)
-        try await expect(session.locator(".computorium-session-raw-toggle")).toHaveCount(0)
+        try await expect(session.locator(".computorium-session-markdown-toggle")).toHaveCount(0)
         try await expect(session.locator(".computorium-session-byline")).toHaveCount(0)
         try await expect(reply.locator(".reactions-when")).toHaveAttribute("data-local-time-prefix", "By DeepSeek V4.1 Flash (deepseek-flash) on ")
-        try await expect(reply.locator(".reactions-controls .locution-raw-toggle")).toHaveCount(1)
+        try await expect(reply.locator(".reactions-controls .locution-markdown-toggle")).toHaveCount(1)
         try await expect(reply.locator(".reactions-controls > .replay-btn:first-child")).toHaveText("Replay")
         try await expect(reply.locator(".locution-anchor")).toHaveCount(0)
         try await expect(session.locator(".computorium-session-task-fieldset .computorium-session-input-attachments")).toContainText("1.jpg")
@@ -415,7 +415,7 @@ struct ArbitrationTests {
         let order = try await page.evaluate(
           """
           [...document.querySelector('.locution-view .reactions-controls').children]
-            .map(e => e.classList.contains('locution-raw-toggle') ? 'raw'
+            .map(e => e.classList.contains('locution-markdown-toggle') ? 'raw'
               : e.classList.contains('reaction-picker-view') ? 'picker'
               : e.classList.contains('reactions-when') ? 'when' : 'other').slice(0, 3).join(' ')
           """, as: String.self)

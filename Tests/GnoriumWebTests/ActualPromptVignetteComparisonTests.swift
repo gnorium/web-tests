@@ -13,7 +13,7 @@ struct ActualPromptVignetteComparisonTests {
       // The diff under Raw (user, 2026-10-11).
       let changed = page.locator(".prompt-compare-content .prompt-text-view:has(.diff-box)").first
       try await expect(changed).toHaveAttribute("data-prompt-text-hydrated", "true")
-      try await changed.locator(".prompt-text-raw-toggle button").click()
+      try await changed.locator(".prompt-text-markdown-toggle button").click()
       try await expect(page.locator(".diff-box")).toBeVisible()
       try await expect(page.locator(".diff-box")).toHaveCSS("background-color", "rgb(255, 255, 255)")
       #expect(try await page.evaluate("""

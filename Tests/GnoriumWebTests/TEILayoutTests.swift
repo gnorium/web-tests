@@ -145,7 +145,7 @@ struct TEILayoutTests {
 
         // Raw: the code box fills the view edge to edge, square: its gray
         // starts at the pane's border plus 1 (the view's padding).
-        try await page.locator(".artifact-raw-toggle").first.click()
+        try await page.locator(".artifact-xml-toggle").first.click()
         let code = page.locator(".tei-page-raw .code-view").first
         try await expect(code).toBeVisible()
         try await expect(code).toHaveCSS("border-top-left-radius", "0px")

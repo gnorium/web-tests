@@ -57,12 +57,12 @@ struct ReaderHeaderTests {
         const row = view.querySelector('.artifact-header-row')
         const footer = view.querySelector(':scope > footer')
         const controls = [...row.querySelectorAll('button')].filter((b) => b.offsetParent)
-        const raw = footer.querySelector('.artifact-raw-toggle button')
+        const raw = footer.querySelector('.artifact-xml-toggle button')
         const label = row.querySelector('.artifact-canvas-label')
         const atStart = (el, bar) => !!el && Math.abs(el.getBoundingClientRect().left - (bar.getBoundingClientRect().left + parseFloat(getComputedStyle(bar).paddingLeft))) < 2
         return {
           titles: view.querySelectorAll('#artifact-title, .artifact-title-block, .edge-fade-sheet-view').length,
-          raw: !!raw?.offsetParent && !row.querySelector('.artifact-raw-toggle'),
+          raw: !!raw?.offsetParent && !row.querySelector('.artifact-xml-toggle'),
           rawAtFooterStart: atStart(raw?.closest('.artifact-footer-start'), footer),
           labelAtHeaderStart: atStart(label, row) && !footer.querySelector('.artifact-canvas-label'),
           find: !!row.querySelector('.testament-find-button button')?.offsetParent,

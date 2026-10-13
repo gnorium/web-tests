@@ -435,7 +435,7 @@ struct BibliographicExplicationSessionsTests {
             const card = r('.computorium-session-view'), pager = r('.computorium-session-pager .computorium-session-page-nav');
             const label = r('.computorium-session-header .computorium-session-title-resemblance');
             const fieldset = r('.computorium-session-output-fieldset');
-            const raw = r('.computorium-session-output-legend-start .computorium-session-raw-toggle');
+            const raw = r('.computorium-session-output-legend-start .computorium-session-markdown-toggle');
             const attempt = r('.computorium-session-output-legend-end .computorium-session-attempt-nav');
             const out = [];
             if (!card || !pager || !label || !fieldset || !raw || !attempt) return 'missing';
@@ -450,7 +450,7 @@ struct BibliographicExplicationSessionsTests {
             // output's Raw then its info icon; a prompt's Raw, its title,
             // then its id (user, 2026-10-10).
             const start = document.querySelector('.computorium-session-output-legend-start');
-            const kinds = [...start.children].map(e => e.classList.contains('computorium-session-raw-toggle') ? 'raw'
+            const kinds = [...start.children].map(e => e.classList.contains('computorium-session-markdown-toggle') ? 'raw'
               : e.classList.contains('computorium-session-byline') ? 'info' : 'other').join(' ');
             if (kinds !== 'raw info') out.push('output legend ' + kinds);
             // A legend holding a medium control insets its box 36 at the
@@ -458,9 +458,9 @@ struct BibliographicExplicationSessionsTests {
             const inset = (e) => { const s = getComputedStyle(e); return s.paddingTop + ' ' + s.paddingBottom; };
             const output = document.querySelector('.computorium-session-output-fieldset');
             if (inset(output) !== '16px 36px') out.push('output inset ' + inset(output));
-            for (const field of document.querySelectorAll('.computorium-session-prompt-fieldset:has(.computorium-session-prompt-raw-toggle)')) {
+            for (const field of document.querySelectorAll('.computorium-session-prompt-fieldset:has(.computorium-session-prompt-markdown-toggle)')) {
               const legend = field.querySelector(':scope > .prompt-legend-view');
-              const order = [...legend.children].map(e => e.classList.contains('computorium-session-prompt-raw-toggle') ? 'raw'
+              const order = [...legend.children].map(e => e.classList.contains('computorium-session-prompt-markdown-toggle') ? 'raw'
                 : e.classList.contains('computorium-session-prompt-legend-title') ? 'title'
                 : e.classList.contains('computorium-session-prompt-legend-vignette') ? 'id' : 'other').join(' ');
               if (!order.startsWith('raw title')) out.push('prompt legend ' + order);

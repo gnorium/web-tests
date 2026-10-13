@@ -112,7 +112,7 @@ struct MarkupRegionTests {
     }
     try await expect(viewer).toHaveAttribute("data-canvas-shown", "true")
     try await expect(viewer.locator(".canvas-view[data-active='true'] .canvas-tile-image").first).toBeAttached()
-    try await page.locator(".artifact-raw-toggle").first.click()
+    try await page.locator(".artifact-xml-toggle").first.click()
   }
 
   @Test(arguments: [BrowserEngine.chrome])
@@ -385,7 +385,7 @@ struct MarkupRegionTests {
         """#)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(commit.madrigalPath)/revise")
-        try await page.locator(".artifact-raw-toggle").first.click()
+        try await page.locator(".artifact-xml-toggle").first.click()
         let code = page.locator(".tei-page-edit .code-code").first
         try await expect(code).toBeVisible()
         let numbers = page.locator(".tei-page-edit .code-gutter-lines > span")

@@ -48,7 +48,7 @@ struct OvertureResemblancesTests {
         // No markup yet: the page images alone, always shown, with no
         // switch to put them away and no Raw or Find (user, 2026-10-09).
         try await expect(viewer.locator(".artifact-object")).toBeVisible()
-        try await expect(viewer.locator(".artifact-canvas-toggle, .artifact-raw-toggle, .testament-find-button"))
+        try await expect(viewer.locator(".artifact-canvas-toggle, .artifact-xml-toggle, .testament-find-button"))
           .toHaveCount(0)
         let roster = page.locator(".overture-resemblances").first
         let rows = roster.locator(".roster-row")
@@ -225,7 +225,7 @@ struct OvertureResemblancesTests {
           .click()
         try await expect(prompts.locator("#prompt-revision-system-accordion-bibliographic_explication"))
           .toHaveAttribute("data-open-finished", "true")
-        try await prompts.locator("#prompt-revision-system-accordion-bibliographic_explication .prompt-text-raw-toggle button")
+        try await prompts.locator("#prompt-revision-system-accordion-bibliographic_explication .prompt-text-markdown-toggle button")
           .first.click()
         _ = try await page.evaluate(
           """

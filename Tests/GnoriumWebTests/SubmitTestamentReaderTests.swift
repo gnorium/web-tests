@@ -71,7 +71,7 @@ struct SubmitTestamentReaderTests {
         try await expect(viewer.locator(".artifact-object")).toBeVisible()
         try await expect(viewer.locator(".artifact-markup")).toHaveCount(0)
         try await expect(viewer.locator(".artifact-canvas-toggle")).toHaveCount(0)
-        try await expect(viewer.locator(".artifact-raw-toggle, .testament-find-button")).toHaveCount(0)
+        try await expect(viewer.locator(".artifact-xml-toggle, .testament-find-button")).toHaveCount(0)
         try await expect(message).toHaveCount(0)
         try await expect(alert).toHaveCount(0)
 

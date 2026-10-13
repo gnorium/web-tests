@@ -331,14 +331,14 @@ struct ToolCardFieldsTests {
         let content = session.locator(".computorium-session-output-content")
         try await expect(content).not.toContainText("input_tokens")
         try await expect(content).not.toContainText("bookkeeping")
-        try await expect(session.locator(".computorium-session-raw-toggle[data-toggle-hydrated='true']")).toHaveCount(1)
-        try await session.locator(".computorium-session-raw-toggle button").click()
+        try await expect(session.locator(".computorium-session-markdown-toggle[data-toggle-hydrated='true']")).toHaveCount(1)
+        try await session.locator(".computorium-session-markdown-toggle button").click()
         try await expect(session.locator(".computorium-session-output-fieldset")).toHaveAttribute("data-raw-view", "true")
         try await expect(content).not.toContainText("input_tokens")
         try await expect(content).not.toContainText("bookkeeping")
         try await expect(session.locator(".computorium-session-tools-raw").first).toBeVisible()
         try await expect(session.locator(".computorium-session-tools-raw").first).toContainText("read_conventions")
-        try await session.locator(".computorium-session-raw-toggle button").click()
+        try await session.locator(".computorium-session-markdown-toggle button").click()
         recorded = [signature, search, saved]
         try await page.expectNoHorizontalOverflow()
 

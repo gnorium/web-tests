@@ -200,7 +200,7 @@ struct RevisePagesTests {
         try await expect(system.locator("textarea")).toBeHidden()
         try await expect(system.locator(".prompt-text-raw-info")).toHaveCount(1)
         try await expect(system.locator(".prompt-text-vignette")).toHaveCount(1)
-        try await system.locator(".prompt-text-raw-toggle button").click()
+        try await system.locator(".prompt-text-markdown-toggle button").click()
         try await expect(system.locator("textarea")).toBeVisible()
         // Appended where it is typed: the prompt runs past 60KB, which
         // Chrome's insertText (what `fill` sends) takes over 30s to type.
@@ -217,7 +217,7 @@ struct RevisePagesTests {
         try await expect(line).toBeVisible()
         try await expect(line).toContainText("Web tests suggestion.")
         // Back to the rendering: it reads what the box now holds.
-        try await system.locator(".prompt-text-raw-toggle button").click()
+        try await system.locator(".prompt-text-markdown-toggle button").click()
         try await expect(system.locator(".prompt-text-rendered")).toContainText("Web tests suggestion.")
         try await page.locator(".revision-form button[type='submit']").click()
         // Back on the madrigal, at the suggestion's locution.
@@ -263,9 +263,9 @@ struct RevisePagesTests {
         // and no rendered diff at all.
         try await expect(page.locator(".testament-diff .diff-view[data-diff-mode='rendered']")).toHaveCount(0)
         try await expect(pageDiff).toBeHidden()
-        try await page.locator(".artifact-raw-toggle button").first.click()
+        try await page.locator(".artifact-xml-toggle button").first.click()
         try await expect(pageDiff).toBeVisible()
-        try await page.locator(".artifact-raw-toggle button").first.click()
+        try await page.locator(".artifact-xml-toggle button").first.click()
         try await expect(pageDiff).toBeHidden()
         // The changed page's markup pane alone wears the ring (user,
         // 2026-10-09): never the whole card, the resemblance pane or the pager's
@@ -336,7 +336,7 @@ struct RevisePagesTests {
         // its diff under Raw (user, 2026-10-11); the other processes closed.
         let changedPrompt = page.locator(".prompt-change-view .prompt-text-view:has(.diff-view)").first
         try await expect(changedPrompt.locator(".diff-view")).toBeHidden()
-        try await changedPrompt.locator(".prompt-text-raw-toggle button").click()
+        try await changedPrompt.locator(".prompt-text-markdown-toggle button").click()
         try await expect(changedPrompt.locator(".diff-view")).toBeVisible()
         try await expect(page.locator("#prompt-change-process-\(slot)")).toHaveAttribute("data-expanded", "true")
         try await expect(page.locator("#prompt-change-process-bibliographic_arbitration")).toHaveAttribute("data-expanded", "false")
@@ -503,7 +503,7 @@ struct RevisePagesTests {
         try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
         try await expect(prompts.locator("#prompt-revision-system-accordion-\(slot)"))
           .toHaveAttribute("data-open-finished", "true")
-        try await prompts.locator("#prompt-revision-system-accordion-\(slot) .prompt-text-raw-toggle button").first.click()
+        try await prompts.locator("#prompt-revision-system-accordion-\(slot) .prompt-text-markdown-toggle button").first.click()
         try await expect(page.locator("textarea[name='prompt-system-\(slot)']")).toBeVisible()
         let result = try await page.evaluate(
           """
@@ -635,7 +635,7 @@ struct RevisePagesTests {
         let editor = page.locator(".sense-editor-view:has(textarea[name='sentiment-1-definition'])")
         try await expect(editor.locator(".sense-editor-definition")).toHaveText("A leaf sense.")
         try await expect(editor.locator(".sense-editor-raw")).toBeHidden()
-        try await editor.locator(".sense-editor-raw-toggle").click()
+        try await editor.locator(".sense-editor-xml-toggle").click()
         try await expect(editor.locator(".sense-editor-raw .code-code")).toBeVisible()
         try await Self.replaceCode(editor.locator(".sense-editor-raw .code-code"), with: "<sense><def>A leaf sense, defined.</def></sense>", page: page)
         let posted = try await page.evaluate(
@@ -722,7 +722,7 @@ struct RevisePagesTests {
         let editor = page.locator(".sense-editor-view:has(textarea[name='definition'])")
         try await expect(editor.locator(".sense-editor-translation")).toHaveText("Un sens feuille.")
         try await expect(editor.locator(".sense-editor-translation")).toHaveAttribute("lang", "fr")
-        try await editor.locator(".sense-editor-raw-toggle").click()
+        try await editor.locator(".sense-editor-xml-toggle").click()
         try await Self.replaceCode(editor.locator(".sense-editor-raw .code-code"), with: "<def xml:lang=\"fr\">Un sens feuille, corrigé.</def>", page: page)
         try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15))

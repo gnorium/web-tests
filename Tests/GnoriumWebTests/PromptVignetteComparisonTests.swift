@@ -64,7 +64,7 @@ struct PromptVignetteComparisonTests {
       try await expect(prompts.nth(1).locator(".diff-box")).toHaveCount(0)
       try await expect(prompts.nth(0).locator(".diff-box")).toBeHidden()
       try await expect(prompts.nth(0)).toHaveAttribute("data-prompt-text-hydrated", "true")
-      try await prompts.nth(0).locator(".prompt-text-raw-toggle button").click()
+      try await prompts.nth(0).locator(".prompt-text-markdown-toggle button").click()
       try await expect(prompts.nth(0).locator(".diff-box")).toBeVisible()
       let styled = try await page.evaluate("""
         (() => {

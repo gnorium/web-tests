@@ -47,8 +47,8 @@ struct CodeEditorCurrentLineTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(commit.madrigalPath)/revise")
         let code = page.locator(".tei-page[data-active='true'] .tei-page-edit .code-code").first
-        if try await page.locator(".artifact-raw-toggle button").first.getAttribute("aria-pressed") != "true" {
-          try await page.locator(".artifact-raw-toggle button").first.click()
+        if try await page.locator(".artifact-xml-toggle button").first.getAttribute("aria-pressed") != "true" {
+          try await page.locator(".artifact-xml-toggle button").first.click()
         }
         try await expect(code).toBeVisible()
         // Not focused: no band.
@@ -78,7 +78,7 @@ struct CodeEditorCurrentLineTests {
         try await page.expectNoErrors()
         if let dir = ProcessInfo.processInfo.environment["CARET_SHOTS"] {
           try await page.openHydrated(commit.madrigalPath)
-          try await page.locator(".artifact-raw-toggle button").first.click()
+          try await page.locator(".artifact-xml-toggle button").first.click()
           try await Task.sleep(for: .milliseconds(400))
           _ = try await page.evaluate("(() => { document.querySelector('.artifact-view').scrollIntoView({block: 'start'}); return 1 })()")
           try await page.screenshot(to: URL(fileURLWithPath: dir + "/raw-read-only.png"))

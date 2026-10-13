@@ -42,7 +42,7 @@ struct CodeSyntaxHighlightTests {
   /// Each highlight's stretches, by name.
   static let highlights = """
     (() => Object.fromEntries(['code-tag', 'code-name', 'code-attr', 'code-value', 'code-entity', 'code-prefix',
-      'code-pi', 'code-cdata', 'code-comment'].map(n => [n, [...(CSS.highlights.get(n) ?? [])].map(r => r.toString())])))()
+      'code-pi', 'code-cdata', 'code-comment'].map(n => [n, [...[...(CSS.highlights?.get(n) ?? [])].map(r => r.toString()), ...[...document.querySelectorAll('[data-code-kind=\"'+n+'\"]')].map(e => e.textContent)]])))()
     """
 
   static func stretches(_ page: Page) async throws -> [String: [String]] {
@@ -108,7 +108,7 @@ struct CodeSyntaxHighlightTests {
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated(commit.madrigalPath)
-        try await page.locator(".artifact-raw-toggle button").first.click()
+        try await page.locator(".artifact-xml-toggle button").first.click()
         let code = page.locator(".tei-page-raw .code-code").first
         try await expect(code).toBeVisible()
         try await expect(code).toHaveAttribute("data-code-syntax", "xml")
@@ -121,7 +121,7 @@ struct CodeSyntaxHighlightTests {
           try await Self.expectStretch(page, name, text)
         }
         // Painted over the text, never written into it.
-        #expect(try await code.evaluate("e => !e.querySelector('span:not(.code-line)')").bool == true)
+        #expect(try await code.locator("[data-code-kind='code-name']").count() > 0, "Read-only XML is colored in its HTML without waiting for hydration")
         // Each role in its hue: the rule names the role's syntax token.
         #expect(
           try await page.evaluate(
@@ -152,7 +152,7 @@ struct CodeSyntaxHighlightTests {
 
         // A locution's Raw: its Markdown.
         let said = page.locator("#locution-\(locution.uppercased())")
-        try await said.locator(".locution-raw-toggle button").first.click()
+        try await said.locator(".locution-markdown-toggle button").first.click()
         let raw = said.locator(".locution-body-raw")
         try await expect(raw).toBeVisible()
         try await expect(raw).toHaveAttribute("data-code-syntax", "markdown")
@@ -244,12 +244,12 @@ struct CodeSyntaxHighlightTests {
         try await Self.shots(page, "tool-call-xml")
 
         // The task prompt's Raw and the reply's: Markdown.
-        try await page.locator(".computorium-session-task-fieldset .computorium-session-prompt-raw-toggle button").first.click()
+        try await page.locator(".computorium-session-task-fieldset .computorium-session-prompt-markdown-toggle button").first.click()
         let prompt = page.locator(".computorium-session-task-fieldset .computorium-session-prompt-body")
         try await expect(prompt).toBeVisible()
         try await expect(prompt).toHaveAttribute("data-code-syntax", "markdown")
         try await Self.expectStretch(page, "code-name", "# Skeat, page 5")
-        try await page.locator(".computorium-session-raw-toggle button").first.click()
+        try await page.locator(".computorium-session-markdown-toggle button").first.click()
         let reply = page.locator(".computorium-session-output-result.computorium-session-output-raw").last
         try await expect(reply).toBeVisible()
         var colored = false
