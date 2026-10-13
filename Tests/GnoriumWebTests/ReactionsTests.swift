@@ -105,6 +105,22 @@ struct ReactionsTests {
         try await expect(dialog).toHaveCount(0)
         #expect(try await page.evaluate(
           "document.activeElement.classList.contains('reactions-count-button')", as: Bool.self))
+
+        // The picker's framed box is a pill's height, border included: a
+        // small button's 32, mini's 24 under the phone step at 320.
+        let picker = locution.locator(".reaction-picker-choices")
+        let frame = """
+          (() => { const panel = document.querySelector('#locution-\(locutionID.uppercased()) .reaction-picker-choices');
+            const pill = document.querySelector('#locution-\(locutionID.uppercased()) .reactions-reaction button');
+            return [panel.getBoundingClientRect().height, pill.getBoundingClientRect().height]; })()
+          """
+        try await locution.locator(".reaction-picker-trigger").click()
+        try await expect(locution.locator(".reaction-picker-choices.reaction-picker-settled")).toBeVisible()
+        #expect(try await page.evaluate(frame, as: [Double].self) == [32, 32])
+        try await page.setViewport(width: 320, height: 812)
+        #expect(try await page.evaluate(frame, as: [Double].self) == [24, 24])
+        try await page.keyboard.press("Escape")
+        try await expect(picker).toBeHidden()
         try await page.expectNoErrors()
       }
     } catch {

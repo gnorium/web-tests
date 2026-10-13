@@ -50,7 +50,7 @@ struct ReactionStabilityTests {
         (async()=>{
           const trigger=document.querySelector('.reaction-picker-trigger'), panel=document.querySelector('.reaction-picker-choices'), content=panel.firstElementChild;
           const wait=ms=>new Promise(r=>setTimeout(r,ms));
-          const sample=()=>({height:panel.getBoundingClientRect().height,border:getComputedStyle(panel).outlineWidth,opacity:Number(getComputedStyle(content).opacity)});
+          const sample=()=>({height:panel.getBoundingClientRect().height,border:(s=>s.borderTopWidth+' '+s.borderBottomWidth)(getComputedStyle(panel)),opacity:Number(getComputedStyle(content).opacity)});
           trigger.click();await wait(100);const opening=sample();await wait(300);const full=sample();
           trigger.click();await wait(100);const closing=sample();await wait(300);const hidden=panel.hidden;
           trigger.click();await wait(60);trigger.click();await wait(50);trigger.click();await wait(400);
@@ -60,7 +60,8 @@ struct ReactionStabilityTests {
         """#, as: Motion.self)
       #expect(motion.opening.height > 0 && motion.opening.height < motion.full.height)
       #expect(motion.closing.height > 0 && motion.closing.height < motion.full.height)
-      #expect(motion.opening.border == "1px" && motion.closing.border == "1px")
+      // The frame is the panel's own border, whole at every height.
+      #expect(motion.opening.border == "1px 1px" && motion.closing.border == "1px 1px")
       #expect(motion.opening.opacity > 0 && motion.opening.opacity < 1)
       #expect(motion.closing.opacity > 0 && motion.closing.opacity < 1)
       #expect(motion.hidden && motion.reopened)

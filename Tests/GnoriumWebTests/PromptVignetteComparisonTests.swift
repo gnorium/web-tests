@@ -57,15 +57,17 @@ struct PromptVignetteComparisonTests {
       try await button.click()
       try await expect(page.locator(".prompt-compare-content")).toBeVisible()
       try await expect(page.locator(".diff-changed").first).toBeAttached()
-      // Each prompt shown as a prompt is: rendered, its diff under Raw only
-      // (user, 2026-10-11); the unchanged one rendered with no diff.
-      let prompts = page.locator(".prompt-compare-content .prompt-text-view")
-      try await expect(prompts.nth(1).locator(".prompt-text-rendered")).toContainText("Unchanged task {page}")
-      try await expect(prompts.nth(1).locator(".diff-box")).toHaveCount(0)
-      try await expect(prompts.nth(0).locator(".diff-box")).toBeHidden()
-      try await expect(prompts.nth(0)).toHaveAttribute("data-prompt-text-hydrated", "true")
-      try await prompts.nth(0).locator(".prompt-text-markdown-toggle button").click()
-      try await expect(prompts.nth(0).locator(".diff-box")).toBeVisible()
+      // Each prompt shown as a prompt is, its diff under its box as every
+      // field's is: a changed one opens in Raw, the diff beside the box,
+      // never inside it; the unchanged one rendered with no diff.
+      let comparisons = page.locator(".prompt-compare-content .prompt-text-comparison")
+      try await expect(comparisons.nth(1).locator(".prompt-text-view .prompt-text-rendered")).toContainText("Unchanged task {page}")
+      try await expect(comparisons.nth(1).locator(".diff-box")).toHaveCount(0)
+      let changed = comparisons.nth(0)
+      try await expect(changed.locator(".prompt-text-view")).toHaveAttribute("data-prompt-text-hydrated", "true")
+      try await expect(changed.locator(".prompt-text-view")).toHaveAttribute("data-raw", "true")
+      try await expect(changed.locator(".prompt-text-view .diff-box")).toHaveCount(0)
+      try await expect(changed.locator(":scope > .prompt-text-diff .diff-box")).toBeVisible()
       let styled = try await page.evaluate("""
         (() => {
           const content = document.querySelector('.prompt-compare-content');
@@ -79,7 +81,13 @@ struct PromptVignetteComparisonTests {
             && getComputedStyle(header).textAlign === 'center'
             && [...header.querySelectorAll('a')].every(a => a.classList.contains('link-view'))
             && [...header.querySelectorAll('.vignette-identity')].length === 2
-            && [...header.querySelectorAll('.vignette-identity')].every(side => side.querySelector('.local-time-view')
+            // Each side its creation time, then its UUID, linked, in an (i)
+            // tooltip after it.
+            && [...header.querySelectorAll('.vignette-identity')].every((side, i) => side.firstElementChild.classList.contains('local-time-view')
+              && side.lastElementChild.classList.contains('vignette-identifier')
+              && side.lastElementChild.classList.contains('tooltip-view')
+              // Its bubble portaled to <body> once hydrated.
+              && [...document.querySelectorAll('.tooltip-content a.link-view')].some(a => a.textContent.trim().toUpperCase() === [\(old.debugDescription), \(new.debugDescription)][i].toUpperCase())
               && getComputedStyle(side).alignItems === 'center');
         })()
         """, as: Bool.self)
