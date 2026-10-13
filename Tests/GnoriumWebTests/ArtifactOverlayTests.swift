@@ -283,7 +283,7 @@ struct ArtifactOverlayTests {
     }
   }
 
-  /// A row of Skeat's canvas 5 at rest in the overlay: the edition's ink
+  /// A row of a Skeat canvas at rest in the overlay: the edition's ink
   /// (the reader's `InkExtent` rule, row by row) and the scan's under it, as
   /// drawn (top, bottom, left, right in the window's pixels).
   struct Row: Decodable {
@@ -292,28 +292,28 @@ struct ArtifactOverlayTests {
     let scan: [Double]
   }
 
-  /// Skeat's canvas 5 (design-notes/skeat: its TEI with its measured text
-  /// block, the work's frame, its scan), rendered by the dev server's TEI
+  /// Skeat's canvases 4, 5 and 6 (design-notes/skeat: each one's TEI with
+  /// its measured text block, the work's frame, its scan), rendered by the dev server's TEI
   /// preview and overlaid by the client at rest: each line's ink, not only
   /// the text block's corners (user, 2026-10-14). The scan's lines are
   /// found in its own pixels (Otsu's threshold over its text block, specks
   /// out by the binary median, the band of inked rows within each edition
   /// row's window) and taken to the window through the transforms as drawn
   /// (the compositor's pan and zoom, the registration's `matrix3d`).
-  @Test(arguments: [1440, 440])
-  func overlayLandsEachLineOfSkeatsCanvas5(width: Int) async throws {
+  @Test(arguments: [4, 5, 6], [1440, 440])
+  func overlayLandsEachLineOfSkeat(canvas: Int, width: Int) async throws {
     let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let assets = root.appendingPathComponent("gnorium-web/Public")
     let skeat = root.appendingPathComponent("design-notes/skeat")
-    var tei = try String(contentsOf: skeat.appendingPathComponent("canvas-5.xml"), encoding: .utf8)
+    var tei = try String(contentsOf: skeat.appendingPathComponent("canvas-\(canvas).xml"), encoding: .utf8)
     struct Frame: Decodable { let measure: Double; let height: Double }
     let frame = try JSONDecoder().decode(Frame.self, from: Data(contentsOf: skeat.appendingPathComponent("frame.json")))
-    let scan = try Data(contentsOf: skeat.appendingPathComponent("scans/canvas-5.jpg"))
+    let scan = try Data(contentsOf: skeat.appendingPathComponent("scans/canvas-\(canvas).jpg"))
     // The page as the explication's preview assembles it (gnorium-python
     // `frame_rendition`): the work's frame in its header, its facsimile
     // before its text.
     guard let facsimile = tei.range(of: #"<facsimile\b[\s\S]*?</facsimile>"#, options: .regularExpression) else {
-      Issue.record("canvas 5 has no facsimile")
+      Issue.record("canvas \(canvas) has no facsimile")
       return
     }
     let surface = String(tei[facsimile])
@@ -461,7 +461,7 @@ struct ArtifactOverlayTests {
           return out.map(o=>({text:o.text,edition:o.edition,scan:o.scan}));
         })()
         """#, as: [Row].self)
-      #expect(rows.count == Self.canvas5Rows, "canvas 5's rows: \(rows.map(\.text))")
+      #expect(rows.count == Self.skeatRows[canvas], "canvas \(canvas)'s rows: \(rows.map(\.text))")
       func off(_ row: Row, _ side: Int) -> Double { abs(row.scan[side] - row.edition[side]) }
       // The registration: the text block's edges, each the extreme of its
       // rows' ink on either side (the scan's zone is the box around all its
@@ -474,16 +474,10 @@ struct ArtifactOverlayTests {
         ]
         #expect(edges.allSatisfy { $0 <= Self.landing }, "the text block's edges land within \(Self.landing)px: \(edges)")
       }
-      // Each line. Canvas 5's TEI sets its gaps and line widths apart from
-      // the print's (its gaps regularized ×0.898 to the work's frame, its
-      // lines' letter-spacing fitted per line): up to 5px at 1440 today,
-      // the layout's own, not the overlay's. Known until the page is fitted
-      // again; then this passes and the known issue is to be dropped.
-      withKnownIssue("canvas 5's TEI layout differs from its scan's by up to ~0.3em a line") {
-        for row in rows {
-          let worst = (0..<4).map { off(row, $0) }.max() ?? 0
-          #expect(worst <= Self.landing, "\(row.text): \(row.edition) against the scan's \(row.scan)")
-        }
+      // Each line.
+      for row in rows {
+        let worst = (0..<4).map { off(row, $0) }.max() ?? 0
+        #expect(worst <= Self.landing, "\(row.text): \(row.edition) against the scan's \(row.scan)")
       }
       try await page.expectNoErrors()
     }
@@ -491,6 +485,7 @@ struct ArtifactOverlayTests {
 
   /// How far a line's ink may land from the scan's (user, 2026-10-14).
   static let landing = 2.0
-  /// Canvas 5's rows of text, its stamp's notes aside: AN … 1910.
-  static let canvas5Rows = 17
+  /// Each canvas's rows of text, its notes aside: canvas 4's HENRY FROWDE …
+  /// MELBOURNE, canvas 5's AN … 1910, canvas 6's OXFORD … UNIVERSITY.
+  static let skeatRows = [4: 4, 5: 17, 6: 4]
 }
