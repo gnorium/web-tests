@@ -261,21 +261,21 @@ struct OvertureResemblancesTests {
         try await page.openHydrated(scratch.overturePath)
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
-        try await expect(page.locator(".prompt-preview-system a[href$='/revisions/\(id)#prompt-change-system']"))
+        try await expect(page.locator(".prompt-preview-system a[href$='/revisions/\(id)#prompt-change-bibliographic_explication-system']"))
           .toHaveCount(1)
-        try await expect(page.locator("[data-process='Explication'] .prompt-preview-task a[href$='/revisions/\(id)#prompt-change-task']").first)
+        try await expect(page.locator("[data-process='Explication'] .prompt-preview-task a[href$='/revisions/\(id)#prompt-change-bibliographic_explication-task']").first)
           .toBeAttached()
 
         // The task prompt's link: its accordion opened and in view, the
         // system prompt's open on its diff as before.
-        try await page.openHydrated("\(scratch.overturePath)/revisions/\(id)#prompt-change-task")
-        try await expect(page.locator("#prompt-change-system")).toHaveAttribute("data-expanded", "true")
-        try await expect(page.locator("#prompt-change-task")).toHaveAttribute("data-expanded", "true")
-        try await expect(page.locator("#prompt-change-task")).toHaveAttribute("data-open-finished", "true")
+        try await page.openHydrated("\(scratch.overturePath)/revisions/\(id)#prompt-change-bibliographic_explication-task")
+        try await expect(page.locator("#prompt-change-bibliographic_explication-system")).toHaveAttribute("data-expanded", "true")
+        try await expect(page.locator("#prompt-change-bibliographic_explication-task")).toHaveAttribute("data-expanded", "true")
+        try await expect(page.locator("#prompt-change-bibliographic_explication-task")).toHaveAttribute("data-open-finished", "true")
         let inView = try await page.evaluate(
           """
           (() => {
-            const box = document.getElementById('prompt-change-task').getBoundingClientRect()
+            const box = document.getElementById('prompt-change-bibliographic_explication-task').getBoundingClientRect()
             return box.top >= 0 && box.top < window.innerHeight
           })()
           """, as: Bool.self)

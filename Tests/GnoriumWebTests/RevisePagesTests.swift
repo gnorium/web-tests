@@ -226,7 +226,7 @@ struct RevisePagesTests {
         let stored = try TestAdmin.query(
           """
           SELECT count(*) || ' ' || bool_and(content_json IS NOT NULL)::text || ' '
-            || max(json_array_length(pages_json::json)) || ' ' || max(prompt_slot)
+            || max(json_array_length(pages_json::json)) || ' ' || max(prompt_changes_json::json -> 0 ->> 'slot')
           FROM revisions WHERE requested_by_user_id = '\(user)'
           """)
         #expect(stored == "1 true 1 \(slot)", "One row holding all three: \(stored)")
@@ -376,7 +376,7 @@ struct RevisePagesTests {
         "SELECT metadata_json::json ->> 'title' FROM bibliographic_madrigals WHERE id = '\(commit.madrigalID)'")
       #expect(title == "Web tests title", "and its fields: \(title)")
       let status = try TestAdmin.query(
-        "SELECT status || ' ' || (prompt_vignette_id IS NULL)::text FROM revisions WHERE id = '\(id)'")
+        "SELECT status || ' ' || (prompt_changes_json::json -> 0 ->> 'vignetteID' IS NULL)::text FROM revisions WHERE id = '\(id)'")
       #expect(status == "accepted true", "Accepted whole, its prompts not yet in force: \(status)")
       let still = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
       #expect(still == inForce, "Accepting puts no prompt in force")
@@ -452,7 +452,7 @@ struct RevisePagesTests {
         try await expect(page.locator(".prompt-change-heading")).toHaveText("Prompts")
         try await expect(page.locator("#prompt-change-process-\(parent)")).toHaveAttribute("data-expanded", "true")
         try await expect(page.locator("#prompt-change-autocompaction-\(parent)")).toHaveAttribute("data-expanded", "true")
-        try await expect(page.locator("#prompt-change-system")).toHaveAttribute("data-expanded", "true")
+        try await expect(page.locator("#prompt-change-\(parent)_autocompaction-system")).toHaveAttribute("data-expanded", "true")
         try await expect(page.locator("#prompt-change-\(parent)-system")).toHaveAttribute("data-expanded", "false")
         try await expect(page.locator("#prompt-change-process-bibliographic_explication")).toHaveAttribute("data-expanded", "false")
         try await expect(page.locator(".prompt-change-view .diff-view")).toHaveCount(2)
@@ -811,10 +811,9 @@ struct RevisePagesTests {
       let afterB = system + "\nWeb tests A, then B."
       for (id, previous, proposed, offset) in [(a, system, afterA, 2), (b, afterA, afterB, 1)] {
         _ = try TestAdmin.query("""
-          INSERT INTO revisions (id, revisable_type, revisable_id, prompt_slot, previous_system_prompt, system_prompt,
-            previous_task_prompt, task_prompt, status, requested_by_user_id, created_at)
-          VALUES ('\(id)', 'bibliographicMadrigal', '\(work.madrigalID)', '\(slot)', '\(sql(previous))', '\(sql(proposed))',
-            '\(sql(task))', '\(sql(task))', 'pending', '\(user)', now() - interval '\(offset) minute')
+          INSERT INTO revisions (id, revisable_type, revisable_id, prompt_changes_json, status, requested_by_user_id, created_at)
+          VALUES ('\(id)', 'bibliographicMadrigal', '\(work.madrigalID)', json_build_array(json_build_object('slot', '\(slot)', 'previous', json_build_object('system', '\(sql(previous))', 'task', '\(sql(task))'),
+              'proposed', json_build_object('system', '\(sql(proposed))', 'task', '\(sql(task))')))::text, 'pending', '\(user)', now() - interval '\(offset) minute')
           """)
       }
       let revert = "#revision-\(a)-verdict-1 form[action$='/revert']"
@@ -913,10 +912,9 @@ struct RevisePagesTests {
       ] {
         let evaluated = status == "accepted" ? "'\(user)', now()" : "NULL, NULL"
         _ = try TestAdmin.query("""
-          INSERT INTO revisions (id, revisable_type, revisable_id, prompt_slot, previous_system_prompt, system_prompt,
-            previous_task_prompt, task_prompt, status, requested_by_user_id, evaluated_by_user_id, evaluated_at, created_at)
-          VALUES ('\(id)', 'bibliographicMadrigal', '\(work.madrigalID)', '\(slot)', '\(sql(system))', '\(sql(proposed))',
-            '\(sql(task))', '\(sql(task))', '\(status)', '\(user)', \(evaluated), now() - interval '\(offset) minute')
+          INSERT INTO revisions (id, revisable_type, revisable_id, prompt_changes_json, status, requested_by_user_id, evaluated_by_user_id, evaluated_at, created_at)
+          VALUES ('\(id)', 'bibliographicMadrigal', '\(work.madrigalID)', json_build_array(json_build_object('slot', '\(slot)', 'previous', json_build_object('system', '\(sql(system))', 'task', '\(sql(task))'),
+              'proposed', json_build_object('system', '\(sql(proposed))', 'task', '\(sql(task))')))::text, '\(status)', '\(user)', \(evaluated), now() - interval '\(offset) minute')
           """)
       }
       // C filed on the overture as well, as suggesting it files it.
@@ -1015,5 +1013,132 @@ struct RevisePagesTests {
       try await page.openHydrated(parts[0])
       try await expect(page.locator("[id='\(parts[1])']")).toBeAttached()
     }
+  }
+
+  /// One Suggest changes the prompts of several processes at once (user,
+  /// 2026-10-14): Explication's system prompt and Arbitration's task
+  /// template in one revision. Refused first—an autocompaction template
+  /// that drops its variable—the page comes back (422) with every value as
+  /// it was typed, byte for byte, why right above Suggest, and the field
+  /// marked; corrected, the one revision holds both slots.
+  @Test(arguments: [BrowserEngine.chrome])
+  func oneSuggestChangesSeveralProcessesPromptsAndARefusalKeepsEveryValue(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let user = try contributor.column("id")
+    let fixture = try await FixtureServer.threePageManifest()
+    defer { fixture.stop() }
+    let work = try ScratchCommit(owner: contributor, sourceURL: fixture.baseURL + "/manifest.json")
+    let explication = "bibliographic_explication"
+    let arbitration = "bibliographic_arbitration"
+    let auto = arbitration + "_autocompaction"
+    func remove() {
+      _ = try? TestAdmin.query("DELETE FROM revisions WHERE requested_by_user_id = '\(user)'")
+      work.remove()
+    }
+    do {
+      _ = try TestAdmin.query(
+        #"""
+        UPDATE bibliographic_madrigals SET
+          metadata_json = (metadata_json::jsonb || '{"title":"Web tests many prompts","provider":"folger_shakespeare_library"}'::jsonb)::text,
+          proposed_content_json = '{"teiXml":"<TEI><teiHeader><date>1910</date></teiHeader><text><body><pb n=\"1\" facs=\"\#(fixture.baseURL)/page-1/full/1300,/0/default.jpg\"/><div><p>Old line</p></div><pb n=\"2\" facs=\"\#(fixture.baseURL)/page-2/full/1300,/0/default.jpg\"/><p>Kept line</p><pb n=\"3\" facs=\"\#(fixture.baseURL)/page-3/full/1300,/0/default.jpg\"/></body></text></TEI>"}'
+        WHERE id = '\#(work.madrigalID)'
+        """#)
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
+        try await page.openHydrated("\(work.madrigalPath)/revise")
+        // Each edit as a person makes it: the value set, its input sent.
+        // The values carry what a round trip could lose: CRLF, a leading
+        // line break, markup, quotes, and a 90 KB prompt.
+        let edited = try await page.evaluate(
+          """
+          (() => {
+            const set = (selector, value) => {
+              const area = document.querySelector(selector)
+              area.value = value
+              area.dispatchEvent(new Event('input', { bubbles: true }))
+              return area.value
+            }
+            const long = 'A line of a long prompt, with <tags> & "quotes".\\n'.repeat(1900)
+            const system = document.querySelector("textarea[name='prompt-system-\(explication)']").value
+            const task = document.querySelector("textarea[name='prompt-task-\(arbitration)']").value
+            return JSON.stringify({
+              explication: set("textarea[name='prompt-system-\(explication)']", '\\n' + system + '\\n' + long),
+              arbitration: set("textarea[name='prompt-task-\(arbitration)']", task + '\\r\\nCite the canvas, "always".'),
+              auto: set("textarea[name='prompt-task-\(auto)']", 'Summarize the turns.'),
+              title: set("[data-revise-form] input[name='title']", '  Web tests <title> & more  '),
+              markup: set('.tei-page-edit textarea', '<div><p>New line &amp; more</p></div>'),
+            })
+          })()
+          """, as: String.self)
+        #expect(edited.utf8.count > 90_000)
+        try await page.locator(".revision-form button[type='submit']").click()
+
+        // The page again, at its own address, saying why above Suggest.
+        let form = page.locator(".revision-form-view")
+        let alert = form.locator(".alert-view").filter(hasText: "Keep the required task variable {transcript}.")
+        try await expect(alert, timeout: .seconds(15)).toBeVisible()
+        try await expect(page).toHaveURL("the Revise page, not a redirect") { $0.path.hasSuffix("/revise") && $0.query == nil }
+        let order = try await page.evaluate(
+          """
+          (() => {
+            const view = document.querySelector('.revision-form-view')
+            const alert = [...view.querySelectorAll('.alert-view')].find(a => a.textContent.includes('{transcript}'))
+            const button = view.querySelector("button[type='submit']")
+            return Boolean(alert.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING)
+              && !document.querySelector('.pedigree-view ~ .alert-view')
+          })()
+          """, as: Bool.self)
+        #expect(order, "The reason stands before Suggest, not under the Pedigree")
+        // The field it is of, marked where it stands.
+        try await expect(page.locator("#prompt-revision-task-accordion-\(auto) .field-validation-message-view"))
+          .toContainText("{transcript}")
+        // Every value as it was typed.
+        let restored = try await page.evaluate(
+          """
+          (() => new Promise(done => setTimeout(() => done(JSON.stringify({
+            explication: document.querySelector("textarea[name='prompt-system-\(explication)']").value,
+            arbitration: document.querySelector("textarea[name='prompt-task-\(arbitration)']").value,
+            auto: document.querySelector("textarea[name='prompt-task-\(auto)']").value,
+            title: document.querySelector("[data-revise-form] input[name='title']").value,
+            markup: document.querySelector('.tei-page-edit textarea').value,
+          })), 500)))()
+          """, as: String.self)
+        #expect(restored == edited, "Every value kept byte for byte")
+        let nothing = try TestAdmin.query("SELECT count(*) FROM revisions WHERE requested_by_user_id = '\(user)'")
+        #expect(nothing.trimmingCharacters(in: .whitespacesAndNewlines) == "0", "Nothing refused is filed")
+
+        // Corrected, the autocompaction left as it was: one revision.
+        _ = try await page.evaluate(
+          """
+          (() => {
+            const area = document.querySelector("textarea[name='prompt-task-\(auto)']")
+            area.value = area.defaultValue
+            area.dispatchEvent(new Event('input', { bubbles: true }))
+            return true
+          })()
+          """, as: Bool.self)
+        try await page.locator(".revision-form button[type='submit']").click()
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the madrigal at its locution", where: Self.atLocution(work.madrigalPath))
+        let stored = try TestAdmin.query(
+          """
+          SELECT count(*) || ' ' || string_agg(c ->> 'slot', ',' ORDER BY c ->> 'slot')
+          FROM revisions, json_array_elements(prompt_changes_json::json) AS c
+          WHERE requested_by_user_id = '\(user)'
+          """)
+        #expect(stored == "2 \(arbitration),\(explication)", "One revision, both slots: \(stored)")
+        let rows = try TestAdmin.query("SELECT count(*) FROM revisions WHERE requested_by_user_id = '\(user)'")
+        #expect(rows.trimmingCharacters(in: .whitespacesAndNewlines) == "1")
+        // Its "Changed" line names both.
+        let changed = page.locator(".locution-thread-event-changed").last
+        try await expect(changed).toContainText("Explication")
+        try await expect(changed).toContainText("Arbitration")
+      }
+    } catch {
+      remove()
+      try await contributor.remove(after: error)
+    }
+    remove()
+    try await contributor.remove()
   }
 }
