@@ -158,7 +158,7 @@ struct CarrierTests {
       // At phone width the caption runs past the control; wider, it may fit.
       if layout == .phone { try await expect(closed).toHaveAttribute("data-overflowing", "true") }
       let shut = try await closed.evaluate(
-        "(e) => ({ nowrap: getComputedStyle(e).whiteSpace === 'nowrap', over: e.scrollWidth > e.clientWidth, mask: getComputedStyle(e).webkitMaskImage || getComputedStyle(e).maskImage || '', expand: e.getAttribute('data-edge-fade') })")
+        "(e) => ({ nowrap: getComputedStyle(e).whiteSpace === 'nowrap', over: e.scrollWidth > e.clientWidth, mask: getComputedStyle(e).webkitMaskImage || getComputedStyle(e).maskImage || '', expand: e.getAttribute('data-edge-fade-view') })")
       #expect(shut["nowrap"].bool == true, "The closed control keeps one line.")
       #expect((shut["mask"].string ?? "").contains("gradient") == (shut["over"].bool ?? false), "Its end fades exactly when it runs past.")
       #expect(shut["expand"].string != "expand", "No tap-to-expand.")

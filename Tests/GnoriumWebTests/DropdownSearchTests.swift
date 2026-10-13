@@ -34,7 +34,7 @@ struct DropdownSearchTests {
       // The site's search box, its placeholder the label: "Search".
       try await expect(picker.locator(".search-input-view.dropdown-search-input")).toHaveCount(1)
       try await expect(input).toHaveAttribute("placeholder", "Search")
-      try await expect(input).toHaveAttribute("data-edge-fade", "true")
+      try await expect(input).toHaveAttribute("data-edge-fade-view", "true")
 
       // The box is medium whatever the dropdown's size: a field's 40 tall,
       // its text 16px, 8 inside its border on every side, its icons 12.

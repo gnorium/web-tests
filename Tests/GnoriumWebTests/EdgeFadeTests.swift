@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// A single line too long for its box is clipped and fades out at its edge
-/// (`fadeOverflow`, EdgeFade.swift), never cut with an ellipsis—in tables,
+/// (`edgeFadeView`, EdgeFadeView.swift), never cut with an ellipsis—in tables,
 /// datums, breadcrumbs, menus, chips, sidebars, everywhere. The fade is drawn
 /// exactly on the boxes whose line runs past them. The line scrolls sideways
 /// with no scrollbar, and the fades follow it: the end's while more remains,
@@ -48,7 +48,7 @@ struct EdgeFadeTests {
       (() => {
         const shown = (e) => e.getClientRects().length > 0
         // An input draws its fade over itself, not as a mask: checked apart.
-        const boxes = [...document.querySelectorAll('\(scope) [data-edge-fade]:not(input)')].filter(shown)
+        const boxes = [...document.querySelectorAll('\(scope) [data-edge-fade-view]:not(input)')].filter(shown)
         const faded = (e) => {
           const s = getComputedStyle(e)
           return (s.maskImage || '').includes('gradient') || (s.webkitMaskImage || '').includes('gradient')
@@ -97,7 +97,7 @@ struct EdgeFadeTests {
       """
       (() => {
         const link = (e) => e.querySelector('a') || e.closest('a')
-        const box = [...document.querySelectorAll('\(scope) [data-edge-fade="expand"]')]
+        const box = [...document.querySelectorAll('\(scope) [data-edge-fade-view="expand"]')]
           .find((e) => e.getClientRects().length > 0 && e.getAttribute('data-overflowing') === 'true'
             && !!link(e) === \(withLink))
         if (!box) return null
@@ -125,7 +125,7 @@ struct EdgeFadeTests {
     let point = try await page.evaluate(
       """
       (() => {
-        const busy = 'a, button, label, input, select, textarea, [role], [tabindex], [data-edge-fade], table, nav, header, dialog'
+        const busy = 'a, button, label, input, select, textarea, [role], [tabindex], [data-edge-fade-view], table, nav, header, dialog'
         // Nothing busy within a finger's reach either: a tap is adjusted
         // to a control a few pixels off (Chrome's touch adjustment), and a
         // tap beside a tab followed its link. Where the page in view has no
@@ -358,7 +358,7 @@ struct EdgeFadeTests {
           (() => {
             // A plain cell (no link) that already overflows its column; else
             // one made long, where the column is held to its width.
-            const plain = [...document.querySelectorAll('.table-view td [data-edge-fade="expand"]')]
+            const plain = [...document.querySelectorAll('.table-view td [data-edge-fade-view="expand"]')]
               .filter((e) => e.getClientRects().length > 0 && !e.querySelector('a') && !e.closest('a'))
             const e = plain.find((e) => e.getAttribute('data-overflowing') === 'true') || plain[0]
             if (!e) return false
@@ -485,7 +485,7 @@ struct EdgeFadeTests {
       let found = try await page.evaluate(
         """
         (() => {
-          const e = [...document.querySelectorAll('input.text-input-input[data-edge-fade]')]
+          const e = [...document.querySelectorAll('input.text-input-input[data-edge-fade-view]')]
             .find((e) => e.getClientRects().length > 0 && (e.type === 'text' || e.type === 'email'))
           if (!e) return false
           e.setAttribute('data-test-edge-fade', 'true')
@@ -569,7 +569,7 @@ struct EdgeFadeTests {
         #expect(report.wrong.isEmpty, "\(path): the fade disagrees with the overflow on \(report.wrong)")
         // The page's own crumb is never faded: shown whole, it wraps in its
         // room (2026-10-04); only an ancestor's label fades.
-        try await expect(current).not.toHaveAttribute("data-edge-fade")
+        try await expect(current).not.toHaveAttribute("data-edge-fade-view")
         if overflows {
           try await expect(current).toHaveAttribute("title", title)
         }
