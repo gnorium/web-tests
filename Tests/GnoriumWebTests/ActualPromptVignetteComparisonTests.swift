@@ -41,7 +41,7 @@ struct ActualPromptVignetteComparisonTests {
     try await withPage(.chrome, gnorium, viewport: Viewport(width: width, height: 900)) { page in
       try await page.openHydrated("/mission-control/prompts/vignettes/compare?from=832FEFF0-9FD1-4711-86F9-AA1213C72996&to=CE0E6E42-ECF9-4BE8-A365-598219F30063")
       let header = page.locator(".vignette-header")
-      try await expect(header).toHaveAttribute("data-stacked")
+      try await expect(header).toHaveAttribute("data-crowded")
       let fits = try await page.evaluate("""
         (() => {
           const row = document.querySelector('.vignette-header');
@@ -57,12 +57,12 @@ struct ActualPromptVignetteComparisonTests {
         as: [[Double]].self)
       let oneRow = boxes.map { $0[0] }.max()! < boxes.map { $0[1] }.min()!
       let oneAboveTheOther = zip(boxes, boxes.dropFirst()).allSatisfy { $1[0] >= $0[1] - 1 }
-      let stacked = try await header.getAttribute("data-stacked")
+      let crowded = try await header.getAttribute("data-crowded")
       if fits {
-        #expect(stacked == "false", "the row fits, so it stays one row at \(width)")
+        #expect(crowded == "false", "the row fits, so it stays one row at \(width)")
         #expect(oneRow, "from, arrow, to on one row at \(width): \(boxes)")
       } else {
-        #expect(stacked == "true", "the row doesn't fit, so it stacks at \(width)")
+        #expect(crowded == "true", "the row doesn't fit, so it stacks at \(width)")
         #expect(oneAboveTheOther, "one above the other at \(width): \(boxes)")
       }
       if width >= 600 { #expect(fits, "a \(width)-wide window has room for one row") }
