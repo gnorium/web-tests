@@ -5,7 +5,7 @@ import WebTestsTesting
 
 @Suite("Artifact overlay", .serialized)
 struct ArtifactOverlayTests {
-  @Test(arguments: [1000, 440])
+  @Test(arguments: [1440, 440])
   func animatedOverlayFitsTEIAndMovesScan(width: Int) async throws {
     let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let assets = root.appendingPathComponent("gnorium-web/Public")
@@ -71,9 +71,13 @@ struct ArtifactOverlayTests {
   /// a skewed quadrilateral in the 0–1000 space), overlay on lays the scan
   /// by the homography that takes those corners onto the rendered content's
   /// ink box (its glyphs' ink, not their font boxes nor a line's trailing
-  /// letter-spacing, user, 2026-10-14), easing in with the overlay's 400ms
-  /// motion, and overlay off takes it away again (user, 2026-10-13).
-  @Test(arguments: [1000, 440])
+  /// letter-spacing, user, 2026-10-14), in one motion with the text's zoom
+  /// and the panes' move, trimming the scan's margins away as it comes (a
+  /// clip polygon closing in from the image's corners to the zone's); the
+  /// edition's whole page fits the view, centered, its margins the page's
+  /// ground; zoom and pan stay within the page; overlay off runs it all
+  /// back to where the reader was (user, 2026-10-13, 2026-10-14).
+  @Test(arguments: [1440, 440])
   func overlayRegistersTheScansTextBlockUnderTheEditions(width: Int) async throws {
     let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let assets = root.appendingPathComponent("gnorium-web/Public")
@@ -194,24 +198,72 @@ struct ArtifactOverlayTests {
             while(w.nextNode()){if(!w.currentNode.data.trim())continue;rg.selectNodeContents(w.currentNode);const b=rg.getBoundingClientRect();L=Math.min(L,b.left);T=Math.min(T,b.top);R=Math.max(R,b.right);B=Math.max(B,b.bottom)}
             return [Math.max(L,e.left),T,Math.min(R,e.right),B]};
           const off=()=>Math.max(...landed().map((p,i)=>Math.hypot(p[0]-target()[i][0],p[1]-target()[i][1])));
-          const none=getComputedStyle(surface()).transform==='none';
-          toggle(true);await wait(150);const midway=off();await wait(650);const registered=off();
+          // The trim: the clip polygon's corners in the image's own pixels (through the scan's pan and zoom).
+          const trim=()=>{const c=getComputedStyle(surface()).clipPath;if(c==='none')return null;const g=r.querySelector('.canvas-tile-compositor').getAttribute('transform').match(/-?[\d.]+/g).map(Number);
+            const v=c.match(/-?[\d.]+px/g).map(parseFloat);return [0,1,2,3].map(i=>[(v[2*i]-g[0])/g[2],(v[2*i+1]-g[1])/g[2]])};
+          const zone=r.querySelector('.tei-page').dataset.textBlock.split(' ').map(p=>p.split(',').map(Number)).map(([x,y])=>[x/1000*1200,y/1000*1600]);
+          const image=[[0,0],[1200,0],[1200,1600],[0,1600]];
+          const trimAt=t=>t&&Math.max(...t.map((p,i)=>Math.hypot(p[0]-zone[i][0],p[1]-zone[i][1])));
+          const pane=r.querySelector('.artifact-markup'),layer=()=>r.querySelector('[data-layer=rendering]');
+          const place=()=>{const b=layer().getBoundingClientRect();return [Number(layer().dataset.zoom),b.x,b.y,b.width,b.height,pane.scrollLeft,pane.scrollTop].map(n=>Math.round(n*100)/100)};
+          const wheel=async(dy,fx,fy,n)=>{const b=pane.getBoundingClientRect();for(let i=0;i<n;i++){pane.dispatchEvent(new WheelEvent('wheel',{deltaY:dy,clientX:b.x+b.width*fx,clientY:b.y+b.height*fy,bubbles:true,cancelable:true}));await wait(30)}};
+          // The reader zoomed in and scrolled before overlay.
+          await wheel(-40,0.3,0.3,6);await wait(300);const before=place();
+          const none=getComputedStyle(surface()).transform==='none'&&getComputedStyle(surface()).clipPath==='none';
+          toggle(true);await wait(150);const midway=off(),midTrim=trimAt(trim()),midImage=trim()&&Math.max(...trim().map((p,i)=>Math.hypot(p[0]-image[i][0],p[1]-image[i][1])));
+          await wait(650);const registered=off(),trimmed=trimAt(trim());
           const skewed=Math.abs(new DOMMatrix(getComputedStyle(surface()).transform).b)>0.001;
-          toggle(false);await wait(800);const cleared=getComputedStyle(surface()).transform==='none';
-          const ink=target(),font=fontBox(),zoom=Number(r.querySelector('[data-layer=rendering]').dataset.zoom);
+          // The whole page fits the view, centered: its margins kept, no scroll.
+          const pb=pane.getBoundingClientRect(),lb=layer().getBoundingClientRect();
+          const inside=(b,slack)=>b.left>=pb.left-slack&&b.top>=pb.top-slack&&b.right<=pb.right+slack&&b.bottom<=pb.bottom+slack;
+          const fits=inside(lb,1)&&(Math.abs(lb.width-pane.clientWidth)<1||Math.abs(lb.height-pane.clientHeight)<1)
+            &&Math.abs((lb.left+lb.right)/2-(pb.left+pb.right)/2)<1.5&&Math.abs((lb.top+lb.bottom)/2-(pb.top+pb.bottom)/2)<1.5&&pane.scrollLeft===0&&pane.scrollTop===0;
+          const fit=place();
+          await wheel(40,0.5,0.5,6);await wait(100);const outStops=JSON.stringify(place())===JSON.stringify(fit);
+          await wheel(-40,0.2,0.2,12);await wait(100);const zoomedIn=Number(layer().dataset.zoom)>fit[0]*1.5;
+          // In each axis the page is centered where it is no longer than the view, else covers it.
+          const cl=pb.left+pane.clientLeft,ct=pb.top+pane.clientTop,cw=pane.clientWidth,ch=pane.clientHeight;
+          const axis=(start,length,from,view)=>length<=view+1?Math.abs(start+length/2-(from+view/2))<1.5:start<=from+1.5&&start+length>=from+view-1.5;
+          const bounded=b=>axis(b.left,b.width,cl,cw)&&axis(b.top,b.height,ct,ch);
+          const coveredZoomed=bounded(layer().getBoundingClientRect())&&layer().getBoundingClientRect().height>ch+1;
+          const drag=(dx,dy)=>{const x=pb.x+5,y=pb.y+5;pane.dispatchEvent(new MouseEvent('mousedown',{clientX:x,clientY:y,button:0,detail:1,bubbles:true,cancelable:true}));window.dispatchEvent(new MouseEvent('mousemove',{clientX:x+dx,clientY:y+dy,bubbles:true}));window.dispatchEvent(new MouseEvent('mouseup',{bubbles:true}))};
+          drag(5000,5000);await wait(60);const topLeft=layer().getBoundingClientRect();
+          drag(-9000,-9000);await wait(60);const bottomRight=layer().getBoundingClientRect();
+          const panBounded=bounded(topLeft)&&Math.abs(topLeft.top-ct)<1.5&&bounded(bottomRight)&&Math.abs(bottomRight.bottom-ct-ch)<1.5;
+          const stillRegistered=off()<2;
+          toggle(false);await wait(150);const offTrim=trim(),offMid=offTrim&&trimAt(offTrim)>1;await wait(850);
+          const cleared=getComputedStyle(surface()).transform==='none'&&getComputedStyle(surface()).clipPath==='none';
+          const restored=JSON.stringify(place())===JSON.stringify(before);
+          const ink=target(),font=fontBox(),zoom=Number(layer().dataset.zoom);
           const spacing=parseFloat(getComputedStyle(r.querySelector('.tei-line')).letterSpacing);
           // The ink stands inside the font box, in the layer's own pixels: below its top (the font's ascent
           // over the glyphs'), and in from its right by more than the last glyph's letter-spacing.
-          const inside=(ink[0][1]-font[1])/zoom>1&&(font[2]-ink[1][0])/zoom>spacing;
-          return [none,midway>registered+5,registered<2,skewed,cleared,inside,Math.round(registered*100)/100].map(Number);
+          const inkInside=(ink[0][1]-font[1])/zoom>1&&(font[2]-ink[1][0])/zoom>spacing;
+          // Reduced motion: the end state at once, each way.
+          // (The browser's own reduced motion stops the panes' transition too.)
+          const media=window.matchMedia;window.matchMedia=q=>q.includes('reduced-motion')?{matches:true}:media.call(window,q);
+          const still=document.createElement('style');still.textContent='*{transition:none!important}';document.head.appendChild(still);
+          toggle(true);await wait(60);const instantOn=off()<2&&trimAt(trim())<0.5;
+          toggle(false);await wait(60);const instantOff=getComputedStyle(surface()).clipPath==='none'&&JSON.stringify(place())===JSON.stringify(before);
+          window.matchMedia=media;still.remove();
+          return [none,midway>registered+5,registered<2,skewed,cleared,inkInside,Math.round(registered*100)/100,
+            midTrim>5&&midImage>5,trimmed<0.5,fits,outStops,zoomedIn&&coveredZoomed&&panBounded&&stillRegistered,offMid,restored,instantOn&&instantOff].map(Number);
         })()
         """#, as: [Double].self)
       #expect(checks[0] == 1, "no registration before the overlay")
       #expect(checks[1] == 1, "the registration eases in with the overlay's motion")
       #expect(checks[2] == 1, "the zone's corners land on the rendered content's ink box within 2px (off by \(checks[6]))")
       #expect(checks[3] == 1, "the scan is turned by its measured skew")
-      #expect(checks[4] == 1, "overlay off takes the registration away")
+      #expect(checks[4] == 1, "overlay off takes the registration and the trim away")
       #expect(checks[5] == 1, "the target is the ink, inside the text's font box and short of its trailing letter-spacing")
+      #expect(checks[7] == 1, "midway the trim is between the image's corners and the zone's")
+      #expect(checks[8] == 1, "at rest the scan is trimmed to its text block")
+      #expect(checks[9] == 1, "the edition's whole page fits the view, centered, unscrolled")
+      #expect(checks[10] == 1, "zoom out stops at the whole page")
+      #expect(checks[11] == 1, "zoom in and pan stay within the page, the scan registered under it")
+      #expect(checks[12] == 1, "overlay off runs the trim back out")
+      #expect(checks[13] == 1, "overlay off restores the reader's zoom, place and scroll exactly")
+      #expect(checks[14] == 1, "with reduced motion the end state applies at once, on and off")
       try await page.expectNoErrors()
     }
   }
