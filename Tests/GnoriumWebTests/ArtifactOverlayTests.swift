@@ -36,7 +36,7 @@ struct ArtifactOverlayTests {
             let before=size();
             const pane=r.querySelector('.artifact-markup');let pb=pane.getBoundingClientRect();
             for(let i=0;i<8;i++){pane.dispatchEvent(new WheelEvent('wheel',{deltaY:-40,clientX:pb.x+pb.width/2,clientY:pb.y+pb.height/2,bubbles:true,cancelable:true}));await wait(30)}
-            const zoomStart=Number(l.dataset.zoom);toggle(true);await wait(120);let mid=size();const zoomMid=Number(l.dataset.zoom);await wait(500);let after=size();
+            const zoomStart=Number(l.dataset.zoom);toggle(true);await wait(120);let mid=size();const opacityOnMid=Number(getComputedStyle(o).opacity);const zoomMid=Number(l.dataset.zoom);await wait(500);let after=size();
             const fitted=Number(l.dataset.zoom);const fittedBox=l.getBoundingClientRect(),paneBox=pane.getBoundingClientRect();
             const whole=fittedBox.width<=paneBox.width+1&&fittedBox.height<=paneBox.height+1&&pane.scrollLeft===0&&pane.scrollTop===0&&getComputedStyle(pane).overflow==='hidden';
             const zoomAnimated=zoomStart>zoomMid&&zoomMid>fitted;
@@ -53,7 +53,7 @@ struct ArtifactOverlayTests {
             const locked=fixed()===still;
             const button=d.querySelector('button'),detachOn=!d.hidden&&getComputedStyle(d).display!=='none'&&button.disabled&&button.getAttribute('aria-disabled')==='true'&&d.getAttribute('aria-pressed')==='false';
             const rules={imageOpacity:getComputedStyle(o).opacity,textOpacity:getComputedStyle(l).opacity,bg:getComputedStyle(r.querySelector('.artifact-markup')).backgroundColor};
-            toggle(false);await wait(120);const zoomOffMid=Number(l.dataset.zoom);await wait(480);const zoomBack=Number(l.dataset.zoom);const zoomReturned=fitted<zoomOffMid&&zoomOffMid<zoomBack&&Math.abs(zoomBack-zoomStart)<0.01;const dim=window.innerWidth>480?0:1;
+            toggle(false);await wait(120);const zoomOffMid=Number(l.dataset.zoom);const opacityOffMid=Number(getComputedStyle(o).opacity);await wait(480);const zoomBack=Number(l.dataset.zoom);const zoomReturned=fitted<zoomOffMid&&zoomOffMid<zoomBack&&Math.abs(zoomBack-zoomStart)<0.01;const dim=window.innerWidth>480?0:1;
             const detachOff=!button.disabled&&!button.hasAttribute('aria-disabled')&&d.getAttribute('aria-pressed')==='false';
             const panesBack=Math.abs(size()[dim]-before[dim])<1;
             // Detached before the overlay: off and disabled while it is on (the panes synced as overlaid),
@@ -63,13 +63,14 @@ struct ArtifactOverlayTests {
             toggle(true);await wait(600);const detachedOn=button.disabled&&button.getAttribute('aria-disabled')==='true'&&d.getAttribute('aria-pressed')==='false';
             toggle(false);await wait(600);const detachedAfter=!button.disabled&&!button.hasAttribute('aria-disabled')&&d.getAttribute('aria-pressed')==='true';
             detachTo(false);await wait(30);
-            return [zoomReturned,before[dim]<mid[dim]&&mid[dim]<after[dim],whole&&zoomAnimated,locked,detachOn,rules.imageOpacity==='0.5'&&rules.textOpacity==='1',rules.bg==='rgba(0, 0, 0, 0)',detachOff,panesBack,detachedBefore&&detachedOn&&detachedAfter];
+            return [zoomReturned,before[dim]<mid[dim]&&mid[dim]<after[dim],whole&&zoomAnimated,locked,detachOn,rules.imageOpacity==='0.5'&&rules.textOpacity==='1',rules.bg==='rgba(0, 0, 0, 0)',detachOff,panesBack,detachedBefore&&detachedOn&&detachedAfter,opacityOnMid>0.5&&opacityOnMid<1&&opacityOffMid>0.5&&opacityOffMid<1];
            })()
         """#, as: [Bool].self)
       let named = [
         "zoom back animated", "the panes move", "the whole page fits, zoom animated", "no gesture moves the scan or the text",
         "Detach present, disabled and off while on", "opacity", "the text on no ground", "Detach enabled and off after", "panes back",
         "detached before: off and disabled while on, detached again after",
+        "the scan fades on the overlay's clock, both ways",
       ]
       for (check, name) in zip(checks, named) { #expect(check, "\(name)") }
       try await page.expectNoErrors()
