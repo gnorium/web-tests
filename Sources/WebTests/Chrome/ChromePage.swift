@@ -291,6 +291,11 @@ final class ChromePage: PageDriver, @unchecked Sendable {
           "type": "mouseReleased", "x": JSONValue(x), "y": JSONValue(y), "button": .string(button.rawValue),
           "buttons": 0, "clickCount": JSONValue(clickCount), "modifiers": JSONValue(modifiers),
         ]
+      case .wheel(let x, let y, let deltaX, let deltaY):
+        params = [
+          "type": "mouseWheel", "x": JSONValue(x), "y": JSONValue(y), "deltaX": JSONValue(deltaX),
+          "deltaY": JSONValue(deltaY), "modifiers": JSONValue(modifiers),
+        ]
       }
       _ = try await send("Input.dispatchMouseEvent", params)
     }

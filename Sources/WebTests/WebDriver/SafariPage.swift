@@ -226,6 +226,14 @@ final class SafariPage: PageDriver, @unchecked Sendable {
     var steps: [JSONValue] = []
     for action in actions {
       switch action {
+      case .wheel(let x, let y, let deltaX, let deltaY):
+        // A wheel is its own input source in WebDriver.
+        _ = try await context.command(
+          "POST", "actions",
+          ["actions": [["type": "wheel", "id": "wheel", "actions": [[
+            "type": "scroll", "x": JSONValue(Int(x.rounded())), "y": JSONValue(Int(y.rounded())), "origin": "viewport",
+            "deltaX": JSONValue(Int(deltaX.rounded())), "deltaY": JSONValue(Int(deltaY.rounded())), "duration": 0,
+          ]]]]])
       case .move(let x, let y):
         steps.append(Self.pointerMove(x, y))
       case .down(let x, let y, let button, _):

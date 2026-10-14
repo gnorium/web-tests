@@ -157,10 +157,14 @@ struct RevisePagesTests {
         // as it is made.
         try await page.locator("[data-revise-form] input[name='title']").first.fill("Web tests title")
         // The editor opens on the stored text as it is (a document is
-        // stored formatted; this one was written before, on one line).
+        // stored formatted; this one was written before, on one line),
+        // headed as every view of a page is (user, 2026-10-14): this
+        // document declares no renditions, so no header.
         let initial = try await page.evaluate(
           "(() => document.querySelector('.tei-page-edit textarea').value)()", as: String.self)
-        #expect(initial == "<div><p>Old line</p></div>", "The editor's initial text: \(initial)")
+        #expect(
+          initial == "<TEI xmlns=\"http://www.tei-c.org/ns/1.0\">\n<text><body>\n<div><p>Old line</p></div>\n</body></text>\n</TEI>",
+          "The editor's initial text: \(initial)")
         _ = try await page.evaluate(
           """
           (() => {
@@ -176,7 +180,8 @@ struct RevisePagesTests {
         let code = page.locator(".testament-diff[data-edited='true'] .diff-view[data-diff-mode='code']")
         try await expect(code.locator(".diff-row[data-diff-line='removed']")).toHaveCount(1)
         try await expect(code.locator(".diff-row[data-diff-line='inserted']")).toHaveCount(1)
-        try await expect(code.locator(".diff-row[data-diff-line='unchanged']")).toHaveCount(2)
+        // Headed both sides: the page's lines and the document's four.
+        try await expect(code.locator(".diff-row[data-diff-line='unchanged']")).toHaveCount(6)
         if let directory = ProcessInfo.processInfo.environment["GNORIUM_SCREENSHOT_DIR"] {
           _ = try await page.evaluate(
             "(() => { document.querySelector(\".testament-diff[data-edited='true'] .diff-view\").scrollIntoView({block: 'center'}); return 1 })()",

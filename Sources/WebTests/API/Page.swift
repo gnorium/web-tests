@@ -348,6 +348,12 @@ public struct Mouse: Sendable {
     try await driver.dispatchMouse([.move(x: x, y: y), .up(x: x, y: y, button: button, clickCount: 1)])
   }
 
+  /// Turns the wheel at the point by `deltaX`, `deltaY` CSS pixels, as a
+  /// mouse wheel or a trackpad's two fingers would.
+  public func wheel(x: Double, y: Double, deltaX: Double = 0, deltaY: Double) async throws {
+    try await driver.dispatchMouse([.move(x: x, y: y), .wheel(x: x, y: y, deltaX: deltaX, deltaY: deltaY)])
+  }
+
   public func click(x: Double, y: Double, button: MouseButton = .left, clickCount: Int = 1) async throws {
     var actions: [MouseAction] = [.move(x: x, y: y)]
     for count in 1...max(1, clickCount) {

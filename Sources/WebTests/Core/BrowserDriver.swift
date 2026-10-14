@@ -113,6 +113,8 @@ public enum MouseAction: Sendable, Hashable {
   case move(x: Double, y: Double)
   case down(x: Double, y: Double, button: MouseButton, clickCount: Int)
   case up(x: Double, y: Double, button: MouseButton, clickCount: Int)
+  /// The wheel turned at the point, by CSS pixels (Playwright's `mouse.wheel`).
+  case wheel(x: Double, y: Double, deltaX: Double, deltaY: Double)
 }
 
 public enum MouseButton: String, Sendable, Hashable {

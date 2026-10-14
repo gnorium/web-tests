@@ -91,6 +91,69 @@ final class FixtureServer: @unchecked Sendable {
     return server
   }
 
+  /// Skeat's canvases (design-notes/skeat) as a locally served witness:
+  /// each canvas's scan behind a level-0 image service, and the document
+  /// an explication assembles of them—the witness's renditions in its
+  /// header (`header.xml`), each canvas's surface with its measured text
+  /// block, one page break per page carrying the image—as `document`.
+  static func skeatWitness(canvases: [Int]) async throws -> (server: FixtureServer, document: String) {
+    let skeat = URL(fileURLWithPath: "/Users/Madhavik/Downloads/Gnorium/design-notes/skeat")
+    let server = try await FixtureServer(files: [:])
+    let base = server.baseURL
+    var files: [String: File] = [:]
+    var items: [String] = []
+    var surfaces = ""
+    var body = ""
+    for n in canvases {
+      let scan = try Data(contentsOf: skeat.appendingPathComponent("scans/canvas-\(n).jpg"))
+      let size = Self.jpegSize(scan) ?? (2820, 3781)
+      let image = "\(base)/page-\(n)/full/1300,/0/default.jpg"
+      items.append(
+        #"{"id":"\#(base)/canvas/\#(n)","type":"Canvas","width":\#(size.width),"height":\#(size.height),"label":{"en":["\#(n)"]},"items":[{"type":"AnnotationPage","items":[{"body":{"id":"\#(base)/page-\#(n)/full/max/0/default.jpg","service":[{"id":"\#(base)/page-\#(n)","type":"ImageService3"}]}}]}]}"#)
+      files["/page-\(n)/info.json"] = .init(
+        contentType: "application/json",
+        body: Data(#"{"@context":"http://iiif.io/api/image/3/context.json","id":"\#(base)/page-\#(n)","type":"ImageService3","protocol":"http://iiif.io/api/image","profile":"level0","width":\#(size.width),"height":\#(size.height)}"#.utf8))
+      files["/page-\(n)/*"] = .init(contentType: "image/jpeg", body: scan)
+      var tei = try String(contentsOf: skeat.appendingPathComponent("canvas-\(n).xml"), encoding: .utf8)
+      if let facsimile = tei.range(of: #"<facsimile\b[\s\S]*?</facsimile>"#, options: .regularExpression) {
+        var surface = String(tei[facsimile])
+        tei.removeSubrange(facsimile)
+        surface = surface.replacingOccurrences(of: "<facsimile>", with: "").replacingOccurrences(of: "</facsimile>", with: "")
+        surface = surface.replacingOccurrences(of: #"url="[^"]*""#, with: "url=\"\(image)\"", options: .regularExpression)
+        surfaces += surface
+      }
+      // The image's break and the side's, folded into one.
+      tei = tei.replacingOccurrences(of: #"<pb\b[^>]*facs="[^"]*"[^>]*/>\s*"#, with: "", options: .regularExpression)
+      tei = tei.replacingOccurrences(of: #"^\s*<pb n="\#(n)"/>\s*"#, with: "", options: .regularExpression)
+      body += "<pb n=\"\(n)\" facs=\"\(image)\"/>\n" + tei.trimmingCharacters(in: .whitespacesAndNewlines) + "\n"
+    }
+    files["/manifest.json"] = .init(
+      contentType: "application/json",
+      body: Data(#"{"id":"\#(base)/manifest.json","type":"Manifest","label":{"en":["Skeat"]},"items":[\#(items.joined(separator: ","))]}"#.utf8))
+    server.files = files
+    let renditions = try String(contentsOf: skeat.appendingPathComponent("header.xml"), encoding: .utf8)
+    let document =
+      #"<TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><encodingDesc><tagsDecl>"# + renditions
+      + "</tagsDecl></encodingDesc></teiHeader><facsimile>" + surfaces + "</facsimile><text><body>\n" + body
+      + "</body></text></TEI>"
+    return (server, document)
+  }
+
+  /// A JPEG's size, from its frame header (SOF0–SOF2).
+  static func jpegSize(_ data: Data) -> (width: Int, height: Int)? {
+    let bytes = [UInt8](data)
+    var at = 2
+    while at + 9 < bytes.count {
+      let marker = bytes[at + 1]
+      let length = Int(bytes[at + 2]) << 8 | Int(bytes[at + 3])
+      if (0xC0...0xC2).contains(marker) {
+        return (Int(bytes[at + 7]) << 8 | Int(bytes[at + 8]), Int(bytes[at + 5]) << 8 | Int(bytes[at + 6]))
+      }
+      at += 2 + length
+    }
+    return nil
+  }
+
   private func serve(_ connection: NWConnection) {
     connection.start(queue: queue)
     let files = self.files
