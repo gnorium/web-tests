@@ -1,11 +1,14 @@
 (async()=>{
   const r=document.querySelector('.artifact-view'),page=r.querySelector('.tei-page[data-active=true]'),layer=page.querySelector('[data-layer=rendering]'),frame=layer.querySelector('.tei-text-block')||layer;
-  // The edition's rows: each drawn row's ink (the reader's InkExtent rule), the main text's alone.
+  // The edition's rows: each drawn row's ink (the reader's InkExtent rule), the main text's alone; a page
+  // with no main text (an owner's label alone, its zone the work frame placed on the scan), its marginalia's.
   const context=document.createElement('canvas').getContext('2d'),range=document.createRange();
   const rectOf=(node,start,end)=>{range.setStart(node,start);range.setEnd(node,end);return range.getBoundingClientRect()};
   const rows=[];
-  const walker=document.createTreeWalker(frame,NodeFilter.SHOW_TEXT);
-  for(let node=walker.nextNode();node;node=walker.nextNode()){
+  const texts=root=>{const found=[],walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);for(let node=walker.nextNode();node;node=walker.nextNode())found.push(node);return found};
+  const derived=page.dataset.textBlockDerived==='true';
+  const nodes=derived?[...layer.querySelectorAll('.tei-margin')].flatMap(texts):texts(frame);
+  for(const node of nodes){
     const text=node.data;if(!/[^ \t\n\r]/.test(text))continue;
     const style=getComputedStyle(node.parentElement);
     context.font=style.fontStyle+' '+style.fontWeight+' '+style.fontSize+' '+style.fontFamily;
@@ -47,30 +50,38 @@
   const W=image.naturalWidth,H=image.naturalHeight,sx=W/canvas.w,sy=H/canvas.h;
   const c=document.createElement('canvas');c.width=W;c.height=H;const cx=c.getContext('2d');cx.drawImage(image,0,0);const px=cx.getImageData(0,0,W,H).data;
   const gray=new Uint8Array(W*H);for(let i=0;i<W*H;i++)gray[i]=(px[4*i]+px[4*i+1]+px[4*i+2])/3;
+  // The ink over a region of the scan (x0, x1, y0, y1 in its pixels): Otsu's threshold over it, and the
+  // stroke, the modal length of its horizontal ink runs. The main text's over its text block; a page with no
+  // main text's over each row's own window (its zone is the frame placed on the scan, its label outside it).
+  const inked=(zx0,zx1,zy0,zy1)=>{
+    zx0=Math.max(0,zx0);zy0=Math.max(0,zy0);zx1=Math.min(W,zx1);zy1=Math.min(H,zy1);
+    const histogram=new Array(256).fill(0);for(let y=zy0;y<zy1;y++)for(let x=zx0;x<zx1;x++)histogram[gray[y*W+x]]++;
+    let total=0,sum=0;histogram.forEach((n,v)=>{total+=n;sum+=v*n});let below=0,belowSum=0,best=-1,threshold=0;
+    for(let v=0;v<256;v++){below+=histogram[v];belowSum+=v*histogram[v];if(!below||below===total)continue;const a=belowSum/below,b=(sum-belowSum)/(total-below),between=below*(total-below)*(a-b)*(a-b);if(between>best){best=between;threshold=v}}
+    const dark=(x,y)=>x>=0&&y>=0&&x<W&&y<H&&gray[y*W+x]<=threshold;
+    // Specks out as layout_measure takes them out: the binary median of the smallest odd window that holds a
+    // stroke.
+    const runs=new Map();for(let y=zy0;y<zy1;y+=2){let n=0;for(let x=zx0;x<=zx1;x++){if(x<zx1&&dark(x,y))n++;else if(n){runs.set(n,(runs.get(n)||0)+1);n=0}}}
+    const stroke=[...runs.entries()].reduce((a,b)=>b[1]>a[1]?b:a,[1,0])[0],half=Math.max(1,Math.floor(stroke/2)),area=(2*half+1)**2;
+    // The row's band by that filter (a fleck under a line is no row of it); its edges across by the 3×3 one, so
+    // small type's thin strokes keep their extent.
+    return {solid:(x,y)=>{let n=0;for(let dy=-half;dy<=half;dy++)for(let dx=-half;dx<=half;dx++)if(dark(x+dx,y+dy))n++;return n*2>area},
+      ink:(x,y)=>{let n=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dark(x+dx,y+dy))n++;return n>=5}};
+  };
   const zone=page.dataset.textBlock.split(' ').map(p=>p.split(',').map(Number)).map(([x,y])=>[x/1000*W,y/1000*H]);
-  const zx0=Math.floor(Math.min(...zone.map(p=>p[0]))),zx1=Math.ceil(Math.max(...zone.map(p=>p[0]))),zy0=Math.floor(Math.min(...zone.map(p=>p[1]))),zy1=Math.ceil(Math.max(...zone.map(p=>p[1])));
-  const histogram=new Array(256).fill(0);for(let y=zy0;y<zy1;y++)for(let x=zx0;x<zx1;x++)histogram[gray[y*W+x]]++;
-  let total=0,sum=0;histogram.forEach((n,v)=>{total+=n;sum+=v*n});let below=0,belowSum=0,best=-1,threshold=0;
-  for(let v=0;v<256;v++){below+=histogram[v];belowSum+=v*histogram[v];if(!below||below===total)continue;const a=belowSum/below,b=(sum-belowSum)/(total-below),between=below*(total-below)*(a-b)*(a-b);if(between>best){best=between;threshold=v}}
-  const dark=(x,y)=>x>=0&&y>=0&&x<W&&y<H&&gray[y*W+x]<=threshold;
-  // Specks out as layout_measure takes them out: the binary median of the smallest odd window that holds a
-  // stroke (the modal length of the zone's horizontal ink runs).
-  const runs=new Map();for(let y=zy0;y<zy1;y+=2){let n=0;for(let x=zx0;x<=zx1;x++){if(x<zx1&&dark(x,y))n++;else if(n){runs.set(n,(runs.get(n)||0)+1);n=0}}}
-  const stroke=[...runs.entries()].reduce((a,b)=>b[1]>a[1]?b:a,[1,0])[0],half=Math.max(1,Math.floor(stroke/2)),area=(2*half+1)**2;
-  // The row's band by that filter (a fleck under a line is no row of it); its edges across by the 3×3 one, so
-  // small type's thin strokes keep their extent.
-  const solid=(x,y)=>{let n=0;for(let dy=-half;dy<=half;dy++)for(let dx=-half;dx<=half;dx++)if(dark(x+dx,y+dy))n++;return n*2>area};
-  const ink=(x,y)=>{let n=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dark(x+dx,y+dy))n++;return n>=5};
+  const box=points=>[Math.floor(Math.min(...points.map(p=>p[0]))),Math.ceil(Math.max(...points.map(p=>p[0]))),Math.floor(Math.min(...points.map(p=>p[1]))),Math.ceil(Math.max(...points.map(p=>p[1])))];
+  const main=inked(...box(zone));
   // Sampled along the registered axes (the scan's pixels as laid under the text): a grid in the
   // window one scan pixel apart, each point read where the transforms take it on the image, so a
   // tilted scan's line is a band the height of its type, not of its tilt.
   const a0=toWindow(0,0),a1=toWindow(1000,0),step=Math.hypot(a1[0]-a0[0],a1[1]-a0[1])/1000/sx;
-  const sample=(X,Y)=>{const [ix,iy]=toImage(X,Y);return ink(Math.round(ix*sx),Math.round(iy*sy))};
-  const sampleSolid=(X,Y)=>{const [ix,iy]=toImage(X,Y);return solid(Math.round(ix*sx),Math.round(iy*sy))};
   const out=[];
   rows.forEach((row,i)=>{
     const above=i>0?(rows[i-1].bottom+row.top)/2:row.top-(row.bottom-row.top),below=i<rows.length-1?(row.bottom+rows[i+1].top)/2:row.bottom+(row.bottom-row.top);
     const pad=row.bottom-row.top,X0=row.left-pad,X1=row.right+pad;
+    const {ink,solid}=derived?inked(...box([[X0,above],[X1,above],[X1,below],[X0,below]].map(([X,Y])=>{const [ix,iy]=toImage(X,Y);return [ix*sx,iy*sy]}))):main;
+    const sample=(X,Y)=>{const [ix,iy]=toImage(X,Y);return ink(Math.round(ix*sx),Math.round(iy*sy))};
+    const sampleSolid=(X,Y)=>{const [ix,iy]=toImage(X,Y);return solid(Math.round(ix*sx),Math.round(iy*sy))};
     const ny=Math.ceil((below-above)/step),nx=Math.ceil((X1-X0)/step);
     const grid=new Uint8Array(nx*ny),rowInk=new Array(ny).fill(0);
     for(let j=0;j<ny;j++)for(let k=0;k<nx;k++){if(sample(X0+k*step,above+j*step))grid[j*nx+k]=1;if(sampleSolid(X0+k*step,above+j*step))rowInk[j]++}

@@ -302,7 +302,8 @@ struct ArtifactOverlayTests {
     return (try? String(contentsOf: root.appendingPathComponent("web-tests/Fixtures/overlay-rows.js"), encoding: .utf8)) ?? ""
   }()
 
-  /// Skeat's first ten canvases with a measured main text block
+  /// Skeat's first ten canvases with a text block zone (canvas 2's derived:
+  /// the work frame placed on a scan with no main text)
   /// (design-notes/skeat: each one's TEI with its zone and the witness's
   /// renditions, `header.xml`, its frame and type scale; its scan), rendered
   /// by the dev server's TEI preview and overlaid by the client at rest
@@ -459,7 +460,10 @@ struct ArtifactOverlayTests {
   /// tolerance: the measurement's precision, two pixels (gnorium-python
   /// `type_scale.PIXELS`).
   static let landing = 2.0
-  /// Each canvas's rows of main text, its marginalia aside.
+  /// Each canvas's rows of main text, its marginalia aside; canvas 2, which
+  /// sets no main text (a library's barcode label alone), its marginalia's:
+  /// its zone the work frame placed on its scan (derived), the label at its
+  /// measured offset from it.
   static let skeatRows = [2: 1, 3: 3, 4: 4, 5: 17, 6: 4, 7: 19, 9: 39, 10: 40]
   /// The rows whose width no measured setting reaches (by canvas, from 0),
   /// reported, never shimmed: Noto's letters at the print's measured size
