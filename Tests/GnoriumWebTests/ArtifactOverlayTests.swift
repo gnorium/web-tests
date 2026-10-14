@@ -322,7 +322,12 @@ struct ArtifactOverlayTests {
             let left=Infinity,right=-Infinity;for(const [st,en,rect] of line.glyphs){const g=context.measureText(text.slice(st,en));left=Math.min(left,rect.left-g.actualBoundingBoxLeft*s);right=Math.max(right,rect.left+g.actualBoundingBoxRight*s)}
             if(right>left&&bottom>top)lines.push([left,top,right,bottom])}}}
         lines.sort((a,c)=>a[1]-c[1]);const rows=[];for(const l of lines){const last=rows[rows.length-1];if(last&&l[1]<last[3]){last[0]=Math.min(last[0],l[0]);last[2]=Math.max(last[2],l[2]);last[3]=Math.max(last[3],l[3])}else rows.push([...l])}return rows};
-      const editionMain=rowsOf([frame]),editionMargin=rowsOf([...layer.querySelectorAll('.tei-margin')]);
+      const editionMain=rowsOf([frame]);
+      // The edition's notes: each child of a margin area, its rows, box and sides.
+      const notes=[];for(const margin of layer.querySelectorAll('.tei-margin')){const place=margin.dataset.place||'',sides=[];
+        if(place.startsWith('top'))sides.push('top');if(place.startsWith('bottom'))sides.push('bottom');if(place.endsWith('left'))sides.push('margin-left');if(place.endsWith('right'))sides.push('margin-right');
+        for(const note of margin.querySelectorAll(':scope > *')){const rows=rowsOf([note]);if(!rows.length)continue;
+          notes.push({rows,sides,box:[Math.min(...rows.map(r=>r[0])),Math.min(...rows.map(r=>r[1])),Math.max(...rows.map(r=>r[2])),Math.max(...rows.map(r=>r[3]))]})}}
       const img=JSON.parse(document.querySelector('#manifest-size').textContent),W=img[0],H=img[1];
       const zone=page.dataset.textBlock.split(' ').map(p=>p.split(',').map(Number)).map(([x,y])=>[x/1000*W,y/1000*H]);
       // Laid as the reader lays it: a derived block on the frame whole; a block spanning the frame's
@@ -333,12 +338,22 @@ struct ArtifactOverlayTests {
       const spans=!!ink&&frame!==layer&&ink[0]-edges.left<=space&&edges.right-ink[2]<=space;
       const laid=page.dataset.textBlockDerived==='true'?[edges.left,edges.top,edges.right,edges.bottom]:spans?ink:laidOn(zone,ink);
       const h=homography(zone,[[laid[0],laid[1]],[laid[2],laid[1]],[laid[2],laid[3]],[laid[0],laid[3]]]);
-      const quads=[];let main=true;
+      const quads=[],marginBlocks=[];let main=true;
       for(const entry of page.dataset.scanLayout.split(';')){const p=entry.split(' ');const pts=p.slice(2).map(Number);const q=[0,1,2,3].map(i=>apply(h,[pts[2*i]/1000*W,pts[2*i+1]/1000*H]));
         const box=[Math.min(...q.map(v=>v[0])),Math.min(...q.map(v=>v[1])),Math.max(...q.map(v=>v[0])),Math.max(...q.map(v=>v[1]))];
-        if(p[0]==='block'){main=p[1]!=='marginalia';quads.push({kind:'block',main,box})}else if(p[0]==='line')quads.push({kind:'line',main,box})}
+        if(p[0]==='block'){main=p[1]!=='marginalia';quads.push({kind:'block',main,box});if(!main)marginBlocks.push({box,lines:[]})}
+        else if(p[0]==='line'){quads.push({kind:'line',main,box});if(!main&&marginBlocks.length)marginBlocks[marginBlocks.length-1].lines.push(box)}}
       const rowsFrom=lines=>{lines.sort((a,c)=>a[1]-c[1]);const rows=[];for(const l of lines){const last=rows[rows.length-1];if(last&&l[1]<last[3]){last[0]=Math.min(last[0],l[0]);last[2]=Math.max(last[2],l[2]);last[3]=Math.max(last[3],l[3])}else rows.push([...l])}return rows};
-      const scanMain=rowsFrom(quads.filter(q=>q.kind==='line'&&q.main).map(q=>q.box)),scanMargin=rowsFrom(quads.filter(q=>q.kind==='line'&&!q.main).map(q=>q.box));
+      const scanMain=rowsFrom(quads.filter(q=>q.kind==='line'&&q.main).map(q=>q.box));
+      // Each scan block of marginalia to the nearest note on its side of the frame.
+      const F=(()=>{const e=frame.getBoundingClientRect();return [e.left,e.top,e.right,e.bottom]})();
+      const sidesOf=([l,t,r2,b])=>{const beyond=[['top',F[1]-b],['bottom',t-F[3]],['margin-left',F[0]-r2],['margin-right',l-F[2]]],clear=beyond.filter(x=>x[1]>=0).map(x=>x[0]);
+        if(clear.length)return clear;const m=(t+b)/2,c=(l+r2)/2,near=[['top',m-F[1]],['bottom',F[3]-m],['margin-left',c-F[0]],['margin-right',F[2]-c]];return [near.reduce((a,x)=>x[1]<a[1]?x:a)[0]]};
+      const dist=(a,c)=>Math.abs(a[0]-c[0])+Math.abs(a[1]-c[1])+Math.abs(a[2]-c[2])+Math.abs(a[3]-c[3]);
+      const gathered=notes.map(()=>[]),alone=[];
+      for(const block of marginBlocks){const sides=sidesOf(block.box);let best=-1,far=Infinity;
+        notes.forEach((note,i)=>{if(note.sides.some(x=>sides.includes(x))){const d=dist(note.box,block.box);if(d<far){far=d;best=i}}});
+        if(best>=0)gathered[best].push(...block.lines);else alone.push(...block.lines)}
       const L=Number(page.dataset.bodyLeading)*parseFloat(getComputedStyle(frame).fontSize)*z;
       const pair=(e,s)=>{const n=e.length,m=s.length,c=[...Array(n+1)].map(()=>Array(m+1).fill(0)),st=[...Array(n+1)].map(()=>Array(m+1).fill(0));
         for(let i=0;i<=n;i++)for(let j=0;j<=m;j++){if(!i&&!j)continue;let best=Infinity,mv=0;if(i&&j)best=c[i-1][j-1]+Math.abs(e[i-1][1]-s[j-1][1])+Math.abs(e[i-1][3]-s[j-1][3]);
@@ -346,7 +361,11 @@ struct ArtifactOverlayTests {
         const es=Array(n).fill('within'),ss=Array(m).fill('within');let i=n,j=m;
         while(i||j){const mv=st[i][j];if(mv===0){const ok=Math.abs(e[i-1][1]-s[j-1][1])<=L/4&&Math.abs(e[i-1][3]-s[j-1][3])<=L/4;es[i-1]=ss[j-1]=ok?'within':'off';i--;j--}else if(mv===1){es[i-1]='extra';i--}else{ss[j-1]='missing';j--}}
         return [es,ss]};
-      const [em,sm]=pair(editionMain,scanMain),[eg,sg]=pair(editionMargin,scanMargin);
+      const moved=(rows,[x,y])=>rows.map(r=>[r[0]-x,r[1]-y,r[2]-x,r[3]-y]);
+      const [em,sm]=pair(editionMain,scanMain);const eg=[],sg=[];
+      notes.forEach((note,i)=>{const rows=rowsFrom(gathered[i]);const reach=rows.length?[Math.min(...rows.map(r=>r[0])),Math.min(...rows.map(r=>r[1]))]:[note.box[0],note.box[1]];
+        const [e,s2]=pair(moved(note.rows,[note.box[0],note.box[1]]),moved(rows,reach));eg.push(...e);sg.push(...s2)});
+      sg.push(...pair([],rowsFrom(alone))[1]);
       const mainBlocks=quads.filter(q=>q.kind==='block'&&q.main).map(q=>q.box);
       return {edition:em.concat(eg),scan:sm.concat(sg),main:mainBlocks.length?[Math.min(...mainBlocks.map(q=>q[1])),Math.max(...mainBlocks.map(q=>q[3]))]:[],target:[laid[1],laid[3]]}};
     const drawnStates=side=>[...new Map([...document.querySelectorAll('.artifact-structure [data-side='+side+'][data-kind=line]')].map(e=>[e.dataset.row,e.dataset.state])).values()];
