@@ -414,15 +414,15 @@ struct ArtifactOverlayTests {
       // (`faceWidth`: a row of the print's face narrower or wider than Noto's at its measured size, never
       // shimmed), which is reported.
       for (index, row) in rows.enumerated() {
-        let width = (row.scan[3] - row.scan[2]) - (row.edition[3] - row.edition[2])
+        let difference = (row.scan[3] - row.scan[2]) - (row.edition[3] - row.edition[2])
         // Its type a step of the scale: its width within the size's spread,
         // reported; a step farther (two spreads) is the wrong step.
         let spread = (row.edition[3] - row.edition[2]) * (exp(tolerance.size) - 1) + Self.landing * 2
         if Self.faceWidth[canvas, default: []].contains(index) {
-          print("canvas \(canvas) row \(index) (\(row.text)): its width is the face's, \(String(format: "%+.1f", width))px from the print's")
+          print("canvas \(canvas) row \(index) (\(row.text)): its width is the face's, \(String(format: "%+.1f", difference))px from the print's")
         } else {
-          print("canvas \(canvas) at \(width) row \(index): its width \(String(format: "%+.1f", width))px from the print's, the size's spread \(String(format: "%.1f", spread))px")
-          #expect(abs(width) <= 2 * spread, "\(row.text): its width \(width)px from the print's, past two of the size's spreads")
+          print("canvas \(canvas) at \(width) row \(index): its width \(String(format: "%+.1f", difference))px from the print's, the size's spread \(String(format: "%.1f", spread))px")
+          #expect(abs(difference) <= 2 * spread, "\(row.text): its width \(difference)px from the print's, past two of the size's spreads")
         }
       }
       // A justified block's measure: its full rows' edges, in the median.
@@ -464,8 +464,8 @@ struct ArtifactOverlayTests {
   /// reported, never shimmed: Noto's letters at the print's measured size
   /// and spacing wider or narrower than the print's (small capitals,
   /// italics, a ragged last line); canvas 7's contents rows span the work's
-  /// frame, its body pages' measure, half an em wider than canvas 7's own
-  /// print (each page measured in its own scan's em).
+  /// frame, its body pages' measure, 1.4em wider than canvas 7's own print
+  /// (each page measured in its own scan's em).
   static let faceWidth: [Int: Set<Int>] = [
     3: [0], 5: [6, 7, 9, 10, 13], 7: Set(1...18), 9: [18, 24, 28], 10: [13, 37, 38],
   ]
