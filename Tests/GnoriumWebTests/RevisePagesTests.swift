@@ -192,13 +192,12 @@ struct RevisePagesTests {
         try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
         try await expect(prompts.locator("#prompt-revision-system-accordion-\(slot)"))
           .toHaveAttribute("data-open-finished", "true")
-        // Shown as on the object's page (user, 2026-10-11): rendered, Raw and
-        // its info button, the vignette linked; edited in raw mode only.
+        // Shown as on the object's page (user, 2026-10-11): rendered, Raw
+        // and the vignette linked; edited in raw mode only.
         let system = prompts.locator("#prompt-revision-system-accordion-\(slot) .prompt-text-view")
         try await expect(system).toHaveAttribute("data-raw", "false")
         try await expect(system.locator(".prompt-text-rendered")).toBeVisible()
         try await expect(system.locator("textarea")).toBeHidden()
-        try await expect(system.locator(".prompt-text-raw-info")).toHaveCount(1)
         try await expect(system.locator(".prompt-text-vignette")).toHaveCount(1)
         try await system.locator(".prompt-text-markdown-toggle button").click()
         try await expect(system.locator("textarea")).toBeVisible()
@@ -285,33 +284,37 @@ struct RevisePagesTests {
             const pager = viewer.querySelector('.artifact-page-nav input')
             if (markup.dataset.diffState !== 'changed') return `markup ${markup.dataset.diffState}`
             if (viewer.dataset.diffState || (pager && pager.dataset.diffState)) return 'card or pager ringed'
-            if (getComputedStyle(markup).outlineStyle === 'none') return 'markup unringed'
+            const frame = markup.closest('.artifact-markup-frame')
+            if (!frame || getComputedStyle(frame, '::after').outlineStyle === 'none') return 'markup unringed'
             return boxed.length === 0 ? 'ok' : `boxed ${boxed.length}`
           })()
           """, as: String.self)
         #expect(unringed == "ok", "The change ring is not on the markup pane alone: \(unringed)")
         // The ring on all four sides of the pane, border and outline in the
-        // state's color, both inside the pane's own box (the outline just
-        // inside the border), the pane itself without padding or inset,
-        // flush with the viewer that clips it; the TEI view 1px inside it,
-        // so the outline stays clear, the text's 16 inset its rendered
-        // layer's (user, 2026-10-10). With the resemblance
-        // put away and shown alike.
+        // state's color (a modification orange), the pane wearing the
+        // border, its frame's overlay both, the outline just inside the
+        // border, drawn over the scrollport so scrolled code cannot cover
+        // it; the pane itself without padding or inset, flush with the
+        // viewer that clips it; the TEI view 1px inside it, so the outline
+        // stays clear, the text's 16 inset its rendered layer's (user,
+        // 2026-10-10). With the resemblance put away and shown alike.
         let ring = """
           (() => {
             const probe = document.createElement('span'); document.body.append(probe)
-            probe.style.borderColor = 'var(--border-color-yellow)'
-            const yellow = getComputedStyle(probe).borderTopColor; probe.remove()
+            probe.style.borderColor = 'var(--border-color-orange)'
+            const orange = getComputedStyle(probe).borderTopColor; probe.remove()
             const card = document.querySelector('.artifact-view')
             const pane = card.querySelector('.artifact-markup')
             const style = getComputedStyle(pane)
             for (const side of ['Top', 'Right', 'Bottom', 'Left']) {
               if (style['border' + side + 'Style'] !== 'solid') return side + ' border ' + style['border' + side + 'Style']
-              if (style['border' + side + 'Color'] !== yellow) return side + ' border ' + style['border' + side + 'Color']
+              if (style['border' + side + 'Color'] !== orange) return side + ' border ' + style['border' + side + 'Color']
               if (style['padding' + side] !== '0px') return side + ' padding ' + style['padding' + side]
             }
-            if (style.outlineStyle !== 'solid' || style.outlineColor !== yellow) return 'outline ' + style.outlineStyle + ' ' + style.outlineColor
-            if (style.outlineWidth !== '1px' || style.outlineOffset !== '-2px') return 'outline ' + style.outlineWidth + ' at ' + style.outlineOffset
+            const overlay = getComputedStyle(pane.closest('.artifact-markup-frame'), '::after')
+            if (overlay.borderTopStyle !== 'solid' || overlay.borderTopColor !== orange) return 'overlay border ' + overlay.borderTopStyle + ' ' + overlay.borderTopColor
+            if (overlay.outlineStyle !== 'solid' || overlay.outlineColor !== orange) return 'outline ' + overlay.outlineStyle + ' ' + overlay.outlineColor
+            if (overlay.outlineWidth !== '1px' || overlay.outlineOffset !== '-2px') return 'outline ' + overlay.outlineWidth + ' at ' + overlay.outlineOffset
             const viewer = card.querySelector('.artifact-viewer-container')
             const a = viewer.getBoundingClientRect(), b = pane.getBoundingClientRect()
             const flush = (x, y) => Math.abs(x - y) < 1
@@ -332,12 +335,11 @@ struct RevisePagesTests {
         #expect(try await page.evaluate(ring, as: String.self) == "ok true", "Resemblance shown")
         try await page.locator(".artifact-canvas-toggle button").first.click()
         try await expect(page.locator(".artifact-view")).toHaveAttribute("data-canvas-shown", "false")
-        // The prompts as an object's read, the one changed open, rendered,
-        // its diff under Raw (user, 2026-10-11); the other processes closed.
-        let changedPrompt = page.locator(".prompt-change-view .prompt-text-view:has(.diff-view)").first
-        try await expect(changedPrompt.locator(".diff-view")).toBeHidden()
-        try await changedPrompt.locator(".prompt-text-markdown-toggle button").click()
-        try await expect(changedPrompt.locator(".diff-view")).toBeVisible()
+        // The prompts as an object's read, the one changed open in Raw, its
+        // diff under the box as a field's is; the other processes closed.
+        let changedPrompt = page.locator(".prompt-change-view .prompt-text-comparison:has(.prompt-text-diff)").first
+        try await expect(changedPrompt.locator(".prompt-text-view")).toHaveAttribute("data-raw", "true")
+        try await expect(changedPrompt.locator(".prompt-text-diff .diff-view")).toBeVisible()
         try await expect(page.locator("#prompt-change-process-\(slot)")).toHaveAttribute("data-expanded", "true")
         try await expect(page.locator("#prompt-change-process-bibliographic_arbitration")).toHaveAttribute("data-expanded", "false")
         try await expect(page.locator("#prompt-change-autocompaction-\(slot)")).toHaveAttribute("data-expanded", "false")
@@ -675,14 +677,14 @@ struct RevisePagesTests {
         // Its label and its one usage field, each its own item by
         // its form's label, each linked to its place on the page.
         let changed = event.locator(".locution-thread-event-changed")
-        try await expect(changed).toHaveText("Changed Sentiment 1.1 Label, Sentiment 1.1 Definition, Sentiment 1.1 Register.")
+        try await expect(changed).toHaveText("Changed Sentiment 1.1 Label, Sentiment 1.1 Definition, and Sentiment 1.1 Register.")
         try await expect(changed.locator("a")).toHaveCount(3)
         // Each on the revision's own page, at its field there (user, 2026-10-09).
-        try await expect(changed.locator("a[href='\(revisionPath)#sentiment-1-label']"))
+        try await expect(changed.locator("a[href='\(revisionPath)?source=code#sentiment-1-label']"))
           .toHaveText("Sentiment 1.1 Label")
-        try await expect(changed.locator("a[href='\(revisionPath)#sentiment-1-definition']"))
+        try await expect(changed.locator("a[href='\(revisionPath)?source=code#sentiment-1-definition']"))
           .toHaveText("Sentiment 1.1 Definition")
-        try await expect(changed.locator("a[href='\(revisionPath)#sentiment-1-register']"))
+        try await expect(changed.locator("a[href='\(revisionPath)?source=code#sentiment-1-register']"))
           .toHaveText("Sentiment 1.1 Register")
         try await Self.expectChangedLinksLand(page, revision: id, on: revisionPath)
         try await page.openHydrated(madrigalPath)
@@ -743,7 +745,7 @@ struct RevisePagesTests {
         let epilogueRevisionPath =
           "/mission-control/epilogues/lexicographic/\(epilogue.uppercased())/revisions/\(epilogueRevision)"
         try await expect(
-          event.locator(".locution-thread-event-changed a[href='\(epilogueRevisionPath)#definition']")
+          event.locator(".locution-thread-event-changed a[href='\(epilogueRevisionPath)?source=code#definition']")
         ).toHaveCount(1)
         try await Self.expectChangedLinksLand(page, revision: epilogueRevision, on: epilogueRevisionPath)
         try await page.openHydrated(epiloguePath)
@@ -973,9 +975,10 @@ struct RevisePagesTests {
         try await expect(page, timeout: .seconds(15)).toHaveURL("the compare page", where: { $0.absoluteString.contains("/revisions/compare?from=") })
         try await expect(page.locator(".pedigree-view")).toContainText(a)
         try await expect(page.locator(".pedigree-view")).toContainText(b)
-        // Every process either touched, each with its diff (under Raw).
-        try await expect(page.locator(".prompt-change-view .prompt-text-view:has(.diff-view)")).toHaveCount(2)
-        try await expect(page.locator(".prompt-change-view .prompt-text-view:has(.diff-view)").nth(0)).toContainText("Web tests")
+        // Every process either touched, each with its diff under its box.
+        let compared = page.locator(".prompt-change-view .prompt-text-comparison:has(.prompt-text-diff)")
+        try await expect(compared).toHaveCount(2)
+        try await expect(compared.nth(0)).toContainText("Web tests")
         // A part's anchor, arrived at from elsewhere: the accordions on the
         // way open and it is scrolled to; and on a change of fragment.
         let target = "prompt-revision-system-accordion-\(slot)"
@@ -1001,8 +1004,9 @@ struct RevisePagesTests {
   }
 
   /// Every item of a revision's "Changed" line (on the page open now) links
-  /// to its revision's own page, where an element holds its anchor; a
-  /// resemblance's turns the reader there instead (user, 2026-10-09).
+  /// to its revision's own page in source mode, where an element holds its
+  /// anchor; a resemblance's turns the reader there instead (user,
+  /// 2026-10-09).
   static func expectChangedLinksLand(_ page: Page, revision id: String, on revisionPath: String) async throws {
     let hrefs = try await page.evaluate(
       "JSON.stringify([...document.querySelectorAll('#revision-\(id) .locution-thread-event-changed a')].map(a => a.getAttribute('href')))"
@@ -1011,7 +1015,9 @@ struct RevisePagesTests {
     #expect(!links.isEmpty, "a Changed line")
     for link in links {
       let parts = link.split(separator: "#", maxSplits: 1).map(String.init)
-      #expect(parts.count == 2 && parts[0].lowercased() == revisionPath.lowercased(), "\(link) is on \(revisionPath)")
+      #expect(
+        parts.count == 2 && parts[0].lowercased() == "\(revisionPath)?source=code".lowercased(),
+        "\(link) is on \(revisionPath) in source mode")
       guard parts.count == 2, !parts[1].hasPrefix("resemblance-") else { continue }
       try await page.openHydrated(parts[0])
       try await expect(page.locator("[id='\(parts[1])']")).toBeAttached()
