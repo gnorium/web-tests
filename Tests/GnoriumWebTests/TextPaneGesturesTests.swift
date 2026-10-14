@@ -81,7 +81,7 @@ struct TextPaneGesturesTests {
         let panned = try await page.evaluate(Self.state, as: Pane.self)
         #expect(panned.left > start.left, "the drag did not pan the text: \(start.left) → \(panned.left)")
         #expect(panned.selection.isEmpty, "the drag selected text")
-        try await expect(page.locator(".artifact-markup .gloss-sheet[data-state='open']")).toHaveCount(0)
+        try await expect(page.locator(".artifact-markup-frame .gloss-sheet[data-state='open']")).toHaveCount(0)
 
         // A drag from the text selects it, and pans nothing.
         let line = lineBox.y + lineBox.height / 2
@@ -96,7 +96,34 @@ struct TextPaneGesturesTests {
         _ = try await page.evaluate("(() => { window.getSelection().removeAllRanges(); return 1 })()")
         let word = pane.locator(".tei-word").filter(hasText: "word2").first
         try await word.click()
-        try await expect(page.locator(".artifact-markup .gloss-sheet")).toHaveAttribute("data-state", "open")
+        try await expect(page.locator(".artifact-markup-frame .gloss-sheet")).toHaveAttribute("data-state", "open")
+        // The gloss covers the pane's box at the screen's scale, the pane
+        // scrolled sideways or not (user, 2026-10-14): its frame holds it,
+        // which neither scrolls nor zooms. At its actual size, then zoomed
+        // (the page's transform scaled) and scrolled.
+        let covers = """
+          (async () => { await new Promise((r) => setTimeout(r, 400));
+            const m = document.querySelector('.artifact-markup'), p = m.getBoundingClientRect(),
+              s = document.querySelector('.artifact-markup-frame .gloss-sheet .sheet-panel').getBoundingClientRect();
+            return { left: m.scrollLeft, covers: Math.abs(s.left - p.left) <= 1 && Math.abs(s.top - p.top) <= 1
+              && Math.abs(s.width - p.width) <= 1 && Math.abs(s.height - p.height) <= 1 } })()
+          """
+        struct Cover: Decodable { let left: Double; let covers: Bool }
+        let actual = try await page.evaluate(covers, as: Cover.self)
+        #expect(actual.covers, "at its actual size, scrolled \(actual.left): the gloss is off the pane")
+        try await page.keyboard.press("Escape")
+        _ = try await page.evaluate(
+          """
+          (async () => { const m = document.querySelector('.artifact-markup'); const r = m.getBoundingClientRect();
+            for (let i = 0; i < 2; i++) { m.dispatchEvent(new WheelEvent('wheel', {deltaY: 40, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2, bubbles: true, cancelable: true})); await new Promise((r) => setTimeout(r, 30)) }
+            await new Promise((r) => setTimeout(r, 300)); m.scrollLeft = m.scrollWidth; await new Promise((r) => setTimeout(r, 100));
+            const w = [...m.querySelectorAll('.tei-word')].find((w) => { const b = w.getBoundingClientRect(); return b.left > r.left && b.right < r.right && b.top > r.top && b.bottom < r.bottom });
+            w.click(); return 1 })()
+          """)
+        let zoomedIn = try await page.evaluate(Self.state, as: Pane.self)
+        #expect(Double(zoomedIn.zoom ?? "1") ?? 1 < 1, "the wheel did not zoom the text: \(zoomedIn.zoom ?? "—")")
+        let zoomedCover = try await page.evaluate(covers, as: Cover.self)
+        #expect(zoomedCover.left > 0 && zoomedCover.covers, "zoomed, scrolled \(zoomedCover.left): the gloss is off the pane")
         try await page.expectNoErrors()
       }
       testament?.remove()

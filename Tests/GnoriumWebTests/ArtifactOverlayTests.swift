@@ -63,14 +63,15 @@ struct ArtifactOverlayTests {
             toggle(true);await wait(600);const detachedOn=button.disabled&&button.getAttribute('aria-disabled')==='true'&&d.getAttribute('aria-pressed')==='false';
             toggle(false);await wait(600);const detachedAfter=!button.disabled&&!button.hasAttribute('aria-disabled')&&d.getAttribute('aria-pressed')==='true';
             detachTo(false);await wait(30);
-            return [zoomReturned,before[dim]<mid[dim]&&mid[dim]<after[dim],whole&&zoomAnimated,locked,detachOn,rules.imageOpacity==='0.5'&&rules.textOpacity==='1',rules.bg==='rgba(0, 0, 0, 0)',detachOff,panesBack,detachedBefore&&detachedOn&&detachedAfter,opacityOnMid>0.5&&opacityOnMid<1&&opacityOffMid>0.5&&opacityOffMid<1];
+            return [zoomReturned,before[dim]<mid[dim]&&mid[dim]<after[dim],whole&&zoomAnimated,locked,detachOn,rules.imageOpacity==='1'&&rules.textOpacity==='1',rules.bg!=='rgba(0, 0, 0, 0)'&&!r.querySelector('.artifact-structure'),detachOff,panesBack,detachedBefore&&detachedOn&&detachedAfter,opacityOnMid===1&&opacityOffMid===1];
            })()
         """#, as: [Bool].self)
       let named = [
         "zoom back animated", "the panes move", "the whole page fits, zoom animated", "no gesture moves the scan or the text",
-        "Detach present, disabled and off while on", "opacity", "the text on no ground", "Detach enabled and off after", "panes back",
-        "detached before: off and disabled while on, detached again after",
-        "the scan fades on the overlay's clock, both ways",
+        "Detach present, disabled and off while on", "no pixels fade: the scan and the text opaque",
+        "the text on its own ground, covering the scan; no structure without a measured text block",
+        "Detach enabled and off after", "panes back", "detached before: off and disabled while on, detached again after",
+        "the scan never fades, either way",
       ]
       for (check, name) in zip(checks, named) { #expect(check, "\(name)") }
       try await page.expectNoErrors()
@@ -82,8 +83,10 @@ struct ArtifactOverlayTests {
   /// layer's window pixels; `homography(source, destination)`, the
   /// transform taking four points to four (each [x, y]), and `apply`.
   static let shared = #"""
-    const inkBox=layer => {
-      const frame = layer.querySelector('.tei-text-block') || layer;
+    const inkBox=layer => inkOf(layer, layer.querySelector('.tei-text-block') || layer, true);
+    // One element's text's ink (a line's), no rule or frame.
+    const inkIn=element => inkOf(element, element, false);
+    const inkOf=(layer, frame, ruled) => {
       const box = layer.getBoundingClientRect();
       const context = document.createElement('canvas').getContext('2d');
       let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
@@ -124,7 +127,7 @@ struct ArtifactOverlayTests {
           take(inkLeft, inkTop, inkRight, inkBottom);
         }
       }
-      for (const drawn of frame.querySelectorAll('.tei-rule, .tei-figure-image, .tei-frame')) {
+      if (ruled) for (const drawn of frame.querySelectorAll('.tei-rule, .tei-figure-image, .tei-frame')) {
         const style = getComputedStyle(drawn);
         const ruled = ['top', 'right', 'bottom', 'left'].some(side => style.getPropertyValue('border-' + side + '-style') !== 'none' && parseFloat(style.getPropertyValue('border-' + side + '-width')) > 0);
         if (drawn.matches('.tei-frame') && !ruled) continue;
@@ -143,19 +146,22 @@ struct ArtifactOverlayTests {
     """#
 
   /// With the page's main text block measured on its scan
-  /// (`data-text-block`, a skewed quadrilateral in the 0–1000 space),
-  /// overlay on lays the whole scan by the homography that takes those
-  /// corners onto the rendered main text's ink box, by its height and
-  /// centered, the scan's proportions kept, in one motion with the text's
-  /// zoom, the panes' move and the scan's opacity, 1 to 0.5 (user,
-  /// 2026-10-14); no trim: the view fits the edition's page and all of
-  /// the scan. At rest the reader zooms and pans the two as one, never
-  /// below the fit, the registration kept at every zoom; Detach is
-  /// disabled and off. Overlay off slides the panes apart at the overlay's
-  /// zoom, the text's middle and the scan's on one point of the scan, the
-  /// opacity back to 1, Detach as it was.
+  /// (`data-text-block`, a skewed quadrilateral in the 0–1000 space) and
+  /// its measured lines (`data-scan-layout`, the tools' zones), overlay on
+  /// draws the structure overlay (user, 2026-10-14): the edition's lines
+  /// solid and the scan's dashed, laid by the homography that takes the
+  /// text block's corners onto the rendered main text's ink box (by its
+  /// height, centered, the scan's proportions kept), with no scan pixels;
+  /// a pair within a quarter of the body's leading quiet, one past it
+  /// orange, an edition line the scan lacks green, a scan line the edition
+  /// lacks red. The view fits the edition's page and the scan's structure,
+  /// centered; at rest the reader zooms and pans both as one, never below
+  /// the fit, the registration kept at every zoom; Detach is disabled and
+  /// off. Overlay off slides the panes apart at the overlay's zoom, the
+  /// text's middle and the scan's on one point of the scan, Detach as it
+  /// was.
   @Test(arguments: [1440, 440])
-  func overlayRegistersTheScansMainTextBlockUnderTheEditions(width: Int) async throws {
+  func overlayDrawsTheScansStructureOverTheEditions(width: Int) async throws {
     let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let assets = root.appendingPathComponent("gnorium-web/Public")
     let css = try ["layout-view.css", "tei-view.css", "artifact-view.css", "canvas-view.css"].map {
@@ -171,8 +177,8 @@ struct ArtifactOverlayTests {
       "/": .init(contentType: "text/html", body: Data(html.utf8)),
       "/loader.js": .init(contentType: "text/javascript", body: try Data(contentsOf: assets.appendingPathComponent("loader.js"))),
       "/client.wasm": .init(contentType: "application/wasm", body: try Data(contentsOf: assets.appendingPathComponent("client.wasm"))),
-      "/manifest": .init(contentType: "application/json", body: Data(#"{"canvases":[{"id":"/scan","w":1200,"h":1600,"img":"/scan.svg"}]}"#.utf8)),
-      "/scan.svg": .init(contentType: "image/svg+xml", body: Data(#"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600"/>"#.utf8)),
+      "/manifest": .init(contentType: "application/json", body: Data(#"{"canvases":[{"id":"/scan","w":4800,"h":6400,"img":"/scan.svg"}]}"#.utf8)),
+      "/scan.svg": .init(contentType: "image/svg+xml", body: Data(#"<svg xmlns="http://www.w3.org/2000/svg" width="4800" height="6400"/>"#.utf8)),
       "/fonts/noto-sans.woff2": .init(contentType: "font/woff2", body: try Data(contentsOf: assets.appendingPathComponent("fonts/noto-sans.woff2"))),
     ])
     defer { server.stop() }
@@ -185,160 +191,207 @@ struct ArtifactOverlayTests {
           const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),r=document.querySelector('.artifact-view');
           const toggle=on=>r.querySelector('.artifact-overlay-toggle').dispatchEvent(new CustomEvent('toggle-button-update',{detail:on?'true':'false'}));
           const surface=()=>r.querySelector('.canvas-tile-surface'),viewport=r.querySelector('.canvas-viewport'),object=r.querySelector('.artifact-object');
-          const pane=r.querySelector('.artifact-markup'),layer=()=>r.querySelector('[data-layer=rendering]');
-          const W=1200,H=1600,zone=r.querySelector('.tei-page').dataset.textBlock.split(' ').map(p=>p.split(',').map(Number)).map(([x,y])=>[x/1000*W,y/1000*H]);
-          // The image's pixels to the window, through the scan's pan and zoom and the registration's matrix3d.
-          const toWindow=([x,y])=>{const v=viewport.getBoundingClientRect(),g=r.querySelector('.canvas-tile-compositor').getAttribute('transform').match(/-?[\d.]+(e-?\d+)?/g).map(Number),t=getComputedStyle(surface()).transform,m=new DOMMatrix(t==='none'?undefined:t);
-            const q=m.transformPoint(new DOMPoint(g[0]+x*g[2],g[1]+y*g[2]));return [v.x+q.x/q.w,v.y+q.y/q.w]};
+          const pane=r.querySelector('.artifact-markup'),layer=()=>r.querySelector('[data-layer=rendering]'),pageEl=r.querySelector('.tei-page');
+          // A scan four times the text's actual size: room to zoom the overlay past twice its fit.
+          const W=4800,H=6400,zone=pageEl.dataset.textBlock.split(' ').map(p=>p.split(',').map(Number)).map(([x,y])=>[x/1000*W,y/1000*H]);
+          // The scan's measured lines, planted as the tools would write them: each edition line's ink taken
+          // back through the registration into the 0–1000 space, but line 10 (the edition's alone), the last
+          // half a leading low (a pair off) and one more line two leadings under it (the scan's alone).
+          const zoom0=Number(layer().dataset.zoom),lb0=layer().getBoundingClientRect();
+          const toLayer=([x,y])=>[(x-lb0.x)/zoom0,(y-lb0.y)/zoom0];
+          const [L,T,R,B]=laidOn(zone,[...toLayer(inkBox(layer()).slice(0,2)),...toLayer(inkBox(layer()).slice(2))]);
+          const back=homography([[L,T],[R,T],[R,B],[L,B]],zone);
+          const rows=[...layer().querySelectorAll('.tei-line')].map(line=>{const [l,t,r2,b]=inkIn(line);return [...toLayer([l,t]),...toLayer([r2,b])]});
+          const pitch=rows[1][1]-rows[0][1],rem=parseFloat(getComputedStyle(layer().querySelector('.tei-text-block')).fontSize);
+          pageEl.dataset.bodyLeading=String(pitch/rem);
+          const quad=([l,t,r2,b])=>[[l,t],[r2,t],[r2,b],[l,b]].map(p=>apply(back,p)).map(([x,y])=>(x/W*1000).toFixed(2)+','+(y/H*1000).toFixed(2)).join(' ');
+          const planted=rows.map((row,i)=>i===29?[row[0],row[1]+pitch/2,row[2],row[3]+pitch/2]:row).filter((row,i)=>i!==9);
+          const last=rows[rows.length-1];planted.push([last[0],last[1]+2*pitch,last[2],last[3]+2*pitch]);
+          pageEl.dataset.scanLayout=['block main '+zone.map(([x,y])=>(x/W*1000)+' '+(y/H*1000)).join(' ').replace(/,/g,' ')]
+            .concat(planted.map(row=>'line - '+quad(row).replace(/[ ,]/g,' '))).join(';');
+          // Its scan block's corners in the window, as drawn, and where the registration lays them.
+          const scanBlock=()=>{const p=r.querySelector('.artifact-structure [data-side=scan][data-kind=block]');if(!p)return null;const b=layer().getBoundingClientRect(),z=Number(layer().dataset.zoom);
+            return p.getAttribute('points').split(' ').map(q=>q.split(',').map(Number)).map(([x,y])=>[b.x+x*z,b.y+y*z])};
           const target=()=>{const [L,T,R,B]=laidOn(zone,inkBox(layer()));return [[L,T],[R,T],[R,B],[L,B]]};
-          const off=()=>{const t=target();return Math.max(...zone.map((p,i)=>{const q=toWindow(p);return Math.hypot(q[0]-t[i][0],q[1]-t[i][1])}))};
+          const off=()=>{const s=scanBlock(),t=target();return s?Math.max(...s.map((q,i)=>Math.hypot(q[0]-t[i][0],q[1]-t[i][1]))):Infinity};
           const place=()=>{const b=layer().getBoundingClientRect();return [Number(layer().dataset.zoom),b.x,b.y]};
-          const opacity=()=>Number(getComputedStyle(object).opacity);
+          const states=side=>[...new Map([...r.querySelectorAll('.artifact-structure [data-side='+side+'][data-kind=line]')].map(e=>[e.dataset.row,e.dataset.state])).values()];
           const wheel=async(dy,fx,fy,n)=>{const b=pane.getBoundingClientRect();for(let i=0;i<n;i++){pane.dispatchEvent(new WheelEvent('wheel',{deltaY:dy,clientX:b.x+b.width*fx,clientY:b.y+b.height*fy,bubbles:true,cancelable:true}));await wait(20)}};
           await wheel(-40,0.3,0.3,6);await wait(300);
-          const none=getComputedStyle(surface()).transform==='none';
-          toggle(true);await wait(150);const midway=off(),midOpacity=opacity();
-          await wait(650);const registered=off();
-          const skewed=Math.abs(new DOMMatrix(getComputedStyle(surface()).transform).b)>0.001;
-          const untrimmed=getComputedStyle(surface()).clipPath==='none';
-          // The view fits the edition's page and all of the scan, centered.
-          const pb=pane.getBoundingClientRect(),lb=layer().getBoundingClientRect();
-          const scan=[[0,0],[W,0],[W,H],[0,H]].map(toWindow);
-          const box=[Math.min(lb.left,...scan.map(p=>p[0])),Math.min(lb.top,...scan.map(p=>p[1])),Math.max(lb.right,...scan.map(p=>p[0])),Math.max(lb.bottom,...scan.map(p=>p[1]))];
+          toggle(true);await wait(800);
+          const registered=off();
+          // The scene: no scan pixels warped or faded; the planted divergences marked, every other line quiet.
+          const unwarped=getComputedStyle(surface()).transform==='none'&&getComputedStyle(object).opacity==='1';
+          const edition=states('edition'),scan=states('scan');
+          const count=(list,state)=>list.filter(s=>s===state).length;
+          const marked=edition.length===30&&scan.length===30&&count(edition,'extra')===1&&count(edition,'off')===1&&count(scan,'off')===1
+            &&count(scan,'missing')===1&&count(edition,'within')===28&&count(scan,'within')===28;
+          const strokes=(()=>{const q=r.querySelector('.artifact-structure [data-side=edition][data-state=within]'),o=r.querySelector('.artifact-structure [data-state=off]'),s=r.querySelector('.artifact-structure [data-side=scan]');
+            return getComputedStyle(q).strokeWidth==='1px'&&getComputedStyle(o).strokeWidth==='2px'&&getComputedStyle(q).strokeDasharray==='none'&&getComputedStyle(s).strokeDasharray!=='none'})();
+          // The view fits the edition's page and the scan's structure, centered.
+          const pb=pane.getBoundingClientRect(),lb=layer().getBoundingClientRect(),reach=scanBlock()||[];
+          const box=[Math.min(lb.left,...reach.map(p=>p[0])),Math.min(lb.top,...reach.map(p=>p[1])),Math.max(lb.right,...reach.map(p=>p[0])),Math.max(lb.bottom,...reach.map(p=>p[1]))];
           const fits=box[0]>=pb.left-1&&box[1]>=pb.top-1&&box[2]<=pb.right+1&&box[3]<=pb.bottom+1
             &&(Math.abs(box[2]-box[0]-pane.clientWidth)<1.5||Math.abs(box[3]-box[1]-pane.clientHeight)<1.5)
             &&Math.abs((box[0]+box[2])/2-(pb.left+pb.right)/2)<1.5&&Math.abs((box[1]+box[3])/2-(pb.top+pb.bottom)/2)<1.5;
           const detach=r.querySelector('.artifact-detach-toggle'),detachButton=detach.querySelector('button');
           const detachOn=!detach.hidden&&getComputedStyle(detach).display!=='none'&&detachButton.disabled&&detachButton.getAttribute('aria-disabled')==='true'&&detach.getAttribute('aria-pressed')==='false';
-          const restOpacity=opacity();
           // Collective zoom and pan: never below the fit; at twice the fit, dragged and keyed, still registered.
           const fit=place()[0];
           await wheel(40,0.5,0.5,20);const floor=Math.abs(place()[0]-fit)<1e-6;
           for(let i=0;i<60&&place()[0]<2*fit;i++)await wheel(-40,0.5,0.5,1);
           const zoomed=place()[0]>=2*fit*0.98,zoomedOff=off();
-          const before=place(),cx=pb.x+8,cy=pb.y+8;
-          pane.dispatchEvent(new MouseEvent('mousedown',{clientX:cx,clientY:cy,button:0,detail:1,bubbles:true,cancelable:true}));window.dispatchEvent(new MouseEvent('mousemove',{clientX:cx+30,clientY:cy+40,bubbles:true}));window.dispatchEvent(new MouseEvent('mouseup',{bubbles:true}));await wait(60);
+          // A drag from the blank right of the lines (a press on text selects it).
+          const before=place(),cx=pb.right-8,cy=pb.y+pb.height/2;
+          pane.dispatchEvent(new MouseEvent('mousedown',{clientX:cx,clientY:cy,button:0,detail:1,bubbles:true,cancelable:true}));window.dispatchEvent(new MouseEvent('mousemove',{clientX:cx-30,clientY:cy+40,bubbles:true}));window.dispatchEvent(new MouseEvent('mouseup',{bubbles:true}));await wait(60);
           const dragged=place(),pannedOff=off();
-          pane.focus();pane.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true,cancelable:true}));await wait(60);
+          // The key away from the edge the drag moved toward.
+          pane.focus();pane.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));await wait(60);
           const keyed=place(),keyedOff=off();
           const panned=(dragged[1]!==before[1]||dragged[2]!==before[2])&&(keyed[2]!==dragged[2]);
-          // Overlay off from three times the fit about the view's middle (the scan then fills its pane, no edge
-          // of it held): the panes slide apart at the overlay's zoom; the text's middle and the scan's on one point.
+          // Overlay off from three times the fit about the view's middle: the panes slide apart at the
+          // overlay's zoom; the text's middle and the scan's on one point of the scan.
           pane.dispatchEvent(new KeyboardEvent('keydown',{key:'0',bubbles:true,cancelable:true}));await wait(60);
           for(let i=0;i<90&&place()[0]<3*fit;i++)await wheel(-40,0.5,0.5,1);
           await wait(100);
           const zoom=place()[0];
           const text=inkBox(layer()),layerBox=layer().getBoundingClientRect();
           const laid=laidOn(zone,[(text[0]-layerBox.x)/zoom,(text[1]-layerBox.y)/zoom,(text[2]-layerBox.x)/zoom,(text[3]-layerBox.y)/zoom]);
-          const back=homography([[laid[0],laid[1]],[laid[2],laid[1]],[laid[2],laid[3]],[laid[0],laid[3]]],zone);
-          toggle(false);await wait(150);const offOpacity=opacity();await wait(850);
-          const cleared=getComputedStyle(surface()).transform==='none';
+          const backward=homography([[laid[0],laid[1]],[laid[2],laid[1]],[laid[2],laid[3]],[laid[0],laid[3]]],zone);
+          toggle(false);await wait(150);const gone=!r.querySelector('.artifact-structure');await wait(850);
           const kept=Math.abs(place()[0]-zoom)/zoom<0.01;
           const p2=pane.getBoundingClientRect(),l2=layer().getBoundingClientRect(),z2=place()[0];
-          const textSpot=apply(back,[(p2.x+pane.clientLeft+pane.clientWidth/2-l2.x)/z2,(p2.y+pane.clientTop+pane.clientHeight/2-l2.y)/z2]);
+          const textSpot=apply(backward,[(p2.x+pane.clientLeft+pane.clientWidth/2-l2.x)/z2,(p2.y+pane.clientTop+pane.clientHeight/2-l2.y)/z2]);
           const v2=viewport.getBoundingClientRect(),g2=r.querySelector('.canvas-tile-compositor').getAttribute('transform').match(/-?[\d.]+(e-?\d+)?/g).map(Number);
           const scanSpot=[(v2.width/2-g2[0])/g2[2],(v2.height/2-g2[1])/g2[2]];
           const sameSpot=Math.hypot(textSpot[0]-scanSpot[0],textSpot[1]-scanSpot[1])*g2[2];
           const apart=window.innerWidth<=480||p2.right<=v2.left+1;
           const detachOff=!detachButton.disabled&&!detachButton.hasAttribute('aria-disabled')&&detach.getAttribute('aria-pressed')==='false';
-          // Detached before the overlay: off and disabled while it is on, detached again after.
           const detachTo=on=>detach.dispatchEvent(new CustomEvent('toggle-button-update',{detail:on?'true':'false'}));
           detachTo(true);await wait(30);toggle(true);await wait(900);const detachedOn=detachButton.disabled&&detach.getAttribute('aria-pressed')==='false';
           toggle(false);await wait(900);const detachedAfter=!detachButton.disabled&&detach.getAttribute('aria-pressed')==='true';detachTo(false);await wait(30);
-          // The opacity runs on the motion's own clock (user, 2026-10-14): frame by frame, it reaches its end
-          // value on the frame the scan's warp and the text's zoom and place reach theirs, never before, each way.
-          const frames=async on=>{const out=[];toggle(on);const began=performance.now();
-            while(performance.now()-began<900){await new Promise(r=>requestAnimationFrame(r));const b=layer().getBoundingClientRect();out.push([opacity(),getComputedStyle(surface()).transform,layer().dataset.zoom+'|'+Math.round(b.x)+'|'+Math.round(b.y)])}
-            const last=out[out.length-1],settle=k=>out.findIndex((f,i)=>out.slice(i).every(g=>g[k]===last[k]));
-            return {together:Math.abs(settle(0)-settle(1))<=1&&Math.abs(settle(0)-settle(2))<=1,between:out.some(f=>f[0]>0.5&&f[0]<1)}};
-          const clockOn=await frames(true),clockOff=await frames(false);
-          const sameClock=clockOn.together&&clockOff.together&&clockOn.between&&clockOff.between;
           // Reduced motion: the end state at once, each way.
           const media=window.matchMedia;window.matchMedia=q=>q.includes('reduced-motion')?{matches:true}:media.call(window,q);
           const still=document.createElement('style');still.textContent='*{transition:none!important}';document.head.appendChild(still);
-          toggle(true);await wait(80);const instantOn=off()<2&&opacity()===0.5;
-          toggle(false);await wait(80);const instantOff=getComputedStyle(surface()).transform==='none'&&opacity()===1;
+          toggle(true);await wait(80);const instantOn=off()<2;
+          toggle(false);await wait(80);const instantOff=!r.querySelector('.artifact-structure');
           window.matchMedia=media;still.remove();
-          return [none,midway>registered+5,registered<2,skewed,untrimmed,fits,detachOn,midOpacity>0.5&&midOpacity<1,restOpacity===0.5,
-            floor,zoomed&&zoomedOff<2,panned&&pannedOff<2&&keyedOff<2,offOpacity>0.5&&offOpacity<1,cleared&&kept,sameSpot<2,apart,detachOff,
-            detachedOn&&detachedAfter,instantOn&&instantOff,sameClock,Math.round(registered*100)/100,Math.round(sameSpot*100)/100].map(Number);
+          return [registered<2,unwarped,marked,strokes,fits,detachOn,floor,zoomed&&zoomedOff<2,panned&&pannedOff<2&&keyedOff<2,gone&&kept,sameSpot<2,apart,detachOff,
+            detachedOn&&detachedAfter,instantOn&&instantOff,Math.round(registered*100)/100,Math.round(sameSpot*100)/100,edition.length,scan.length,count(edition,'extra'),count(edition,'off'),count(scan,'off'),count(scan,'missing'),zoomedOff,pannedOff,keyedOff].map(Number);
         })()
         """#, as: [Double].self)
       let named = [
-        "no registration before the overlay", "the registration eases in with the overlay's motion",
-        "the zone's corners land on the laid ink box within 2px (off by \(checks[20]))", "the scan is turned by its measured skew",
-        "no trim: the whole scan is drawn", "the edition's page and all of the scan fit the view, centered",
-        "Detach present, disabled and off while the overlay is on", "the scan's opacity midway in, strictly between 1 and 0.5",
-        "the scan at half opacity at rest", "the zoom never goes below the fit",
-        "zoomed to twice the fit, the registration holds within 2px", "dragged and keyed, the text and the scan pan as one",
-        "the scan's opacity midway out, strictly between 0.5 and 1", "overlay off: the registration gone, the overlay's zoom kept",
-        "overlay off: the text's middle and the scan's on one point of the scan within 2px (off by \(checks[21]))",
+        "the scan's block corners land on the laid ink box within 2px (off by \(checks[15]))",
+        "no scan pixels: the scan never warped nor faded",
+        "the planted divergences marked (one extra, one pair off, one missing), every other line quiet (rows \(checks[17]), \(checks[18]); extra \(checks[19]), off \(checks[20]), \(checks[21]), missing \(checks[22]))",
+        "quiet strokes 1px, marked 2px, the edition's solid, the scan's dashed",
+        "the edition's page and the scan's structure fit the view, centered",
+        "Detach present, disabled and off while the overlay is on", "the zoom never goes below the fit",
+        "zoomed to twice the fit, the registration holds within 2px (off by \(checks[23]))", "dragged and keyed, the text and its structure pan as one (off by \(checks[24]), \(checks[25])))",
+        "overlay off: the structure gone, the overlay's zoom kept",
+        "overlay off: the text's middle and the scan's on one point of the scan within 2px (off by \(checks[16]))",
         "overlay off: the panes side by side", "Detach enabled and off after",
         "detached before: off and disabled while on, detached again after", "with reduced motion the end state applies at once, on and off",
-        "the opacity reaches its end on the frame the warp and the zoom reach theirs, on and off, passing between",
       ]
       for (check, name) in zip(checks, named) { #expect(check == 1, "\(name)") }
       try await page.expectNoErrors()
     }
   }
 
-  /// A row of a Skeat canvas at rest in the overlay: the edition's ink
-  /// (the reader's `InkExtent` rule, row by row) and the scan's under it, as
-  /// drawn (top, bottom, left, right in the window's pixels).
-  struct Row: Decodable {
-    let text: String
-    let edition: [Double]
-    let scan: [Double]
+  /// The structure overlay's scene, worked out apart from the reader (the
+  /// rule of `StructurePairing` and gnorium-python's structure image, step
+  /// for step): the edition's rows (each line's ink, side by side one row),
+  /// main text and marginalia apart, and the scan's lines (`data-scan-layout`)
+  /// laid in the layer by the registration, paired by dynamic programming,
+  /// each row's state; `{edition: [...], scan: [...], main: [top, bottom] of
+  /// the scan's main blocks laid, target: [top, bottom] of the laid ink box}`
+  /// in the window's pixels.
+  static let structureScript = Self.shared + #"""
+    const structureOf=()=>{
+      const r=document.querySelector('.artifact-view'),page=r.querySelector('.tei-page[data-active=true]'),layer=page.querySelector('[data-layer=rendering]'),frame=layer.querySelector('.tei-text-block')||layer;
+      const b=layer.getBoundingClientRect(),z=Number(layer.dataset.zoom),toLayer=([x,y])=>[(x-b.x)/z,(y-b.y)/z];
+      const context=document.createElement('canvas').getContext('2d'),range=document.createRange();
+      const rectOf=(node,start,end)=>{range.setStart(node,start);range.setEnd(node,end);return range.getBoundingClientRect()};
+      const rowsOf=roots=>{const lines=[];for(const root of roots){const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+        for(let node=walker.nextNode();node;node=walker.nextNode()){const text=node.data;if(!/[^ \t\n\r]/.test(text))continue;
+          const style=getComputedStyle(node.parentElement);context.font=style.fontStyle+' '+style.fontWeight+' '+style.fontSize+' '+style.fontFamily;context.fontVariantCaps=style.fontVariantCaps;context.fontKerning=style.fontKerning;
+          const found=[];for(let at=0;at<text.length;){const end=at+(text.codePointAt(at)>0xffff?2:1);if(!/[ \t\n\r]/.test(text[at])){const rect=rectOf(node,at,end);if(rect.height>0){const last=found[found.length-1];
+            if(last&&rect.top<last.bottom&&last.top<rect.bottom){last.end=end;last.glyphs[1]=[at,end,rect]}else found.push({start:at,end,top:rect.top,bottom:rect.bottom,glyphs:[[at,end,rect],[at,end,rect]]})}}at=end}
+          for(const line of found){const drawn=rectOf(node,line.start,line.end),m=context.measureText(text.slice(line.start,line.end)),s=drawn.height/(m.fontBoundingBoxAscent+m.fontBoundingBoxDescent);
+            const top=drawn.top+(m.fontBoundingBoxAscent-m.actualBoundingBoxAscent)*s,bottom=drawn.bottom-(m.fontBoundingBoxDescent-m.actualBoundingBoxDescent)*s;
+            let left=Infinity,right=-Infinity;for(const [st,en,rect] of line.glyphs){const g=context.measureText(text.slice(st,en));left=Math.min(left,rect.left-g.actualBoundingBoxLeft*s);right=Math.max(right,rect.left+g.actualBoundingBoxRight*s)}
+            if(right>left&&bottom>top)lines.push([left,top,right,bottom])}}}
+        lines.sort((a,c)=>a[1]-c[1]);const rows=[];for(const l of lines){const last=rows[rows.length-1];if(last&&l[1]<last[3]){last[0]=Math.min(last[0],l[0]);last[2]=Math.max(last[2],l[2]);last[3]=Math.max(last[3],l[3])}else rows.push([...l])}return rows};
+      const editionMain=rowsOf([frame]),editionMargin=rowsOf([...layer.querySelectorAll('.tei-margin')]);
+      const img=JSON.parse(document.querySelector('#manifest-size').textContent),W=img[0],H=img[1];
+      const zone=page.dataset.textBlock.split(' ').map(p=>p.split(',').map(Number)).map(([x,y])=>[x/1000*W,y/1000*H]);
+      // Laid as the reader lays it: a derived block on the frame whole; a block spanning the frame's
+      // measure (its ink at both sides within a word space of the frame's face) on its ink box whole; any
+      // other by its height, centered.
+      const ink=inkBox(layer),edges=frame.getBoundingClientRect(),fs=getComputedStyle(frame);
+      context.font=fs.fontStyle+' '+fs.fontWeight+' '+fs.fontSize+' '+fs.fontFamily;const space=context.measureText(' ').width*z;
+      const spans=!!ink&&frame!==layer&&ink[0]-edges.left<=space&&edges.right-ink[2]<=space;
+      const laid=page.dataset.textBlockDerived==='true'?[edges.left,edges.top,edges.right,edges.bottom]:spans?ink:laidOn(zone,ink);
+      const h=homography(zone,[[laid[0],laid[1]],[laid[2],laid[1]],[laid[2],laid[3]],[laid[0],laid[3]]]);
+      const quads=[];let main=true;
+      for(const entry of page.dataset.scanLayout.split(';')){const p=entry.split(' ');const pts=p.slice(2).map(Number);const q=[0,1,2,3].map(i=>apply(h,[pts[2*i]/1000*W,pts[2*i+1]/1000*H]));
+        const box=[Math.min(...q.map(v=>v[0])),Math.min(...q.map(v=>v[1])),Math.max(...q.map(v=>v[0])),Math.max(...q.map(v=>v[1]))];
+        if(p[0]==='block'){main=p[1]!=='marginalia';quads.push({kind:'block',main,box})}else if(p[0]==='line')quads.push({kind:'line',main,box})}
+      const rowsFrom=lines=>{lines.sort((a,c)=>a[1]-c[1]);const rows=[];for(const l of lines){const last=rows[rows.length-1];if(last&&l[1]<last[3]){last[0]=Math.min(last[0],l[0]);last[2]=Math.max(last[2],l[2]);last[3]=Math.max(last[3],l[3])}else rows.push([...l])}return rows};
+      const scanMain=rowsFrom(quads.filter(q=>q.kind==='line'&&q.main).map(q=>q.box)),scanMargin=rowsFrom(quads.filter(q=>q.kind==='line'&&!q.main).map(q=>q.box));
+      const L=Number(page.dataset.bodyLeading)*parseFloat(getComputedStyle(frame).fontSize)*z;
+      const pair=(e,s)=>{const n=e.length,m=s.length,c=[...Array(n+1)].map(()=>Array(m+1).fill(0)),st=[...Array(n+1)].map(()=>Array(m+1).fill(0));
+        for(let i=0;i<=n;i++)for(let j=0;j<=m;j++){if(!i&&!j)continue;let best=Infinity,mv=0;if(i&&j)best=c[i-1][j-1]+Math.abs(e[i-1][1]-s[j-1][1])+Math.abs(e[i-1][3]-s[j-1][3]);
+          if(i&&c[i-1][j]+L<best){best=c[i-1][j]+L;mv=1}if(j&&c[i][j-1]+L<best){best=c[i][j-1]+L;mv=2}c[i][j]=best;st[i][j]=mv}
+        const es=Array(n).fill('within'),ss=Array(m).fill('within');let i=n,j=m;
+        while(i||j){const mv=st[i][j];if(mv===0){const ok=Math.abs(e[i-1][1]-s[j-1][1])<=L/4&&Math.abs(e[i-1][3]-s[j-1][3])<=L/4;es[i-1]=ss[j-1]=ok?'within':'off';i--;j--}else if(mv===1){es[i-1]='extra';i--}else{ss[j-1]='missing';j--}}
+        return [es,ss]};
+      const [em,sm]=pair(editionMain,scanMain),[eg,sg]=pair(editionMargin,scanMargin);
+      const mainBlocks=quads.filter(q=>q.kind==='block'&&q.main).map(q=>q.box);
+      return {edition:em.concat(eg),scan:sm.concat(sg),main:mainBlocks.length?[Math.min(...mainBlocks.map(q=>q[1])),Math.max(...mainBlocks.map(q=>q[3]))]:[],target:[laid[1],laid[3]]}};
+    const drawnStates=side=>[...new Map([...document.querySelectorAll('.artifact-structure [data-side='+side+'][data-kind=line]')].map(e=>[e.dataset.row,e.dataset.state])).values()];
+    """#
+
+  /// What the scene counts: each state's lines, each side.
+  struct Scene: Decodable {
+    let expected: [String: [String: Int]]
+    let drawn: [String: [String: Int]]
+    let main: [Double]
+    let target: [Double]
   }
 
-  /// The JS that finds each row of the edition's main text and the scan's
-  /// ink under it: the scan sampled along the registered axes (a grid in
-  /// the window, one scan pixel apart, each point read where the transforms
-  /// take it on the image), so a tilted scan's line is a band the height
-  /// of its type, never of its tilt; a fleck beside a line's end is none
-  /// of its ink (layout_measure's `_without_specks`).
-  static let rowsScript: String = {
-    let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-    return (try? String(contentsOf: root.appendingPathComponent("web-tests/Fixtures/overlay-rows.js"), encoding: .utf8)) ?? ""
-  }()
-
-  /// Skeat's first ten canvases with a text block zone (canvas 2's derived:
-  /// the work frame placed on a scan with no main text)
-  /// (design-notes/skeat: each one's TEI with its zone and the witness's
-  /// renditions, `header.xml`, its frame and type scale; its scan), rendered
-  /// by the dev server's TEI preview and overlaid by the client at rest
-  /// (user, 2026-10-14). The fit policy: the edition is the print
-  /// regularized to its scale, the scan never warped: every row's top and
-  /// bottom, its width and a justified block's measure within the scale's
-  /// own tolerance for that quantity (`scale.json`), each row's offsets
-  /// reported. Zoomed to twice the fit, the registration holds: each row's
-  /// offsets twice what they were.
+  /// Skeat's first ten canvases with a text block zone and the tools'
+  /// measured layout (canvas 2's zone derived: the work frame placed on a
+  /// scan with no main text) (design-notes/skeat: each one's TEI with its
+  /// zones and the witness's renditions, `header.xml`; its scan), rendered
+  /// by the dev server's TEI preview (its words marked, as a reader's) and
+  /// read by the client (user, 2026-10-14). Side by side, a word of the
+  /// edition bands its word on the scan, and the band's word on the scan
+  /// marks the edition's. Overlay on draws the structure: the scan's main
+  /// blocks laid on the rendered main text's ink box by its height, and
+  /// every line's state as the pairing rule gives it, worked out apart;
+  /// zoomed to twice the fit, the registration holds. Each canvas's marked
+  /// lines are reported.
   @Test(arguments: [2, 3, 4, 5, 6, 7, 9, 10], [1440, 440])
-  func overlayLandsEachLineOfSkeat(canvas: Int, width: Int) async throws {
+  func structureOverlayAndWordsOfSkeat(canvas: Int, width: Int) async throws {
     let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let assets = root.appendingPathComponent("gnorium-web/Public")
     let skeat = root.appendingPathComponent("design-notes/skeat")
     var tei = try String(contentsOf: skeat.appendingPathComponent("canvas-\(canvas).xml"), encoding: .utf8)
-    // The witness's renditions (its frame and type scale, gnorium-python
-    // `type_scale`), and its scale's own tolerances: a size's (log), an
-    // indent's and a gap's (rem; a gap is rounded to the nearest half-line).
     let renditions = try String(contentsOf: skeat.appendingPathComponent("header.xml"), encoding: .utf8)
-    struct Tolerances: Decodable { let size: Double; let indent: Double; let gap: Double; let leading: Double }
-    let tolerance = try JSONDecoder().decode(Tolerances.self, from: Data(contentsOf: skeat.appendingPathComponent("scale.json")))
     let scan = try Data(contentsOf: skeat.appendingPathComponent("scans/canvas-\(canvas).jpg"))
-    // The page as a document holds it (gnorium-python `frame_rendition`):
-    // the work's frame in its header, its facsimile before its text.
     guard let facsimile = tei.range(of: #"<facsimile\b[\s\S]*?</facsimile>"#, options: .regularExpression) else {
       Issue.record("canvas \(canvas) has no facsimile")
       return
     }
     let surface = String(tei[facsimile])
+    #expect(surface.contains(#"type="line""#), "canvas \(canvas) keeps no measured lines")
     tei.removeSubrange(facsimile)
     let document = #"<TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><encodingDesc><tagsDecl>"# + renditions + "</tagsDecl></encodingDesc></teiHeader>" + surface + "<text><body>" + tei + "</body></text></TEI>"
     var request = URLRequest(url: gnorium.baseURL.appendingPathComponent("testaments/tei-preview"))
     request.httpMethod = "POST"
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.httpBody = try JSONSerialization.data(withJSONObject: ["tei": document])
+    request.httpBody = try JSONSerialization.data(withJSONObject: ["tei": document, "words": true])
     let preview = String(decoding: try await URLSession.shared.data(for: request).0, as: UTF8.self)
     guard let open = preview.range(of: "<body>"), let close = preview.range(of: "</body>", options: .backwards) else {
       Issue.record("the TEI preview has no body")
@@ -349,11 +402,6 @@ struct ArtifactOverlayTests {
     let css = try ["layout-view.css", "tei-view.css", "artifact-view.css", "canvas-view.css", "tooltip-view.css"].map {
       try String(contentsOf: assets.appendingPathComponent("style-sheets/" + $0), encoding: .utf8)
     }.joined(separator: "\n")
-    let html = "<!doctype html><html><head><meta charset=\"utf-8\"><style>" + css + "</style>" + styles + #"""
-      <style>body{margin:0}.artifact-view{width:100%;height:100vh}.artifact-viewer-container{height:calc(100vh - 40px);flex:none}</style><link rel="icon" href="data:,"></head><body><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest"><div class="artifact-viewer-container"><div class="artifact-markup-frame"><div class="artifact-markup">
-      """# + view + #"""
-      </div></div><div class="artifact-object"><div class="canvas-view" data-service-id="/scan"><div class="canvas-viewport"><div class="canvas-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
-      """#
     // The scan's size, from its JPEG's frame header (SOF0–SOF2).
     let bytes = [UInt8](scan)
     var at = 2
@@ -370,6 +418,11 @@ struct ArtifactOverlayTests {
       Issue.record("the scan's size is unread")
       return
     }
+    let html = "<!doctype html><html><head><meta charset=\"utf-8\"><style>" + css + "</style>" + styles + #"""
+      <style>body{margin:0}.artifact-view{width:100%;height:100vh}.artifact-viewer-container{height:calc(100vh - 40px);flex:none}</style><link rel="icon" href="data:,"></head><body><script type="application/json" id="manifest-size">[\#(size.width),\#(size.height)]</script><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest"><div class="artifact-viewer-container"><div class="artifact-markup-frame"><div class="artifact-markup">
+      """# + view + #"""
+      </div></div><div class="artifact-object"><div class="canvas-view" data-service-id="/scan"><div class="canvas-viewport"><div class="canvas-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
+      """#
     var files: [String: FixtureServer.File] = [
       "/": .init(contentType: "text/html", body: Data(html.utf8)),
       "/loader.js": .init(contentType: "text/javascript", body: try Data(contentsOf: assets.appendingPathComponent("loader.js"))),
@@ -377,7 +430,6 @@ struct ArtifactOverlayTests {
       "/manifest": .init(contentType: "application/json", body: Data(#"{"canvases":[{"id":"/scan","w":\#(size.width),"h":\#(size.height),"img":"/scan.jpg"}]}"#.utf8)),
       "/scan.jpg": .init(contentType: "image/jpeg", body: scan),
     ]
-    // The faces the page sets in.
     for font in ["noto-serif.woff2", "noto-serif-italic.woff2", "noto-sans.woff2", "noto-sans-italic.woff2"] {
       files["/fonts/" + font] = .init(contentType: "font/woff2", body: try Data(contentsOf: assets.appendingPathComponent("fonts/" + font)))
     }
@@ -388,92 +440,67 @@ struct ArtifactOverlayTests {
       try await page.goto("/")
       try await expect(page.locator("html")).toHaveAttribute("data-wasm-status", "started")
       try await page.evaluate("document.fonts.ready.then(()=>new Promise(resolve=>setTimeout(resolve,700)))")
+      // Side by side: each word of the edition hovered until one bands its
+      // scan word; the band's middle on the scan marks that word again.
+      if canvas != 2 {
+        let words = try await page.evaluate(#"""
+          (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),words=[...document.querySelectorAll('.tei-page[data-active=true] .tei-word')];let paired=0,round=0;
+            for(const word of words){word.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await wait(5);const band=document.querySelector('.canvas-word');
+              if(!band||band.hidden)continue;paired++;if(round)continue;const b=band.getBoundingClientRect(),o=document.querySelector('.artifact-object');
+              o.dispatchEvent(new MouseEvent('mousemove',{clientX:b.x+b.width/2,clientY:b.y+b.height/2,bubbles:true}));await wait(5);
+              round=word.dataset.corresponding==='true'&&document.querySelectorAll('.tei-word[data-corresponding=true]').length===1?1:-1}
+            return [words.length,paired,round]})()
+          """#, as: [Int].self)
+        print("canvas \(canvas) at \(width): \(words[1]) of \(words[0]) words correspond")
+        #expect(words[1] > 0, "canvas \(canvas): no word of the edition bands its scan word")
+        #expect(words[2] == 1, "canvas \(canvas): the scan's word under the band does not mark the edition's")
+        if let directory = ProcessInfo.processInfo.environment["GNORIUM_SCREENSHOT_DIR"] {
+          // A word in the page's middle hovered: its band on the scan.
+          _ = try await page.evaluate(#"""
+            (async()=>{const words=[...document.querySelectorAll('.tei-page[data-active=true] .tei-word')];
+              for(const word of words.slice(Math.floor(words.length/2)).concat(words)){word.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await new Promise(r=>setTimeout(r,5));
+                const band=document.querySelector('.canvas-word');if(band&&!band.hidden){word.dataset.corresponding='true';break}}return 1})()
+            """#)
+          try await page.screenshot(to: URL(fileURLWithPath: directory).appendingPathComponent("skeat-canvas-\(canvas)-words-\(width).png"))
+        }
+      }
       try await page.evaluate("document.querySelector('.artifact-overlay-toggle').dispatchEvent(new CustomEvent('toggle-button-update',{detail:'true'}))")
       // At rest: the motion and the panes' move done.
       try await page.evaluate("new Promise(resolve=>setTimeout(resolve,1200))")
-      let rows = try await page.evaluate(Self.rowsScript, as: [Row].self)
-      #expect(rows.count == Self.skeatRows[canvas], "canvas \(canvas)'s rows: \(rows.map(\.text))")
-      // The body type in the window's pixels: the frame's em as drawn.
-      let rem = try await page.evaluate(
-        "(()=>{const l=document.querySelector('.tei-page[data-active=true] [data-layer=rendering]');return parseFloat(getComputedStyle(l.querySelector('.tei-text-block')||l).fontSize)*Number(l.dataset.zoom)})()",
-        as: Double.self)
-      // The fit policy (user, 2026-10-14): the edition is the print
-      // regularized to its scale, the scan never warped. Each row's offsets
-      // are reported, its residual against the scale's own tolerance (a
-      // gap's quarter line, its half-line rounding, and its type's spread);
-      // a residual is the regularization's, accepted. A row off by a whole
-      // line of the body's leading is no residual: its lineation or its
-      // structure is wrong.
-      for (index, row) in rows.enumerated() {
-        let offsets = [row.edition[0] - row.scan[0], row.edition[1] - row.scan[1]]
-        let scale = tolerance.gap * rem + (row.edition[1] - row.edition[0]) * (exp(tolerance.size) - 1) + Self.landing
-        let residual = offsets.contains { abs($0) > scale } ? "a residual past the scale's \(String(format: "%.1f", scale))px" : "within the scale's \(String(format: "%.1f", scale))px"
-        print("canvas \(canvas) at \(width) row \(index) (\(row.text.prefix(24))): top \(String(format: "%+.1f", offsets[0]))px, bottom \(String(format: "%+.1f", offsets[1]))px (\(String(format: "%+.2f", offsets[0] / rem))rem), \(residual)")
-        #expect(offsets.allSatisfy { abs($0) < tolerance.leading * rem }, "\(row.text): \(row.edition) against the scan's \(row.scan), a line off")
+      let read = "(()=>{" + Self.structureScript + #"""
+        const tally=list=>list.reduce((t,s)=>(t[s]=(t[s]||0)+1,t),{});const s=structureOf();
+        return {expected:{edition:tally(s.edition),scan:tally(s.scan)},drawn:{edition:tally(drawnStates('edition')),scan:tally(drawnStates('scan'))},main:s.main,target:s.target}})()
+        """#
+      let scene = try await page.evaluate(read, as: Scene.self)
+      if let directory = ProcessInfo.processInfo.environment["GNORIUM_SCREENSHOT_DIR"] {
+        try await page.screenshot(to: URL(fileURLWithPath: directory).appendingPathComponent("skeat-canvas-\(canvas)-structure-\(width).png"))
       }
-      // Each row's width (user, 2026-10-14): its type's size and the print's spacing measured, a row's ink
-      // is as wide as the scan's within the landing, but where the faces' letters differ in width
-      // (`faceWidth`: a row of the print's face narrower or wider than Noto's at its measured size, never
-      // shimmed), which is reported.
-      for (index, row) in rows.enumerated() {
-        let difference = (row.scan[3] - row.scan[2]) - (row.edition[3] - row.edition[2])
-        // Its type a step of the scale: its width within the size's spread,
-        // reported; a step farther (two spreads) is the wrong step.
-        let spread = (row.edition[3] - row.edition[2]) * (exp(tolerance.size) - 1) + Self.landing * 2
-        if Self.faceWidth[canvas, default: []].contains(index) {
-          print("canvas \(canvas) row \(index) (\(row.text)): its width is the face's, \(String(format: "%+.1f", difference))px from the print's")
-        } else {
-          print("canvas \(canvas) at \(width) row \(index): its width \(String(format: "%+.1f", difference))px from the print's, the size's spread \(String(format: "%.1f", spread))px")
-          #expect(abs(difference) <= 2 * spread, "\(row.text): its width \(difference)px from the print's, past two of the size's spreads")
-        }
+      print("canvas \(canvas) at \(width): \(scene.drawn)")
+      #expect(scene.drawn == scene.expected, "canvas \(canvas): drawn \(scene.drawn), the rule gives \(scene.expected)")
+      #expect(!(scene.drawn["edition"] ?? [:]).isEmpty, "canvas \(canvas): no structure drawn")
+      if scene.main.count == 2 {
+        let off = zip(scene.main, scene.target).map { abs($0 - $1) }
+        #expect(off.allSatisfy { $0 <= Self.landing }, "canvas \(canvas): the scan's main blocks laid \(scene.main), the ink box \(scene.target)")
       }
-      // A justified block's measure: its full rows' edges, in the median.
-      if let widest = rows.map({ $0.edition[3] - $0.edition[2] }).max(), Self.justified.contains(canvas) {
-        let full = rows.filter { $0.edition[3] - $0.edition[2] >= widest * 0.97 }
-        func median(_ values: [Double]) -> Double { values.sorted()[values.count / 2] }
-        let edges = [median(full.map { $0.scan[2] - $0.edition[2] }), median(full.map { $0.scan[3] - $0.edition[3] })]
-        // The frame's measure is the work's, a page's own print a little
-        // wider or narrower: its edges reported against an indent's spread;
-        // an em off is a frame the page is not set in.
-        let spread = tolerance.indent * rem + Self.landing
-        print("canvas \(canvas) at \(width): the justified measure's edges \(edges), an indent's spread \(spread)px")
-        #expect(edges.allSatisfy { abs($0) < rem }, "the justified measure's edges: \(edges), an em off")
-      }
-      // Zoomed to twice the fit, about the page's middle: the registration
-      // holds, each row's offsets twice what they were.
+      // Zoomed to twice the fit about the page's middle: the registration
+      // holds, the scene as it was.
       let zoomed = try await page.evaluate(#"""
         (async()=>{const p=document.querySelector('.artifact-markup'),l=document.querySelector('.tei-page[data-active=true] [data-layer=rendering]'),b=p.getBoundingClientRect(),fit=Number(l.dataset.zoom);
           for(let i=0;i<80&&Number(l.dataset.zoom)<2*fit;i++){p.dispatchEvent(new WheelEvent('wheel',{deltaY:-40,clientX:b.x+b.width/2,clientY:b.y+b.height/2,bubbles:true,cancelable:true}));await new Promise(r=>setTimeout(r,16))}
           await new Promise(r=>setTimeout(r,300));return Number(l.dataset.zoom)/fit})()
         """#, as: Double.self)
-      let twice = try await page.evaluate(Self.rowsScript, as: [Row].self)
-      #expect(twice.count == rows.count)
-      for (one, two) in zip(rows, twice) {
-        let drift = (0..<2).map { abs((two.scan[$0] - two.edition[$0]) - zoomed * (one.scan[$0] - one.edition[$0])) }
-        #expect(drift.allSatisfy { $0 <= Self.landing * zoomed }, "\(one.text) at \(zoomed)× the fit: \(drift)")
+      let twice = try await page.evaluate(read, as: Scene.self)
+      #expect(twice.drawn == scene.drawn)
+      if twice.main.count == 2 {
+        let off = zip(twice.main, twice.target).map { abs($0 - $1) }
+        #expect(off.allSatisfy { $0 <= Self.landing * zoomed }, "canvas \(canvas) at \(zoomed)× the fit: \(off)")
       }
       try await page.expectNoErrors()
     }
   }
 
-  /// How far a line's ink may land from the scan's beyond the scale's own
-  /// tolerance: the measurement's precision, two pixels (gnorium-python
+  /// How far the scan's laid structure may land from the edition's ink: the
+  /// measurement's precision, two pixels (gnorium-python
   /// `type_scale.PIXELS`).
   static let landing = 2.0
-  /// Each canvas's rows of main text, its marginalia aside; canvas 2, which
-  /// sets no main text (a library's barcode label alone), its marginalia's:
-  /// its zone the work frame placed on its scan (derived), the label at its
-  /// measured offset from it.
-  static let skeatRows = [2: 1, 3: 3, 4: 4, 5: 17, 6: 4, 7: 19, 9: 39, 10: 40]
-  /// The rows whose width no measured setting reaches (by canvas, from 0),
-  /// reported, never shimmed: Noto's letters at the print's measured size
-  /// and spacing wider or narrower than the print's (small capitals,
-  /// italics, a ragged last line); canvas 7's contents rows span the work's
-  /// frame, its body pages' measure, 1.4em wider than canvas 7's own print
-  /// (each page measured in its own scan's em).
-  static let faceWidth: [Int: Set<Int>] = [
-    3: [0], 5: [6, 7, 9, 10, 13], 7: Set(1...18), 9: [18, 24, 28], 10: [13, 37, 38],
-  ]
-  /// The canvases set in justified paragraphs.
-  static let justified: Set<Int> = [9, 10]
 }

@@ -86,21 +86,22 @@ struct GlossTests {
         try await expect(reader.locator(".tei-word[tabindex='0']")).toHaveTexts(["The"])
 
         try await linked.click()
-        let sheet = page.locator(".artifact-markup .gloss-sheet")
+        let sheet = page.locator(".artifact-markup-frame .gloss-sheet")
         try await expect(sheet).toHaveAttribute("data-state", "open")
-        // Over the markup pane only: the pane holds it, the resemblance and
-        // the page's chrome stay outside it.
-        let pane = page.locator(".artifact-markup").first
+        // Over the markup pane only: the pane's frame holds it (which
+        // neither scrolls nor zooms), the resemblance and the page's chrome
+        // stay outside it.
+        let pane = page.locator(".artifact-markup-frame").first
         try await expect(pane.locator(".gloss-sheet")).toHaveCount(1)
         // Once the panel has slid in (the ellipsis menu's motion), it is the
-        // pane's visible box: its padding box, its border aside.
+        // pane's box.
         let covers = try await pane.evaluate(
           """
           async (el) => {
             await new Promise((r) => setTimeout(r, 400));
-            const p = el.getBoundingClientRect(), s = el.querySelector('.gloss-sheet .sheet-panel').getBoundingClientRect();
+            const p = el.querySelector('.artifact-markup').getBoundingClientRect(), s = el.querySelector('.gloss-sheet .sheet-panel').getBoundingClientRect();
             return Math.abs(s.top - p.top) <= 1 && Math.abs(s.left - p.left) <= 1
-              && Math.abs(s.height - el.clientHeight) <= 1 && Math.abs(s.width - el.clientWidth) <= 1;
+              && Math.abs(s.height - p.height) <= 1 && Math.abs(s.width - p.width) <= 1;
           }
           """)
         #expect(covers.bool == true, "the gloss does not cover the markup pane")
