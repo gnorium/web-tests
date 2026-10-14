@@ -244,6 +244,14 @@ struct ArtifactOverlayTests {
           const detachTo=on=>detach.dispatchEvent(new CustomEvent('toggle-button-update',{detail:on?'true':'false'}));
           detachTo(true);await wait(30);toggle(true);await wait(900);const detachedOn=detachButton.disabled&&detach.getAttribute('aria-pressed')==='false';
           toggle(false);await wait(900);const detachedAfter=!detachButton.disabled&&detach.getAttribute('aria-pressed')==='true';detachTo(false);await wait(30);
+          // The opacity runs on the motion's own clock (user, 2026-10-14): frame by frame, it reaches its end
+          // value on the frame the scan's warp and the text's zoom and place reach theirs, never before, each way.
+          const frames=async on=>{const out=[];toggle(on);const began=performance.now();
+            while(performance.now()-began<900){await new Promise(r=>requestAnimationFrame(r));const b=layer().getBoundingClientRect();out.push([opacity(),getComputedStyle(surface()).transform,layer().dataset.zoom+'|'+Math.round(b.x)+'|'+Math.round(b.y)])}
+            const last=out[out.length-1],settle=k=>out.findIndex((f,i)=>out.slice(i).every(g=>g[k]===last[k]));
+            return {together:Math.abs(settle(0)-settle(1))<=1&&Math.abs(settle(0)-settle(2))<=1,between:out.some(f=>f[0]>0.5&&f[0]<1)}};
+          const clockOn=await frames(true),clockOff=await frames(false);
+          const sameClock=clockOn.together&&clockOff.together&&clockOn.between&&clockOff.between;
           // Reduced motion: the end state at once, each way.
           const media=window.matchMedia;window.matchMedia=q=>q.includes('reduced-motion')?{matches:true}:media.call(window,q);
           const still=document.createElement('style');still.textContent='*{transition:none!important}';document.head.appendChild(still);
@@ -252,20 +260,21 @@ struct ArtifactOverlayTests {
           window.matchMedia=media;still.remove();
           return [none,midway>registered+5,registered<2,skewed,untrimmed,fits,detachOn,midOpacity>0.5&&midOpacity<1,restOpacity===0.5,
             floor,zoomed&&zoomedOff<2,panned&&pannedOff<2&&keyedOff<2,offOpacity>0.5&&offOpacity<1,cleared&&kept,sameSpot<2,apart,detachOff,
-            detachedOn&&detachedAfter,instantOn&&instantOff,Math.round(registered*100)/100,Math.round(sameSpot*100)/100].map(Number);
+            detachedOn&&detachedAfter,instantOn&&instantOff,sameClock,Math.round(registered*100)/100,Math.round(sameSpot*100)/100].map(Number);
         })()
         """#, as: [Double].self)
       let named = [
         "no registration before the overlay", "the registration eases in with the overlay's motion",
-        "the zone's corners land on the laid ink box within 2px (off by \(checks[19]))", "the scan is turned by its measured skew",
+        "the zone's corners land on the laid ink box within 2px (off by \(checks[20]))", "the scan is turned by its measured skew",
         "no trim: the whole scan is drawn", "the edition's page and all of the scan fit the view, centered",
         "Detach present, disabled and off while the overlay is on", "the scan's opacity midway in, strictly between 1 and 0.5",
         "the scan at half opacity at rest", "the zoom never goes below the fit",
         "zoomed to twice the fit, the registration holds within 2px", "dragged and keyed, the text and the scan pan as one",
         "the scan's opacity midway out, strictly between 0.5 and 1", "overlay off: the registration gone, the overlay's zoom kept",
-        "overlay off: the text's middle and the scan's on one point of the scan within 2px (off by \(checks[20]))",
+        "overlay off: the text's middle and the scan's on one point of the scan within 2px (off by \(checks[21]))",
         "overlay off: the panes side by side", "Detach enabled and off after",
         "detached before: off and disabled while on, detached again after", "with reduced motion the end state applies at once, on and off",
+        "the opacity reaches its end on the frame the warp and the zoom reach theirs, on and off, passing between",
       ]
       for (check, name) in zip(checks, named) { #expect(check == 1, "\(name)") }
       try await page.expectNoErrors()
@@ -384,6 +393,18 @@ struct ArtifactOverlayTests {
         let vertical = max(abs(row.scan[0] - row.edition[0]), abs(row.scan[1] - row.edition[1]))
         #expect(vertical <= Self.landing, "\(row.text): \(row.edition) against the scan's \(row.scan)")
       }
+      // Each row's width (user, 2026-10-14): its type's size and the print's spacing measured, a row's ink
+      // is as wide as the scan's within the landing, but where the faces' letters differ in width
+      // (`faceWidth`: a row of the print's face narrower or wider than Noto's at its measured size, never
+      // shimmed), which is reported.
+      for (index, row) in rows.enumerated() {
+        let width = (row.scan[3] - row.scan[2]) - (row.edition[3] - row.edition[2])
+        if Self.faceWidth[canvas, default: []].contains(index) {
+          print("canvas \(canvas) row \(index) (\(row.text)): its width is the face's, \(String(format: "%+.1f", width))px from the print's")
+        } else {
+          #expect(abs(width) <= Self.landing * 2, "\(row.text): its width \(width)px from the print's")
+        }
+      }
       // A justified block's measure: its full rows' edges, in the median.
       if let widest = rows.map({ $0.edition[3] - $0.edition[2] }).max(), Self.justified.contains(canvas) {
         let full = rows.filter { $0.edition[3] - $0.edition[2] >= widest * 0.97 }
@@ -412,6 +433,15 @@ struct ArtifactOverlayTests {
   static let landing = 2.0
   /// Each canvas's rows of main text, its marginalia aside.
   static let skeatRows = [2: 1, 3: 3, 4: 4, 5: 17, 6: 4, 7: 19, 9: 39, 10: 40]
+  /// The rows whose width no measured setting reaches (by canvas, from 0),
+  /// reported, never shimmed: Noto's letters at the print's measured size
+  /// and spacing wider or narrower than the print's (small capitals,
+  /// italics, a ragged last line); canvas 7's contents rows span the work's
+  /// frame, about a body em wider than canvas 7's print (the frame is
+  /// canvas 10's, a scan 1.7% finer).
+  static let faceWidth: [Int: Set<Int>] = [
+    3: [0], 5: [6, 7, 9, 10, 13], 7: Set(1...18), 9: [18, 24, 28], 10: [13, 37, 38],
+  ]
   /// The canvases set in justified paragraphs.
   static let justified: Set<Int> = [9, 10]
 }

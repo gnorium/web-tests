@@ -53,24 +53,32 @@
   let total=0,sum=0;histogram.forEach((n,v)=>{total+=n;sum+=v*n});let below=0,belowSum=0,best=-1,threshold=0;
   for(let v=0;v<256;v++){below+=histogram[v];belowSum+=v*histogram[v];if(!below||below===total)continue;const a=belowSum/below,b=(sum-belowSum)/(total-below),between=below*(total-below)*(a-b)*(a-b);if(between>best){best=between;threshold=v}}
   const dark=(x,y)=>x>=0&&y>=0&&x<W&&y<H&&gray[y*W+x]<=threshold;
+  // Specks out as layout_measure takes them out: the binary median of the smallest odd window that holds a
+  // stroke (the modal length of the zone's horizontal ink runs).
+  const runs=new Map();for(let y=zy0;y<zy1;y+=2){let n=0;for(let x=zx0;x<=zx1;x++){if(x<zx1&&dark(x,y))n++;else if(n){runs.set(n,(runs.get(n)||0)+1);n=0}}}
+  const stroke=[...runs.entries()].reduce((a,b)=>b[1]>a[1]?b:a,[1,0])[0],half=Math.max(1,Math.floor(stroke/2)),area=(2*half+1)**2;
+  // The row's band by that filter (a fleck under a line is no row of it); its edges across by the 3×3 one, so
+  // small type's thin strokes keep their extent.
+  const solid=(x,y)=>{let n=0;for(let dy=-half;dy<=half;dy++)for(let dx=-half;dx<=half;dx++)if(dark(x+dx,y+dy))n++;return n*2>area};
   const ink=(x,y)=>{let n=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dark(x+dx,y+dy))n++;return n>=5};
   // Sampled along the registered axes (the scan's pixels as laid under the text): a grid in the
   // window one scan pixel apart, each point read where the transforms take it on the image, so a
   // tilted scan's line is a band the height of its type, not of its tilt.
   const a0=toWindow(0,0),a1=toWindow(1000,0),step=Math.hypot(a1[0]-a0[0],a1[1]-a0[1])/1000/sx;
   const sample=(X,Y)=>{const [ix,iy]=toImage(X,Y);return ink(Math.round(ix*sx),Math.round(iy*sy))};
+  const sampleSolid=(X,Y)=>{const [ix,iy]=toImage(X,Y);return solid(Math.round(ix*sx),Math.round(iy*sy))};
   const out=[];
   rows.forEach((row,i)=>{
     const above=i>0?(rows[i-1].bottom+row.top)/2:row.top-(row.bottom-row.top),below=i<rows.length-1?(row.bottom+rows[i+1].top)/2:row.bottom+(row.bottom-row.top);
     const pad=row.bottom-row.top,X0=row.left-pad,X1=row.right+pad;
     const ny=Math.ceil((below-above)/step),nx=Math.ceil((X1-X0)/step);
     const grid=new Uint8Array(nx*ny),rowInk=new Array(ny).fill(0);
-    for(let j=0;j<ny;j++)for(let k=0;k<nx;k++)if(sample(X0+k*step,above+j*step)){grid[j*nx+k]=1;rowInk[j]++}
+    for(let j=0;j<ny;j++)for(let k=0;k<nx;k++){if(sample(X0+k*step,above+j*step))grid[j*nx+k]=1;if(sampleSolid(X0+k*step,above+j*step))rowInk[j]++}
     // The window's bands of inked rows, white within a quarter of the row's height bridged (an accent
     // over its letter); the row's ink is the band holding the most, never a fleck apart.
     const bridge=(row.bottom-row.top)/4/step,bands=[];
     rowInk.forEach((n,k)=>{if(!n)return;const band=bands[bands.length-1];if(band&&k-band.end<=bridge){band.end=k+1;band.ink+=n}else bands.push({start:k,end:k+1,ink:n})});
-    if(!bands.length){out.push({text:row.text.slice(0,24),edition:[row.top,row.bottom,row.left,row.right],scan:[0,0,0,0]});return}
+    if(!bands.length){out.push({text:row.text,edition:[row.top,row.bottom,row.left,row.right],scan:[0,0,0,0]});return}
     const band=bands.reduce((a,b)=>b.ink>a.ink?b:a);
     // Its type's core: the rows of the band at least half as inked as its most (layout_measure's).
     const inBand=rowInk.slice(band.start,band.end),most=Math.max(...inBand),coreRows=inBand.map((n,k)=>n*2>=most?k:-1).filter(k=>k>=0);
@@ -85,7 +93,7 @@
     while(runs.length>1&&speck(runs[0],runs[1].start-runs[0].end))runs.shift();
     while(runs.length>1&&speck(runs[runs.length-1],runs[runs.length-1].start-runs[runs.length-2].end))runs.pop();
     const first=runs[0].start,last=runs[runs.length-1].end;
-    out.push({text:row.text.slice(0,24),edition:[row.top,row.bottom,row.left,row.right].map(v=>+v.toFixed(2)),
+    out.push({text:row.text,edition:[row.top,row.bottom,row.left,row.right].map(v=>+v.toFixed(2)),
       scan:[above+band.start*step,above+band.end*step,X0+first*step,X0+last*step].map(v=>+v.toFixed(2))});
   });
   return out;
