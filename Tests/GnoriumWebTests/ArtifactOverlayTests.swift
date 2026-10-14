@@ -263,7 +263,15 @@ struct ArtifactOverlayTests {
           const text=inkBox(layer()),layerBox=layer().getBoundingClientRect();
           const laid=laidOn(zone,[(text[0]-layerBox.x)/zoom,(text[1]-layerBox.y)/zoom,(text[2]-layerBox.x)/zoom,(text[3]-layerBox.y)/zoom]);
           const backward=homography([[laid[0],laid[1]],[laid[2],laid[1]],[laid[2],laid[3]],[laid[0],laid[3]]],zone);
-          toggle(false);await wait(150);const offMid=fades();await wait(850);const gone=!r.querySelector('.artifact-structure')&&getComputedStyle(object).opacity==='1';
+          // The image's box on screen, through its pan and zoom.
+          const imageBox=()=>{const v=viewport.getBoundingClientRect(),g=r.querySelector('.canvas-tile-compositor').getAttribute('transform').match(/-?[\d.]+(e-?\d+)?/g).map(Number);return [v.x+g[0],v.y+g[1],W*g[2],H*g[2]]};
+          const exitFrom=imageBox();
+          toggle(false);await wait(150);const offMid=fades(),exitMid=imageBox();await wait(850);const exitTo=imageBox();
+          // Midway out, the image between where the overlay laid it and its own view: moving into its pane
+          // (its place strictly between on an axis it moves along), its size between (the panes part at the
+          // overlay's zoom, so it may keep it), never jumping to either end.
+          const strictly=(a,m,b)=>Math.min(a,b)<m&&m<Math.max(a,b),within=(a,m,b)=>Math.min(a,b)-0.5<=m&&m<=Math.max(a,b)+0.5;
+          const exitMoving=[0,1].some(k=>strictly(exitFrom[k],exitMid[k],exitTo[k]))&&within(exitFrom[2],exitMid[2],exitTo[2])&&within(exitFrom[3],exitMid[3],exitTo[3]);const gone=!r.querySelector('.artifact-structure')&&getComputedStyle(object).opacity==='1';
           const kept=Math.abs(place()[0]-zoom)/zoom<0.01;
           const p2=pane.getBoundingClientRect(),l2=layer().getBoundingClientRect(),z2=place()[0];
           const textSpot=apply(backward,[(p2.x+pane.clientLeft+pane.clientWidth/2-l2.x)/z2,(p2.y+pane.clientTop+pane.clientHeight/2-l2.y)/z2]);
@@ -282,7 +290,7 @@ struct ArtifactOverlayTests {
           toggle(false);await wait(80);const instantOff=!r.querySelector('.artifact-structure')&&getComputedStyle(object).opacity==='1';
           window.matchMedia=media;still.remove();
           return [registered<2,unwarped,marked,strokes,fits,detachOn,floor,zoomed&&zoomedOff<2,panned&&pannedOff<2&&keyedOff<2,gone&&kept,sameSpot<2,apart,detachOff,
-            detachedOn&&detachedAfter,instantOn&&instantOff,Math.round(registered*100)/100,Math.round(sameSpot*100)/100,edition.length,scan.length,count(edition,'extra'),count(edition,'off'),count(scan,'off'),count(scan,'missing'),zoomedOff,pannedOff,keyedOff,between(onMid)&&between(offMid)].map(Number);
+            detachedOn&&detachedAfter,instantOn&&instantOff,Math.round(registered*100)/100,Math.round(sameSpot*100)/100,edition.length,scan.length,count(edition,'extra'),count(edition,'off'),count(scan,'off'),count(scan,'missing'),zoomedOff,pannedOff,keyedOff,between(onMid)&&between(offMid),exitMoving].map(Number);
         })()
         """#, as: [Double].self)
       let named = [
@@ -300,6 +308,7 @@ struct ArtifactOverlayTests {
       ]
       for (check, name) in zip(checks, named) { #expect(check == 1, "\(name)") }
       #expect(checks[26] == 1, "midway, each way, the scan and the structure's lines strictly between, the text opaque")
+      #expect(checks[27] == 1, "midway out, the image's box between the overlay's and its own pane's")
       try await page.expectNoErrors()
     }
   }
@@ -321,13 +330,18 @@ struct ArtifactOverlayTests {
       const rowsOf=roots=>{const lines=[];for(const root of roots){const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
         for(let node=walker.nextNode();node;node=walker.nextNode()){const text=node.data;if(!/[^ \t\n\r]/.test(text))continue;
           const style=getComputedStyle(node.parentElement);context.font=style.fontStyle+' '+style.fontWeight+' '+style.fontSize+' '+style.fontFamily;context.fontVariantCaps=style.fontVariantCaps;context.fontKerning=style.fontKerning;
+          // Its setting across (the edges the print aligns) and its type's em in the window's pixels.
+          const ta=style.textAlign,rtl=style.direction==='rtl',setting=ta==='justify'?'justified':ta==='center'?'center':(ta==='right'||(ta==='end'&&!rtl)||(ta==='start'&&rtl))?'right':'left';
+          const lineEm=parseFloat(style.fontSize)*z,blockEl=node.parentElement.closest('.tei-block');
           const found=[];for(let at=0;at<text.length;){const end=at+(text.codePointAt(at)>0xffff?2:1);if(!/[ \t\n\r]/.test(text[at])){const rect=rectOf(node,at,end);if(rect.height>0){const last=found[found.length-1];
             if(last&&rect.top<last.bottom&&last.top<rect.bottom){last.end=end;last.glyphs[1]=[at,end,rect]}else found.push({start:at,end,top:rect.top,bottom:rect.bottom,glyphs:[[at,end,rect],[at,end,rect]]})}}at=end}
           for(const line of found){const drawn=rectOf(node,line.start,line.end),m=context.measureText(text.slice(line.start,line.end)),s=drawn.height/(m.fontBoundingBoxAscent+m.fontBoundingBoxDescent);
             const top=drawn.top+(m.fontBoundingBoxAscent-m.actualBoundingBoxAscent)*s,bottom=drawn.bottom-(m.fontBoundingBoxDescent-m.actualBoundingBoxDescent)*s;
             let left=Infinity,right=-Infinity;for(const [st,en,rect] of line.glyphs){const g=context.measureText(text.slice(st,en));left=Math.min(left,rect.left-g.actualBoundingBoxLeft*s);right=Math.max(right,rect.left+g.actualBoundingBoxRight*s)}
-            if(right>left&&bottom>top)lines.push([left,top,right,bottom])}}}
-        lines.sort((a,c)=>a[1]-c[1]);const rows=[];for(const l of lines){const last=rows[rows.length-1];if(last&&l[1]<last[3]){last[0]=Math.min(last[0],l[0]);last[2]=Math.max(last[2],l[2]);last[3]=Math.max(last[3],l[3])}else rows.push([...l])}return rows};
+            if(right>left&&bottom>top)lines.push([left,top,right,bottom,setting,lineEm,blockEl])}}}
+        lines.sort((a,c)=>a[1]-c[1]);const rows=[];for(const l of lines){const last=rows[rows.length-1];if(last&&l[1]<last[3]){last[0]=Math.min(last[0],l[0]);last[2]=Math.max(last[2],l[2]);last[3]=Math.max(last[3],l[3])}else rows.push([...l])}
+        // A justified block's last line is set from its start alone.
+        rows.forEach((row,k)=>{if(row[4]==='justified'&&row[6]&&!rows.slice(k+1).some(o=>o[6]===row[6]))row[4]='left'});return rows};
       const editionMain=rowsOf([frame]);
       // The edition's notes: each child of a margin area, its rows, box and sides.
       const notes=[];for(const margin of layer.querySelectorAll('.tei-margin')){const place=margin.dataset.place||'',sides=[];
@@ -361,12 +375,15 @@ struct ArtifactOverlayTests {
         notes.forEach((note,i)=>{if(note.sides.some(x=>sides.includes(x))){const d=dist(note.box,block.box);if(d<far){far=d;best=i}}});
         if(best>=0)gathered[best].push(...block.lines);else alone.push(...block.lines)}
       const L=Number(page.dataset.bodyLeading)*parseFloat(getComputedStyle(frame).fontSize)*z;
+      // Across: the edges the edition's line is set by, past an em of its type.
+      const across=(e,s)=>{const em=e[5],set=e[4];if(!(em>0)||!set)return true;const l=Math.abs(e[0]-s[0])<=em,r=Math.abs(e[2]-s[2])<=em;
+        return set==='left'?l:set==='right'?r:set==='center'?Math.abs((e[0]+e[2])/2-(s[0]+s[2])/2)<=em:l&&r};
       // Paired on e and s (each from its own box for a note), judged where each stands (E, S), by L.
       const pair=(e,s,L,E=e,S=s)=>{const n=e.length,m=s.length,c=[...Array(n+1)].map(()=>Array(m+1).fill(0)),st=[...Array(n+1)].map(()=>Array(m+1).fill(0));
         for(let i=0;i<=n;i++)for(let j=0;j<=m;j++){if(!i&&!j)continue;let best=Infinity,mv=0;if(i&&j)best=c[i-1][j-1]+Math.abs(e[i-1][1]-s[j-1][1])+Math.abs(e[i-1][3]-s[j-1][3]);
           if(i&&c[i-1][j]+L<best){best=c[i-1][j]+L;mv=1}if(j&&c[i][j-1]+L<best){best=c[i][j-1]+L;mv=2}c[i][j]=best;st[i][j]=mv}
         const es=Array(n).fill('within'),ss=Array(m).fill('within');let i=n,j=m;
-        while(i||j){const mv=st[i][j];if(mv===0){const ok=Math.abs(E[i-1][1]-S[j-1][1])<=L/4&&Math.abs(E[i-1][3]-S[j-1][3])<=L/4;es[i-1]=ss[j-1]=ok?'within':'off';i--;j--}else if(mv===1){es[i-1]='extra';i--}else{ss[j-1]='missing';j--}}
+        while(i||j){const mv=st[i][j];if(mv===0){const ok=Math.abs(E[i-1][1]-S[j-1][1])<=L/4&&Math.abs(E[i-1][3]-S[j-1][3])<=L/4&&across(E[i-1],S[j-1]);es[i-1]=ss[j-1]=ok?'within':'off';i--;j--}else if(mv===1){es[i-1]='extra';i--}else{ss[j-1]='missing';j--}}
         return [es,ss]};
       const moved=(rows,[x,y])=>rows.map(r=>[r[0]-x,r[1]-y,r[2]-x,r[3]-y]);
       const [em,sm]=pair(editionMain,scanMain,L);const eg=[],sg=[];
