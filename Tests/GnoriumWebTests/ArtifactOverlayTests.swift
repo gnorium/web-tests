@@ -36,7 +36,7 @@ struct ArtifactOverlayTests {
             let before=size();
             const pane=r.querySelector('.artifact-markup');let pb=pane.getBoundingClientRect();
             for(let i=0;i<8;i++){pane.dispatchEvent(new WheelEvent('wheel',{deltaY:-40,clientX:pb.x+pb.width/2,clientY:pb.y+pb.height/2,bubbles:true,cancelable:true}));await wait(30)}
-            const zoomStart=Number(l.dataset.zoom);toggle(true);await wait(120);let mid=size();const opacityOnMid=Number(getComputedStyle(o).opacity);const zoomMid=Number(l.dataset.zoom);await wait(500);let after=size();
+            const zoomStart=Number(l.dataset.zoom);toggle(true);await wait(120);let mid=size();const opacityOnMid=Number(getComputedStyle(o).opacity),textOnMid=getComputedStyle(l).opacity;const zoomMid=Number(l.dataset.zoom);await wait(500);let after=size();
             const fitted=Number(l.dataset.zoom);const fittedBox=l.getBoundingClientRect(),paneBox=pane.getBoundingClientRect();
             const whole=fittedBox.width<=paneBox.width+1&&fittedBox.height<=paneBox.height+1&&pane.scrollLeft===0&&pane.scrollTop===0&&getComputedStyle(pane).overflow==='hidden';
             const zoomAnimated=zoomStart>zoomMid&&zoomMid>fitted;
@@ -63,15 +63,15 @@ struct ArtifactOverlayTests {
             toggle(true);await wait(600);const detachedOn=button.disabled&&button.getAttribute('aria-disabled')==='true'&&d.getAttribute('aria-pressed')==='false';
             toggle(false);await wait(600);const detachedAfter=!button.disabled&&!button.hasAttribute('aria-disabled')&&d.getAttribute('aria-pressed')==='true';
             detachTo(false);await wait(30);
-            return [zoomReturned,before[dim]<mid[dim]&&mid[dim]<after[dim],whole&&zoomAnimated,locked,detachOn,rules.imageOpacity==='1'&&rules.textOpacity==='1',rules.bg!=='rgba(0, 0, 0, 0)'&&!r.querySelector('.artifact-structure'),detachOff,panesBack,detachedBefore&&detachedOn&&detachedAfter,opacityOnMid===1&&opacityOffMid===1];
+            return [zoomReturned,before[dim]<mid[dim]&&mid[dim]<after[dim],whole&&zoomAnimated,locked,detachOn,rules.imageOpacity==='0'&&rules.textOpacity==='1',rules.bg==='rgba(0, 0, 0, 0)'&&!r.querySelector('.artifact-structure'),detachOff,panesBack,detachedBefore&&detachedOn&&detachedAfter,opacityOnMid>0&&opacityOnMid<1&&opacityOffMid>0&&opacityOffMid<1&&textOnMid==='1'];
            })()
         """#, as: [Bool].self)
       let named = [
         "zoom back animated", "the panes move", "the whole page fits, zoom animated", "no gesture moves the scan or the text",
-        "Detach present, disabled and off while on", "no pixels fade: the scan and the text opaque",
-        "the text on its own ground, covering the scan; no structure without a measured text block",
+        "Detach present, disabled and off while on", "at rest the scan faded out, the text opaque",
+        "the text on no ground of its own; no structure without a measured text block",
         "Detach enabled and off after", "panes back", "detached before: off and disabled while on, detached again after",
-        "the scan never fades, either way",
+        "the scan fades on the overlay's clock, both ways, the text never",
       ]
       for (check, name) in zip(checks, named) { #expect(check, "\(name)") }
       try await page.expectNoErrors()
@@ -151,8 +151,9 @@ struct ArtifactOverlayTests {
   /// draws the structure overlay (user, 2026-10-14): the edition's lines
   /// solid and the scan's dashed, laid by the homography that takes the
   /// text block's corners onto the rendered main text's ink box (by its
-  /// height, centered, the scan's proportions kept), with no scan pixels;
-  /// a pair within a quarter of the body's leading quiet, one past it
+  /// height, centered, the scan's proportions kept), the scan fading out
+  /// and the lines fading in on the overlay's one clock, the text never
+  /// fading, no scan pixels at rest; a pair within a quarter of the body's leading quiet, one past it
   /// orange, an edition line the scan lacks green, a scan line the edition
   /// lacks red. The view fits the edition's page and the scan's structure,
   /// centered; at rest the reader zooms and pans both as one, never below
@@ -218,10 +219,14 @@ struct ArtifactOverlayTests {
           const states=side=>[...new Map([...r.querySelectorAll('.artifact-structure [data-side='+side+'][data-kind=line]')].map(e=>[e.dataset.row,e.dataset.state])).values()];
           const wheel=async(dy,fx,fy,n)=>{const b=pane.getBoundingClientRect();for(let i=0;i<n;i++){pane.dispatchEvent(new WheelEvent('wheel',{deltaY:dy,clientX:b.x+b.width*fx,clientY:b.y+b.height*fy,bubbles:true,cancelable:true}));await wait(20)}};
           await wheel(-40,0.3,0.3,6);await wait(300);
-          toggle(true);await wait(800);
-          const registered=off();
-          // The scene: no scan pixels warped or faded; the planted divergences marked, every other line quiet.
-          const unwarped=getComputedStyle(surface()).transform==='none'&&getComputedStyle(object).opacity==='1';
+          // Coming on, midway: the scan fading out, the structure's lines fading in, the text itself.
+          const fades=()=>{const s=r.querySelector('.artifact-structure');return [Number(getComputedStyle(object).opacity),s?Number(getComputedStyle(s).opacity):-1,getComputedStyle(layer()).opacity]};
+          toggle(true);await wait(150);const onMid=fades();
+          await wait(650);
+          const registered=off();const atRest=fades();
+          // At rest: the scan unwarped and faded out, the structure whole; the planted divergences marked, every other line quiet.
+          const unwarped=getComputedStyle(surface()).transform==='none'&&atRest[0]===0&&atRest[1]===1&&atRest[2]==='1';
+          const between=f=>f[0]>0&&f[0]<1&&f[1]>0&&f[1]<1&&f[2]==='1';
           const edition=states('edition'),scan=states('scan');
           const count=(list,state)=>list.filter(s=>s===state).length;
           const marked=edition.length===30&&scan.length===30&&count(edition,'extra')===1&&count(edition,'off')===1&&count(scan,'off')===1
@@ -258,7 +263,7 @@ struct ArtifactOverlayTests {
           const text=inkBox(layer()),layerBox=layer().getBoundingClientRect();
           const laid=laidOn(zone,[(text[0]-layerBox.x)/zoom,(text[1]-layerBox.y)/zoom,(text[2]-layerBox.x)/zoom,(text[3]-layerBox.y)/zoom]);
           const backward=homography([[laid[0],laid[1]],[laid[2],laid[1]],[laid[2],laid[3]],[laid[0],laid[3]]],zone);
-          toggle(false);await wait(150);const gone=!r.querySelector('.artifact-structure');await wait(850);
+          toggle(false);await wait(150);const offMid=fades();await wait(850);const gone=!r.querySelector('.artifact-structure')&&getComputedStyle(object).opacity==='1';
           const kept=Math.abs(place()[0]-zoom)/zoom<0.01;
           const p2=pane.getBoundingClientRect(),l2=layer().getBoundingClientRect(),z2=place()[0];
           const textSpot=apply(backward,[(p2.x+pane.clientLeft+pane.clientWidth/2-l2.x)/z2,(p2.y+pane.clientTop+pane.clientHeight/2-l2.y)/z2]);
@@ -273,16 +278,16 @@ struct ArtifactOverlayTests {
           // Reduced motion: the end state at once, each way.
           const media=window.matchMedia;window.matchMedia=q=>q.includes('reduced-motion')?{matches:true}:media.call(window,q);
           const still=document.createElement('style');still.textContent='*{transition:none!important}';document.head.appendChild(still);
-          toggle(true);await wait(80);const instantOn=off()<2;
-          toggle(false);await wait(80);const instantOff=!r.querySelector('.artifact-structure');
+          toggle(true);await wait(80);const instantOn=off()<2&&fades()[0]===0&&fades()[1]===1;
+          toggle(false);await wait(80);const instantOff=!r.querySelector('.artifact-structure')&&getComputedStyle(object).opacity==='1';
           window.matchMedia=media;still.remove();
           return [registered<2,unwarped,marked,strokes,fits,detachOn,floor,zoomed&&zoomedOff<2,panned&&pannedOff<2&&keyedOff<2,gone&&kept,sameSpot<2,apart,detachOff,
-            detachedOn&&detachedAfter,instantOn&&instantOff,Math.round(registered*100)/100,Math.round(sameSpot*100)/100,edition.length,scan.length,count(edition,'extra'),count(edition,'off'),count(scan,'off'),count(scan,'missing'),zoomedOff,pannedOff,keyedOff].map(Number);
+            detachedOn&&detachedAfter,instantOn&&instantOff,Math.round(registered*100)/100,Math.round(sameSpot*100)/100,edition.length,scan.length,count(edition,'extra'),count(edition,'off'),count(scan,'off'),count(scan,'missing'),zoomedOff,pannedOff,keyedOff,between(onMid)&&between(offMid)].map(Number);
         })()
         """#, as: [Double].self)
       let named = [
         "the scan's block corners land on the laid ink box within 2px (off by \(checks[15]))",
-        "no scan pixels: the scan never warped nor faded",
+        "at rest no scan pixels: the scan unwarped and faded out, the structure whole, the text opaque",
         "the planted divergences marked (one extra, one pair off, one missing), every other line quiet (rows \(checks[17]), \(checks[18]); extra \(checks[19]), off \(checks[20]), \(checks[21]), missing \(checks[22]))",
         "quiet strokes 1px, marked 2px, the edition's solid, the scan's dashed",
         "the edition's page and the scan's structure fit the view, centered",
@@ -294,6 +299,7 @@ struct ArtifactOverlayTests {
         "detached before: off and disabled while on, detached again after", "with reduced motion the end state applies at once, on and off",
       ]
       for (check, name) in zip(checks, named) { #expect(check == 1, "\(name)") }
+      #expect(checks[26] == 1, "midway, each way, the scan and the structure's lines strictly between, the text opaque")
       try await page.expectNoErrors()
     }
   }
@@ -355,17 +361,21 @@ struct ArtifactOverlayTests {
         notes.forEach((note,i)=>{if(note.sides.some(x=>sides.includes(x))){const d=dist(note.box,block.box);if(d<far){far=d;best=i}}});
         if(best>=0)gathered[best].push(...block.lines);else alone.push(...block.lines)}
       const L=Number(page.dataset.bodyLeading)*parseFloat(getComputedStyle(frame).fontSize)*z;
-      const pair=(e,s)=>{const n=e.length,m=s.length,c=[...Array(n+1)].map(()=>Array(m+1).fill(0)),st=[...Array(n+1)].map(()=>Array(m+1).fill(0));
+      // Paired on e and s (each from its own box for a note), judged where each stands (E, S), by L.
+      const pair=(e,s,L,E=e,S=s)=>{const n=e.length,m=s.length,c=[...Array(n+1)].map(()=>Array(m+1).fill(0)),st=[...Array(n+1)].map(()=>Array(m+1).fill(0));
         for(let i=0;i<=n;i++)for(let j=0;j<=m;j++){if(!i&&!j)continue;let best=Infinity,mv=0;if(i&&j)best=c[i-1][j-1]+Math.abs(e[i-1][1]-s[j-1][1])+Math.abs(e[i-1][3]-s[j-1][3]);
           if(i&&c[i-1][j]+L<best){best=c[i-1][j]+L;mv=1}if(j&&c[i][j-1]+L<best){best=c[i][j-1]+L;mv=2}c[i][j]=best;st[i][j]=mv}
         const es=Array(n).fill('within'),ss=Array(m).fill('within');let i=n,j=m;
-        while(i||j){const mv=st[i][j];if(mv===0){const ok=Math.abs(e[i-1][1]-s[j-1][1])<=L/4&&Math.abs(e[i-1][3]-s[j-1][3])<=L/4;es[i-1]=ss[j-1]=ok?'within':'off';i--;j--}else if(mv===1){es[i-1]='extra';i--}else{ss[j-1]='missing';j--}}
+        while(i||j){const mv=st[i][j];if(mv===0){const ok=Math.abs(E[i-1][1]-S[j-1][1])<=L/4&&Math.abs(E[i-1][3]-S[j-1][3])<=L/4;es[i-1]=ss[j-1]=ok?'within':'off';i--;j--}else if(mv===1){es[i-1]='extra';i--}else{ss[j-1]='missing';j--}}
         return [es,ss]};
       const moved=(rows,[x,y])=>rows.map(r=>[r[0]-x,r[1]-y,r[2]-x,r[3]-y]);
-      const [em,sm]=pair(editionMain,scanMain);const eg=[],sg=[];
+      const [em,sm]=pair(editionMain,scanMain,L);const eg=[],sg=[];
+      // A note's own L: its scan rows' median pitch, else its edition rows', else the body's.
+      const pitch=rows=>{if(rows.length<2)return null;const d=rows.slice(1).map((r,k)=>r[1]-rows[k][1]).sort((a,c)=>a-c);return d[Math.floor(d.length/2)]};
       notes.forEach((note,i)=>{const rows=rowsFrom(gathered[i]);const reach=rows.length?[Math.min(...rows.map(r=>r[0])),Math.min(...rows.map(r=>r[1]))]:[note.box[0],note.box[1]];
-        const [e,s2]=pair(moved(note.rows,[note.box[0],note.box[1]]),moved(rows,reach));eg.push(...e);sg.push(...s2)});
-      sg.push(...pair([],rowsFrom(alone))[1]);
+        const own=pitch(rows)||pitch(note.rows)||L;
+        const [e,s2]=pair(moved(note.rows,[note.box[0],note.box[1]]),moved(rows,reach),own,note.rows,rows);eg.push(...e);sg.push(...s2)});
+      sg.push(...pair([],rowsFrom(alone),L)[1]);
       const mainBlocks=quads.filter(q=>q.kind==='block'&&q.main).map(q=>q.box);
       return {edition:em.concat(eg),scan:sm.concat(sg),main:mainBlocks.length?[Math.min(...mainBlocks.map(q=>q[1])),Math.max(...mainBlocks.map(q=>q[3]))]:[],target:[laid[1],laid[3]]}};
     const drawnStates=side=>[...new Map([...document.querySelectorAll('.artifact-structure [data-side='+side+'][data-kind=line]')].map(e=>[e.dataset.row,e.dataset.state])).values()];
@@ -418,7 +428,10 @@ struct ArtifactOverlayTests {
     }
     let styles = preview[..<open.lowerBound].matches(of: #/<style[^>]*>[\s\S]*?<\/style>/#).map { String($0.output) }.joined()
     let view = String(preview[open.upperBound..<close.lowerBound]).replacing(#/data-service-id="[^"]*"/#, with: #"data-service-id="/scan""#)
-    let css = try ["layout-view.css", "tei-view.css", "artifact-view.css", "canvas-view.css", "tooltip-view.css"].map {
+    let css = try [
+      "layout-view.css", "tei-view.css", "artifact-view.css", "canvas-view.css", "tooltip-view.css", "sheet-view.css",
+      "dialog-sheet-view.css", "gloss-sheet-view.css",
+    ].map {
       try String(contentsOf: assets.appendingPathComponent("style-sheets/" + $0), encoding: .utf8)
     }.joined(separator: "\n")
     // The scan's size, from its JPEG's frame header (SOF0–SOF2).
@@ -448,6 +461,7 @@ struct ArtifactOverlayTests {
       "/client.wasm": .init(contentType: "application/wasm", body: try Data(contentsOf: assets.appendingPathComponent("client.wasm"))),
       "/manifest": .init(contentType: "application/json", body: Data(#"{"canvases":[{"id":"/scan","w":\#(size.width),"h":\#(size.height),"img":"/scan.jpg"}]}"#.utf8)),
       "/scan.jpg": .init(contentType: "image/jpeg", body: scan),
+      "/gloss": .init(contentType: "text/html", body: Data(#"<div class="gloss-view"><p>A gloss.</p></div>"#.utf8)),
     ]
     for font in ["noto-serif.woff2", "noto-serif-italic.woff2", "noto-sans.woff2", "noto-sans-italic.woff2"] {
       files["/fonts/" + font] = .init(contentType: "font/woff2", body: try Data(contentsOf: assets.appendingPathComponent("fonts/" + font)))
@@ -482,6 +496,20 @@ struct ArtifactOverlayTests {
             """#)
           try await page.screenshot(to: URL(fileURLWithPath: directory).appendingPathComponent("skeat-canvas-\(canvas)-words-\(width).png"))
         }
+      }
+      // A word's gloss covers the text pane exactly, never the image's
+      // (user, 2026-10-14), side by side (1440) and stacked (440).
+      if canvas == 5 {
+        let gloss = try await page.evaluate(#"""
+          (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),R=e=>e.getBoundingClientRect(),p=document.querySelector('.artifact-markup'),o=document.querySelector('.artifact-object');
+            document.querySelector('.tei-view').dataset.gloss='/gloss';const before=R(o);
+            const w=[...p.querySelectorAll('.tei-word')].find(w=>{const b=R(w),r=R(p);return b.top>r.top&&b.bottom<r.bottom&&b.left>r.left&&b.right<r.right});
+            w.click();await wait(500);const s=R(document.querySelector('.gloss-sheet .sheet-panel')),q=R(p),a=R(o);
+            const covers=Math.abs(s.left-q.left)<=1&&Math.abs(s.top-q.top)<=1&&Math.abs(s.width-q.width)<=1&&Math.abs(s.height-q.height)<=1;
+            const apart=s.right<=a.left+1||s.bottom<=a.top+1,still=Math.abs(a.left-before.left)<1&&Math.abs(a.top-before.top)<1&&Math.abs(a.width-before.width)<1&&Math.abs(a.height-before.height)<1;
+            (document.activeElement||document.body).dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await wait(500);return JSON.stringify([covers,apart,still,[s.left,s.top,s.width,s.height],[q.left,q.top,q.width,q.height],[a.left,a.top,a.width,a.height]])})()
+          """#, as: String.self)
+        #expect(gloss.hasPrefix("[true,true,true"), "the gloss at \(width): covers the text pane, clear of the image, the image unmoved: \(gloss)")
       }
       try await page.evaluate("document.querySelector('.artifact-overlay-toggle').dispatchEvent(new CustomEvent('toggle-button-update',{detail:'true'}))")
       // At rest: the motion and the panes' move done.
