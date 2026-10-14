@@ -302,22 +302,27 @@ struct ArtifactOverlayTests {
   }()
 
   /// Skeat's first ten canvases with a measured main text block
-  /// (design-notes/skeat: each one's TEI with its zone, the work's frame,
-  /// its scan), rendered by the dev server's TEI preview and overlaid by the
-  /// client at rest (user, 2026-10-14). The fit policy: every row's top and
-  /// bottom within 2px of the scan's, and a justified block's measure (its
-  /// full rows' edges); a centered or ragged row's width is the face's, its
-  /// center's offset reported only. Zoomed to twice the fit, the
-  /// registration holds: each row's offsets twice what they were, within
-  /// 2px.
+  /// (design-notes/skeat: each one's TEI with its zone and the witness's
+  /// renditions, `header.xml`, its frame and type scale; its scan), rendered
+  /// by the dev server's TEI preview and overlaid by the client at rest
+  /// (user, 2026-10-14). The fit policy: the edition is the print
+  /// regularized to its scale, the scan never warped: every row's top and
+  /// bottom, its width and a justified block's measure within the scale's
+  /// own tolerance for that quantity (`scale.json`), each row's offsets
+  /// reported. Zoomed to twice the fit, the registration holds: each row's
+  /// offsets twice what they were.
   @Test(arguments: [2, 3, 4, 5, 6, 7, 9, 10], [1440, 440])
   func overlayLandsEachLineOfSkeat(canvas: Int, width: Int) async throws {
     let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let assets = root.appendingPathComponent("gnorium-web/Public")
     let skeat = root.appendingPathComponent("design-notes/skeat")
     var tei = try String(contentsOf: skeat.appendingPathComponent("canvas-\(canvas).xml"), encoding: .utf8)
-    struct Frame: Decodable { let body: Double; let measure: Double; let height: Double; let margin: Double }
-    let frame = try JSONDecoder().decode(Frame.self, from: Data(contentsOf: skeat.appendingPathComponent("frame.json")))
+    // The witness's renditions (its frame and type scale, gnorium-python
+    // `type_scale`), and its scale's own tolerances: a size's (log), an
+    // indent's and a gap's (rem; a gap is rounded to the nearest half-line).
+    let renditions = try String(contentsOf: skeat.appendingPathComponent("header.xml"), encoding: .utf8)
+    struct Tolerances: Decodable { let size: Double; let indent: Double; let gap: Double; let leading: Double }
+    let tolerance = try JSONDecoder().decode(Tolerances.self, from: Data(contentsOf: skeat.appendingPathComponent("scale.json")))
     let scan = try Data(contentsOf: skeat.appendingPathComponent("scans/canvas-\(canvas).jpg"))
     // The page as a document holds it (gnorium-python `frame_rendition`):
     // the work's frame in its header, its facsimile before its text.
@@ -327,9 +332,7 @@ struct ArtifactOverlayTests {
     }
     let surface = String(tei[facsimile])
     tei.removeSubrange(facsimile)
-    func number(_ value: Double) -> String { String(format: "%.2f", value) }
-    let rendition = "font-size:\(number(frame.body))px;inline-size:\(number(frame.measure))em;block-size:\(number(frame.height))em;margin:\(number(frame.margin))em"
-    let document = #"<TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><encodingDesc><tagsDecl><rendition xml:id="text-block" scheme="css" selector="text">"# + rendition + "</rendition></tagsDecl></encodingDesc></teiHeader>" + surface + "<text><body>" + tei + "</body></text></TEI>"
+    let document = #"<TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><encodingDesc><tagsDecl>"# + renditions + "</tagsDecl></encodingDesc></teiHeader>" + surface + "<text><body>" + tei + "</body></text></TEI>"
     var request = URLRequest(url: gnorium.baseURL.appendingPathComponent("testaments/tei-preview"))
     request.httpMethod = "POST"
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -388,10 +391,23 @@ struct ArtifactOverlayTests {
       try await page.evaluate("new Promise(resolve=>setTimeout(resolve,1200))")
       let rows = try await page.evaluate(Self.rowsScript, as: [Row].self)
       #expect(rows.count == Self.skeatRows[canvas], "canvas \(canvas)'s rows: \(rows.map(\.text))")
-      // Each row's top and bottom.
-      for row in rows {
-        let vertical = max(abs(row.scan[0] - row.edition[0]), abs(row.scan[1] - row.edition[1]))
-        #expect(vertical <= Self.landing, "\(row.text): \(row.edition) against the scan's \(row.scan)")
+      // The body type in the window's pixels: the frame's em as drawn.
+      let rem = try await page.evaluate(
+        "(()=>{const l=document.querySelector('.tei-page[data-active=true] [data-layer=rendering]');return parseFloat(getComputedStyle(l.querySelector('.tei-text-block')||l).fontSize)*Number(l.dataset.zoom)})()",
+        as: Double.self)
+      // The fit policy (user, 2026-10-14): the edition is the print
+      // regularized to its scale, the scan never warped. Each row's offsets
+      // are reported, its residual against the scale's own tolerance (a
+      // gap's quarter line, its half-line rounding, and its type's spread);
+      // a residual is the regularization's, accepted. A row off by a whole
+      // line of the body's leading is no residual: its lineation or its
+      // structure is wrong.
+      for (index, row) in rows.enumerated() {
+        let offsets = [row.edition[0] - row.scan[0], row.edition[1] - row.scan[1]]
+        let scale = tolerance.gap * rem + (row.edition[1] - row.edition[0]) * (exp(tolerance.size) - 1) + Self.landing
+        let residual = offsets.contains { abs($0) > scale } ? "a residual past the scale's \(String(format: "%.1f", scale))px" : "within the scale's \(String(format: "%.1f", scale))px"
+        print("canvas \(canvas) at \(width) row \(index) (\(row.text.prefix(24))): top \(String(format: "%+.1f", offsets[0]))px, bottom \(String(format: "%+.1f", offsets[1]))px (\(String(format: "%+.2f", offsets[0] / rem))rem), \(residual)")
+        #expect(offsets.allSatisfy { abs($0) < tolerance.leading * rem }, "\(row.text): \(row.edition) against the scan's \(row.scan), a line off")
       }
       // Each row's width (user, 2026-10-14): its type's size and the print's spacing measured, a row's ink
       // is as wide as the scan's within the landing, but where the faces' letters differ in width
@@ -399,10 +415,14 @@ struct ArtifactOverlayTests {
       // shimmed), which is reported.
       for (index, row) in rows.enumerated() {
         let width = (row.scan[3] - row.scan[2]) - (row.edition[3] - row.edition[2])
+        // Its type a step of the scale: its width within the size's spread,
+        // reported; a step farther (two spreads) is the wrong step.
+        let spread = (row.edition[3] - row.edition[2]) * (exp(tolerance.size) - 1) + Self.landing * 2
         if Self.faceWidth[canvas, default: []].contains(index) {
           print("canvas \(canvas) row \(index) (\(row.text)): its width is the face's, \(String(format: "%+.1f", width))px from the print's")
         } else {
-          #expect(abs(width) <= Self.landing * 2, "\(row.text): its width \(width)px from the print's")
+          print("canvas \(canvas) at \(width) row \(index): its width \(String(format: "%+.1f", width))px from the print's, the size's spread \(String(format: "%.1f", spread))px")
+          #expect(abs(width) <= 2 * spread, "\(row.text): its width \(width)px from the print's, past two of the size's spreads")
         }
       }
       // A justified block's measure: its full rows' edges, in the median.
@@ -410,7 +430,12 @@ struct ArtifactOverlayTests {
         let full = rows.filter { $0.edition[3] - $0.edition[2] >= widest * 0.97 }
         func median(_ values: [Double]) -> Double { values.sorted()[values.count / 2] }
         let edges = [median(full.map { $0.scan[2] - $0.edition[2] }), median(full.map { $0.scan[3] - $0.edition[3] })]
-        #expect(edges.allSatisfy { abs($0) <= Self.landing }, "the justified measure's edges: \(edges)")
+        // The frame's measure is the work's, a page's own print a little
+        // wider or narrower: its edges reported against an indent's spread;
+        // an em off is a frame the page is not set in.
+        let spread = tolerance.indent * rem + Self.landing
+        print("canvas \(canvas) at \(width): the justified measure's edges \(edges), an indent's spread \(spread)px")
+        #expect(edges.allSatisfy { abs($0) < rem }, "the justified measure's edges: \(edges), an em off")
       }
       // Zoomed to twice the fit, about the page's middle: the registration
       // holds, each row's offsets twice what they were.
@@ -423,13 +448,15 @@ struct ArtifactOverlayTests {
       #expect(twice.count == rows.count)
       for (one, two) in zip(rows, twice) {
         let drift = (0..<2).map { abs((two.scan[$0] - two.edition[$0]) - zoomed * (one.scan[$0] - one.edition[$0])) }
-        #expect(drift.allSatisfy { $0 <= Self.landing }, "\(one.text) at \(zoomed)× the fit: \(drift)")
+        #expect(drift.allSatisfy { $0 <= Self.landing * zoomed }, "\(one.text) at \(zoomed)× the fit: \(drift)")
       }
       try await page.expectNoErrors()
     }
   }
 
-  /// How far a line's ink may land from the scan's (user, 2026-10-14).
+  /// How far a line's ink may land from the scan's beyond the scale's own
+  /// tolerance: the measurement's precision, two pixels (gnorium-python
+  /// `type_scale.PIXELS`).
   static let landing = 2.0
   /// Each canvas's rows of main text, its marginalia aside.
   static let skeatRows = [2: 1, 3: 3, 4: 4, 5: 17, 6: 4, 7: 19, 9: 39, 10: 40]
@@ -437,8 +464,8 @@ struct ArtifactOverlayTests {
   /// reported, never shimmed: Noto's letters at the print's measured size
   /// and spacing wider or narrower than the print's (small capitals,
   /// italics, a ragged last line); canvas 7's contents rows span the work's
-  /// frame, about a body em wider than canvas 7's print (the frame is
-  /// canvas 10's, a scan 1.7% finer).
+  /// frame, its body pages' measure, half an em wider than canvas 7's own
+  /// print (each page measured in its own scan's em).
   static let faceWidth: [Int: Set<Int>] = [
     3: [0], 5: [6, 7, 9, 10, 13], 7: Set(1...18), 9: [18, 24, 28], 10: [13, 37, 38],
   ]
