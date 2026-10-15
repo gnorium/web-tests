@@ -507,6 +507,22 @@ struct ReviseEditorTests {
           try await expect(input).toHaveValue("\(16 - step)")
           try await expect(active).toHaveAttribute("data-page-index", "\(15 - step)")
         }
+        // A page asked for never waits behind the neighbors fetched ahead:
+        // typed far off right after rapid paging, it lands about as fast as
+        // a lone jump does.
+        let jump = """
+          (async (rapid, target) => { const input = document.querySelector('#artifact-page-input');
+            const next = document.querySelector(".artifact-page-nav button[aria-label='Next page']");
+            for (let i = 0; i < rapid; i++) next.click();
+            const t = performance.now(); input.value = String(target); input.dispatchEvent(new Event('change', { bubbles: true }));
+            while (document.querySelector(".artifact-markup .tei-page[data-active='true']")?.dataset.pageIndex !== String(target - 1)) {
+              if (performance.now() - t > 20000) return -1; await new Promise(r => setTimeout(r, 20)); }
+            return Math.round(performance.now() - t); })
+          """
+        let lone = try await page.evaluate("(\(jump))(0, 300)", as: Int.self)
+        let rapid = try await page.evaluate("(\(jump))(8, 600)", as: Int.self)
+        print("JUMP lone \(lone) ms, after rapid paging \(rapid) ms")
+        #expect(lone >= 0 && rapid >= 0 && rapid <= lone * 2 + 400, "a lone jump \(lone) ms, after rapid paging \(rapid) ms")
         // A number typed far off, the last page, the first.
         for (typed, index) in [("500", "499"), ("830", "829"), ("1", "0")] {
           try await input.fill(typed)
