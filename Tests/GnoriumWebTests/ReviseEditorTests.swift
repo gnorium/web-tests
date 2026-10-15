@@ -164,6 +164,134 @@ struct ReviseEditorTests {
     }
   }
 
+  /// Skeat as production holds it (user, 2026-10-15): 830 pages, the first
+  /// ten read, each page's fragment as a laid-out document stores it (its
+  /// side's `<pb n="N"/>`, its body indented), one header for the witness.
+  /// The paste-ready pages (`skeat-pages-2026-10-14`) are made by the
+  /// view's own serializer, so each is the headed page the editor shows.
+  static func skeatAsStored() throws -> String {
+    let folder = "/Users/Madhavik/Downloads/Gnorium/skeat-pages-2026-10-14"
+    let first = try String(contentsOfFile: "\(folder)/canvas-1.xml", encoding: .utf8)
+    let header = try #require(first.range(of: #"<teiHeader>[\s\S]*?</teiHeader>"#, options: .regularExpression))
+    var body = ""
+    for n in 1...830 {
+      body += "      <pb n=\"\(n)\" facs=\"https://web-tests.invalid/iiif/p\(n)/full/1300,/0/default.jpg\"/>\n"
+      guard n <= 10 else { continue }
+      let page = try String(contentsOfFile: "\(folder)/canvas-\(n).xml", encoding: .utf8)
+      let open = try #require(page.range(of: "<text><body>\n"))
+      let close = try #require(page.range(of: "\n</body></text>", options: .backwards))
+      body += "      " + page[open.upperBound..<close.lowerBound] + "\n"
+    }
+    return "<TEI xmlns=\"http://www.tei-c.org/ns/1.0\">\n  \(first[header])\n  <text>\n    <body>\n\(body)    </body>\n  </text>\n</TEI>"
+  }
+
+  /// The page on screen: its index, its editor's colored element names,
+  /// the frame's ring, and whether its slot under the reader holds a diff.
+  struct Shown: Decodable {
+    let index: String
+    let names: Int
+    let ring: String
+    let diff: Bool
+    let text: String
+  }
+
+  static let shown = """
+    (() => { const page = document.querySelector(".artifact-markup .tei-page[data-active='true']");
+      const code = page.querySelector('.tei-page-edit .code-code');
+      const slot = [...document.querySelectorAll('.testament-diff')].find(s => s.dataset.serviceId === page.dataset.serviceId);
+      return { index: page.dataset.pageIndex,
+        names: [...(CSS.highlights?.get('code-name') ?? [])].filter(r => code.contains(r.startContainer)).length,
+        ring: document.querySelector('.artifact-markup').dataset.diffState ?? '',
+        diff: !!slot?.querySelector(".diff-view[data-diff-mode='code']"), text: code.textContent }; })()
+    """
+
+  /// Waits for the page on screen to read `index` with its XML colored.
+  static func expectColoredPage(_ page: Page, _ index: Int) async throws -> Shown {
+    var last: Shown?
+    for _ in 0..<40 {
+      let now = try await page.evaluate(Self.shown, as: Shown.self)
+      last = now
+      if now.index == "\(index)" && now.names > 0 { return now }
+      try await Task.sleep(for: .milliseconds(100))
+    }
+    Issue.record("page \(index + 1): not shown colored: \(String(describing: last).prefix(300))")
+    return try #require(last)
+  }
+
+  /// A paste, and the reading it is sent to settled.
+  static func paste(_ page: Page, _ markup: String) async throws -> Shown {
+    let code = page.locator(".artifact-markup .tei-page[data-active='true'] .tei-page-edit .code-code").first
+    try await RevisePagesTests.replaceCode(code, with: markup, page: page)
+    try await Task.sleep(for: .milliseconds(1500))
+    return try await page.evaluate(Self.shown, as: Shown.self)
+  }
+
+  /// The real Revise page of a production-sized witness: its editor's XML
+  /// colored on the page it opens on and on each of the ten read pages it
+  /// turns to; each paste-ready page byte for byte what its editor
+  /// shows; a page pasted
+  /// as it stands—byte for byte, or laid out otherwise (its header on one
+  /// line, its body unindented)—neither ringed nor diffed; a real change
+  /// ringed, diffed under the reader, and colored.
+  @Test(arguments: [BrowserEngine.chrome])
+  func aProductionSizedWitnessIsColoredAndRingedAsItsDiffReads(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let json = String(decoding: try JSONSerialization.data(withJSONObject: ["teiXml": try Self.skeatAsStored()]), as: UTF8.self)
+    let folder = "/Users/Madhavik/Downloads/Gnorium/skeat-pages-2026-10-14"
+    let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let commit = try ScratchCommit(owner: contributor)
+    do {
+      _ = try TestAdmin.query(
+        "UPDATE bibliographic_madrigals SET proposed_content_json = '\(json.replacingOccurrences(of: "'", with: "''"))' WHERE id = '\(commit.madrigalID)'")
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
+        try await page.openHydrated("\(commit.madrigalPath)/revise")
+        try await expect(page.locator("#artifact-page-total, .artifact-page-total").first).toHaveText("830")
+        try await Self.xmlOn(page)
+        // Each page turned to: colored, and the paste-ready page is what
+        // the editor shows.
+        for index in 0..<10 {
+          if index > 0 { try await page.locator(".artifact-page-nav button[aria-label='Next page']").first.click() }
+          let now = try await Self.expectColoredPage(page, index)
+          let ready = try String(contentsOfFile: "\(folder)/canvas-\(index + 1).xml", encoding: .utf8)
+          #expect(now.text == ready, "page \(index + 1): the paste-ready page is not what the editor shows")
+        }
+        for _ in 0..<9 { try await page.locator(".artifact-page-nav button[aria-label='Previous page']").first.click() }
+        let first = try await Self.expectColoredPage(page, 0)
+
+        // Pasted as it stands, byte for byte: no ring, no diff.
+        var now = try await Self.paste(page, first.text)
+        #expect(now.ring == "" && !now.diff, "the page pasted unchanged: \(now.ring) \(now.diff)")
+        // Laid out otherwise, the same document: no ring, no diff.
+        let compact = first.text
+          .replacingOccurrences(of: ">\n<", with: "><")
+          .replacingOccurrences(of: "\n      ", with: "\n")
+        #expect(compact != first.text)
+        now = try await Self.paste(page, compact)
+        #expect(now.ring == "" && !now.diff, "the page pasted laid out otherwise: ring '\(now.ring)', diff \(now.diff)")
+        // A real change: ringed, diffed under the reader, colored.
+        now = try await Self.paste(page, first.text.replacingOccurrences(of: #"reason="blank""#, with: #"reason="illegible""#))
+        #expect(now.ring == "changed" && now.diff && now.names > 0, "the changed page: ring '\(now.ring)', diff \(now.diff), names \(now.names)")
+        let diff = page.locator(".testament-diff[data-active='true'] .diff-view[data-diff-mode='code']")
+        try await expect(diff.locator(".diff-row[data-diff-line='inserted']")).toHaveCount(1)
+        try await expect(diff.locator(".diff-row[data-diff-line='inserted']")).toContainText("illegible")
+        if let directory = ProcessInfo.processInfo.environment["GNORIUM_SCREENSHOT_DIR"] {
+          _ = try await page.evaluate("(() => { document.querySelector('.artifact-view').scrollIntoView({block: 'start'}); return 1 })()")
+          try await page.screenshot(to: URL(fileURLWithPath: directory).appendingPathComponent("revise-830-changed.png"))
+        }
+        // Undone: the ring goes.
+        now = try await Self.paste(page, first.text)
+        #expect(now.ring == "" && !now.diff, "the change undone: ring '\(now.ring)', diff \(now.diff)")
+        try await page.expectNoErrors()
+      }
+      commit.remove()
+      try await contributor.remove()
+    } catch {
+      commit.remove()
+      try await contributor.remove(after: error)
+    }
+  }
+
   /// A prompt's diff marks the words that changed inside a changed line
   /// (user, 2026-10-14), as GitHub's and Xcode's do: the line tinted, its
   /// changed words in the solid color, the rest of the long line not.
