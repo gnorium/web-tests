@@ -117,10 +117,10 @@ struct GlossTests {
         let term = details.locator(".metadata-group-view").first
         try await expect(term.locator(".metadata-group-title")).toHaveText("Term")
         try await expect(term.locator(".datum-label")).toHaveTexts([
-          "As printed", "Lemma", "Class", "Number", "Language",
+          "Language", "Lemma", "Class", "Number",
         ])
         try await expect(term.locator(".datum-value")).toHaveTexts([
-          "scratchwords", "scratchword", "Noun", "Plural", "English",
+          "English", "scratchword", "Noun", "Plural",
         ])
         // Only the lemma links, to the record; class and language are plain.
         try await expect(term.locator(".datum-value a")).toHaveCount(1)
@@ -166,7 +166,7 @@ struct GlossTests {
         try await expect(title.locator(".record-label-meta")).toHaveText("Verb")
         try await expect(title.locator("a")).toHaveCount(0)
         try await expect(details.locator(".metadata-group-view").first.locator(".datum-value")).toHaveTexts([
-          "stood", "stand", "Verb", "Past", "English",
+          "English", "stand", "Verb", "Past",
         ])
         try await expect(details.locator(".record-view")).toHaveCount(0)
         try await expect(details.locator(".metadata-group-title").filter(hasText: "Lexico-record")).toHaveCount(0)
@@ -202,7 +202,7 @@ struct GlossTests {
             .then(j => [j.surface, j.lemma, j.type, j.morphology, j.record.title, j.sentiment.id,
               j.equivalents[0].form, j.equivalents[0].relation, j.html.includes('gloss-view'), j.data[0].label].join('|'))
           """)
-        #expect(json == .string("scratchwords|scratchword|Noun|Number: Plural|\(english.title)|s-1-1|\(german.title)|broader sense|true|As printed"))
+        #expect(json == .string("scratchwords|scratchword|Noun|Number: Plural|\(english.title)|s-1-1|\(german.title)|broader sense|true|Language"))
 
         // A word inside a quotation opens the quotation's gloss, over the
         // quotation's box, as a word of a phrase opens the phrase's (user,

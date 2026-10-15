@@ -66,9 +66,9 @@ struct GlossPhraseTests {
         try await expect(title.locator("a.record-label-title")).toHaveAttribute("href", word.path)
         let details = sheet.locator(".gloss-view")
         let term = details.locator(".metadata-group-view").first
-        try await expect(term.locator(".datum-label")).toHaveTexts(["As printed", "Lemma", "Class", "Language"])
+        try await expect(term.locator(".datum-label")).toHaveTexts(["Language", "Lemma", "Class"])
         try await expect(term.locator(".datum-value")).toHaveTexts([
-          "kicked the bucket", "kick the bucket", "Idiom", "English",
+          "English", "kick the bucket", "Idiom",
         ])
         try await expect(details.locator(".record-row-title[data-current='true']")).toHaveText("A leaf sense.")
         // Its words, the one opened expanded, each with its own gloss.
@@ -78,11 +78,11 @@ struct GlossPhraseTests {
         try await expect(rows.nth(1).locator(".gloss-word")).toBeVisible()
         try await expect(rows.nth(0).locator(".gloss-word")).toBeHidden()
         try await expect(rows.nth(1).locator(".datum-label")).toHaveTexts([
-          "As printed", "Lemma", "Class", "Morphology", "Language", "Phrase", "Phrase lemma", "Phrase type",
+          "Language", "Lemma", "Class", "Morphology", "Phrase", "Phrase lemma", "Phrase type",
           "Lexico-record",
         ])
         try await expect(rows.nth(1).locator(".datum-value")).toHaveTexts([
-          "the", "the", "Article", "—", "English", "kicked the bucket", "kick the bucket", "Idiom", "—",
+          "English", "the", "Article", "—", "kicked the bucket", "kick the bucket", "Idiom", "—",
         ])
         try await page.expectNoHorizontalOverflow()
         try await page.keyboard.press("Escape")
