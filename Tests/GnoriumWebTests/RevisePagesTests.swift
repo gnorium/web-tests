@@ -252,6 +252,9 @@ struct RevisePagesTests {
         try await expect(event.locator(".locution-thread-event-changed a").first).toBeVisible()
         try await expect(event.locator("form[action$='/accept'] button")).toHaveCount(1)
         try await expect(event.locator("form[action$='/reject'] button")).toHaveCount(1)
+        // Reactions are only on locutions: the suggestion takes none.
+        try await expect(event.locator(".reaction-picker-trigger")).toHaveCount(0)
+        try await expect(event.locator(".reactions-reaction")).toHaveCount(0)
         try await Self.expectChangedLinksLand(page, revision: id, on: "\(commit.madrigalPath)/revisions/\(id)")
 
         // Its page draws each diff where it is made: the record's tree,
@@ -289,7 +292,7 @@ struct RevisePagesTests {
             const pager = viewer.querySelector('.artifact-page-nav input')
             if (markup.dataset.diffState !== 'changed') return `markup ${markup.dataset.diffState}`
             if (viewer.dataset.diffState || (pager && pager.dataset.diffState)) return 'card or pager ringed'
-            const frame = markup.closest('.artifact-markup-frame')
+            const frame = markup.closest('.artifact-markup-box')
             if (!frame || getComputedStyle(frame, '::after').outlineStyle === 'none') return 'markup unringed'
             return boxed.length === 0 ? 'ok' : `boxed ${boxed.length}`
           })()
@@ -316,7 +319,7 @@ struct RevisePagesTests {
               if (style['border' + side + 'Color'] !== orange) return side + ' border ' + style['border' + side + 'Color']
               if (style['padding' + side] !== '0px') return side + ' padding ' + style['padding' + side]
             }
-            const overlay = getComputedStyle(pane.closest('.artifact-markup-frame'), '::after')
+            const overlay = getComputedStyle(pane.closest('.artifact-markup-box'), '::after')
             if (overlay.borderTopStyle !== 'solid' || overlay.borderTopColor !== orange) return 'overlay border ' + overlay.borderTopStyle + ' ' + overlay.borderTopColor
             if (overlay.outlineStyle !== 'solid' || overlay.outlineColor !== orange) return 'outline ' + overlay.outlineStyle + ' ' + overlay.outlineColor
             if (overlay.outlineWidth !== '1px' || overlay.outlineOffset !== '-2px') return 'outline ' + overlay.outlineWidth + ' at ' + overlay.outlineOffset

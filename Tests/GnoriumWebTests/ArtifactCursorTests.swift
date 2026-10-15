@@ -123,5 +123,64 @@ struct ArtifactCursorTests {
       try await page.expectNoErrors()
     }
   }
-}
 
+  /// As code (XML on), the markup pane is a text pane (user, 2026-10-15):
+  /// the browser's own cursor (the I-beam over the code, the arrow
+  /// elsewhere), no hand, and a press dragged in it pans nothing; on the
+  /// reader's page (Raw read) and on the Revise page (the editor).
+  @Test(arguments: [BrowserEngine.chrome, .safari])
+  func asCodeThePaneIsATextPane(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let commit = try ScratchCommit(owner: contributor)
+    defer { commit.remove() }
+    let lines = (1...80).map { "<p>Line \($0) of a page long enough to scroll as code.</p>" }.joined()
+    _ = try TestAdmin.query(
+      ##"""
+      UPDATE bibliographic_madrigals SET
+        proposed_content_json = '{"teiXml":"<TEI><text><body><pb n=\"1\" facs=\"https://web-tests.invalid/iiif/p1/full/1300,/0/default.jpg\"/><div>\##(lines)</div></body></text></TEI>"}'
+      WHERE id = '\##(commit.madrigalID)'
+      """##)
+    try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
+      for url in [commit.madrigalPath, "\(commit.madrigalPath)/revise"] {
+        try await page.openHydrated(url)
+        try await page.locator(".artifact-xml-toggle button").first.click()
+        try await expect(page.locator(".artifact-view").first).toHaveAttribute("data-raw", "true")
+        let code = page.locator(".artifact-markup .tei-page[data-active='true'] .tei-page-raw .code-code").first
+        try await expect(code).toBeVisible()
+        _ = try await page.locator(".artifact-markup").first.evaluate("e => { e.scrollIntoView({block: 'start'}); return true }")
+        let pane = try #require(try await page.locator(".artifact-markup").first.boundingBox())
+        try await page.mouse.move(x: pane.x + pane.width / 2, y: pane.y + 20)
+        let cursors = try await page.evaluate(
+          """
+          (() => [getComputedStyle(document.querySelector('.artifact-markup')).cursor,
+            getComputedStyle(document.querySelector(".artifact-markup .tei-page[data-active='true'] .tei-page-raw .code-code")).cursor,
+            document.querySelector('.artifact-markup').dataset.overText ?? ''].join('|'))()
+          """, as: String.self)
+        #expect(cursors == "auto|auto|" || cursors == "auto|text|", "\(url): the code pane's cursors: \(cursors)")
+        // A press dragged in it pans nothing.
+        try await page.mouse.down(x: pane.x + pane.width - 40, y: pane.y + pane.height / 2)
+        try await page.mouse.move(x: pane.x + pane.width - 80, y: pane.y + pane.height / 2 + 40)
+        #expect(try await page.locator(".artifact-markup[data-dragging='true']").count() == 0, "\(url): a drag pans")
+        try await page.mouse.up(x: pane.x + pane.width - 80, y: pane.y + pane.height / 2 + 40)
+        // The wheel scrolls it natively.
+        _ = try await page.locator(".artifact-markup").first.evaluate("e => { e.scrollTop = 0; return true }")
+        try await page.mouse.wheel(x: pane.x + pane.width / 2, y: pane.y + pane.height / 2, deltaY: 300)
+        var scrolled = 0.0
+        for _ in 0..<20 {
+          scrolled = try await page.evaluate("(() => document.querySelector('.artifact-markup').scrollTop)()", as: Double.self)
+          if scrolled > 0 { break }
+          try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(scrolled > 0, "\(url): the wheel scrolled nothing")
+        // Back to the rendering: the hand again.
+        try await page.locator(".artifact-xml-toggle button").first.click()
+        try await expect(page.locator(".artifact-view").first).toHaveAttribute("data-raw", "false")
+        let rendered = try await page.evaluate("(() => getComputedStyle(document.querySelector('.artifact-markup')).cursor)()", as: String.self)
+        #expect(rendered == "grab", "\(url): the rendered pane's hand: \(rendered)")
+      }
+      try await page.expectNoErrors()
+    }
+  }
+}

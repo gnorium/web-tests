@@ -204,7 +204,8 @@ struct ReviseEditorTests {
 
   static let shown = """
     (() => { const page = document.querySelector(".artifact-markup .tei-page[data-active='true']");
-      const code = page.querySelector('.tei-page-edit .code-code');
+      const code = page?.querySelector('.tei-page-edit .code-code');
+      if (!code) return { index: '', names: 0, ring: '', diff: false, text: '' };
       const slot = [...document.querySelectorAll('.testament-diff')].find(s => s.dataset.serviceId === page.dataset.serviceId);
       return { index: page.dataset.pageIndex,
         names: [...(CSS.highlights?.get('code-name') ?? [])].filter(r => code.contains(r.startContainer)).length,
@@ -305,13 +306,156 @@ struct ReviseEditorTests {
         let diff = page.locator(".testament-diff[data-active='true'] .diff-view[data-diff-mode='code']")
         try await expect(diff.locator(".diff-row[data-diff-line='inserted']")).toHaveCount(1)
         try await expect(diff.locator(".diff-row[data-diff-line='inserted']")).toContainText("illegible")
+        // The diff under the markup pane, in the reader; its box the one
+        // scrollport between it and the reader, and nothing wider than the
+        // page (user, 2026-10-15).
+        let layout = try await page.evaluate(
+          """
+          (() => { const box = document.querySelector(".testament-diff[data-active='true'] .diff-box");
+            const reader = box.closest('.artifact-view');
+            const pane = reader.querySelector('.artifact-markup'), zone = box.closest('.artifact-under-markup');
+            const scrolls = e => /(auto|scroll)/.test(getComputedStyle(e).overflowY + getComputedStyle(e).overflowX);
+            // The scrollports from each zone's content up to the reader.
+            const chain = start => { const out = []; for (let e = start; e && e !== reader; e = e.parentElement) if (scrolls(e)) out.push(e.className.split(' ')[0]); return out; };
+            const inside = [...box.querySelectorAll('*'), box].filter(scrolls).length + [...pane.querySelectorAll('*')].filter(e => scrolls(e) && e.closest('.artifact-markup') === pane && e !== pane && getComputedStyle(e).display !== 'none' && e.offsetParent).length;
+            return JSON.stringify({ under: box.getBoundingClientRect().top >= pane.getBoundingClientRect().bottom - 1,
+              diff: chain(box), markup: chain(pane), nested: inside,
+              overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth }); })()
+          """, as: String.self)
+        #expect(
+          layout == #"{"under":true,"diff":["artifact-under-markup"],"markup":["artifact-markup"],"nested":0,"overflow":0}"#,
+          "one scrollport a zone, none nested, nothing wider than the page: \(layout)")
         if let directory = ProcessInfo.processInfo.environment["GNORIUM_SCREENSHOT_DIR"] {
           _ = try await page.evaluate("(() => { document.querySelector('.artifact-view').scrollIntoView({block: 'start'}); return 1 })()")
           try await page.screenshot(to: URL(fileURLWithPath: directory).appendingPathComponent("revise-830-changed.png"))
         }
-        // Undone: the ring goes.
+        // Not well-formed (gibberish after </TEI>): ringed and diffed, no
+        // alert while it is edited (user, 2026-10-15).
+        now = try await Self.paste(page, first.text + "gibberish")
+        #expect(now.ring == "changed" && now.diff, "the malformed page: ring '\(now.ring)', diff \(now.diff)")
+        try await expect(page.locator(".testament-diff[data-active='true'] .diff-row[data-diff-line='inserted']").filter(hasText: "gibberish")).toHaveCount(1)
+        try await expect(page.locator(".testament-page-fault")).toBeHidden()
+        try await expect(page.locator(".revision-form-page-fault")).toBeHidden()
+        // Suggest finds it: not sent, the page named above the button; the
+        // reader on it, XML on, where it is wrong one line under it.
+        try await page.locator(".artifact-page-nav button[aria-label='Next page']").first.click()
+        try await page.locator(".artifact-xml-toggle button").first.click()
+        try await page.locator(".revision-form button[type='submit']").click()
+        try await expect(page.locator(".revision-form-page-fault")).toBeVisible()
+        try await expect(page.locator(".revision-form-page-fault")).toContainText("page 1 is not well-formed XML")
+        try await expect(page.locator(".artifact-view").first).toHaveAttribute("data-raw", "true")
+        try await expect(page.locator(".artifact-markup .tei-page[data-active='true']")).toHaveAttribute("data-page-index", "0")
+        let line = page.locator(".testament-page-fault")
+        try await expect(line).toBeVisible()
+        try await expect(line).toContainText("Line ")
+        try await expect(line).toContainText(", column ")
+        #expect(try await page.evaluate("(() => location.pathname)()", as: String.self).hasSuffix("/revise"), "the suggestion was sent")
+        // Mended: the line and the alert go.
         now = try await Self.paste(page, first.text)
+        try await expect(line).toBeHidden()
+        try await expect(page.locator(".revision-form-page-fault")).toBeHidden()
         #expect(now.ring == "" && !now.diff, "the change undone: ring '\(now.ring)', diff \(now.diff)")
+        // A line added is numbered in the same frame (user, 2026-10-15).
+        let numbered = """
+          (() => { const code = document.querySelector(".artifact-markup .tei-page[data-active='true'] .tei-page-edit .code-code");
+            return code.parentElement.querySelector('.code-gutter-lines').childElementCount; })()
+          """
+        let lines = try await page.evaluate(numbered, as: Int.self)
+        let enter = try await page.evaluate(
+          """
+          (() => { const code = document.querySelector(".artifact-markup .tei-page[data-active='true'] .tei-page-edit .code-code");
+            code.focus(); const r = document.createRange(); r.setStart(code.querySelector('.code-line').firstChild, 1); r.collapse(true);
+            getSelection().removeAllRanges(); getSelection().addRange(r);
+            document.execCommand('insertText', false, '\\n');
+            return code.parentElement.querySelector('.code-gutter-lines').childElementCount; })()
+          """, as: Int.self)
+        #expect(enter == lines + 1, "the gutter after a new line, in the same frame: \(lines) → \(enter)")
+        try await page.expectNoErrors()
+      }
+      commit.remove()
+      try await contributor.remove()
+    } catch {
+      commit.remove()
+      try await contributor.remove(after: error)
+    }
+  }
+
+  /// The editor's line numbers through an emptied editor (user,
+  /// 2026-10-15): emptied, it numbers its one line; typed into, the number
+  /// stays in the gutter, never inline; a page pasted in is numbered in
+  /// the same frame, the column widening for a third digit, and no number
+  /// ever over the code.
+  static let gutterState = """
+    (() => { const code = document.querySelector(".artifact-markup .tei-page[data-active='true'] .tei-page-edit .code-code");
+      const numbers = [...code.parentElement.querySelectorAll('.code-gutter-lines > span')];
+      const walker = document.createTreeWalker(code, NodeFilter.SHOW_TEXT); let first = null;
+      while (walker.nextNode()) { if (walker.currentNode.data.length) { first = walker.currentNode; break } }
+      let textLeft = null;
+      if (first) { const r = document.createRange(); r.setStart(first, 0); r.setEnd(first, 1); textLeft = r.getBoundingClientRect().left; }
+      const box = numbers[0] ? (() => { const r = document.createRange(); r.selectNodeContents(numbers[0]); return r.getBoundingClientRect(); })() : null;
+      return ({ count: numbers.length, first: numbers[0]?.textContent ?? '', last: numbers.at(-1)?.textContent ?? '',
+        numberRight: box ? Math.round(box.right) : null, textLeft: textLeft == null ? null : Math.round(textLeft) }); })()
+    """
+
+  struct Gutter: Decodable {
+    let count: Int
+    let first: String
+    let last: String
+    let numberRight: Int?
+    let textLeft: Int?
+  }
+
+  static func edit(_ page: Page, _ script: String) async throws -> Gutter {
+    _ = try await page.evaluate(
+      """
+      (() => { const code = document.querySelector(".artifact-markup .tei-page[data-active='true'] .tei-page-edit .code-code");
+        code.focus(); \(script); return 1 })()
+      """)
+    return try await page.evaluate(Self.gutterState, as: Gutter.self)
+  }
+
+  @Test(arguments: [BrowserEngine.chrome, .safari])
+  func theGutterFollowsAnEmptiedEditor(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let json = String(decoding: try JSONSerialization.data(withJSONObject: ["teiXml": try Self.skeatAsStored()]), as: UTF8.self)
+    let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let commit = try ScratchCommit(owner: contributor)
+    let selectAll = "const r = document.createRange(); r.selectNodeContents(code); getSelection().removeAllRanges(); getSelection().addRange(r)"
+    func insert(_ text: String) -> String {
+      let quoted = String(decoding: try! JSONSerialization.data(withJSONObject: [text]), as: UTF8.self).dropFirst().dropLast()
+      return "document.execCommand('insertText', false, \(quoted))"
+    }
+    do {
+      _ = try TestAdmin.query(
+        "UPDATE bibliographic_madrigals SET proposed_content_json = '\(json.replacingOccurrences(of: "'", with: "''"))' WHERE id = '\(commit.madrigalID)'")
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
+        try await page.openHydrated("\(commit.madrigalPath)/revise?resemblance=9")
+        try await Self.xmlOn(page)
+        _ = try await Self.expectColoredPage(page, 9)
+        func clear(_ g: Gutter, _ context: String) {
+          if let right = g.numberRight, let left = g.textLeft {
+            #expect(right <= left, "\(context): a number over the code: \(g)")
+          }
+        }
+        // Emptied: its one line numbered.
+        var g = try await Self.edit(page, "\(selectAll); document.execCommand('delete')")
+        #expect(g.count == 1 && g.first == "1", "emptied: \(g)")
+        // Typed into: the number in the gutter, the text clear of it.
+        g = try await Self.edit(page, insert("a"))
+        #expect(g.count == 1 && g.first == "1", "typed: \(g)")
+        clear(g, "typed")
+        // 37 lines pasted into it.
+        let page37 = (1...37).map { "<l n=\"\($0)\">line \($0)</l>" }.joined(separator: "\n")
+        g = try await Self.edit(page, "\(selectAll); \(insert(page37))")
+        #expect(g.count == 37 && g.last == "37", "37 pasted: \(g)")
+        clear(g, "37 pasted")
+        // Emptied again, then 820 lines: a third digit.
+        _ = try await Self.edit(page, "\(selectAll); document.execCommand('delete')")
+        let page820 = (1...820).map { "<l n=\"\($0)\">line \($0)</l>" }.joined(separator: "\n")
+        g = try await Self.edit(page, insert(page820))
+        #expect(g.count == 820 && g.last == "820", "820 pasted: \(g)")
+        clear(g, "820 pasted")
         try await page.expectNoErrors()
       }
       commit.remove()
