@@ -110,10 +110,10 @@ struct SkeatReviseTests {
         try await RevisePagesTests.replaceCode(code, with: pasted.replacingOccurrences(of: "Evangelical Seminary<", with: "Evangelical Seminary College<"), page: page)
         let diff = page.locator(".testament-diff[data-edited='true'] .diff-view[data-diff-mode='code']")
         try await expect(diff, timeout: .seconds(8)).toHaveCount(1)
-        // Headed against headed: the one line that changed, the header none.
-        try await expect(diff.locator(".diff-row[data-diff-line='removed']")).toHaveCount(1)
-        try await expect(diff.locator(".diff-row[data-diff-line='inserted']")).toHaveCount(1)
-        try await expect(diff.locator(".diff-row[data-diff-line='inserted'] .diff-changed")).toHaveText(" College")
+        // Byte for byte (user, 2026-10-15): the explication's page differs
+        // from the stored one in more than the word, each line shown; the
+        // word among them.
+        try await expect(diff.locator(".diff-row[data-diff-line='inserted']").filter(hasText: "Seminary College")).toHaveCount(1)
         try await Self.shot(page, "skeat-3-diff")
         try await page.locator(".artifact-xml-toggle button").first.click()
         try await page.locator(".artifact-overlay-toggle button").first.click()

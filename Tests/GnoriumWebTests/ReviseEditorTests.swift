@@ -50,7 +50,7 @@ struct ReviseEditorTests {
 
   /// XML mode colors the editor's text by role, at once when pressed and
   /// when the page opens in it (the mode kept for the session).
-  @Test(arguments: [BrowserEngine.chrome])
+  @Test(arguments: [BrowserEngine.chrome, .safari])
   func theEditorsXMLIsColoredByRole(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
@@ -79,8 +79,8 @@ struct ReviseEditorTests {
 
   /// An edit pasted as a fragment or as a headed page document (an
   /// explication's page, its header declaring renditions) is read back
-  /// and diffed: the slot under the reader holds the code diff, the
-  /// markup pane wears the change ring.
+  /// and diffed byte for byte: the slot under the reader holds the code
+  /// diff, the markup pane wears the change ring.
   @Test(arguments: [BrowserEngine.chrome])
   func aPastedEditIsDiffedFragmentOrHeaded(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -103,10 +103,15 @@ struct ReviseEditorTests {
           try await expect(page.locator(".testament-diff[data-edited='true']")).toHaveCount(1)
           let diff = page.locator(".testament-diff[data-edited='true'] .diff-view[data-diff-mode='code']")
           try await expect(diff, timeout: .seconds(5)).toHaveCount(1)
-          try await expect(diff.locator(".diff-row[data-diff-line='removed']")).toHaveCount(1)
-          try await expect(diff.locator(".diff-row[data-diff-line='inserted']")).toHaveCount(1)
+          if name == "fragment" {
+            try await expect(diff.locator(".diff-row[data-diff-line='removed']")).toHaveCount(1)
+            try await expect(diff.locator(".diff-row[data-diff-line='inserted']")).toHaveCount(1)
+          } else {
+            // Byte for byte (user, 2026-10-15): its own header and side
+            // break are changes too, each line shown; the word among them.
+            try await expect(diff.locator(".diff-row[data-diff-line='inserted']").filter(hasText: "New line")).toHaveCount(1)
+          }
           try await expect(page.locator(".artifact-markup").first).toHaveAttribute("data-diff-state", "changed")
-          _ = name
         }
         try await page.expectNoErrors()
       }
@@ -118,18 +123,20 @@ struct ReviseEditorTests {
     }
   }
 
-  /// A real page (Skeat's page 5, as an explication keeps it: headed, its
-  /// side's break opening its body) pasted over the page as the document
-  /// holds it, one word changed: the diff shows that line.
+  /// A real page (Skeat's page 5, paste-ready: headed, its side's break
+  /// opening its body) pasted over the page as the document holds it, one
+  /// word changed: the diff shows that line alone, byte for byte.
   @Test(arguments: [BrowserEngine.chrome])
   func aHeadedExplicationPageIsDiffedAgainstTheStoredPage(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let headed = try String(
       contentsOfFile: "/Users/Madhavik/Downloads/Gnorium/skeat-pages-2026-10-14/canvas-5.xml", encoding: .utf8)
-    let body = try #require(headed.range(of: "<pb n=\"5\"/>"))
-    let end = try #require(headed.range(of: "</body>", options: .backwards))
-    let stored = headed[body.upperBound..<end.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
+    // The page's bytes as the document stores them: the body between the
+    // headed view's frame (`TEIRendition.headedPage`), its side's break too.
+    let body = try #require(headed.range(of: "<text><body>\n"))
+    let end = try #require(headed.range(of: "\n</body></text>", options: .backwards))
+    let stored = headed[body.upperBound..<end.lowerBound]
     // The document declaring the witness's renditions in its one header,
     // as an explication assembles it: the paste's header is no change.
     let header = try #require(headed.range(of: #"<teiHeader>[\s\S]*?</teiHeader>"#, options: .regularExpression))
@@ -228,12 +235,12 @@ struct ReviseEditorTests {
 
   /// The real Revise page of a production-sized witness: its editor's XML
   /// colored on the page it opens on and on each of the ten read pages it
-  /// turns to; each paste-ready page byte for byte what its editor
-  /// shows; a page pasted
-  /// as it stands—byte for byte, or laid out otherwise (its header on one
-  /// line, its body unindented)—neither ringed nor diffed; a real change
-  /// ringed, diffed under the reader, and colored.
-  @Test(arguments: [BrowserEngine.chrome])
+  /// turns to; each paste-ready page byte for byte what its editor shows;
+  /// a page pasted as it stands neither ringed nor diffed; laid out
+  /// otherwise (its header on one line, its body unindented) ringed at once
+  /// and diffed, its changed blanks shown; a real change ringed, diffed
+  /// under the reader, and colored. In Safari too (user, 2026-10-15).
+  @Test(arguments: [BrowserEngine.chrome, .safari])
   func aProductionSizedWitnessIsColoredAndRingedAsItsDiffReads(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
@@ -258,17 +265,40 @@ struct ReviseEditorTests {
         }
         for _ in 0..<9 { try await page.locator(".artifact-page-nav button[aria-label='Previous page']").first.click() }
         let first = try await Self.expectColoredPage(page, 0)
+        // Its line numbers (user, 2026-10-15): right-aligned, the widest
+        // inset from the pane's edge as far as from the code, never touching.
+        let insets = try await page.evaluate(
+          """
+          (() => { const code = document.querySelector(".artifact-markup .tei-page[data-active='true'] .tei-page-edit .code-code");
+            const view = code.closest('.code-view').getBoundingClientRect();
+            const line = code.querySelector('.code-line');
+            const text = line.getBoundingClientRect().left + parseFloat(getComputedStyle(line).paddingInlineStart);
+            const of = n => { const s = [...code.parentElement.querySelectorAll('.code-gutter-lines > span')].find(s => s.textContent === n);
+              const r = document.createRange(); r.selectNodeContents(s); const b = r.getBoundingClientRect();
+              return [Math.round(b.left - view.left), Math.round(text - b.right)]; };
+            return JSON.stringify({ one: of('1'), ten: of('10') }); })()
+          """, as: String.self)
+        #expect(insets == #"{"one":[18,8],"ten":[8,8]}"#, "the gutter's insets: \(insets)")
 
         // Pasted as it stands, byte for byte: no ring, no diff.
         var now = try await Self.paste(page, first.text)
         #expect(now.ring == "" && !now.diff, "the page pasted unchanged: \(now.ring) \(now.diff)")
-        // Laid out otherwise, the same document: no ring, no diff.
+        // Laid out otherwise, the same elements: its bytes changed, so
+        // ringed at once and diffed, the changed blanks and line breaks
+        // filled—never an empty diff (user, 2026-10-15).
         let compact = first.text
           .replacingOccurrences(of: ">\n<", with: "><")
           .replacingOccurrences(of: "\n      ", with: "\n")
         #expect(compact != first.text)
-        now = try await Self.paste(page, compact)
-        #expect(now.ring == "" && !now.diff, "the page pasted laid out otherwise: ring '\(now.ring)', diff \(now.diff)")
+        let code = page.locator(".artifact-markup .tei-page[data-active='true'] .tei-page-edit .code-code").first
+        try await RevisePagesTests.replaceCode(code, with: compact, page: page)
+        try await expect(page.locator(".artifact-markup").first).toHaveAttribute("data-diff-state", "changed")
+        try await Task.sleep(for: .milliseconds(1500))
+        now = try await page.evaluate(Self.shown, as: Shown.self)
+        #expect(now.ring == "changed" && now.diff, "the page pasted laid out otherwise: ring '\(now.ring)', diff \(now.diff)")
+        let blanks = page.locator(".testament-diff[data-active='true'] .diff-view[data-diff-mode='code'] .diff-changed[data-blank='true']")
+        #expect(try await blanks.count() > 0, "the layout's changed blanks are not shown")
+        try await expect(page.locator(".testament-diff[data-active='true'] .diff-note")).toHaveCount(0)
         // A real change: ringed, diffed under the reader, colored.
         now = try await Self.paste(page, first.text.replacingOccurrences(of: #"reason="blank""#, with: #"reason="illegible""#))
         #expect(now.ring == "changed" && now.diff && now.names > 0, "the changed page: ring '\(now.ring)', diff \(now.diff), names \(now.names)")

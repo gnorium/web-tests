@@ -175,13 +175,13 @@ struct RevisePagesTests {
           })()
           """, as: Bool.self)
         try await expect(page.locator(".testament-diff[data-edited='true']")).toHaveCount(1)
-        // Both sides laid out alike, the source diff marks the one line
-        // that changed, not the stored line against the whole layout.
+        // Byte for byte, as stored (user, 2026-10-15): the page's one
+        // line changed.
         let code = page.locator(".testament-diff[data-edited='true'] .diff-view[data-diff-mode='code']")
         try await expect(code.locator(".diff-row[data-diff-line='removed']")).toHaveCount(1)
         try await expect(code.locator(".diff-row[data-diff-line='inserted']")).toHaveCount(1)
-        // Headed both sides: the page's lines and the document's four.
-        try await expect(code.locator(".diff-row[data-diff-line='unchanged']")).toHaveCount(6)
+        // Headed both sides: the document's four lines around it.
+        try await expect(code.locator(".diff-row[data-diff-line='unchanged']")).toHaveCount(4)
         if let directory = ProcessInfo.processInfo.environment["GNORIUM_SCREENSHOT_DIR"] {
           _ = try await page.evaluate(
             "(() => { document.querySelector(\".testament-diff[data-edited='true'] .diff-view\").scrollIntoView({block: 'center'}); return 1 })()",
