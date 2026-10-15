@@ -564,6 +564,98 @@ struct BibliographicExplicationSessionsTests {
     try await admin.remove()
   }
 
+  /// A resumed session's continuation turn is a sent prompt like its
+  /// System and Task prompts (user, 2026-10-15): the gray box in the base
+  /// text color, its legend "Continuation prompt"—its Markdown switch first,
+  /// its vignette's id last—rendered as Markdown, Raw exactly the text sent;
+  /// drawn so by the server and by the live stream (a replay) alike.
+  @Test(arguments: [BrowserEngine.chrome])
+  func aContinuationPromptIsASentPromptWithItsLegendAndRaw(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let work = try ScratchWork(owner: admin)
+    let antiphonID = UUID().uuidString.lowercased()
+    let nocturneID = UUID().uuidString.lowercased()
+    do {
+      let user = try admin.column("id")
+      let vignette = try TestAdmin.query(
+        "SELECT vignette_id FROM active_prompt_vignettes WHERE slot = 'bibliographic_explication_continuation'"
+      ).trimmingCharacters(in: .whitespacesAndNewlines)
+      let sent = "Continue from the **retained** conversation.\n\n- Do not repeat completed tool writes."
+      let sentJSON = String(decoding: try JSONEncoder().encode(sent), as: UTF8.self)
+      let blocks: [[String: String]] = [
+        ["type": "thinking", "content": "Reading before the Stop."],
+        ["type": "continuation_prompt", "content": sent, "template_id": vignette],
+        ["type": "text", "content": "Carried on."],
+      ]
+      let output = String(decoding: try JSONSerialization.data(withJSONObject: blocks), as: UTF8.self)
+        .replacingOccurrences(of: "'", with: "''")
+      _ = try TestAdmin.query("""
+        BEGIN;
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
+          VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
+        INSERT INTO bibliographic_explication_nocturnes
+          (id, submission_id, process, resemblance, attempt, provider, model, output, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          VALUES ('\(nocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
+            'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now());
+        COMMIT;
+        """)
+      try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?resemblance=1")
+        let check = """
+          (() => {
+            const out = [];
+            const boxes = document.querySelectorAll('.computorium-session-output-content .computorium-session-continuation-prompt');
+            if (boxes.length !== 1) return 'boxes ' + boxes.length;
+            const box = boxes[0];
+            if (box.tagName !== 'FIELDSET' || !box.classList.contains('computorium-session-prompt-fieldset')) out.push('not a prompt fieldset');
+            const legend = box.querySelector(':scope > .prompt-legend-view');
+            const order = [...legend.children].map(e => e.classList.contains('computorium-session-prompt-markdown-toggle') ? 'raw'
+              : e.classList.contains('computorium-session-prompt-legend-title') ? 'title'
+              : e.classList.contains('computorium-session-prompt-legend-vignette') ? 'id' : 'other').join(' ');
+            if (order !== 'raw title id') out.push('legend ' + order);
+            const title = legend.querySelector('.computorium-session-prompt-legend-title').textContent;
+            if (title !== 'Continuation prompt') out.push('title ' + title);
+            const rendered = box.querySelector('.computorium-session-prompt-rendered');
+            if (!rendered.querySelector('strong') || !rendered.querySelector('li')) out.push('not Markdown');
+            const probe = document.createElement('span'); probe.style.color = 'var(--color-base)'; document.body.append(probe);
+            const base = getComputedStyle(probe).color; probe.remove();
+            if (getComputedStyle(rendered.querySelector('p')).color !== base) out.push('not the base color');
+            const ground = document.createElement('span'); ground.style.backgroundColor = 'var(--background-color-neutral-subtle)'; document.body.append(ground);
+            const gray = getComputedStyle(ground).backgroundColor; ground.remove();
+            if (getComputedStyle(box).backgroundColor !== gray) out.push('not the gray box');
+            const raw = box.querySelector('pre.computorium-session-prompt-body');
+            if (raw.textContent !== \(sentJSON)) out.push('raw is not the text sent: ' + JSON.stringify(raw.textContent));
+            if (getComputedStyle(raw).display !== 'none') out.push('raw shown before the switch');
+            return out.join('; ');
+          })()
+          """
+        let served = try await page.evaluate(check, as: String.self)
+        #expect(served.isEmpty, "server: \(served)")
+        let toggle = page.locator(".computorium-session-continuation-prompt .computorium-session-prompt-markdown-toggle button").first
+        try await toggle.click()
+        try await expect(page.locator(".computorium-session-continuation-prompt")).toHaveAttribute("data-raw", "true")
+        try await expect(page.locator(".computorium-session-continuation-prompt pre.computorium-session-prompt-body")).toBeVisible()
+
+        // The live stream draws the same box.
+        try await page.locator(".replay-btn").click()
+        try await expect(page.locator(".replay-btn"), timeout: .seconds(20)).toBeEnabled()
+        try await expect(page.locator(".computorium-session-view")).toHaveAttribute("data-computorium-session-status", "succeeded")
+        let streamed = try await page.evaluate(check, as: String.self)
+        #expect(streamed.isEmpty, "live: \(streamed)")
+        try await page.locator(".computorium-session-continuation-prompt .computorium-session-prompt-markdown-toggle button").first.click()
+        try await expect(page.locator(".computorium-session-continuation-prompt")).toHaveAttribute("data-raw", "true")
+        try await page.expectNoErrors()
+      }
+    } catch {
+      remove(nocturneID: nocturneID, antiphonID: antiphonID, work: work)
+      try await admin.remove(after: error)
+    }
+    remove(nocturneID: nocturneID, antiphonID: antiphonID, work: work)
+    try await admin.remove()
+  }
+
   private func remove(nocturneID: String, antiphonID: String, work: ScratchWork) {
     _ = try? TestAdmin.query(
       """

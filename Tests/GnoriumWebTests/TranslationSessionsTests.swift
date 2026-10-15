@@ -81,6 +81,58 @@ struct TranslationSessionsTests {
     try await admin.remove()
   }
 
+  /// A worker's Stop pauses a session instead of failing it (user,
+  /// 2026-10-15): its serenade waits, its chunk's session says why in a
+  /// blue info alert over its transcript so far, no mark turns, and no
+  /// failure is shown.
+  @Test(arguments: [BrowserEngine.chrome])
+  func aStoppedSessionWaitsAndSaysWhy(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let work = try ScratchWork(owner: admin)
+    let antiphon = UUID().uuidString.lowercased()
+    let madrigal = UUID().uuidString.lowercased()
+    let serenade = UUID().uuidString.lowercased()
+    let stopped = "The bibliographic translation worker was stopped."
+    do {
+      let user = try admin.column("id")
+      _ = try TestAdmin.query(
+        """
+        BEGIN;
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
+          VALUES ('\(antiphon)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
+        INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, biblio_record_id, proposed_content_json,
+          metadata_json, processing_status)
+          VALUES ('\(madrigal)', '\(madrigal)', '\(antiphon)', '\(work.recordID.lowercased())', '\(Self.tei)',
+            (SELECT metadata_json FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())'), 'committed');
+        INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, requested_by_user_id,
+          processing_status, processing_error)
+          VALUES ('\(serenade)', '\(madrigal)', 'eng', '\(user)', 'pending', '\(stopped)');
+        INSERT INTO bibliographic_translation_nocturnes (id, bibliographic_serenade_id, process, chunk, attempt, provider, model, output,
+          result, error_message, duration_ms, created_at)
+          VALUES (gen_random_uuid(), '\(serenade)', 'translation', '1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
+            '\(try Self.trace())', 'queued', '\(stopped)', 1200, now());
+        COMMIT;
+        """)
+      try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated("/mission-control/serenades/bibliographic/\(serenade)")
+        let session = page.locator(".computorium-session-view")
+        try await expect(session).toHaveAttribute("data-computorium-session-status", "queued")
+        try await expect(session.locator(".computorium-session-paused-notice")).toHaveText(stopped)
+        try await expect(session.locator(".computorium-session-failed-alert")).toHaveCount(0)
+        try await expect(session.getByText("write_translation").first).toBeAttached()
+        try await expect(session.locator(".computorium-session-output-thinking-running")).toHaveCount(0)
+        try await page.expectNoErrors()
+      }
+    } catch {
+      remove(antiphon: antiphon, madrigal: madrigal, serenade: serenade, work: work)
+      try await admin.remove(after: error)
+    }
+    remove(antiphon: antiphon, madrigal: madrigal, serenade: serenade, work: work)
+    try await admin.remove()
+  }
+
   private func remove(antiphon: String, madrigal: String, serenade: String, work: ScratchWork) {
     _ = try? TestAdmin.query(
       """

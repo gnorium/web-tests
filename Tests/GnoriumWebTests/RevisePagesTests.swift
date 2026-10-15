@@ -492,6 +492,44 @@ struct RevisePagesTests {
     try await contributor.remove()
   }
 
+  /// Each process's Prompts list its continuation prompt third (user,
+  /// 2026-10-15): the system prompt, the task prompt template, the
+  /// continuation prompt—one text, no system prompt—then the
+  /// autocompaction.
+  @Test(arguments: [BrowserEngine.chrome])
+  func eachProcessListsItsContinuationPromptThird(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let work = try ScratchCommit(owner: contributor)
+    do {
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
+        try await page.openHydrated("\(work.madrigalPath)/revise")
+        for slot in ["bibliographic_arbitration", "bibliographic_explication"] {
+          let order = try await page.evaluate(
+            """
+            (() => {
+              const content = document.querySelector('#prompt-revision-process-\(slot) .prompt-revision-fields-process-content');
+              if (!content) return 'missing';
+              const named = [...content.querySelectorAll('.accordion-view')].filter(a => a.parentElement.closest('.accordion-view') === content.closest('.accordion-view'));
+              return named.map(a => a.querySelector('.accordion-summary').textContent.trim()).join(' | ');
+            })()
+            """, as: String.self)
+          #expect(order == "System Prompt | Task Prompt Template | Continuation Prompt | Autocompaction", "\(slot): \(order)")
+          let continuation = "\(slot)_continuation"
+          try await expect(page.locator("textarea[name='prompt-task-\(continuation)']")).toHaveCount(1)
+          try await expect(page.locator("textarea[name='prompt-system-\(continuation)']")).toHaveCount(0)
+        }
+        try await page.expectNoErrors()
+      }
+    } catch {
+      work.remove()
+      try await contributor.remove(after: error)
+    }
+    work.remove()
+    try await contributor.remove()
+  }
+
   /// A long text's diff box follows the caret (user, 2026-10-08): redrawn
   /// on every keystroke, it scrolls itself—never the page—so the row of the
   /// line being edited is in view. The Revise page has the record rule over
