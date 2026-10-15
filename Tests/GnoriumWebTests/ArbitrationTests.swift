@@ -174,9 +174,7 @@ struct ArbitrationTests {
         guard UUID(uuidString: sessionID) != nil else {
           throw WebTestError("Commit did not create and finish the stopped arbitration fixture.")
         }
-        // Running, its session streams into the call as it grows: the
-        // card under the call's words, watched on the call's stream (user,
-        // 2026-10-15). The row stands in for the live buffer here.
+        // Running (the row stands in for the live buffer here).
         _ = try TestAdmin.query("""
           BEGIN;
           UPDATE bibliographic_arbitration_sessions SET result = 'running', output = '\(try Self.trace(upTo: 4))',
@@ -184,13 +182,6 @@ struct ArbitrationTests {
           UPDATE locutions SET call_status = 'running' WHERE id = '\(callID)';
           COMMIT;
           """)
-        try await page.openHydrated(reading.path)
-        let live = call.locator(".locution-call-session .computorium-session-view")
-        try await expect(live).toHaveCount(1)
-        try await expect(live, timeout: .seconds(15)).toContainText("Reading the selected evidence carefully.")
-        try await expect(live).not.toContainText(Self.reply)
-        _ = try TestAdmin.query("UPDATE bibliographic_arbitration_sessions SET output = '\(try Self.trace())' WHERE id = '\(sessionID)'")
-        try await expect(live, timeout: .seconds(15)).toContainText(Self.reply)
         // Mission Control counts the running session as claimed work, its
         // count opening the running calls (user, 2026-10-15); the panel is
         // brought up to date in place, so its spinner is never re-created and
@@ -224,7 +215,27 @@ struct ArbitrationTests {
         try await page.openHydrated(hour)
         try await expect(page.locator("a[href$='#locution-\(callID.uppercased())']").first).toBeAttached()
 
+        // The thread: the call (its words and own actions), the Commit, then
+        // gnorium's slot in reply position, its session streaming there,
+        // provisional while it runs (user, 2026-10-15).
         try await page.openHydrated(reading.path)
+        let slot = page.locator(".locution-view[data-provisional='true']")
+        try await expect(slot).toHaveCount(1)
+        try await expect(call.locator(".computorium-session-view")).toHaveCount(0)
+        try await expect(slot.locator(".locution-header")).toContainText("gnorium submitted locution — replying to locution \(callID.uppercased())")
+        #expect(try await page.evaluate("""
+          (() => { const top = s => document.querySelector(s).getBoundingClientRect().top
+            return top('#locution-\(callID.uppercased())') < top('#commit-\(callID.uppercased())')
+              && top('#commit-\(callID.uppercased())') < top(".locution-view[data-provisional='true']") })()
+          """, as: Bool.self), "Call, its commit, then gnorium's slot")
+        let live = slot.locator(".computorium-session-view")
+        try await expect(live, timeout: .seconds(15)).toContainText("Reading the selected evidence carefully.")
+        try await expect(live).not.toContainText(Self.reply)
+        _ = try TestAdmin.query("UPDATE bibliographic_arbitration_sessions SET output = '\(try Self.trace())' WHERE id = '\(sessionID)'")
+        try await expect(live, timeout: .seconds(15)).toContainText(Self.reply)
+        // The session ends and files its reply: the same element becomes it,
+        // its id written in, no second reply drawn.
+        _ = try await slot.evaluate("el => { window.__slot = el; return true }")
         _ = try TestAdmin.query("""
           BEGIN;
           UPDATE bibliographic_arbitration_sessions SET result = 'passed', output = '\(try Self.trace())',
@@ -239,6 +250,13 @@ struct ArbitrationTests {
             FROM locutions c WHERE c.id = '\(callID)';
           COMMIT;
           """)
+        let filed = page.locator("#locution-\(replyID.uppercased())")
+        try await expect(filed, timeout: .seconds(15)).toHaveAttribute("data-provisional", "false")
+        #expect(try await filed.evaluate("el => el === window.__slot").bool == true, "The same element")
+        try await expect(filed.locator(".locution-header")).toContainText(
+          "gnorium submitted locution \(replyID.uppercased()) replying to locution \(callID.uppercased())")
+        try await expect(page.locator(".locution-view .computorium-session-view")).toHaveCount(1)
+
         try await page.openHydrated(reading.path)
         let reply = page.locator("#locution-\(replyID.uppercased())")
         let session = reply.locator(".computorium-session-view")
@@ -249,7 +267,7 @@ struct ArbitrationTests {
         try await expect(reply).toContainText("gnorium submitted locution")
         // Answered, the session stands in the reply alone; the admin's
         // Commit is an act of the thread between the call and the reply.
-        try await expect(call.locator(".locution-call-session")).toHaveCount(0)
+        try await expect(page.locator(".locution-view[data-provisional='true']")).toHaveCount(0)
         let commit = page.locator("#commit-\(callID.uppercased())")
         try await expect(commit).toContainText("committed locution \(callID.uppercased())")
         #expect(try await page.evaluate("""
