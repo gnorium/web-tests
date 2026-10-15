@@ -447,6 +447,10 @@ struct ArbitrationTests {
         try await expect(page.locator(".field-validation-message-view")).toContainText("consecutive")
         try await rows.nth(1).locator("input").click()
         try await expect(rows.nth(1).locator(".checkbox-input")).toBeChecked()
+        // A tick keeps the box focused and the roster attaching (user,
+        // 2026-10-16): the box still empty, nothing closes under the pointer.
+        try await expect(body).toBeFocused()
+        try await expect(roster).toHaveAttribute("data-mode", "attach")
         try await rows.nth(2).locator("input").click()
         try await expect(rows.nth(2).locator(".checkbox-input")).toBeChecked(false)
         // Back to commit mode when the box is left empty; attach again on
@@ -551,7 +555,7 @@ struct ArbitrationTests {
         // controls (user, 2026-10-15).
         let order = try await page.evaluate(
           """
-          [...document.querySelector('.locution-view .reactions-controls').children]
+          [...document.querySelector('.locution-view .reactions-raw-info').children]
             .map(e => e.classList.contains('locution-markdown-toggle') ? 'raw'
               : e.classList.contains('reaction-picker-view') ? 'picker'
               : e.classList.contains('reactions-when') ? 'when' : 'other').slice(0, 3).join(' ')

@@ -44,6 +44,10 @@ struct ResemblanceAttachmentTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
+    // The region as the trace records it sent: a IIIF request this server
+    // answers at any path under the page's service.
+    let fixture = try await FixtureServer.threePageManifest()
+    let sent = fixture.baseURL + "/page-1/pct:0,0,100,100/max/0/default.jpg"
     let nocturneID = UUID().uuidString.lowercased()
     let antiphonID = UUID().uuidString.lowercased()
     let name = "resemblance-live-\(UUID().uuidString).html"
@@ -72,8 +76,8 @@ struct ResemblanceAttachmentTests {
             constructor(url) { window.__resemblanceMockURL=url; window.__resemblanceMock='constructed'; this.handlers={}; setTimeout(()=>{
               window.__resemblanceMock='emitted';
               this.emit('start','{}');
-              const src='data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="3000" height="4000"><rect width="3000" height="4000" fill="#e7dec7"/></svg>');
-              this.emit('chunk',JSON.stringify({type:'tool',resemblance:'1',name:'view_canvas',arguments:'{"label":"1"}',result:JSON.stringify({ok:true,canvas:'1',page_url:src,crop_url:src,source_width:3000,source_height:4000,sent_width:900,sent_height:1200}),status:'ok',call_id:'late-resemblance'}));
+              this.emit('chunk',JSON.stringify({type:'tool',resemblance:'1',name:'view_canvas',arguments:'{"label":"1"}',result:JSON.stringify({ok:true,canvas:'1',source_width:3000,source_height:4000,sent_width:900,sent_height:1200}),status:'ok',call_id:'late-resemblance'}));
+              this.emit('chunk',JSON.stringify({type:'image_sent',resemblance:'1',url:'\(sent)'}));
               this.emit('chunk',JSON.stringify({type:'thinking',resemblance:'1',text:'Reading the page live.'}));
             },500); }
             addEventListener(name,fn) { (this.handlers[name]??=[]).push(fn); }

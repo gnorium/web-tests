@@ -191,12 +191,14 @@ struct BibliographicExplicationSessionsTests {
     }
     do {
       let user = try admin.column("id")
-      let detailURL = image(600, 400)
+      // The region as it was downloaded (a IIIF request at max), recorded as
+      // sent after the call; the card shows it at the size the model was sent.
+      let downloaded = "https://example.test/iiif/page-1/pct:10,25,30,20/max/0/default.jpg"
+      let detailURL = "https://example.test/iiif/page-1/pct:10,25,30,20/600,400/0/default.jpg"
       // Written in a fixed order: the card keeps the JSON's own.
       let result = """
         {"ok": true, "tool": "zoom_image", "page": "1", "region": [100, 250, 300, 200], "image": "attached below", \
-        "source_width": 1200, "source_height": 800, "sent_width": 600, "sent_height": 400, \
-        "crop_url": "\(detailURL)", "page_url": "\(image(400, 400))"}
+        "source_width": 1200, "source_height": 800, "sent_width": 600, "sent_height": 400}
         """
       let blocks: [[String: String]] = [
         [
@@ -204,6 +206,7 @@ struct BibliographicExplicationSessionsTests {
           "result": result,
           "status": "ok", "call_id": "call_zoom",
         ],
+        ["type": "image_sent", "url": downloaded, "source_sha256": "a", "sha256": "b", "caption": "Region"],
         ["type": "text", "content": "Looked closer."],
       ]
       let output = String(decoding: try JSONSerialization.data(withJSONObject: blocks), as: UTF8.self)
@@ -245,7 +248,7 @@ struct BibliographicExplicationSessionsTests {
         }
         let resultLabels = try await labels(".computorium-session-tool-call-result-box")
         #expect(
-          resultLabels == "ok tool page region image source_width source_height sent_width sent_height crop_url page_url",
+          resultLabels == "ok tool page region image source_width source_height sent_width sent_height",
           "Every key the zoom returned, in the JSON's order: \(resultLabels)")
         try await expect(box).toContainText("[100, 250, 300, 200]")
         // The arguments as sent, each its own datum.
