@@ -135,12 +135,17 @@ struct DashboardLayoutTests {
       try await expect(page.locator(".mission-control-openrouter-summary")).toContainText("Usage (all time)")
       try await expect(page.locator(".mission-control-openrouter-summary")).toContainText("$19.70378517")
       try await expect(page.locator(".mission-control-openrouter-summary")).toContainText("$0.29621483")
+      try await expect(page.locator(".mission-control-runpod-summary")).toContainText("Current balance")
+      try await expect(page.locator(".mission-control-runpod-summary")).toContainText("$24.875")
+      try await expect(page.locator(".mission-control-runpod-summary")).toContainText("Usage (all time)")
+      try await expect(page.locator(".mission-control-runpod-summary")).toContainText("$0.00041")
       try await expect(page.locator(".mission-control-sponsorship-summary")).toContainText("$0.296214830001")
       #expect(try await page.evaluate("""
-        (()=>{const boxes=['.mission-control-openrouter-summary','.mission-control-sponsorship-summary'].map(s=>document.querySelector(s));
+        (()=>{const boxes=['.mission-control-openrouter-summary','.mission-control-runpod-summary','.mission-control-sponsorship-summary'].map(s=>document.querySelector(s));
           return boxes.every(e=>{const s=getComputedStyle(e);return parseFloat(s.borderTopWidth)>0 && parseFloat(s.paddingTop)>0 && parseFloat(s.borderRadius)>0;})
-            && boxes[0].getBoundingClientRect().bottom<boxes[1].getBoundingClientRect().top;})()
-        """, as: Bool.self), "Provider and sponsorship are distinct ordered boxes")
+            && boxes[0].getBoundingClientRect().bottom<boxes[1].getBoundingClientRect().top
+            && boxes[1].getBoundingClientRect().bottom<boxes[2].getBoundingClientRect().top;})()
+        """, as: Bool.self), "OpenRouter, RunPod and sponsorship are distinct ordered boxes")
       // A running nocturne's model reads as the Nocturnes page has it, in the row's
       // own sans, size and color (user, 2026-10-08): never mono.
       let model = try await page.evaluate("""
