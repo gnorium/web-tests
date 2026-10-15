@@ -440,16 +440,14 @@ struct BibliographicExplicationSessionsTests {
             const label = r('.computorium-session-header .computorium-session-title-resemblance');
             const fieldset = r('.computorium-session-output-fieldset');
             const raw = r('.computorium-session-output-legend-start .computorium-session-markdown-toggle');
-            const attempt = r('.computorium-session-output-legend-end .computorium-session-attempt-nav');
             const out = [];
-            if (!card || !pager || !label || !fieldset || !raw || !attempt) return 'missing';
+            if (!card || !pager || !label || !fieldset || !raw) return 'missing';
+            // Two attempts, no attempt pager (user, 2026-10-15).
+            if (document.querySelector('.computorium-session-attempt-nav')) out.push('an attempt pager');
             if (Math.abs(pager.right - card.right) > 1) out.push('pager right ' + pager.right + ' vs card ' + card.right);
             if (pager.top < card.bottom - 1) out.push('pager above the card bottom');
             if (label.top > card.top + 1 || Math.abs(label.left - card.left) > 1) out.push('label not top left');
             if (Math.abs(raw.left - (fieldset.left + 16)) > 1) out.push('raw not at the start: ' + (raw.left - fieldset.left));
-            if (Math.abs(attempt.right - (fieldset.right - 16)) > 1) out.push('attempt pager not at the end: ' + (fieldset.right - attempt.right));
-            const mid = (fieldset.bottom);
-            if (Math.abs((attempt.top + attempt.bottom) / 2 - mid) > 2) out.push('attempt pager off the border');
             // Every transcript legend at the bottom left, Raw first: the
             // output's Raw then its info icon; a prompt's Raw, its title,
             // then its id (user, 2026-10-10).
