@@ -135,9 +135,13 @@ struct BibliographicExplicationSessionsTests {
           })()
           """, as: String.self)
         #expect(proseOff.isEmpty, "Formatted text at 16px on 26px: \(proseOff)")
-        let legend = page.locator(".computorium-session-compaction-prompt-fieldset .computorium-session-prompt-legend-vignette a")
+        // The legend's (i) names the template; its bubble, portaled to
+        // <body> once hydrated (TooltipView, 2026-10-13), links its process's
+        // prompts with the vignette's UUID.
+        try await expect(page.locator(".computorium-session-compaction-prompt-fieldset .computorium-session-prompt-legend-vignette")).toHaveCount(1)
+        let legend = page.locator(".tooltip-view[data-portal='true'] .tooltip-content a[href='/mission-control/prompts/bibliographic/explication_autocompaction']")
         try await expect(legend).toHaveCount(1)
-        try await expect(legend).toHaveAttribute("href", "/mission-control/prompts/bibliographic/explication_autocompaction")
+        try await expect(legend).toHaveText(autoID)
         // The autocompaction card is white; the prompt the summarizer was
         // given and the summary the main model is given from then on are
         // gray cards on it, each under its legend (user, 2026-10-10).
@@ -465,13 +469,13 @@ struct BibliographicExplicationSessionsTests {
                 : e.classList.contains('computorium-session-prompt-legend-vignette') ? 'id' : 'other').join(' ');
               if (!order.startsWith('raw title')) out.push('prompt legend ' + order);
               const f = field.getBoundingClientRect(), l = legend.getBoundingClientRect();
-              // Inside its box, so centered in it, Raw and its words one group
-              // (user, 2026-10-12).
-              if (Math.abs((l.left + l.right) / 2 - (f.left + f.right) / 2) > 1) out.push('prompt legend not centered: ' + ((l.left + l.right) / 2 - (f.left + f.right) / 2));
-              // Its legend the box's last row, inside it: the box's 16 and its
-              // border under it, 16 on every side (user, 2026-10-12).
-              if (Math.abs(f.bottom - 17 - l.bottom) > 1) out.push('prompt legend not inside at the bottom: ' + (f.bottom - l.bottom));
-              if (inset(field) !== '16px 16px') out.push('prompt inset ' + inset(field));
+              // Hung on its box's bottom border at the start, 16 in, as the
+              // output's legend (2026-10-13; spacing kept 2026-10-15).
+              if (Math.abs(l.left - (f.left + 1 + 16)) > 1) out.push('prompt legend not at the start: ' + (l.left - f.left));
+              if (Math.abs((l.top + l.bottom) / 2 - f.bottom) > 2) out.push('prompt legend off the border: ' + ((l.top + l.bottom) / 2 - f.bottom));
+              // Its medium Raw hangs half inside: 36 at the bottom, 16 elsewhere
+              // (controlLegendInset).
+              if (inset(field) !== '16px 36px') out.push('prompt inset ' + inset(field));
             }
             return out.join('; ');
           })()
