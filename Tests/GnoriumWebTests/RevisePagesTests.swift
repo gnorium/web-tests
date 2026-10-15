@@ -337,7 +337,8 @@ struct RevisePagesTests {
             return 'ok ' + card.dataset.canvasShown
           })()
           """
-        #expect(try await page.evaluate(ring, as: String.self) == "ok false", "Resemblance put away")
+        let putAway = try await page.evaluate(ring, as: String.self)
+        #expect(putAway == "ok false", "Resemblance put away: \(putAway)")
         try await page.locator(".artifact-canvas-toggle button").first.click()
         try await expect(page.locator(".artifact-view")).toHaveAttribute("data-canvas-shown", "true")
         #expect(try await page.evaluate(ring, as: String.self) == "ok true", "Resemblance shown")

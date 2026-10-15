@@ -325,6 +325,14 @@ struct ReviseEditorTests {
         #expect(
           layout == #"{"under":true,"diff":["artifact-under-markup"],"markup":["artifact-markup"],"nested":0,"overflow":0}"#,
           "one scrollport a zone, none nested, nothing wider than the page: \(layout)")
+        // The markup pane and its diff, the column split evenly.
+        let split = try await page.evaluate(
+          """
+          (() => { const pane = document.querySelector('.artifact-markup-box').getBoundingClientRect();
+            const zone = document.querySelector('.artifact-under-markup').getBoundingClientRect();
+            return Math.abs(pane.height - zone.height) <= 2 ? 'even' : `${Math.round(pane.height)} over ${Math.round(zone.height)}`; })()
+          """, as: String.self)
+        #expect(split == "even", "the markup pane over its diff: \(split)")
         if let directory = ProcessInfo.processInfo.environment["GNORIUM_SCREENSHOT_DIR"] {
           _ = try await page.evaluate("(() => { document.querySelector('.artifact-view').scrollIntoView({block: 'start'}); return 1 })()")
           try await page.screenshot(to: URL(fileURLWithPath: directory).appendingPathComponent("revise-830-changed.png"))
@@ -456,6 +464,57 @@ struct ReviseEditorTests {
         g = try await Self.edit(page, insert(page820))
         #expect(g.count == 820 && g.last == "820", "820 pasted: \(g)")
         clear(g, "820 pasted")
+        try await page.expectNoErrors()
+      }
+      commit.remove()
+      try await contributor.remove()
+    } catch {
+      commit.remove()
+      try await contributor.remove(after: error)
+    }
+  }
+
+  /// The windowed reader's pager counts the document (user, 2026-10-15):
+  /// "10 of 830" on page 10, and it turns across the window's edges—next
+  /// and previous past the pages drawn, a typed number far off, the last
+  /// page, the first.
+  @Test(arguments: [BrowserEngine.chrome, .safari])
+  func thePagerCountsTheWholeDocument(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let json = String(decoding: try JSONSerialization.data(withJSONObject: ["teiXml": try Self.skeatAsStored()]), as: UTF8.self)
+    let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let commit = try ScratchCommit(owner: contributor)
+    do {
+      _ = try TestAdmin.query(
+        "UPDATE bibliographic_madrigals SET proposed_content_json = '\(json.replacingOccurrences(of: "'", with: "''"))' WHERE id = '\(commit.madrigalID)'")
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
+        try await page.openHydrated("\(commit.madrigalPath)/revise?resemblance=9")
+        let input = page.locator("#artifact-page-input").first
+        let active = page.locator(".artifact-markup .tei-page[data-active='true']")
+        try await expect(input).toHaveValue("10")
+        try await expect(page.locator("#artifact-page-total").first).toHaveText("830")
+        try await expect(active).toHaveAttribute("data-page-index", "9")
+        // Next, past the four pages drawn after it.
+        for step in 1...6 {
+          try await page.locator(".artifact-page-nav button[aria-label='Next page']").first.click()
+          try await expect(input).toHaveValue("\(10 + step)")
+          try await expect(active).toHaveAttribute("data-page-index", "\(9 + step)")
+        }
+        // Previous, back past them.
+        for step in 1...6 {
+          try await page.locator(".artifact-page-nav button[aria-label='Previous page']").first.click()
+          try await expect(input).toHaveValue("\(16 - step)")
+          try await expect(active).toHaveAttribute("data-page-index", "\(15 - step)")
+        }
+        // A number typed far off, the last page, the first.
+        for (typed, index) in [("500", "499"), ("830", "829"), ("1", "0")] {
+          try await input.fill(typed)
+          try await input.press("Enter")
+          try await expect(active).toHaveAttribute("data-page-index", index)
+          try await expect(input).toHaveValue(typed)
+          try await expect(page.locator("#artifact-page-total").first).toHaveText("830")
+        }
         try await page.expectNoErrors()
       }
       commit.remove()
