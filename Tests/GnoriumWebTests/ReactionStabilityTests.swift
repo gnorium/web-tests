@@ -17,22 +17,23 @@ struct ReactionStabilityTests {
       <!doctype html><html><head><meta charset="utf-8"><link rel="icon" href="data:,"><link rel="stylesheet" href="/reaction-picker.css"><style>
       :root{--spacing-4:4px;--border-width-base:1px;--border-color-subtle:rgb(185,185,185);--border-radius-base:12px;--background-color-base:white;--font-family-emoji:serif;--transition-duration-medium:250ms;--transition-timing-function-user:ease-out;--transition-property-fade:opacity}
       body { margin: 0; } .reactions-view { display:flex; flex-direction:column; gap:4px; }
-      .reaction-picker-view { display:contents; }
+      .reaction-picker-view { display:contents; } .reactions-row { display:flex; align-items:center; gap:8px; } .reactions-chips { display:contents; }
       button { height:40px; } .reactions-chips button { height:32px; }
       </style></head><body><div style="height:900px">Locution above</div>
       <div class="reactions-view" data-reaction-id="fixture">
-      <div class="reactions-controls"><div class="reaction-picker-view">
+      <div class="reactions-controls"><button>Raw</button></div>
+      <div class="reactions-row"><div class="reactions-chips"></div><div class="reaction-picker-view">
       <button class="reaction-picker-trigger" aria-controls="react-fixture-choices" aria-label="Add reaction">Add reaction</button>
-      </div><button>Raw</button></div>
+      </div></div>
       <div class="reaction-picker-view"><div class="reaction-picker-choices" id="react-fixture-choices" hidden>
       <div class="reaction-picker-choices-content"><form action="/react/thumb" method="post"><button type="submit">👍</button></form></div>
       </div></div><div class="reactions-actions"><a href="#reply">Reply</a></div></div>
       <div style="height:1000px">Locution below</div><script src="/loader.js"></script></body></html>
       """
     let fragment = """
-      <div class="reactions-view"><div class="reactions-chips"><span class="reactions-reaction">
+      <div class="reactions-view"><div class="reactions-row"><div class="reactions-chips"><span class="reactions-reaction">
       <form action="/react/thumb" method="post"><button class="reactions-emoji-button" aria-pressed="true">👍 1</button></form>
-      </span></div></div>
+      </span></div></div></div>
       """
     let server = try await FixtureServer(files: [
       "/": .init(contentType: "text/html", body: Data(html.utf8)),
@@ -70,15 +71,20 @@ struct ReactionStabilityTests {
       let before = try await page.evaluate("""
         (async () => {
           for(let i=0;i<30;i++) await new Promise(r=>requestAnimationFrame(r));
-          return document.querySelector('.reactions-controls').getBoundingClientRect().top;
+          return document.querySelector('.reactions-row').getBoundingClientRect().top;
         })()
         """, as: Double.self)
       try await page.locator(".reaction-picker-choices button").click()
       try await expect(page.locator(".reactions-emoji-button")).toHaveText("👍 1")
       try await expect(page.locator(".reaction-picker-choices")).toBeHidden()
       try await expect(page).toHaveURL(server.baseURL + "/")
-      let after = try await page.evaluate("document.querySelector('.reactions-controls').getBoundingClientRect().top", as: Double.self)
-      #expect(abs(before - after) <= 1, "the control row does not jump when reacting")
+      let after = try await page.evaluate("document.querySelector('.reactions-row').getBoundingClientRect().top", as: Double.self)
+      #expect(abs(before - after) <= 1, "the reactions row does not jump when reacting")
+      // The pill lands in the row, before the picker that ends it.
+      let order = try await page.evaluate(
+        "[...document.querySelector('.reactions-row').children].map(e => e.className).join(' | ')", as: String.self)
+      #expect(order == "reactions-chips | reaction-picker-view", Comment(rawValue: order))
+      try await expect(page.locator(".reactions-row .reactions-chips .reactions-reaction")).toHaveCount(1)
       try await expect(page.getByRole(.link, name: "Reply")).toHaveCount(1)
       try await expect(page.getByRole(.button, name: "Raw")).toHaveCount(1)
       try await page.expectNoErrors()

@@ -3,11 +3,12 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A locution's reactions (user, 2026-10-12): their own row of pills under
-/// the controls, each counted by the thread, the reader's own pill held
-/// pressed; a count opens who reacted, a table in a dialog loaded into the
-/// page—a second pass of the page's hydration, which leaves every ⓘ and
-/// its time as they were.
+/// A locution's reactions (user, 2026-10-12, 2026-10-15): one row under
+/// the controls, the pills most reacted first and the picker at its end;
+/// each pill one chip hugging its emoji and count, the reader's own held
+/// pressed, naming who reacted when hovered; a count opens who reacted, a
+/// table in a dialog loaded into the page—a second pass of the page's
+/// hydration, which leaves every ⓘ and its time as they were.
 @Suite("Reactions", .serialized)
 struct ReactionsTests {
   @Test(arguments: [BrowserEngine.chrome])
@@ -44,40 +45,115 @@ struct ReactionsTests {
           VALUES ('\(locutionID)', 'bibliographic_madrigal', '\(scratch.madrigalID.lowercased())', '\(readerID)',
                   'The long s is consistent through the page.', now());
         INSERT INTO reactions (id, reactable_type, reactable_id, author_id, emoji, created_at)
-          VALUES (gen_random_uuid(), 'locution', '\(locutionID)', '\(readerID)', '👍', now() - interval '2 hours'),
-                 (gen_random_uuid(), 'locution', '\(locutionID)', '\(otherID)', '👍', now() - interval '1 hour'),
-                 (gen_random_uuid(), 'locution', '\(locutionID)', '\(otherID)', '🎉', now());
+          VALUES (gen_random_uuid(), 'locution', '\(locutionID)', '\(readerID)', '🎉', now() - interval '2 hours'),
+                 (gen_random_uuid(), 'locution', '\(locutionID)', '\(otherID)', '🎉', now() - interval '1 hour'),
+                 (gen_random_uuid(), 'locution', '\(locutionID)', '\(otherID)', '👍', now());
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [reader.cookie]) { page in
         try await page.openHydrated(scratch.madrigalPath)
         let locution = page.locator("#locution-\(locutionID.uppercased())")
         try await expect(locution).toBeAttached()
-        // Counted by the thread: two 👍, the reader's among them, one 🎉.
-        let thumbs = locution.locator(".reactions-reaction").nth(0)
-        try await expect(thumbs).toHaveAttribute("data-reacted", "true")
-        try await expect(thumbs.locator(".reactions-count")).toHaveText("2")
-        try await expect(locution.locator(".reactions-reaction").nth(1)).toHaveAttribute("data-reacted", "false")
-        // The controls on their own row, the pills on the next.
-        let rows = try await locution.evaluate(
+        // Reactions are only on locutions: the thread's acts—here the
+        // madrigal's creation—carry no picker and no pills.
+        let creation = page.locator("#creation-\(scratch.madrigalID.uppercased())")
+        try await expect(creation).toBeAttached()
+        try await expect(creation.locator(".reaction-picker-trigger")).toHaveCount(0)
+        try await expect(creation.locator(".reactions-reaction")).toHaveCount(0)
+        try await expect(locution.locator(".reaction-picker-trigger")).toHaveCount(1)
+        // Counted by the thread, most reacted first—two 🎉, the reader's
+        // among them, before one 👍, though the picker lists 👍 first.
+        let party = locution.locator(".reactions-reaction").nth(0)
+        let thumbs = locution.locator(".reactions-reaction").nth(1)
+        try await expect(party.locator(".reactions-emoji")).toHaveText("🎉")
+        try await expect(party).toHaveAttribute("data-reacted", "true")
+        try await expect(party.locator(".reactions-count")).toHaveText("2")
+        try await expect(thumbs.locator(".reactions-emoji")).toHaveText("👍")
+        try await expect(thumbs).toHaveAttribute("data-reacted", "false")
+        // The controls on their own row; under them one row of the pills,
+        // the picker at its end.
+        let layout = try await locution.evaluate(
           """
           (el) => {
-            const chips = el.querySelector('.reactions-chips').getBoundingClientRect();
+            const row = el.querySelector('.reactions-row');
+            const pills = [...row.querySelectorAll('.reactions-reaction')].map(p => p.getBoundingClientRect());
+            const picker = row.querySelector('.reaction-picker-trigger').getBoundingClientRect();
             const controls = el.querySelector('.reactions-controls').getBoundingClientRect();
-            return chips.top >= controls.bottom - 1;
+            const last = pills[pills.length - 1], middle = picker.top + picker.height / 2;
+            return [
+              row.getBoundingClientRect().top >= controls.bottom - 1,
+              !el.querySelector('.reactions-controls .reaction-picker-trigger'),
+              picker.left >= last.right,
+              middle > last.top && middle < last.bottom,
+            ].join(' ');
           }
           """)
-        #expect(rows == .bool(true), "The pills under the controls")
+        #expect(layout == .string("true true true true"), "Pills, then the picker, one row under the controls: \(layout)")
+        // One chip: no line between emoji and count, no cell of its own.
+        let chip = try await party.evaluate(
+          """
+          (el) => {
+            const emoji = el.querySelector('.reactions-emoji-button'), count = el.querySelector('.reactions-count-button');
+            const e = getComputedStyle(emoji), c = getComputedStyle(count);
+            return [c.borderInlineStartWidth, e.borderInlineEndWidth, e.backgroundColor === c.backgroundColor,
+              Math.abs(emoji.getBoundingClientRect().right - count.getBoundingClientRect().left) < 1].join(' ');
+          }
+          """)
+        #expect(chip == .string("0px 0px true true"), "One chip: \(chip)")
+        // Each pill hugs what it holds: a longer count, a wider pill, and
+        // the other pill as it was.
+        let hugs = try await locution.evaluate(
+          """
+          (el) => {
+            const [a, b] = el.querySelectorAll('.reactions-reaction');
+            const before = [a.getBoundingClientRect().width, b.getBoundingClientRect().width];
+            const count = a.querySelector('.reactions-count'), text = count.textContent;
+            count.textContent = '120K';
+            const after = [a.getBoundingClientRect().width, b.getBoundingClientRect().width];
+            count.textContent = text;
+            return Math.abs(before[0] - before[1]) < 1 && after[0] > after[1] + 8 && Math.abs(after[1] - before[1]) < 0.5
+              && !el.querySelector('[data-count-width]');
+          }
+          """)
+        #expect(hugs == .bool(true), "Each pill as wide as its own content")
+
+        // Hovered, a pill names who reacted, first as the dialog lists them.
+        let bubble = page.locator(".tooltip-view[data-portal='true'][data-visible='true'] .tooltip-content")
+        try await party.locator(".reactions-count-button").hover()
+        try await expect(bubble).toHaveText("\(other.username) and \(reader.username)")
+        try await thumbs.locator(".reactions-count-button").hover()
+        try await expect(bubble).toHaveText(other.username)
+        try await page.mouse.move(x: 0, y: 0)
+        try await expect(bubble).toHaveCount(0)
+
+        // A toggle redraws the pills in place from the server, sorted and
+        // named anew, the picker still at the row's end; the old pills'
+        // bubbles go with them.
+        try await thumbs.locator(".reactions-emoji-button").click()
+        try await expect(thumbs).toHaveAttribute("data-reacted", "true")
+        try await expect(thumbs.locator(".reactions-count")).toHaveText("2")
+        // A tie at two: 🎉, reacted with first, stays first.
+        try await expect(party.locator(".reactions-emoji")).toHaveText("🎉")
+        try await expect(locution.locator(".reactions-row > .reaction-picker-view:last-child .reaction-picker-trigger"))
+          .toHaveCount(1)
+        try await page.mouse.move(x: 0, y: 0)
+        try await expect(bubble).toHaveCount(0)
+        try await thumbs.locator(".reactions-count-button").hover()
+        try await expect(bubble).toHaveText("\(reader.username) and \(other.username)")
+        try await thumbs.locator(".reactions-emoji-button").click()
+        try await expect(thumbs).toHaveAttribute("data-reacted", "false")
+        try await expect(thumbs.locator(".reactions-count")).toHaveText("1")
+        try await page.mouse.move(x: 0, y: 0)
         let icons = "[...document.querySelectorAll('.reactions-when')].every(w => w.querySelector('svg'))"
         #expect(try await page.evaluate(icons, as: Bool.self), "Every ⓘ holds its icon")
 
         // The count opens who reacted: newest first, the reader last.
-        let count = thumbs.locator(".reactions-count-button")
-        try await expect(count).toHaveAttribute("aria-label", "See who reacted with 👍 (2)")
+        let count = party.locator(".reactions-count-button")
+        try await expect(count).toHaveAttribute("aria-label", "See who reacted with 🎉 (2)")
         try await count.click()
         let dialog = page.locator(".reactions-reactors-dialog.dialog-view[data-open='true']")
         try await expect(dialog).toBeAttached()
-        try await expect(dialog.locator(".modal-dialog-title .reactions-emoji")).toHaveText("👍")
+        try await expect(dialog.locator(".modal-dialog-title .reactions-emoji")).toHaveText("🎉")
         let table = dialog.locator(".reactors-view .table-tbody tr")
         try await expect(table).toHaveCount(2)
         try await expect(table.nth(0)).toContainText(other.username)

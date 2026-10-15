@@ -10,12 +10,16 @@ import WebTestsTesting
 struct ArbitrationTests {
   static let reply = "The selected evidence supports this reading."
   static let task = "Answer this query about the evidence item shown: Evidence fixture 2."
+  /// The image the fixture session records as sent: gone at its source,
+  /// with no archived copy, so its chip shows an empty frame.
+  static let sentImage = "http://127.0.0.1:9/sent-page-1.jpg"
   static let toolDefinition =
     #"[{"type":"function","function":{"name":"read_record","description":"Read the exact human Revise fields and attached evidence.","parameters":{"type":"object","properties":{},"additionalProperties":false}}}]"#
 
-  static func trace() throws -> String {
-    let blocks: [[String: String]] = [
+  static func trace(upTo count: Int = .max) throws -> String {
+    let all: [[String: String]] = [
       ["type": "task_prompt_instance", "content": task],
+      ["type": "image_sent", "url": sentImage, "source_sha256": "abc", "sha256": "def", "caption": ""],
       ["type": "tools", "content": toolDefinition],
       ["type": "thinking", "content": String(repeating: "Reading the selected evidence carefully.\n\n", count: 90)],
       ["type": "tool", "name": "read_record", "arguments": "{}", "status": "ok", "call_id": "arbitration_read",
@@ -23,6 +27,7 @@ struct ArbitrationTests {
       ["type": "tools", "content": toolDefinition],
       ["type": "text", "content": reply],
     ]
+    let blocks = Array(all.prefix(count))
     return String(decoding: try JSONSerialization.data(withJSONObject: blocks), as: UTF8.self)
       .replacingOccurrences(of: "'", with: "''")
   }
@@ -169,6 +174,46 @@ struct ArbitrationTests {
         guard UUID(uuidString: sessionID) != nil else {
           throw WebTestError("Commit did not create and finish the stopped arbitration fixture.")
         }
+        // Running, its session streams into the call as it grows: the
+        // card under the call's words, watched on the call's stream (user,
+        // 2026-10-15). The row stands in for the live buffer here.
+        _ = try TestAdmin.query("""
+          BEGIN;
+          UPDATE bibliographic_arbitration_sessions SET result = 'running', output = '\(try Self.trace(upTo: 4))',
+            error_message = NULL WHERE id = '\(sessionID)';
+          UPDATE locutions SET call_status = 'running' WHERE id = '\(callID)';
+          COMMIT;
+          """)
+        try await page.openHydrated(reading.path)
+        let live = call.locator(".locution-call-session .computorium-session-view")
+        try await expect(live).toHaveCount(1)
+        try await expect(live, timeout: .seconds(15)).toContainText("Reading the selected evidence carefully.")
+        try await expect(live).not.toContainText(Self.reply)
+        _ = try TestAdmin.query("UPDATE bibliographic_arbitration_sessions SET output = '\(try Self.trace())' WHERE id = '\(sessionID)'")
+        try await expect(live, timeout: .seconds(15)).toContainText(Self.reply)
+        // Mission Control counts the running session as claimed work, its
+        // count opening the running calls (user, 2026-10-15); the panel is
+        // brought up to date in place, so its spinner is never re-created and
+        // its turn never restarts.
+        try await page.openHydrated("/mission-control/bibliographic")
+        let worker = page.locator("#live-region-live-telemetry .mission-control-dashboard-live-telemetry-worker")
+        try await expect(worker).toContainText("claimed")
+        try await expect(worker.locator("a").first).toHaveAttribute("href", "/mission-control/locutions/bibliographic?status=running")
+        try await expect(worker.locator(".rotating-sector-view")).toHaveCount(1)
+        let inPlace = try await page.evaluate("""
+          (async () => {
+            const region = document.querySelector('#live-region-live-telemetry')
+            const spinner = () => region.querySelector('.mission-control-dashboard-live-telemetry-worker .rotating-sector-view')
+            const first = spinner(), shape = () => first.querySelector('*') || first
+            const time = () => (shape().getAnimations({ subtree: true })[0] || first.getAnimations({ subtree: true })[0])?.currentTime ?? null
+            const text = region.textContent, before = time()
+            // Until the stream has pushed the panel again (its elapsed time moves).
+            for (let i = 0; i < 60 && region.textContent === text; i++) await new Promise(r => setTimeout(r, 250))
+            return [region.textContent !== text, spinner() === first, before === null || time() > before].join(' ')
+          })()
+          """, as: String.self)
+        #expect(inPlace == "true true true", "The panel updates in place (pushed, same spinner, its turn running on): \(inPlace)")
+        try await page.openHydrated(reading.path)
         _ = try TestAdmin.query("""
           BEGIN;
           UPDATE bibliographic_arbitration_sessions SET result = 'passed', output = '\(try Self.trace())',
@@ -191,6 +236,16 @@ struct ArbitrationTests {
         try await expect(session).toContainText(Self.task)
         try await expect(session.locator(".computorium-session-output-rendered")).toContainText(Self.reply)
         try await expect(reply).toContainText("gnorium submitted locution")
+        // Answered, the session stands in the reply alone; the admin's
+        // Commit is an act of the thread between the call and the reply.
+        try await expect(call.locator(".locution-call-session")).toHaveCount(0)
+        let commit = page.locator("#commit-\(callID.uppercased())")
+        try await expect(commit).toContainText("committed locution \(callID.uppercased())")
+        #expect(try await page.evaluate("""
+          (() => { const top = s => document.querySelector(s).getBoundingClientRect().top
+            return top('#locution-\(callID.uppercased())') < top('#commit-\(callID.uppercased())')
+              && top('#commit-\(callID.uppercased())') < top('#locution-\(replyID.uppercased())') })()
+          """, as: Bool.self), "The commit stands between the call and its reply")
         // Committed, the call still names its item; its reply names it too.
         try await expect(call.locator(".locution-call-status")).toHaveCount(0)
         try await expect(call.locator(".locution-commit")).toHaveCount(0)
@@ -211,8 +266,49 @@ struct ArbitrationTests {
         try await expect(reply.locator(".reactions-when")).toHaveAttribute("data-local-time-prefix", "By DeepSeek V4.1 Flash (deepseek-flash) on ")
         try await expect(reply.locator(".reactions-controls .locution-markdown-toggle")).toHaveCount(1)
         try await expect(reply.locator(".reactions-controls > .replay-btn:first-child")).toHaveText("Replay")
+        // Replay plays in place: the reader stays where they were.
+        let before = try await page.evaluate("""
+          (() => { const el = document.querySelector('#locution-\(replyID.uppercased())')
+            const end = document.documentElement.scrollHeight - innerHeight
+            // Reading the reply, not at the page's end (where a replay follows the end).
+            window.scrollTo(0, Math.min(el.getBoundingClientRect().top + window.scrollY + 40, end - 200)); return window.scrollY })()
+          """, as: Double.self)
+        #expect(before > 0)
+        // Clicked where it stands, without scrolling it into view first.
+        _ = try await reply.locator(".replay-btn").evaluate("el => el.click()")
+        try await Task.sleep(for: .milliseconds(400))
+        let during = try await page.evaluate("window.scrollY", as: Double.self)
+        try await Task.sleep(for: .milliseconds(2000))
+        let after = try await page.evaluate("window.scrollY", as: Double.self)
+        #expect(abs(during - before) < 2 && abs(after - before) < 2, "Replay kept the place: \(before) → \(during) → \(after)")
         try await expect(reply.locator(".locution-anchor")).toHaveCount(0)
         try await expect(session.locator(".computorium-session-task-fieldset .computorium-session-input-attachments")).toContainText("1.jpg")
+        // The image sent is one chip, no loose lines under it; the prompts
+        // as sent read in the base text color (user, 2026-10-15).
+        try await expect(session.locator(".computorium-session-sent-images")).toHaveCount(0)
+        // The address sent is gone and no copy is archived yet: the chip
+        // shows the page as the reader does, never a broken image.
+        #expect(try await session.locator(".computorium-session-task-fieldset .expandable-attachment-image-thumb").evaluate("""
+          async img => { img.scrollIntoView(); img.loading = 'eager'
+            for (let i = 0; i < 40 && !(img.complete && img.naturalWidth > 0); i++) await new Promise(r => setTimeout(r, 250))
+            return img.complete && img.naturalWidth > 0 }
+          """).bool == true, "The chip falls back to an image that loads")
+        #expect(try await session.locator(".computorium-session-task-fieldset").evaluate(
+          "el => !el.innerText.includes('SHA-256') && !el.innerText.includes('Archived')").bool == true,
+          "No hash or archive line on the surface (Raw keeps the hash)")
+        #expect(try await session.evaluate("""
+          el => { const probe = document.createElement('span'); probe.style.color = 'var(--color-base)'
+            document.body.appendChild(probe); const base = getComputedStyle(probe).color; probe.remove()
+            const texts = [...el.querySelectorAll('.computorium-session-prompt-fieldset .computorium-session-prompt-rendered p')]
+            return texts.length > 0 && texts.every(p => getComputedStyle(p).color === base) }
+          """).bool == true, "Sent prompts read in the base text color")
+        // Raw: the user turn as sent, its image block where it stood.
+        let taskFieldset = session.locator(".computorium-session-task-fieldset")
+        try await taskFieldset.locator(".computorium-session-prompt-markdown-toggle").click()
+        try await expect(taskFieldset.locator(".computorium-session-prompt-body")).toContainText("\"image_url\"")
+        try await expect(taskFieldset.locator(".computorium-session-prompt-body")).toContainText("SHA-256 def")
+        try await expect(taskFieldset.locator(".computorium-session-input-attachments")).toBeHidden()
+        try await taskFieldset.locator(".computorium-session-prompt-markdown-toggle").click()
         // The tools offered, where the trace recorded them, before each
         // model call: the thinking's, and the reply's after the call
         // (user, 2026-10-10).
@@ -410,8 +506,9 @@ struct ArbitrationTests {
         #expect(crop.count == 4 && crop[2] > 0 && crop[3] > 0 && crop[0] + crop[2] <= 1000 && crop[1] + crop[3] <= 1000)
         try await expect(page.locator(".locution-call-evidence-crop").first)
           .toHaveText(crop.map(String.init).joined(separator: " "))
-        // The locution's action row: the reactions button, then Raw right
-        // before the info icon (user, 2026-10-12).
+        // The locution's control row: Raw right before the info icon (user,
+        // 2026-10-12); the reactions button ends the pills' row below it
+        // (user, 2026-10-15).
         let order = try await page.evaluate(
           """
           [...document.querySelector('.locution-view .reactions-controls').children]
@@ -419,7 +516,9 @@ struct ArbitrationTests {
               : e.classList.contains('reaction-picker-view') ? 'picker'
               : e.classList.contains('reactions-when') ? 'when' : 'other').slice(0, 3).join(' ')
           """, as: String.self)
-        #expect(order == "picker raw when", Comment(rawValue: order))
+        #expect(order == "raw when", Comment(rawValue: order))
+        try await expect(page.locator(".locution-view .reactions-row > .reaction-picker-view:last-child .reaction-picker-trigger").first)
+          .toBeAttached()
         try await page.expectNoErrors()
       }
     } catch {

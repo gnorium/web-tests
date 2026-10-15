@@ -74,7 +74,10 @@ struct SkeatReviseTests {
         let shown = try await raw.evaluate("e => e.textContent").string ?? ""
         #expect(shown.hasPrefix(#"<TEI xmlns="http://www.tei-c.org/ns/1.0">"#), "Raw is not headed: \(shown.prefix(120))")
         #expect(shown.contains("<tagsDecl>") && shown.contains(#"xml:id="text-block""#), "Raw has no header renditions")
-        #expect(shown.contains("Southern Evangelical Seminary") && !shown.contains("<facsimile"), "Raw's body")
+        // Its words as read, each <w> naming its scan zones (@facs).
+        let words = shown.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+          .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        #expect(words.contains("Southern Evangelical Seminary") && !shown.contains("<facsimile"), "Raw's body")
 
         // The Revise page's editor: the same text.
         try await page.openHydrated("\(commit.madrigalPath)/revise?resemblance=1")
