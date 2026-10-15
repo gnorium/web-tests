@@ -3,14 +3,14 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// Evaluations are public (user, 2026-09-29): Mission Control › Evaluations
-/// lists every run by language and script with a chart of CER against cost
-/// per page and a table of runs, then every dollar spent on models; a run's
-/// page shows its scores, what ran and each item's diff against the gold; a
+/// Benchmarks are public (user, 2026-09-29): Mission Control › Benchmarks
+/// lists a kind's benchmarks, a kind to a tab, by language and script with a
+/// chart of CER against cost per page and a table of benchmarks, then every
+/// dollar the kind spent on models; a benchmark's page shows its scores, what ran and each item's diff against the gold; a
 /// dataset's page says how its gold was made. Signed out, on phone and
 /// desktop, with nothing scrolling sideways.
-@Suite("Evaluations", .serialized)
-struct EvaluationsTests {
+@Suite("Benchmarks", .serialized)
+struct BenchmarksTests {
   struct Width: Decodable { let overflow: Double }
   static let overflow = "({ overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth })"
 
@@ -49,10 +49,10 @@ struct EvaluationsTests {
     _ = try TestAdmin.query(
       """
       BEGIN;
-      INSERT INTO evaluation_datasets (id, name, version, title, task, provenance, license, item_count, dataset_json)
+      INSERT INTO benchmark_datasets (id, name, version, title, task, provenance, license, item_count, dataset_json)
         VALUES ('\(datasetID)', '\(name)', '1', 'Web test set \(name)', 'bibliographic-explication',
           'Machine-assisted: pending human review.', 'CC-BY-SA-4.0', 1, '\(sql(document))');
-      INSERT INTO evaluation_runs (id, evaluation_dataset_id, process, provider, model, prompt_version, label, code_json,
+      INSERT INTO benchmarks (id, benchmark_dataset_id, process, provider, model, prompt_version, label, code_json,
           settings_json, metrics_json, items_json, notes, total_cost_usd, input_tokens, output_tokens, reasoning_tokens,
           cached_tokens, started_at, finished_at)
         VALUES ('\(runID)', '\(datasetID)', 'bibliographic_explication', 'deepseek', 'deepseek-flash', 'webtest', 'Web test run',
@@ -60,7 +60,7 @@ struct EvaluationsTests {
           '\(sql(#"{"overall": \#(metrics), "groups": [{"language": "en", "script": "Latn", "direction": "ltr", "metrics": \#(metrics)}]}"#))',
           '\(sql("[\(result)]"))', '', 0.05, 1000, 100, 50, 800, now() - interval '10 minutes', now());
       INSERT INTO model_calls (id, process, purpose, provider, model, input_tokens, output_tokens, latency_ms, started_at,
-          finished_at, cost_usd, evaluation_run_id)
+          finished_at, cost_usd, benchmark_id)
         VALUES (gen_random_uuid(), 'bibliographic_explication', 'explication', 'deepseek', 'deepseek-flash', 1000, 100, 1000,
           now() - interval '10 minutes', now() - interval '9 minutes', 0.05, '\(runID)');
       COMMIT;
@@ -70,14 +70,14 @@ struct EvaluationsTests {
   static func remove(datasetID: String, runID: String) {
     _ = try? TestAdmin.query(
       """
-      DELETE FROM model_calls WHERE evaluation_run_id = '\(runID)';
-      DELETE FROM evaluation_runs WHERE id = '\(runID)';
-      DELETE FROM evaluation_datasets WHERE id = '\(datasetID)';
+      DELETE FROM model_calls WHERE benchmark_id = '\(runID)';
+      DELETE FROM benchmarks WHERE id = '\(runID)';
+      DELETE FROM benchmark_datasets WHERE id = '\(datasetID)';
       """)
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func evaluationsArePublicWithTheirScoresCostAndDiffs(engine: BrowserEngine, layout: Layout) async throws {
+  func benchmarksArePublicWithTheirScoresCostAndDiffs(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let datasetID = UUID().uuidString.lowercased()
@@ -86,39 +86,47 @@ struct EvaluationsTests {
     try Self.insert(datasetID: datasetID, runID: runID, name: name)
     defer { Self.remove(datasetID: datasetID, runID: runID) }
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-      try await page.openHydrated("/mission-control/evaluations")
-      try await expect(page.locator("a[href='/mission-control/evaluations']").first).toBeAttached()
+      try await page.openHydrated("/mission-control/benchmarks")
+      try await expect(page.locator("a[href='/mission-control/benchmarks']").first).toBeAttached()
+      try await expect(page.locator(".mission-control-core-tabs a[href='/mission-control/benchmarks/lexicographic']"))
+        .toBeAttached()
       let group = page.locator("#en-Latn")
       try await expect(group.locator("h2")).toHaveText("English · Latin")
-      let dataset = group.locator(".evaluations-dataset").filter(hasText: "Web test set \(name)")
-      try await expect(dataset.locator(".evaluation-cost-chart-view circle")).toHaveCount(1)
-      try await expect(dataset.locator("a[href='/mission-control/evaluations/runs/\(runID)']")).toHaveText("Web test run")
+      let dataset = group.locator(".benchmarks-dataset").filter(hasText: "Web test set \(name)")
+      try await expect(dataset.locator(".benchmark-cost-chart-view circle")).toHaveCount(1)
+      try await expect(dataset.locator("a[href='/mission-control/benchmarks/\(runID)']")).toHaveText("Web test run")
       try await expect(dataset.getByText("8.00% (4.00–12.00)")).toBeAttached()
-      // Spending: evaluation's part of it, beside production's.
-      try await expect(page.locator("#spending").getByText("Evaluations (", exact: false)).toBeAttached()
-      try await expect(page.locator("#spending .evaluation-spending-table").first).toBeAttached()
+      // Spending: benchmarks' part of it, beside production's.
+      try await expect(page.locator("#spending").getByText("Benchmarks (", exact: false)).toBeAttached()
+      try await expect(page.locator("#spending .benchmark-spending-table").first).toBeAttached()
       #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
 
-      try await page.openHydrated("/mission-control/evaluations/runs/\(runID)")
+      try await page.openHydrated("/mission-control/benchmarks/\(runID)")
       try await expect(page.locator("h1")).toHaveText("Web test run")
       try await expect(page.getByText("CER (95% CI)").first).toBeAttached()
       try await expect(page.locator("#item-p1 .diff-view")).toBeAttached()
       try await expect(page.locator("#item-p1").getByText("the reading of modern editions", exact: false)).toBeAttached()
       try await expect(page.locator("#what-ran").getByText("deepseek-flash").first).toBeAttached()
+      // A process without its kind: the page is the kind's.
+      try await expect(page.locator("#what-ran").getByText("Explication", exact: true).first).toBeAttached()
       #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
 
-      try await page.openHydrated("/mission-control/evaluations/datasets/\(datasetID)")
+      try await page.openHydrated("/mission-control/benchmarks/datasets/\(datasetID)")
       try await expect(page.getByText("Machine-assisted: pending human review.").first).toBeAttached()
       try await expect(page.locator("#items").getByText("Page one")).toBeAttached()
       #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
 
-      // The runs tables filter by the Mission Control rule (user,
-      // 2026-10-09): Run, Model (a combobox), Prompt, then Created by (the
-      // machine's), Created on and Created at, the table ending with them.
-      let runs = page.locator("#runs")
+      // The benchmarks tables filter by the Mission Control rule (user,
+      // 2026-10-09): every filterable column in column order—Benchmark,
+      // Model (a combobox), Prompt, the scores and costs (ranges)—then
+      // Created by (the machine's), Created on and Created at.
+      let runs = page.locator("#benchmarks")
       let options = runs.locator(".filter-bar-view .filter-bar-row").first
         .locator(".filter-bar-field-picker .dropdown-option")
-      try await expect(options).toHaveTexts(["Run", "Model", "Prompt", "Created by", "Created on", "Created at"])
+      try await expect(options).toHaveTexts([
+        "Benchmark", "Model", "Prompt", "CER (95% CI)", "WER", "Memorization", "Cost per page", "Total cost",
+        "Created by", "Created on", "Created at",
+      ])
       try await expect(runs.locator("[data-table-column-id='createdBy']").first).toBeAttached()
       try await runs.locator(".filter-bar-add-btn").first.click()
       let row = runs.locator(".filter-bar-row").last
@@ -132,10 +140,10 @@ struct EvaluationsTests {
       try await expect(page).toHaveURL("model=deepseek-flash") { url in
         url.query?.contains("model=deepseek-flash") == true
       }
-      try await expect(page.locator("#runs a[href='/mission-control/evaluations/runs/\(runID)']")).toBeAttached()
-      // A model no run has: none matches.
-      try await page.openHydrated("/mission-control/evaluations/datasets/\(datasetID)?model=none")
-      try await expect(page.locator("#runs").getByText("No run matches these filters.")).toBeAttached()
+      try await expect(page.locator("#benchmarks a[href='/mission-control/benchmarks/\(runID)']")).toBeAttached()
+      // A model no benchmark has: none matches.
+      try await page.openHydrated("/mission-control/benchmarks/datasets/\(datasetID)?model=none")
+      try await expect(page.locator("#benchmarks").getByText("No benchmark matches these filters.")).toBeAttached()
       #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
     }
   }
