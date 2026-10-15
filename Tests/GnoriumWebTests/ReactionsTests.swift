@@ -203,9 +203,9 @@ struct ReactionsTests {
         #expect(try await page.evaluate(
           "document.activeElement.classList.contains('reactions-count-button')", as: Bool.self))
 
-        // The picker's framed box is a small button's height, border
-        // included—32, mini's 24 under the phone step at 320—and the pills
-        // the picker trigger's, a step up: medium, small under the step.
+        // The picker's framed box is a medium button's height, border
+        // included—40, small's 32 under the phone step at 320—as the pills
+        // and the picker trigger are (user, 2026-10-15).
         let picker = locution.locator(".reaction-picker-choices")
         let frame = """
           (() => { const el = document.querySelector('#locution-\(locutionID.uppercased())');
@@ -215,9 +215,9 @@ struct ReactionsTests {
           """
         try await locution.locator(".reaction-picker-trigger").click()
         try await expect(locution.locator(".reaction-picker-choices.reaction-picker-settled")).toBeVisible()
-        #expect(try await page.evaluate(frame, as: [Double].self) == [32, 0])
+        #expect(try await page.evaluate(frame, as: [Double].self) == [40, 0])
         try await page.setViewport(width: 320, height: 812)
-        #expect(try await page.evaluate(frame, as: [Double].self) == [24, 0])
+        #expect(try await page.evaluate(frame, as: [Double].self) == [32, 0])
         try await page.keyboard.press("Escape")
         try await expect(picker).toBeHidden()
         try await page.expectNoErrors()
