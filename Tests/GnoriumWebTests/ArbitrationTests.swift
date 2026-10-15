@@ -547,8 +547,8 @@ struct ArbitrationTests {
         try await expect(page.locator(".locution-call-evidence-crop").first)
           .toHaveText(crop.map(String.init).joined(separator: " "))
         // The locution's control row: Raw right before the info icon (user,
-        // 2026-10-12); the reactions button ends the pills' row below it
-        // (user, 2026-10-15).
+        // 2026-10-12); the reactions button ends the pills, before the
+        // controls (user, 2026-10-15).
         let order = try await page.evaluate(
           """
           [...document.querySelector('.locution-view .reactions-controls').children]
@@ -557,7 +557,7 @@ struct ArbitrationTests {
               : e.classList.contains('reactions-when') ? 'when' : 'other').slice(0, 3).join(' ')
           """, as: String.self)
         #expect(order == "raw when", Comment(rawValue: order))
-        try await expect(page.locator(".locution-view .reactions-row > .reaction-picker-view:last-child .reaction-picker-trigger").first)
+        try await expect(page.locator(".locution-view .reactions-row > .reaction-picker-view + .reactions-controls").first)
           .toBeAttached()
         try await page.expectNoErrors()
       }

@@ -70,8 +70,8 @@ struct ReactionsTests {
         try await expect(party.locator(".reactions-count")).toHaveText("2")
         try await expect(thumbs.locator(".reactions-emoji")).toHaveText("👍")
         try await expect(thumbs).toHaveAttribute("data-reacted", "false")
-        // One row (user, 2026-10-15): the controls, the pills, the picker at
-        // its end, all on one line.
+        // One row (user, 2026-10-15): the pills, the picker that ends them,
+        // then the controls at the row's end, all on one line.
         let layout = try await locution.evaluate(
           """
           (el) => {
@@ -81,7 +81,7 @@ struct ReactionsTests {
             const controls = row.querySelector('.reactions-controls').getBoundingClientRect();
             const last = pills[pills.length - 1], middle = picker.top + picker.height / 2;
             return [
-              controls.right <= pills[0].left,
+              picker.right <= controls.left,
               !el.querySelector('.reactions-controls .reaction-picker-trigger'),
               picker.left >= last.right,
               middle > last.top && middle < last.bottom,
@@ -89,7 +89,7 @@ struct ReactionsTests {
             ].join(' ');
           }
           """)
-        #expect(layout == .string("true true true true true"), "Controls, pills, then the picker, one row: \(layout)")
+        #expect(layout == .string("true true true true true"), "Pills, the picker, then the controls, one row: \(layout)")
         // One chip: emoji and count in one button, the picker's height, and
         // no form: a pill never toggles.
         let chip = try await party.evaluate(
@@ -153,7 +153,7 @@ struct ReactionsTests {
         try await expect(thumbs.locator(".reactions-count")).toHaveText("2")
         // A tie at two: 🎉, reacted with first, stays first.
         try await expect(party.locator(".reactions-emoji")).toHaveText("🎉")
-        try await expect(locution.locator(".reactions-row > .reaction-picker-view:last-child .reaction-picker-trigger"))
+        try await expect(locution.locator(".reactions-row > .reaction-picker-view .reaction-picker-trigger"))
           .toHaveCount(1)
         try await page.mouse.move(x: 0, y: 0)
         try await expect(bubble).toHaveCount(0)
