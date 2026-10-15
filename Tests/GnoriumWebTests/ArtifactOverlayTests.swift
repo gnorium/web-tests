@@ -215,8 +215,8 @@ struct ArtifactOverlayTests {
           const quad=([l,t,r2,b])=>[[l,t],[r2,t],[r2,b],[l,b]].map(p=>apply(back,p)).map(([x,y])=>(x/W*1000).toFixed(2)+','+(y/H*1000).toFixed(2)).join(' ');
           const planted=rows.map((row,i)=>i===29?[row[0],row[1]+pitch/2,row[2],row[3]+pitch/2]:row).filter((row,i)=>i!==9);
           const last=rows[rows.length-1];planted.push([last[0],last[1]+2*pitch,last[2],last[3]+2*pitch]);
-          pageEl.dataset.scanLayout=['block main '+zone.map(([x,y])=>(x/W*1000)+' '+(y/H*1000)).join(' ').replace(/,/g,' ')]
-            .concat(planted.map(row=>'line - '+quad(row).replace(/[ ,]/g,' '))).join(';');
+          pageEl.dataset.scanLayout=['block main - '+zone.map(([x,y])=>(x/W*1000)+' '+(y/H*1000)).join(' ').replace(/,/g,' ')]
+            .concat(planted.map(row=>'line - - '+quad(row).replace(/[ ,]/g,' '))).join(';');
           // Its scan block's corners in the window, as drawn, and where the registration lays them.
           const scanBlock=()=>{const p=r.querySelector('.artifact-structure [data-side=scan][data-kind=block]');if(!p)return null;const b=layer().getBoundingClientRect(),z=Number(layer().dataset.zoom);
             return p.getAttribute('points').split(' ').map(q=>q.split(',').map(Number)).map(([x,y])=>[b.x+x*z,b.y+y*z])};
@@ -422,7 +422,7 @@ struct ArtifactOverlayTests {
       const laid=page.dataset.textBlockDerived==='true'?[edges.left,edges.top,edges.right,edges.bottom]:spans?ink:laidOn(zone,ink);
       const h=homography(zone,[[laid[0],laid[1]],[laid[2],laid[1]],[laid[2],laid[3]],[laid[0],laid[3]]]);
       const quads=[],marginBlocks=[];let main=true;
-      for(const entry of page.dataset.scanLayout.split(';')){const p=entry.split(' ');const pts=p.slice(2).map(Number);const q=[0,1,2,3].map(i=>apply(h,[pts[2*i]/1000*W,pts[2*i+1]/1000*H]));
+      for(const entry of page.dataset.scanLayout.split(';')){const p=entry.split(' ');const pts=p.slice(3).map(Number);const q=[0,1,2,3].map(i=>apply(h,[pts[2*i]/1000*W,pts[2*i+1]/1000*H]));
         const box=[Math.min(...q.map(v=>v[0])),Math.min(...q.map(v=>v[1])),Math.max(...q.map(v=>v[0])),Math.max(...q.map(v=>v[1]))];
         if(p[0]==='block'){main=p[1]!=='marginalia';quads.push({kind:'block',main,box});if(!main)marginBlocks.push({box,lines:[]})}
         else if(p[0]==='line'){quads.push({kind:'line',main,box});if(!main&&marginBlocks.length)marginBlocks[marginBlocks.length-1].lines.push(box)}}
@@ -474,9 +474,11 @@ struct ArtifactOverlayTests {
   /// scan with no main text) (design-notes/skeat: each one's TEI with its
   /// zones and the witness's renditions, `header.xml`; its scan), rendered
   /// by the dev server's TEI preview (its words marked, as a reader's) and
-  /// read by the client (user, 2026-10-14). Side by side, a word of the
-  /// edition bands its word on the scan, and the band's word on the scan
-  /// marks the edition's. Overlay on draws the structure: the scan's main
+  /// read by the client (user, 2026-10-14). Side by side, every word of
+  /// the edition bands its zones on the scan, as the tools linked them
+  /// (each `<w>`'s `@facs`, user, 2026-10-15), and a band's zone on the scan
+  /// marks the edition's word; a word broken over lines is one: either part
+  /// bands both its zones and marks the other part. Overlay on draws the structure: the scan's main
   /// blocks laid on the rendered main text's ink box by its height, and
   /// every line's state as the pairing rule gives it, worked out apart;
   /// zoomed to twice the fit, the registration holds. Each canvas's marked
@@ -553,20 +555,30 @@ struct ArtifactOverlayTests {
       try await page.goto("/")
       try await expect(page.locator("html")).toHaveAttribute("data-wasm-status", "started")
       try await page.evaluate("document.fonts.ready.then(()=>new Promise(resolve=>setTimeout(resolve,700)))")
-      // Side by side: each word of the edition hovered until one bands its
-      // scan word; the band's middle on the scan marks that word again.
+      // Side by side: every word of the edition, hovered, bands its zones;
+      // a band's middle on the scan marks its word again (each of its
+      // parts), and a broken word's either part bands both its zones and
+      // marks the other part.
       if canvas != 2 {
         let words = try await page.evaluate(#"""
-          (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),words=[...document.querySelectorAll('.tei-page[data-active=true] .tei-word')];let paired=0,round=0;
-            for(const word of words){word.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await wait(5);const band=document.querySelector('.canvas-word');
-              if(!band||band.hidden)continue;paired++;if(round)continue;const b=band.getBoundingClientRect(),o=document.querySelector('.artifact-object');
+          (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),words=[...document.querySelectorAll('.tei-page[data-active=true] .tei-word')];let paired=0,round=0,broken=0;
+            const place=w=>w.dataset.line+':'+w.dataset.word,o=document.querySelector('.artifact-object');
+            const bands=()=>[...document.querySelectorAll('.canvas-word')].filter(b=>!b.hidden);
+            for(const word of words){word.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await wait(5);const shown=bands();
+              if(!shown.length)continue;paired++;
+              const parts=words.filter(w=>place(w)===place(word));
+              if(parts.length>1&&broken===0)broken=shown.length>=parts.length&&parts.filter(w=>w!==word).every(w=>w.dataset.corresponding==='true')?1:-1;
+              if(round)continue;const b=shown[0].getBoundingClientRect();
               o.dispatchEvent(new MouseEvent('mousemove',{clientX:b.x+b.width/2,clientY:b.y+b.height/2,bubbles:true}));await wait(5);
-              round=word.dataset.corresponding==='true'&&document.querySelectorAll('.tei-word[data-corresponding=true]').length===1?1:-1}
-            return [words.length,paired,round]})()
+              const marked=[...document.querySelectorAll('.tei-word[data-corresponding=true]')];
+              round=marked.length>0&&marked.some(w=>w===word)?1:-1;
+              o.dispatchEvent(new MouseEvent('mouseleave',{bubbles:true}));await wait(5)}
+            return [words.length,paired,round,broken]})()
           """#, as: [Int].self)
-        print("canvas \(canvas) at \(width): \(words[1]) of \(words[0]) words correspond")
-        #expect(words[1] > 0, "canvas \(canvas): no word of the edition bands its scan word")
+        print("canvas \(canvas) at \(width): \(words[1]) of \(words[0]) words band their zones")
+        #expect(words[0] > 0 && words[1] == words[0], "canvas \(canvas): \(words[0] - words[1]) words band no zone")
         #expect(words[2] == 1, "canvas \(canvas): the scan's word under the band does not mark the edition's")
+        #expect(words[3] >= 0, "canvas \(canvas): a broken word's part does not band and mark the whole word")
         if let directory = ProcessInfo.processInfo.environment["GNORIUM_SCREENSHOT_DIR"] {
           // A word in the page's middle hovered: its band on the scan.
           _ = try await page.evaluate(#"""
