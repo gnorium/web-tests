@@ -83,8 +83,10 @@ struct ArbitrationTests {
     }
     do {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        // Resemblance 2 is laid in blank: pending explication, not queryable.
-        // The box refuses the call under the field; nothing is posted.
+        // Resemblance 2 is laid in blank: pending explication, it has no box
+        // to tick, and the page on screen is never read unticked (user,
+        // 2026-10-15). The box refuses the call under the field; nothing is
+        // posted.
         try await page.openHydrated(reading.path + "?resemblance=1")
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
@@ -95,7 +97,9 @@ struct ArbitrationTests {
         try await expect(page.locator(".locution-thread-submit")).toHaveText("Submit")
         try await page.locator("#locution-thread-locution-body").fill("@gnorium What does the selected evidence support?")
         try await page.locator(".locution-thread-submit").click()
-        try await expect(page.locator(".field-validation-message-view")).toContainText("This evidence item has not been explicated yet.")
+        try await expect(page.locator("#madrigal-resemblances .roster-row").nth(1).locator(".checkbox-input")).toBeDisabled()
+        try await expect(page.locator(".field-validation-message-view"))
+          .toContainText("Tick evidence, metadata or a locution for this call.")
         try await expect(page.locator(".locution-call-evidence")).toHaveCount(0)
         #expect(try TestAdmin.query("SELECT count(*) FROM locutions WHERE locutable_id = '\(objectID)'") == "0")
         // Resemblance 1 has markup: explicated, queryable—and locked against a
@@ -106,6 +110,7 @@ struct ArbitrationTests {
         try await expect(page.locator(".disputorium-core-work #artifact-page-total"), timeout: .seconds(20)).toHaveText("3")
         try await expect(page.locator("#locution-thread-locution-resemblance")).toHaveValue("0")
         try await page.locator("#locution-thread-locution-body").fill("@gnorium What does the selected evidence support?")
+        try await page.locator("#madrigal-resemblances .roster-row").nth(0).locator("input").click()
         try await page.locator(".locution-thread-submit").click()
         // Posted pending: no status chip on a call (user, 2026-10-11), and
         // no Commit for a contributor.
@@ -369,8 +374,10 @@ struct ArbitrationTests {
               && thinking.clientHeight <= 256 && thinking.scrollHeight > thinking.clientHeight;
           }
           """).bool == true, "The reply grows to its session; its thinking keeps its own 256px scroll")
-        // An admin submits through exactly the same pending process.
+        // An admin submits through exactly the same pending process, the
+        // page ticked as any caller ticks it.
         try await page.locator("#locution-thread-locution-body").fill("@gnorium Read this evidence again.")
+        try await page.locator("#madrigal-resemblances .roster-row").nth(0).locator("input").click()
         try await page.locator(".locution-thread-submit").click()
         try await expect(page.locator(".locution-commit"), timeout: .seconds(15)).toHaveCount(1)
         try await expect(page.locator(".locution-call-status")).toHaveCount(0)
@@ -402,11 +409,11 @@ struct ArbitrationTests {
 
   /// The Evidence roster's two modes (user, 2026-10-10). Commit: boxes on
   /// the pending items alone. Attach, while the locution box has focus or
-  /// holds "@gnorium": boxes on the processed items alone, the page open
-  /// in the reader ticked first, at most two, neighbors; a tick apart or
-  /// a third is refused under the box. Submit attaches the ticked items in
-  /// order, and the call names each, linked. The box left empty, the
-  /// roster is back in commit mode.
+  /// holds "@gnorium": boxes on the processed items alone, none ticked
+  /// (user, 2026-10-15), at most two, neighbors; a tick apart or a third
+  /// is refused under the box. A call that ticks nothing is refused under
+  /// the box. Submit attaches the ticked items in order, and the call names
+  /// each, linked. The box left empty, the roster is back in commit mode.
   @Test(arguments: [BrowserEngine.chrome])
   func attachModeTicksTwoConsecutiveProcessedItems(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -434,7 +441,7 @@ struct ArbitrationTests {
         try await body.focus()
         try await expect(roster).toHaveAttribute("data-mode", "attach")
         try await expect(rows.nth(0).locator(".checkbox-icon-wrapper")).toBeVisible()
-        try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked()
+        try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked(false)
         try await expect(rows.nth(0).locator(".checkbox-input")).toHaveAttribute("name", "evidence[]")
         try await expect(rows.nth(0).locator(".checkbox-input")).toHaveAttribute("form", "locution-thread-form")
         try await expect(rows.nth(1).locator(".checkbox-input")).toBeChecked(false)
@@ -442,6 +449,8 @@ struct ArbitrationTests {
         try await expect(rows.nth(3).locator(".checkbox-input")).toBeDisabled()
         // A tick apart from the first is refused; its neighbor is taken; a
         // third is refused.
+        try await rows.nth(0).locator("input").click()
+        try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked()
         try await rows.nth(2).locator("input").click()
         try await expect(rows.nth(2).locator(".checkbox-input")).toBeChecked(false)
         try await expect(page.locator(".field-validation-message-view")).toContainText("consecutive")
@@ -463,7 +472,13 @@ struct ArbitrationTests {
         try await expect(rows.nth(3).locator(".checkbox-icon-wrapper")).toBeVisible()
         try await body.fill("@gnorium Compare these two pages.")
         try await expect(roster).toHaveAttribute("data-mode", "attach")
-        try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked()
+        try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked(false)
+        // Nothing ticked, nothing to read: refused under the box, unsent.
+        try await page.locator(".locution-thread-submit").click()
+        try await expect(page.locator(".field-validation-message-view"))
+          .toContainText("Tick evidence, metadata or a locution for this call.")
+        #expect(try TestAdmin.query("SELECT count(*) FROM locutions WHERE locutable_id = '\(objectID)'") == "0")
+        try await rows.nth(0).locator("input").click()
         try await rows.nth(1).locator("input").click()
         try await page.locator(".locution-thread-submit").click()
         // Pending: no status chip; an admin's Commit stands under the call's words.
@@ -480,6 +495,73 @@ struct ArbitrationTests {
         try await expect(links.nth(0)).toHaveText("Resemblance 1")
         try await expect(links.nth(1)).toHaveText("Resemblance 2")
         try await expect(page.locator(".locution-header").first).toContainText("on Resemblance 1 and Resemblance 2")
+        try await page.expectNoErrors()
+      }
+    } catch {
+      remove()
+      try await admin.remove(after: error)
+    }
+    remove()
+    try await admin.remove()
+  }
+
+  /// A call ticks its object's Metadata accordions whole and the thread's
+  /// locutions (user, 2026-10-15, 2026-10-16): one box on each, shown only
+  /// while a call is written, none ticked, a press on one keeping the box
+  /// focused. The call stores what was ticked, no evidence, and its byline
+  /// names the locution, linked.
+  @Test(arguments: [BrowserEngine.chrome])
+  func aCallTicksMetadataAccordionsAndLocutions(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let fixture = try await FixtureServer.threePageManifest()
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let reading = try ScratchReading(owner: admin, tei: Self.teiThreeRead(fixture), sourceURL: fixture.baseURL + "/manifest.json")
+    let objectID = reading.madrigalID
+    func remove() {
+      _ = try? TestAdmin.query("DELETE FROM locutions WHERE locutable_id = '\(objectID)'")
+      reading.remove()
+    }
+    do {
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
+        try await page.openHydrated(reading.path)
+        let body = page.locator("#locution-thread-locution-body")
+        try await body.fill("The title reads oddly.")
+        try await page.locator(".locution-thread-submit").click()
+        let first = page.locator(".locution-view").first
+        try await expect(first, timeout: .seconds(15)).toBeVisible()
+        let firstID = try TestAdmin.query("SELECT id FROM locutions WHERE locutable_id = '\(objectID)'").uppercased()
+        try await page.openHydrated(reading.path)
+        // Hidden until a call is written.
+        let work = page.locator("#metadata-tick-work")
+        let locutionTick = page.locator("#locution-tick-\(firstID)")
+        try await expect(work).toBeHidden()
+        try await expect(locutionTick).toBeHidden()
+        try await body.focus()
+        try await expect(page.locator("html")).toHaveAttribute("data-locution-attaching", "true")
+        try await expect(locutionTick).toBeVisible()
+        try await expect(locutionTick).toBeChecked(false)
+        try await locutionTick.click()
+        try await expect(locutionTick).toBeChecked()
+        try await expect(body).toBeFocused()
+        // The work's Metadata, ticked from its header, leaves it closed.
+        try await expect(work).toBeVisible()
+        let open = "(()=>{const e=document.getElementById('record-metadata');return String((e.matches('details')?e:e.querySelector('details')).open)})()"
+        let wasOpen = try await page.evaluate(open, as: String.self)
+        try await work.click()
+        try await expect(work).toBeChecked()
+        let isOpen = try await page.evaluate(open, as: String.self)
+        #expect(isOpen == wasOpen, "a tick in the header leaves the accordion as it was")
+        try await body.fill("@gnorium Is the title right?")
+        try await page.locator(".locution-thread-submit").click()
+        try await expect(page.locator(".locution-said + .locution-call-actions .locution-commit"), timeout: .seconds(15))
+          .toHaveText("Commit")
+        let stored = try TestAdmin.query("""
+          SELECT coalesce(evidence_id, '—') || '|' || coalesce(metadata_ids, '') || '|' || coalesce(locution_ids, '')
+          FROM locutions WHERE locutable_id = '\(objectID)' AND kind = 'call'
+          """)
+        #expect(stored == "—|[\"work\"]|[\"\(firstID)\"]", Comment(rawValue: stored))
+        try await expect(page.locator(".locution-call-evidence").first).toHaveText("locution \(firstID)")
         try await page.expectNoErrors()
       }
     } catch {
@@ -520,6 +602,7 @@ struct ArbitrationTests {
         #expect(submit.x > field.x + 1, "Submit is not at the left")
         try await body.fill("@gnorium Read the line in the box.")
         try await expect(roster).toHaveAttribute("data-mode", "attach")
+        try await roster.locator(".roster-row").nth(0).locator("input").click()
         try await expect(roster.locator(".roster-row").nth(0).locator(".checkbox-input")).toBeChecked()
         // The page images on; the ticked resemblance takes a box.
         let toggle = viewer.locator(".artifact-canvas-toggle button")
