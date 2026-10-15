@@ -145,6 +145,31 @@ struct ArtifactOverlayTests {
     const laidOn=(zone,[L,T,R,B])=>{const across=Math.hypot(zone[1][0]-zone[0][0],zone[1][1]-zone[0][1]),down=Math.hypot(zone[3][0]-zone[0][0],zone[3][1]-zone[0][1]),half=across*(B-T)/down/2,mid=(L+R)/2;return [mid-half,T,mid+half,B]};
     """#
 
+  /// The synthetic page the structure tests read: thirty lines in a work
+  /// frame, its text block measured on a blank scan four times the text's
+  /// actual size.
+  static func structureServer() async throws -> FixtureServer {
+    let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    let assets = root.appendingPathComponent("gnorium-web/Public")
+    let css = try ["layout-view.css", "tei-view.css", "artifact-view.css", "canvas-view.css"].map {
+      try String(contentsOf: assets.appendingPathComponent("style-sheets/" + $0), encoding: .utf8)
+    }.joined(separator: "\n")
+    let lines = (1...30).map { #"<span class="tei-line">Line \#($0) of the page.</span>"# }.joined()
+    let html = "<!doctype html><html><head><meta charset=\"utf-8\"><style>" + css + #"""
+      body{margin:0}.artifact-view{width:100%;height:600px}.artifact-viewer-container{height:560px;flex:none}.tei-line{display:block;font-family:serif!important;white-space:nowrap;letter-spacing:0.3em}</style><link rel="icon" href="data:,"></head><body><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest"><div class="artifact-viewer-container"><div class="artifact-markup-frame"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan" data-active="true" data-text-block="300,240 700,248 694,700 294,692"><div class="tei-page-text" data-layer="rendering" data-framed="true" style="--tei-frame-measure: 30; --tei-frame-height: 40; --tei-frame-margin: 5; --tei-page-width: 0; --tei-page-height: 0"><div class="tei-text-block">
+      """# + lines + #"""
+      </div></div></div></div></div></div><div class="artifact-object"><div class="canvas-view" data-service-id="/scan"><div class="canvas-viewport"><div class="canvas-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
+      """#
+    return try await FixtureServer(files: [
+      "/": .init(contentType: "text/html", body: Data(html.utf8)),
+      "/loader.js": .init(contentType: "text/javascript", body: try Data(contentsOf: assets.appendingPathComponent("loader.js"))),
+      "/client.wasm": .init(contentType: "application/wasm", body: try Data(contentsOf: assets.appendingPathComponent("client.wasm"))),
+      "/manifest": .init(contentType: "application/json", body: Data(#"{"canvases":[{"id":"/scan","w":4800,"h":6400,"img":"/scan.svg"}]}"#.utf8)),
+      "/scan.svg": .init(contentType: "image/svg+xml", body: Data(#"<svg xmlns="http://www.w3.org/2000/svg" width="4800" height="6400"/>"#.utf8)),
+      "/fonts/noto-sans.woff2": .init(contentType: "font/woff2", body: try Data(contentsOf: assets.appendingPathComponent("fonts/noto-sans.woff2"))),
+    ])
+  }
+
   /// With the page's main text block measured on its scan
   /// (`data-text-block`, a skewed quadrilateral in the 0–1000 space) and
   /// its measured lines (`data-scan-layout`, the tools' zones), overlay on
@@ -163,25 +188,7 @@ struct ArtifactOverlayTests {
   /// was.
   @Test(arguments: [1440, 440])
   func overlayDrawsTheScansStructureOverTheEditions(width: Int) async throws {
-    let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-    let assets = root.appendingPathComponent("gnorium-web/Public")
-    let css = try ["layout-view.css", "tei-view.css", "artifact-view.css", "canvas-view.css"].map {
-      try String(contentsOf: assets.appendingPathComponent("style-sheets/" + $0), encoding: .utf8)
-    }.joined(separator: "\n")
-    let lines = (1...30).map { #"<span class="tei-line">Line \#($0) of the page.</span>"# }.joined()
-    let html = "<!doctype html><html><head><meta charset=\"utf-8\"><style>" + css + #"""
-      body{margin:0}.artifact-view{width:100%;height:600px}.artifact-viewer-container{height:560px;flex:none}.tei-line{display:block;font-family:serif!important;white-space:nowrap;letter-spacing:0.3em}</style><link rel="icon" href="data:,"></head><body><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest"><div class="artifact-viewer-container"><div class="artifact-markup-frame"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan" data-active="true" data-text-block="300,240 700,248 694,700 294,692"><div class="tei-page-text" data-layer="rendering" data-framed="true" style="--tei-frame-measure: 30; --tei-frame-height: 40; --tei-frame-margin: 5; --tei-page-width: 0; --tei-page-height: 0"><div class="tei-text-block">
-      """# + lines + #"""
-      </div></div></div></div></div></div><div class="artifact-object"><div class="canvas-view" data-service-id="/scan"><div class="canvas-viewport"><div class="canvas-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
-      """#
-    let server = try await FixtureServer(files: [
-      "/": .init(contentType: "text/html", body: Data(html.utf8)),
-      "/loader.js": .init(contentType: "text/javascript", body: try Data(contentsOf: assets.appendingPathComponent("loader.js"))),
-      "/client.wasm": .init(contentType: "application/wasm", body: try Data(contentsOf: assets.appendingPathComponent("client.wasm"))),
-      "/manifest": .init(contentType: "application/json", body: Data(#"{"canvases":[{"id":"/scan","w":4800,"h":6400,"img":"/scan.svg"}]}"#.utf8)),
-      "/scan.svg": .init(contentType: "image/svg+xml", body: Data(#"<svg xmlns="http://www.w3.org/2000/svg" width="4800" height="6400"/>"#.utf8)),
-      "/fonts/noto-sans.woff2": .init(contentType: "font/woff2", body: try Data(contentsOf: assets.appendingPathComponent("fonts/noto-sans.woff2"))),
-    ])
+    let server = try await Self.structureServer()
     defer { server.stop() }
     let config = BrowserTestConfiguration(baseURL: URL(string: server.baseURL)!, engines: [.chrome], defaultTimeout: .seconds(30))
     try await withPage(.chrome, config, viewport: .init(width: width, height: 600)) { page in
@@ -309,6 +316,62 @@ struct ArtifactOverlayTests {
       for (check, name) in zip(checks, named) { #expect(check == 1, "\(name)") }
       #expect(checks[26] == 1, "midway, each way, the scan and the structure's lines strictly between, the text opaque")
       #expect(checks[27] == 1, "midway out, the image's box between the overlay's and its own pane's")
+      try await page.expectNoErrors()
+    }
+  }
+
+  /// Overlay on and off four times (user, 2026-10-14), the text zoomed in
+  /// first (the synced image with it, past its fit): every exit as the
+  /// first—midway, the image's pane strictly between the overlay's and
+  /// side by side on each axis it moves along, the image moving (and, its
+  /// scan not laid by a text block, scaling with its pane), its
+  /// proportions kept; every end the same box as the first. With and
+  /// without a measured text block.
+  @Test(arguments: [1440, 440], [true, false])
+  func everyOverlayExitIsTheFirsts(width: Int, registered: Bool) async throws {
+    let server = try await Self.structureServer()
+    defer { server.stop() }
+    let config = BrowserTestConfiguration(baseURL: URL(string: server.baseURL)!, engines: [.chrome], defaultTimeout: .seconds(30))
+    try await withPage(.chrome, config, viewport: .init(width: width, height: 600)) { page in
+      try await page.goto("/")
+      try await expect(page.locator("html")).toHaveAttribute("data-wasm-status", "started")
+      try await page.evaluate("new Promise(resolve=>setTimeout(resolve,700))")
+      let cycles = try await page.evaluate(#"""
+        (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),r=document.querySelector('.artifact-view'),W=4800,H=6400;
+          const toggle=on=>r.querySelector('.artifact-overlay-toggle').dispatchEvent(new CustomEvent('toggle-button-update',{detail:on?'true':'false'}));
+          const viewport=r.querySelector('.canvas-viewport'),object=r.querySelector('.artifact-object');
+          const image=()=>{const v=viewport.getBoundingClientRect(),g=r.querySelector('.canvas-tile-compositor').getAttribute('transform').match(/-?[\d.]+(e-?\d+)?/g).map(Number);return [v.x+g[0],v.y+g[1],W*g[2],H*g[2]]};
+          const pane=()=>{const b=object.getBoundingClientRect();return [b.x,b.y,b.width,b.height]};
+          if(!REGISTERED)r.querySelector('.tei-page').removeAttribute('data-text-block');
+          const m=r.querySelector('.artifact-markup'),mb=m.getBoundingClientRect();
+          for(let i=0;i<6;i++){m.dispatchEvent(new WheelEvent('wheel',{deltaY:-40,clientX:mb.x+mb.width/2,clientY:mb.y+mb.height/2,bubbles:true,cancelable:true}));await wait(30)}
+          await wait(400);
+          const out=[];
+          for(let cycle=0;cycle<4;cycle++){toggle(true);await wait(900);const from=[image(),pane()];toggle(false);await wait(150);const mid=[image(),pane()];await wait(850);out.push({from,mid,to:[image(),pane()]})}
+          return JSON.stringify(out)})()
+        """#.replacingOccurrences(of: "REGISTERED", with: registered ? "true" : "false"), as: String.self)
+      struct Sample: Decodable { let from: [[Double]]; let mid: [[Double]]; let to: [[Double]] }
+      let samples = try JSONDecoder().decode([Sample].self, from: Data(cycles.utf8))
+      func strictly(_ a: Double, _ m: Double, _ b: Double) -> Bool { min(a, b) < m && m < max(a, b) }
+      for (index, sample) in samples.enumerated() {
+        let pane = (sample.from[1], sample.mid[1], sample.to[1])
+        // The pane parts on both of the axes it moves along.
+        let moving = (0..<4).filter { abs(pane.0[$0] - pane.2[$0]) > 1 }
+        #expect(!moving.isEmpty && moving.allSatisfy { strictly(pane.0[$0], pane.1[$0], pane.2[$0]) },
+          "cycle \(index + 1) at \(width): the image's pane midway out \(pane.1), from \(pane.0) to \(pane.2)")
+        let image = (sample.from[0], sample.mid[0], sample.to[0])
+        #expect([0, 1].contains { strictly(image.0[$0], image.1[$0], image.2[$0]) },
+          "cycle \(index + 1) at \(width): the image midway out \(image.1), from \(image.0) to \(image.2)")
+        // Its size changing as its pane's fit does (stacked, its height),
+        // midway between.
+        if !registered, abs(image.0[2] - image.2[2]) > 1 {
+          #expect(strictly(image.0[2], image.1[2], image.2[2]), "cycle \(index + 1) at \(width): the image scales with its pane")
+        }
+        #expect(abs(image.1[2] / image.1[3] - image.0[2] / image.0[3]) < 1e-6, "cycle \(index + 1): the image's proportions")
+        let first = samples[0].to
+        #expect(zip(sample.to[0] + sample.to[1], first[0] + first[1]).allSatisfy { abs($0 - $1) < 1 },
+          "cycle \(index + 1) at \(width) ends at \(sample.to), the first at \(first)")
+      }
       try await page.expectNoErrors()
     }
   }
@@ -541,6 +604,11 @@ struct ArtifactOverlayTests {
       }
       print("canvas \(canvas) at \(width): \(scene.drawn)")
       #expect(scene.drawn == scene.expected, "canvas \(canvas): drawn \(scene.drawn), the rule gives \(scene.expected)")
+      // The model's structure image judges the canvas alike (gnorium-python
+      // `test_structure_skeat`): both held to the same counts.
+      let shared = try JSONDecoder().decode(
+        [String: [String: [String: Int]]].self, from: Data(contentsOf: skeat.appendingPathComponent("structure.json")))
+      #expect(scene.drawn == shared[String(canvas)], "canvas \(canvas): drawn \(scene.drawn), the image's \(shared[String(canvas)] ?? [:])")
       #expect(!(scene.drawn["edition"] ?? [:]).isEmpty, "canvas \(canvas): no structure drawn")
       if scene.main.count == 2 {
         let off = zip(scene.main, scene.target).map { abs($0 - $1) }
