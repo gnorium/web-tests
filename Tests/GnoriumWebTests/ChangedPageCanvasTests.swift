@@ -87,6 +87,11 @@ struct ChangedPageCanvasTests {
         // The live canvas first, its tiles from the image service.
         try await page.openHydrated(commit.madrigalPath)
         let live = try await Self.zoomAndPan(page)
+        let scale = """
+          (() => { const t = document.querySelector(".artifact-view .canvas-view[data-active='true'] .canvas-tile-compositor")
+            .getAttribute('transform'); return Number(/scale\\(([\\d.]+)/.exec(t)[1]); })()
+          """
+        let liveZoom = try await page.evaluate(scale, as: Double.self)
 
         // Page 1 changed at its source, its full-size copy archived.
         _ = try TestAdmin.query(
@@ -99,6 +104,20 @@ struct ChangedPageCanvasTests {
               '\(base)/web/20261011000000/page-1.jpg', now());
           COMMIT;
           """)
+        // Opened again, the archived copy follows the zoom the session
+        // keeps from the live canvas.
+        try await page.openHydrated(commit.madrigalPath)
+        // The images shown as the session left them.
+        let viewer = page.locator(".artifact-view").first
+        try await expect(viewer).toHaveAttribute("data-canvas-shown", "true")
+        try await expect(viewer.locator(".canvas-view[data-active='true'] .canvas-tile-image").first).toBeAttached()
+        let keptZoom = try await page.evaluate(scale, as: Double.self)
+        #expect(abs(keptZoom - liveZoom) < 1e-6, "the archived copy opens at the live canvas's zoom: \(keptZoom), \(liveZoom)")
+        // Each opened at its fit: the session keeps the image's zoom
+        // (artifact-core `ViewerZoom.imageKey`, so a reload opens where the
+        // reader left it), which would open the archived copy zoomed in
+        // already, as the live canvas was left.
+        _ = try await page.evaluate("(() => { sessionStorage.removeItem('gnorium:artifact-zoom:image'); return 1 })()")
         try await page.openHydrated(commit.madrigalPath)
         let archived = try await Self.zoomAndPan(page)
         let after = try await page.evaluate(
