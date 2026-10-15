@@ -306,9 +306,9 @@ struct ReviseEditorTests {
         let diff = page.locator(".testament-diff[data-active='true'] .diff-view[data-diff-mode='code']")
         try await expect(diff.locator(".diff-row[data-diff-line='inserted']")).toHaveCount(1)
         try await expect(diff.locator(".diff-row[data-diff-line='inserted']")).toContainText("illegible")
-        // The diff under the markup pane, in the reader; its box the one
-        // scrollport between it and the reader, and nothing wider than the
-        // page (user, 2026-10-15).
+        // The diff under the markup pane, in the reader; its zone the one
+        // scrollport between it and the reader (scrolled with the pane, user,
+        // 2026-10-16), and nothing wider than the page (user, 2026-10-15).
         let layout = try await page.evaluate(
           """
           (() => { const box = document.querySelector(".testament-diff[data-active='true'] .diff-box");
@@ -318,7 +318,7 @@ struct ReviseEditorTests {
             // The scrollports from each zone's content up to the reader.
             const chain = start => { const out = []; for (let e = start; e && e !== reader; e = e.parentElement) if (scrolls(e)) out.push(e.className.split(' ')[0]); return out; };
             const inside = [...box.querySelectorAll('*'), box].filter(scrolls).length + [...pane.querySelectorAll('*')].filter(e => scrolls(e) && e.closest('.artifact-markup') === pane && e !== pane && getComputedStyle(e).display !== 'none' && e.offsetParent).length;
-            return JSON.stringify({ under: box.getBoundingClientRect().top >= pane.getBoundingClientRect().bottom - 1,
+            return JSON.stringify({ under: zone.getBoundingClientRect().top >= pane.getBoundingClientRect().bottom - 1,
               diff: chain(box), markup: chain(pane), nested: inside,
               overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth }); })()
           """, as: String.self)
