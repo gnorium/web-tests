@@ -224,9 +224,12 @@ struct CodeSyntaxHighlightTests {
         let json = read.locator(".computorium-session-tool-call-json")
         try await expect(json).toBeVisible()
         try await expect(json).toHaveAttribute("data-code-syntax", "json")
+        // The call as it crossed the wire (user, 2026-10-16): its keys and
+        // values colored; what the model wrote, and the result it read,
+        // each one string, as sent.
         for (name, text) in [
-          ("code-attr", "\"page\""), ("code-prefix", "5"), ("code-prefix", "2.5e1"), ("code-prefix", "-3"),
-          ("code-attr", "\"tool\""), ("code-value", "\"read_page\""), ("code-name", "true"), ("code-name", "null"),
+          ("code-attr", "\"function\""), ("code-attr", "\"arguments\""), ("code-value", "\"read_page\""),
+          ("code-attr", "\"tool_call_id\""), ("code-value", "\"tool\""),
         ] {
           try await Self.expectStretch(page, name, text)
         }

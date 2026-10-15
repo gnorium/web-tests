@@ -4,9 +4,10 @@ import WebTests
 import WebTestsTesting
 
 /// An object's page shows its prompts as they would be sent (user,
-/// 2026-10-10): Arbitration's and its one process's, every variable filled
-/// from its data for the Evidence roster's selected item, which a row's
-/// click changes. A value not knowable yet stays its slot, and the task is
+/// 2026-10-10): Arbitration's for what a call ticks (nothing until it
+/// ticks), its one process's for the Evidence roster's selected item, which
+/// a row's click changes; a prompt accordion's box ticks it for the call,
+/// a process's every part under it (user, 2026-10-16). A value not knowable yet stays its slot, and the task is
 /// a "Task Prompt Template" then: Arbitration's `{query}` until the
 /// composer calls, filled as typed, back to `{query}` when @gnorium goes.
 /// An item its process has already processed says so. Autocompaction keeps
@@ -48,12 +49,10 @@ struct PromptPreviewFillingTests {
         // A page unexplicated: the madrigal's one process is explication;
         // no other process shows.
         try await expect(page.locator(".prompt-previews-process")).toHaveCount(2)
-        try await expect(arbitration, timeout: .seconds(20)).toContainText("Alpha page sentence.")
-        try await expect(arbitration).not.toContainText("Beta page sentence.")
-        // No call typed: its query is its slot, and the task a template.
-        try await expect(arbitration).toContainText("{query}")
-        try await expect(arbitrationSection.locator("#prompt-preview-task-arbitration .accordion-title").first)
-          .toHaveText("Task Prompt Template")
+        // Nothing ticked, nothing a call would read (user, 2026-10-15).
+        try await expect(arbitrationSection.locator(".prompt-preview-task-notice"), timeout: .seconds(20))
+          .toContainText("Tick evidence, metadata, a prompt or a locution for this call.")
+        let taskTitle = arbitrationSection.locator("#prompt-preview-task-arbitration .prompt-preview-title-words").first
         // Page 1 is explicated: explication sends nothing for it.
         try await expect(explicationSection.locator(".prompt-preview-task-notice"))
           .toContainText("This evidence item has already been explicated")
@@ -79,11 +78,37 @@ struct PromptPreviewFillingTests {
           """, as: String.self)
         #expect(slots == "", "slots left: \(slots)")
 
-        // Page 2: Arbitration's prompt for it.
-        try await page.locator("#madrigal-resemblances .roster-row .roster-label").nth(1).click()
-        try await expect(page.locator("#artifact-page-input").first).toHaveValue("2")
+        // Page 2 ticked for a call: Arbitration's prompt for it, its query
+        // its slot and the task a template while no call is typed.
+        let box = page.locator("#locution-thread-locution-body")
+        try await box.focus()
+        try await page.locator("#madrigal-resemblances .roster-row").nth(1).locator("input").click()
         try await expect(arbitration, timeout: .seconds(20)).toContainText("Beta page sentence.")
         try await expect(arbitration).not.toContainText("Alpha page sentence.")
+        try await expect(arbitration).toContainText("{query}")
+        try await expect(taskTitle).toHaveText("Task Prompt Template")
+
+        // Arbitration's own box ticks every part of its prompts; one part
+        // unticked leaves it partly ticked; the parts are read as sent.
+        try await arbitrationSection.locator(".accordion-summary").first.click()
+        let process = page.locator("#prompt-tick-bibliographic_arbitration")
+        try await process.click()
+        try await expect(process).toBeChecked()
+        try await expect(page.locator("#prompt-tick-system-bibliographic_arbitration")).toBeChecked()
+        try await expect(page.locator("#prompt-tick-task-bibliographic_arbitration_continuation")).toBeChecked()
+        try await expect(page.locator("#prompt-tick-system-bibliographic_arbitration_autocompaction")).toBeChecked()
+        try await expect(arbitration, timeout: .seconds(20)).toContainText("Arbitration › System Prompt")
+        try await page.locator("#prompt-tick-system-bibliographic_arbitration").click()
+        let partly = try await page.evaluate(
+          "document.getElementById('prompt-tick-bibliographic_arbitration').indeterminate", as: Bool.self)
+        #expect(partly, "one part unticked leaves its process partly ticked")
+        try await expect(arbitration, timeout: .seconds(20)).not.toContainText("Arbitration › System Prompt")
+        try await expect(page.locator("#prompt-tick-task-bibliographic_arbitration")).toBeChecked()
+        // Partly ticked, its box ticks every part again; again, none.
+        try await page.locator("#prompt-tick-bibliographic_arbitration").click()
+        try await expect(page.locator("#prompt-tick-system-bibliographic_arbitration")).toBeChecked()
+        try await page.locator("#prompt-tick-bibliographic_arbitration").click()
+        try await expect(page.locator("#prompt-tick-task-bibliographic_arbitration")).toBeChecked(false)
 
         // Typed into the composer, a call's query is the Arbitration task
         // prompt's as it is typed, in the same section, a prompt now;
@@ -91,13 +116,11 @@ struct PromptPreviewFillingTests {
         _ = try await page.evaluate(
           "(() => { window.__arbitrationSection = document.querySelector(\".prompt-previews-process[data-process='Arbitration']\"); return true })()",
           as: Bool.self)
-        let box = page.locator("#locution-thread-locution-body")
         try await box.type("@gnorium Why is beta here?")
         try await expect(arbitration, timeout: .seconds(20)).toContainText("Why is beta here?")
         try await expect(arbitration).not.toContainText("{query}")
         try await expect(arbitration).toContainText("Beta page sentence.")
-        try await expect(arbitrationSection.locator("#prompt-preview-task-arbitration .accordion-title").first)
-          .toHaveText("Task Prompt")
+        try await expect(taskTitle).toHaveText("Task Prompt")
         let kept = try await page.evaluate(
           "window.__arbitrationSection === document.querySelector(\".prompt-previews-process[data-process='Arbitration']\")",
           as: Bool.self)

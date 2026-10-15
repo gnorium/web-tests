@@ -99,7 +99,7 @@ struct ArbitrationTests {
         try await page.locator(".locution-thread-submit").click()
         try await expect(page.locator("#madrigal-resemblances .roster-row").nth(1).locator(".checkbox-input")).toBeDisabled()
         try await expect(page.locator(".field-validation-message-view"))
-          .toContainText("Tick evidence, metadata or a locution for this call.")
+          .toContainText("Tick evidence, metadata, a prompt or a locution for this call.")
         try await expect(page.locator(".locution-call-evidence")).toHaveCount(0)
         #expect(try TestAdmin.query("SELECT count(*) FROM locutions WHERE locutable_id = '\(objectID)'") == "0")
         // Resemblance 1 has markup: explicated, queryable—and locked against a
@@ -476,7 +476,7 @@ struct ArbitrationTests {
         // Nothing ticked, nothing to read: refused under the box, unsent.
         try await page.locator(".locution-thread-submit").click()
         try await expect(page.locator(".field-validation-message-view"))
-          .toContainText("Tick evidence, metadata or a locution for this call.")
+          .toContainText("Tick evidence, metadata, a prompt or a locution for this call.")
         #expect(try TestAdmin.query("SELECT count(*) FROM locutions WHERE locutable_id = '\(objectID)'") == "0")
         try await rows.nth(0).locator("input").click()
         try await rows.nth(1).locator("input").click()
@@ -693,7 +693,7 @@ struct ArbitrationTests {
           try await expect(sections.nth(1)).toHaveAttribute("data-process", process)
           for (index, name, id) in [(0, "Arbitration", "prompt-preview-process-arbitration"), (1, process, "prompt-preview-process")] {
             // One accordion a process, its three nested (user, 2026-10-10).
-            try await expect(sections.nth(index).locator("#\(id) .accordion-title").first).toHaveText(name)
+            try await expect(sections.nth(index).locator("#\(id) .prompt-preview-title-words").first).toHaveText(name)
             try await expect(sections.nth(index).locator("#\(id)")).toHaveAttribute("data-expanded", "false")
             try await expect(sections.nth(index).getByText("System Prompt", exact: true)).toHaveCount(2)
             // Its task filled as sent (or why it cannot be), its
