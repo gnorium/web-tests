@@ -116,7 +116,6 @@ struct AmendmentRemovalTests {
         try await expect(own(edition, ".testament-outliner-restore")).toHaveAttribute("aria-label", "Restore Testament")
         try await expect(own(edition, ".testament-outliner-remove")).toHaveAttribute("aria-label", "Remove Testament")
 
-        try await page.locator("#amendment-rationale").fill("Web tests: this testament is not the work's.")
         try await page.locator(".record-actions button[type='submit']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the reopened madrigal") {
           $0.path.hasPrefix("/mission-control/madrigals/bibliographic/")

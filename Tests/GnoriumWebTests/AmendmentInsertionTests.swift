@@ -117,7 +117,6 @@ struct AmendmentInsertionTests {
         try await SubmissionTests.shoot(page, "amendment-impression-over-copy", from: page.locator("#testament-outliner"))
 
         // Submitted empty: it says what to fill in.
-        try await page.locator("#amendment-rationale").fill("Web tests: this copy is of a later impression.")
         try await page.locator(".record-actions button[type='submit']").click()
         try await expect(impression.locator(".testament-draft-message").first).toHaveText(
           "Fill in Impression or its place, agents or date, or remove the impression.")
