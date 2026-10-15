@@ -163,22 +163,23 @@ struct ArbitrationTests {
         try await expect(call.locator(".locution-commit")).toHaveText("Commit")
         try await expect(call.locator(".locution-commit-form[action$='/locutions/\(callID.uppercased())/commit']")).toHaveCount(1)
         try await call.locator(".locution-commit").click()
-        // Stopped admission completes without contacting a provider. Wait
-        // for that task to finish before replacing its result with a trace.
+        // The workers are stopped: the session waits, queued, contacting no
+        // provider. The test plays its states from here, held so the
+        // resumer leaves it be.
         var sessionID = ""
         for _ in 0..<300 {
-          sessionID = try TestAdmin.query("SELECT id FROM bibliographic_arbitration_sessions WHERE call_locution_id = '\(callID)' AND result = 'failed'")
+          sessionID = try TestAdmin.query("SELECT id FROM bibliographic_arbitration_sessions WHERE call_locution_id = '\(callID)' AND result = 'queued'")
           if !sessionID.isEmpty { break }
           try await Task.sleep(for: .milliseconds(100))
         }
         guard UUID(uuidString: sessionID) != nil else {
-          throw WebTestError("Commit did not create and finish the stopped arbitration fixture.")
+          throw WebTestError("Commit did not create the waiting arbitration fixture.")
         }
         // Running (the row stands in for the live buffer here).
         _ = try TestAdmin.query("""
           BEGIN;
           UPDATE bibliographic_arbitration_sessions SET result = 'running', output = '\(try Self.trace(upTo: 4))',
-            error_message = NULL WHERE id = '\(sessionID)';
+            error_message = NULL, held_by = 'web_tests', held_until = NOW() + interval '1 hour' WHERE id = '\(sessionID)';
           UPDATE locutions SET call_status = 'running' WHERE id = '\(callID)';
           COMMIT;
           """)
@@ -233,6 +234,20 @@ struct ArbitrationTests {
         try await expect(live).not.toContainText(Self.reply)
         _ = try TestAdmin.query("UPDATE bibliographic_arbitration_sessions SET output = '\(try Self.trace())' WHERE id = '\(sessionID)'")
         try await expect(live, timeout: .seconds(15)).toContainText(Self.reply)
+        // A worker's Stop pauses it: the slot says why, in an info alert,
+        // and no mark turns any more; started again, it streams on in the
+        // same slot (user, 2026-10-15).
+        _ = try TestAdmin.query("""
+          UPDATE bibliographic_arbitration_sessions SET result = 'queued',
+            error_message = 'The arbitration worker was stopped.' WHERE id = '\(sessionID)'
+          """)
+        let paused = slot.locator(".computorium-session-paused-notice")
+        try await expect(paused, timeout: .seconds(15)).toHaveText("The arbitration worker was stopped.")
+        try await expect(paused).toHaveAttribute("data-color", "blue")
+        try await expect(slot.locator(".computorium-session-output-thinking-running")).toHaveCount(0)
+        try await expect(slot).not.toContainText("failed without a recorded reason")
+        _ = try TestAdmin.query("UPDATE bibliographic_arbitration_sessions SET result = 'running', error_message = NULL WHERE id = '\(sessionID)'")
+        try await expect(paused, timeout: .seconds(15)).toHaveCount(0)
         // The session ends and files its reply: the same element becomes it,
         // its id written in, no second reply drawn.
         _ = try await slot.evaluate("el => { window.__slot = el; return true }")
