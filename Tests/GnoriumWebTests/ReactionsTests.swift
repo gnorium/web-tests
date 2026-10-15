@@ -70,36 +70,39 @@ struct ReactionsTests {
         try await expect(party.locator(".reactions-count")).toHaveText("2")
         try await expect(thumbs.locator(".reactions-emoji")).toHaveText("👍")
         try await expect(thumbs).toHaveAttribute("data-reacted", "false")
-        // The controls on their own row; under them one row of the pills,
-        // the picker at its end.
+        // One row (user, 2026-10-15): the controls, the pills, the picker at
+        // its end, all on one line.
         let layout = try await locution.evaluate(
           """
           (el) => {
             const row = el.querySelector('.reactions-row');
             const pills = [...row.querySelectorAll('.reactions-reaction')].map(p => p.getBoundingClientRect());
             const picker = row.querySelector('.reaction-picker-trigger').getBoundingClientRect();
-            const controls = el.querySelector('.reactions-controls').getBoundingClientRect();
+            const controls = row.querySelector('.reactions-controls').getBoundingClientRect();
             const last = pills[pills.length - 1], middle = picker.top + picker.height / 2;
             return [
-              row.getBoundingClientRect().top >= controls.bottom - 1,
+              controls.right <= pills[0].left,
               !el.querySelector('.reactions-controls .reaction-picker-trigger'),
               picker.left >= last.right,
               middle > last.top && middle < last.bottom,
+              middle > controls.top && middle < controls.bottom,
             ].join(' ');
           }
           """)
-        #expect(layout == .string("true true true true"), "Pills, then the picker, one row under the controls: \(layout)")
-        // One chip: no line between emoji and count, no cell of its own.
+        #expect(layout == .string("true true true true true"), "Controls, pills, then the picker, one row: \(layout)")
+        // One chip: emoji and count in one button, the picker's height, and
+        // no form: a pill never toggles.
         let chip = try await party.evaluate(
           """
           (el) => {
-            const emoji = el.querySelector('.reactions-emoji-button'), count = el.querySelector('.reactions-count-button');
-            const e = getComputedStyle(emoji), c = getComputedStyle(count);
-            return [c.borderInlineStartWidth, e.borderInlineEndWidth, e.backgroundColor === c.backgroundColor,
-              Math.abs(emoji.getBoundingClientRect().right - count.getBoundingClientRect().left) < 1].join(' ');
+            const buttons = el.querySelectorAll('button');
+            const trigger = el.closest('.reactions-row').querySelector('.reaction-picker-trigger');
+            return [buttons.length, !el.querySelector('form'), !!buttons[0].querySelector('.reactions-emoji'),
+              !!buttons[0].querySelector('.reactions-count'),
+              Math.abs(buttons[0].getBoundingClientRect().height - trigger.getBoundingClientRect().height) < 0.5].join(' ');
           }
           """)
-        #expect(chip == .string("0px 0px true true"), "One chip: \(chip)")
+        #expect(chip == .string("1 true true true true"), "One chip: \(chip)")
         // Each pill hugs what it holds: a longer count, a wider pill, and
         // the other pill as it was.
         let hugs = try await locution.evaluate(
@@ -126,10 +129,26 @@ struct ReactionsTests {
         try await page.mouse.move(x: 0, y: 0)
         try await expect(bubble).toHaveCount(0)
 
-        // A toggle redraws the pills in place from the server, sorted and
+        // A pill pressed anywhere, its emoji too, opens who reacted; it
+        // toggles nothing (user, 2026-10-15).
+        let openDialog = page.locator(".reactions-reactors-dialog.dialog-view[data-open='true']")
+        try await thumbs.locator(".reactions-emoji").click()
+        try await expect(openDialog).toBeAttached()
+        try await page.keyboard.press("Escape")
+        try await expect(openDialog).toHaveCount(0)
+        try await expect(thumbs).toHaveAttribute("data-reacted", "false")
+        try await expect(thumbs.locator(".reactions-count")).toHaveText("1")
+
+        // Reacting is the picker's, the reader's own selected in it. A
+        // choice redraws the pills in place from the server, sorted and
         // named anew, the picker still at the row's end; the old pills'
         // bubbles go with them.
-        try await thumbs.locator(".reactions-emoji-button").click()
+        let trigger = locution.locator(".reaction-picker-trigger")
+        let choice = { (emoji: String) in locution.locator(".reaction-picker-choices form[action$='/\(emoji)'] button") }
+        try await trigger.click()
+        try await expect(choice("🎉")).toHaveAttribute("aria-pressed", "true")
+        try await expect(choice("👍")).toHaveAttribute("aria-pressed", "false")
+        try await choice("👍").click()
         try await expect(thumbs).toHaveAttribute("data-reacted", "true")
         try await expect(thumbs.locator(".reactions-count")).toHaveText("2")
         // A tie at two: 🎉, reacted with first, stays first.
@@ -140,7 +159,9 @@ struct ReactionsTests {
         try await expect(bubble).toHaveCount(0)
         try await thumbs.locator(".reactions-count-button").hover()
         try await expect(bubble).toHaveText("\(reader.username) and \(other.username)")
-        try await thumbs.locator(".reactions-emoji-button").click()
+        try await trigger.click()
+        try await expect(choice("👍")).toHaveAttribute("aria-pressed", "true")
+        try await choice("👍").click()
         try await expect(thumbs).toHaveAttribute("data-reacted", "false")
         try await expect(thumbs.locator(".reactions-count")).toHaveText("1")
         try await page.mouse.move(x: 0, y: 0)
@@ -149,7 +170,7 @@ struct ReactionsTests {
 
         // The count opens who reacted: newest first, the reader last.
         let count = party.locator(".reactions-count-button")
-        try await expect(count).toHaveAttribute("aria-label", "See who reacted with 🎉 (2)")
+        try await expect(count).toHaveAttribute("aria-label", "2 reactions: 🎉, show who reacted")
         try await count.click()
         let dialog = page.locator(".reactions-reactors-dialog.dialog-view[data-open='true']")
         try await expect(dialog).toBeAttached()
@@ -182,19 +203,21 @@ struct ReactionsTests {
         #expect(try await page.evaluate(
           "document.activeElement.classList.contains('reactions-count-button')", as: Bool.self))
 
-        // The picker's framed box is a pill's height, border included: a
-        // small button's 32, mini's 24 under the phone step at 320.
+        // The picker's framed box is a small button's height, border
+        // included—32, mini's 24 under the phone step at 320—and the pills
+        // the picker trigger's, a step up: medium, small under the step.
         let picker = locution.locator(".reaction-picker-choices")
         let frame = """
-          (() => { const panel = document.querySelector('#locution-\(locutionID.uppercased()) .reaction-picker-choices');
-            const pill = document.querySelector('#locution-\(locutionID.uppercased()) .reactions-reaction button');
-            return [panel.getBoundingClientRect().height, pill.getBoundingClientRect().height]; })()
+          (() => { const el = document.querySelector('#locution-\(locutionID.uppercased())');
+            return [el.querySelector('.reaction-picker-choices').getBoundingClientRect().height,
+              el.querySelector('.reactions-reaction button').getBoundingClientRect().height
+                - el.querySelector('.reaction-picker-trigger').getBoundingClientRect().height]; })()
           """
         try await locution.locator(".reaction-picker-trigger").click()
         try await expect(locution.locator(".reaction-picker-choices.reaction-picker-settled")).toBeVisible()
-        #expect(try await page.evaluate(frame, as: [Double].self) == [32, 32])
+        #expect(try await page.evaluate(frame, as: [Double].self) == [32, 0])
         try await page.setViewport(width: 320, height: 812)
-        #expect(try await page.evaluate(frame, as: [Double].self) == [24, 24])
+        #expect(try await page.evaluate(frame, as: [Double].self) == [24, 0])
         try await page.keyboard.press("Escape")
         try await expect(picker).toBeHidden()
         try await page.expectNoErrors()

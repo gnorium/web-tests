@@ -13,19 +13,21 @@ import WebTestsTesting
 struct LocutionCollapseTests {
   /// Presses the locution's avatar in the page and reads its fold's height
   /// before, 100ms in (the motion is the accordion's 250ms), and once it
-  /// has ended: [before, during, after].
+  /// has ended, and the byline's gap to it at the same moments: [before,
+  /// during, after, gap before, gap during, gap after].
   static func press(_ locutionID: String) -> String {
     """
     (async () => {
       const root = document.getElementById('locution-\(locutionID.uppercased())');
       const fold = root.querySelector('.locution-fold');
       const height = () => fold.getBoundingClientRect().height;
-      const before = height();
+      const gap = () => parseFloat(getComputedStyle(root.querySelector('.locution-content')).rowGap);
+      const before = height(), gapBefore = gap();
       root.querySelector('.locution-collapse').click();
       await new Promise(r => setTimeout(r, 100));
-      const during = height();
+      const during = height(), gapDuring = gap();
       await new Promise(r => setTimeout(r, 600));
-      return [before, during, height()];
+      return [before, during, height(), gapBefore, gapDuring, gap()];
     })()
     """
   }
@@ -75,6 +77,8 @@ struct LocutionCollapseTests {
         let folding = try await page.evaluate(Self.press(locutionID), as: [Double].self)
         #expect(folding[0] > 0 && folding[2] == 0, "Open, then folded: \(folding)")
         #expect(folding[1] > 0 && folding[1] < folding[0], "Mid-fold, a height between: \(folding)")
+        // The byline's gap folds on the same clock: 8, between, 0.
+        #expect(folding[3] == 8 && folding[4] > 0 && folding[4] < 8 && folding[5] == 0, "The gap folds with it: \(folding)")
         try await expect(locution).toHaveAttribute("data-collapsed", "true")
         try await expect(locution).toHaveAttribute("data-motion", "idle")
         try await expect(toggle).toHaveAttribute("aria-expanded", "false")
@@ -112,6 +116,7 @@ struct LocutionCollapseTests {
         let opening = try await page.evaluate(Self.press(locutionID), as: [Double].self)
         #expect(opening[0] == 0 && opening[2] > 0, "Folded, then open: \(opening)")
         #expect(opening[1] > 0 && opening[1] < opening[2], "Mid-open, a height between: \(opening)")
+        #expect(opening[3] == 0 && opening[4] > 0 && opening[4] < 8 && opening[5] == 8, "The gap opens with it: \(opening)")
         try await expect(toggle).toHaveAttribute("aria-expanded", "true")
         try await expect(body).toBeVisible()
 

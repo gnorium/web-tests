@@ -161,11 +161,12 @@ struct AvatarTests {
         try await page.openHydrated(href)
         let first = page.locator("#\(href.split(separator: "#").last.map(String.init) ?? "")")
         try await expect(first).toBeAttached()
-        // Byline and body 8px apart—the byline above the fold, its 8 carried
-        // inside the fold so it folds with the rest; 16px between the words
-        // and the footer row (user, 2026-10-12).
+        // Byline and body 8px apart—the content's row gap, which folds with
+        // the body (user, 2026-10-15), no padding of its own; 16px between
+        // the words and the footer row (user, 2026-10-12).
         try await expect(first.locator(".locution-content > .locution-header").first).toBeAttached()
-        try await expect(first.locator(".locution-fold-content").first).toHaveCSS("padding-top", "8px")
+        try await expect(first.locator(".locution-fold-content").first).toHaveCSS("padding-top", "0px")
+        try await expect(first.locator(".locution-content").first).toHaveCSS("row-gap", "8px")
         try await expect(first.locator(".locution-fold-content").first).toHaveCSS("row-gap", "16px")
         try await expect(first.locator(".locution-said").first).toHaveCSS("row-gap", "8px")
         try await expect(first.locator(".locution-fold-content > .reactions-view").first).toBeAttached()

@@ -213,6 +213,17 @@ struct ArbitrationTests {
           })()
           """, as: String.self)
         #expect(inPlace == "true true true", "The panel updates in place (pushed, same spinner, its turn running on): \(inPlace)")
+        // Every figure that counts arbitration's calls opens a list holding
+        // them: the session is a row of the hour's list, its trace the call.
+        let figures = page.locator("#live-region-live-telemetry .mission-control-dashboard-live-telemetry-figures")
+        for label in ["Calls / min", "Tokens / min"] {
+          let href = try #require(try await figures.locator(".datum-view").filter(hasText: label).locator("a").first.getAttribute("href"))
+          #expect(href.contains("process=arbitration"), "\(label) lists arbitration's calls too: \(href)")
+        }
+        let hour = try #require(try await figures.locator(".datum-view").filter(hasText: "Calls / min").locator("a").first.getAttribute("href"))
+        try await page.openHydrated(hour)
+        try await expect(page.locator("a[href$='#locution-\(callID.uppercased())']").first).toBeAttached()
+
         try await page.openHydrated(reading.path)
         _ = try TestAdmin.query("""
           BEGIN;
