@@ -65,7 +65,6 @@ struct ArbitrationTests {
     let objectID = reading.madrigalID
     let contributorID = try contributor.column("id")
     let adminID = try admin.column("id")
-    let replyID = UUID().uuidString.lowercased()
     func remove() {
       // The Commit stamps the seed vignette with its first committing
       // object and admin (PromptCommits.apply): the throwaway admin's stamp
@@ -175,6 +174,10 @@ struct ArbitrationTests {
         guard UUID(uuidString: sessionID) != nil else {
           throw WebTestError("Commit did not create the waiting arbitration fixture.")
         }
+        // gnorium's reply, submitted with the Commit (user, 2026-10-15).
+        let replyID = try TestAdmin.query(
+          "SELECT id FROM locutions WHERE arbitration_session_id = '\(sessionID)' AND kind = 'reply'")
+        guard UUID(uuidString: replyID) != nil else { throw WebTestError("The Commit submitted no reply.") }
         // Running (the row stands in for the live buffer here).
         _ = try TestAdmin.query("""
           BEGIN;
@@ -217,26 +220,27 @@ struct ArbitrationTests {
         try await expect(page.locator("a[href$='#locution-\(callID.uppercased())']").first).toBeAttached()
 
         // The thread: the call (its words and own actions), the Commit, then
-        // gnorium's slot in reply position, its session streaming there,
-        // provisional while it runs (user, 2026-10-15).
+        // gnorium's reply, submitted with the Commit under its own id, its
+        // session streaming in it (user, 2026-10-15).
         try await page.openHydrated(reading.path)
-        let slot = page.locator(".locution-view[data-provisional='true']")
+        let slot = page.locator("#locution-\(replyID.uppercased())")
         try await expect(slot).toHaveCount(1)
         try await expect(call.locator(".computorium-session-view")).toHaveCount(0)
-        try await expect(slot.locator(".locution-header")).toContainText("gnorium submitted locution — replying to locution \(callID.uppercased())")
+        try await expect(slot.locator(".locution-header")).toContainText(
+          "gnorium submitted locution \(replyID.uppercased()) replying to locution \(callID.uppercased())")
         #expect(try await page.evaluate("""
           (() => { const top = s => document.querySelector(s).getBoundingClientRect().top
             return top('#locution-\(callID.uppercased())') < top('#commit-\(callID.uppercased())')
-              && top('#commit-\(callID.uppercased())') < top(".locution-view[data-provisional='true']") })()
-          """, as: Bool.self), "Call, its commit, then gnorium's slot")
+              && top('#commit-\(callID.uppercased())') < top('#locution-\(replyID.uppercased())') })()
+          """, as: Bool.self), "Call, its commit, then gnorium's reply")
         let live = slot.locator(".computorium-session-view")
         try await expect(live, timeout: .seconds(15)).toContainText("Reading the selected evidence carefully.")
         try await expect(live).not.toContainText(Self.reply)
         _ = try TestAdmin.query("UPDATE bibliographic_arbitration_sessions SET output = '\(try Self.trace())' WHERE id = '\(sessionID)'")
         try await expect(live, timeout: .seconds(15)).toContainText(Self.reply)
-        // A worker's Stop pauses it: the slot says why, in an info alert,
-        // and no mark turns any more; started again, it streams on in the
-        // same slot (user, 2026-10-15).
+        // A worker's Stop pauses it: the reply says why, in an info alert
+        // under its transcript, and no mark turns any more; started again,
+        // it streams on in the same reply (user, 2026-10-15).
         _ = try TestAdmin.query("""
           UPDATE bibliographic_arbitration_sessions SET result = 'queued',
             error_message = 'The arbitration worker was stopped.' WHERE id = '\(sessionID)'
@@ -248,28 +252,21 @@ struct ArbitrationTests {
         try await expect(slot).not.toContainText("failed without a recorded reason")
         _ = try TestAdmin.query("UPDATE bibliographic_arbitration_sessions SET result = 'running', error_message = NULL WHERE id = '\(sessionID)'")
         try await expect(paused, timeout: .seconds(15)).toHaveCount(0)
-        // The session ends and files its reply: the same element becomes it,
-        // its id written in, no second reply drawn.
+        // The session ends and fills its reply: the same element, no second
+        // reply drawn.
         _ = try await slot.evaluate("el => { window.__slot = el; return true }")
         _ = try TestAdmin.query("""
           BEGIN;
           UPDATE bibliographic_arbitration_sessions SET result = 'passed', output = '\(try Self.trace())',
-            provider = 'deepseek', model = 'deepseek-flash', duration_ms = 1200, error_message = NULL WHERE id = '\(sessionID)';
+            provider = 'deepseek', model = 'deepseek-flash', duration_ms = 1200, error_message = NULL,
+            finished_at = NOW() WHERE id = '\(sessionID)';
           UPDATE locutions SET call_status = 'done' WHERE id = '\(callID)';
-          INSERT INTO locutions (id, locutable_type, locutable_id, author_id, parent_id, content, depth,
-            kind, arbitration_session_id, evidence_id, evidence_kind, resemblance_service_id, resemblance_image_url, created_at)
-            SELECT '\(replyID)', 'bibliographic_madrigal', '\(objectID)',
-              (SELECT id FROM users WHERE username = 'gnorium'), '\(callID)', '\(Self.reply)', 1,
-              'reply', '\(sessionID)', '\(fixture.baseURL)/page-1', 'canvas',
-              c.resemblance_service_id, c.resemblance_image_url, now()
-            FROM locutions c WHERE c.id = '\(callID)';
+          UPDATE locutions SET content = '\(Self.reply)' WHERE id = '\(replyID)';
           COMMIT;
           """)
-        let filed = page.locator("#locution-\(replyID.uppercased())")
-        try await expect(filed, timeout: .seconds(15)).toHaveAttribute("data-provisional", "false")
-        #expect(try await filed.evaluate("el => el === window.__slot").bool == true, "The same element")
-        try await expect(filed.locator(".locution-header")).toContainText(
-          "gnorium submitted locution \(replyID.uppercased()) replying to locution \(callID.uppercased())")
+        try await expect(slot.locator(".computorium-session-view"), timeout: .seconds(15))
+          .toHaveAttribute("data-computorium-session-status", "succeeded")
+        #expect(try await slot.evaluate("el => el === window.__slot").bool == true, "The same element")
         try await expect(page.locator(".locution-view .computorium-session-view")).toHaveCount(1)
 
         try await page.openHydrated(reading.path)
@@ -282,7 +279,6 @@ struct ArbitrationTests {
         try await expect(reply).toContainText("gnorium submitted locution")
         // Answered, the session stands in the reply alone; the admin's
         // Commit is an act of the thread between the call and the reply.
-        try await expect(page.locator(".locution-view[data-provisional='true']")).toHaveCount(0)
         let commit = page.locator("#commit-\(callID.uppercased())")
         try await expect(commit).toContainText("committed locution \(callID.uppercased())")
         #expect(try await page.evaluate("""
@@ -623,8 +619,11 @@ struct ArbitrationTests {
           let arbitration = page.locator(".prompt-revision-fields-process[data-process='\(slot)']")
           try await expect(arbitration.locator("textarea[name='prompt-system-\(slot)']")).toHaveCount(1)
           try await expect(arbitration.locator("textarea[name='prompt-task-\(slot)']")).toHaveCount(1)
-          try await expect(arbitration.locator(".accordion-details")).toHaveCount(6)
-          try await expect(arbitration.locator(".accordion-details[data-expanded='false']")).toHaveCount(6)
+          // The process, its prompts, autocompaction's and the continuation
+          // prompt's (user, 2026-10-15).
+          try await expect(arbitration.locator(".accordion-details")).toHaveCount(7)
+          try await expect(arbitration.locator(".accordion-details[data-expanded='false']")).toHaveCount(7)
+          try await expect(arbitration.locator("textarea[name='prompt-task-\(slot)_continuation']")).toHaveCount(1)
           try await expect(arbitration.locator("#prompt-revision-process-\(slot) .accordion-title").first).toHaveText("Arbitration")
           let auto = arbitration.locator("#prompt-revision-autocompaction-\(slot)")
           try await expect(auto.getByText("Autocompaction", exact: true)).toHaveCount(1)
