@@ -103,7 +103,7 @@ struct RecordBreadcrumbsTests {
         try await page.expectNoHorizontalOverflow()
         let trail = page.locator("footer .footer-breadcrumbs")
         try await expect(trail.locator(".breadcrumb-item")).toHaveCount(7)
-        try await expect(trail.locator(".breadcrumb-current")).toHaveText("Vignettes")
+        try await expect(trail.locator(".breadcrumb-current")).toHaveText("Biblio-record Vignettes")
         let titleSlug = work.path.split(separator: "/")[2]
         for href in [
           "/", "/biblio-records", "/biblio-records/eng", "/biblio-records/eng/\(titleSlug)", "/biblio-records/eng/\(titleSlug)/report",
