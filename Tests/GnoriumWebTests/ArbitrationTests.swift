@@ -532,6 +532,16 @@ struct ArbitrationTests {
         try await expect(first, timeout: .seconds(15)).toBeVisible()
         let firstID = try TestAdmin.query("SELECT id FROM locutions WHERE locutable_id = '\(objectID)'").uppercased()
         try await page.openHydrated(reading.path)
+        // Its stretch of the rail folds it and opens it again, a pointer's
+        // way to its avatar's toggle (user, 2026-10-16).
+        let entry = page.locator("#locution-\(firstID)")
+        let rail = entry.locator(".locution-rail")
+        try await expect(rail).toHaveCSS("cursor", "pointer")
+        try await rail.click()
+        try await expect(entry).toHaveAttribute("data-collapsed", "true")
+        try await expect(entry.locator(".locution-collapse")).toHaveAttribute("aria-expanded", "false")
+        try await rail.click()
+        try await expect(entry).toHaveAttribute("data-collapsed", "false")
         // Hidden until a call is written.
         let work = page.locator("#metadata-tick-work")
         let locutionTick = page.locator("#locution-tick-\(firstID)")
