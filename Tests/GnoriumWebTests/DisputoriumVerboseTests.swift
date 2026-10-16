@@ -4,9 +4,11 @@ import WebTests
 import WebTestsTesting
 
 /// Verbose opens every accordion below its switch in document order, never
-/// the Pedigree above it (user, 2026-10-09), which stays the reader's to
-/// open: on a Disputorium object's page, whose scope is the work under the
-/// rule, and on a Computorium page, whose scope holds the Pedigree too.
+/// the Pedigree above it (user, 2026-10-09, 2026-10-17), which stays the
+/// reader's to open: on a Disputorium object's page, whose scope is the
+/// whole object page below the rule—its work, its Prompts fetched in later,
+/// its locutions—and on a Computorium page, whose scope holds the Pedigree
+/// too.
 @Suite("Disputorium verbose record scope", .serialized)
 struct DisputoriumVerboseTests {
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
@@ -39,12 +41,22 @@ struct DisputoriumVerboseTests {
       try await toggle.click()
       try await expect(toggle).toHaveAttribute("aria-pressed", "true")
       try await expect(page.locator(".lexicographic-overture-view .disputorium-core-work .accordion-details[data-expanded=false]")).toHaveCount(0)
-      // Never the Pedigree above the switch (user, 2026-10-09): it stays
+      // Every accordion below the switch (user, 2026-10-17): the Prompts
+      // too, fetched in under the work—open whether they arrived before
+      // the press or after it—and each prompt's own accordions in them.
+      let prompts = page.locator(".lexicographic-overture-view .prompt-previews-view .accordion-details")
+      try await expect(prompts.first, timeout: .seconds(20)).toBeAttached()
+      try await expect(page.locator(".lexicographic-overture-view .prompt-previews-view .accordion-details[data-expanded=false]"))
+        .toHaveCount(0)
+      // Never the Pedigree above the switch (user, 2026-10-17): it stays
       // the reader's to open.
       try await expect(page.locator(".pedigree-accordion > .accordion-details")).toHaveAttribute("data-expanded", "false")
       try await toggle.click()
       try await expect(toggle).toHaveAttribute("aria-pressed", "false")
       try await expect(page.locator("#apparatus-metadata")).toHaveAttribute("data-expanded", "true")
+      // Put back as the reader had them: the Prompts closed again.
+      try await expect(page.locator(".lexicographic-overture-view .prompt-previews-view .accordion-details[data-expanded=true]"))
+        .toHaveCount(0)
       try await page.expectNoHorizontalOverflow()
       try await page.expectNoErrors()
     }

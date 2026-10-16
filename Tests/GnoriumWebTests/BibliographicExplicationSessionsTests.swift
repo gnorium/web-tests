@@ -20,7 +20,7 @@ struct BibliographicExplicationSessionsTests {
     let nocturneID = UUID().uuidString.lowercased()
     do {
       let user = try admin.column("id")
-      let autoID = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = 'bibliographic_explication_autocompaction'").trimmingCharacters(in: .whitespacesAndNewlines)
+      let autoID = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = 'bibliographic_explication'").trimmingCharacters(in: .whitespacesAndNewlines)
       let blocks: [[String: String]] = [
         ["type": "image_url", "content": "https://example.org/iiif/web-tests/full/1300,/0/default.jpg"],
         ["type": "thinking", "content": "Reading the first page of the `chunk`."],
@@ -139,7 +139,7 @@ struct BibliographicExplicationSessionsTests {
         // <body> once hydrated (TooltipView, 2026-10-13), links its process's
         // prompts with the vignette's UUID.
         try await expect(page.locator(".computorium-session-compaction-prompt-fieldset .computorium-session-prompt-legend-vignette")).toHaveCount(1)
-        let legend = page.locator(".tooltip-view[data-portal='true'] .tooltip-content a[href='/mission-control/prompts/bibliographic/explication_autocompaction']")
+        let legend = page.locator(".tooltip-view[data-portal='true'] .tooltip-content a[href='/mission-control/prompts/bibliographic/explication']")
         try await expect(legend).toHaveCount(1)
         try await expect(legend).toHaveText(autoID)
         // The autocompaction card is white; the prompt the summarizer was
@@ -586,7 +586,7 @@ struct BibliographicExplicationSessionsTests {
     do {
       let user = try admin.column("id")
       let vignette = try TestAdmin.query(
-        "SELECT vignette_id FROM active_prompt_vignettes WHERE slot = 'bibliographic_explication_continuation'"
+        "SELECT vignette_id FROM active_prompt_vignettes WHERE slot = 'bibliographic_explication'"
       ).trimmingCharacters(in: .whitespacesAndNewlines)
       let sent = "Continue from the **retained** conversation.\n\n- Do not repeat completed tool writes."
       let sentJSON = String(decoding: try JSONEncoder().encode(sent), as: UTF8.self)

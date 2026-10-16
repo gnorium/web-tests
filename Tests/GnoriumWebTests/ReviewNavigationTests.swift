@@ -14,14 +14,16 @@ struct ReviewNavigationTests {
     let ids = (0..<101).map { _ in UUID().uuidString.uppercased() }
     let values = ids.enumerated().map { index, id in
       """
-      ('\(id)', '\(id)', 'bibliographic_explication', 'Web tests comparison \(index)', 'Web tests task', false,
+      ('\(id)', '\(id)', 'bibliographic_explication', 'Web tests comparison \(index)', 'Web tests task',
+       'Web tests summary.', 'Web tests {transcript}', '', 'Web tests carry on.', false,
        '2026-01-01T00:00:00Z'::timestamptz + interval '\(index) minutes', 'bibliographicOverture',
        gen_random_uuid(), '\(userID)', now())
       """
     }.joined(separator: ",")
     _ = try TestAdmin.query("""
       INSERT INTO prompt_vignettes
-        (id, hash, slot, system_prompt, task_prompt, is_proprietary_content, created_at,
+        (id, hash, slot, system_prompt, task_prompt, autocompaction_system_prompt, autocompaction_task_prompt,
+         continuation_system_prompt, continuation_task_prompt, is_proprietary_content, created_at,
          committed_object_type, committed_object_id, committed_by_user_id, committed_at)
       VALUES \(values);
       """)

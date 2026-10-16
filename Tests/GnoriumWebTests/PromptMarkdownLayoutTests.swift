@@ -32,13 +32,14 @@ struct PromptMarkdownLayoutTests {
       let geometry = try await page.evaluate("""
         (() => {
           const content = document.querySelector('.mission-control-prompt-content');
-          const sections = [...content.querySelectorAll(':scope > .prompt-section')];
+          // Every prompt of the process's vignette (user, 2026-10-17).
+          const sections = [...content.querySelectorAll(':scope > .prompt-vignette-sections-view > .prompt-section')];
           const crumbs = [...document.querySelectorAll('.breadcrumb-label, .breadcrumb-current')].map(e => e.textContent.trim());
           const expected = ['Mission Control', 'Prompts', 'Bibliographic', 'Bibliographic Explication'];
           let index = -1;
           const ordered = expected.every(label => { index = crumbs.indexOf(label, index + 1); return index >= 0; });
           return getComputedStyle(content).gap === '24px'
-            && sections.length === 2
+            && sections.length === 5
             && sections.every(s => getComputedStyle(s).gap === '16px')
             && ordered
             && document.querySelectorAll('.prompt-text-body script').length === 0;

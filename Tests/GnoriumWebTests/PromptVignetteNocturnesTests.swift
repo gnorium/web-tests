@@ -22,13 +22,16 @@ struct PromptVignetteNocturnesTests {
     _ = try TestAdmin.query(
       """
       INSERT INTO prompt_vignettes(id, hash, slot, system_prompt, task_prompt,
+        autocompaction_system_prompt, autocompaction_task_prompt, continuation_system_prompt, continuation_task_prompt,
         is_proprietary_content, created_at, committed_object_type, committed_object_id, committed_by_user_id,
         committed_at)
       VALUES ('\(id)', '\(id)', 'bibliographic_explication', 'Web tests system.', 'Web tests task {page}',
+          'Web tests summary.', 'Web tests {transcript}', '', 'Web tests carry on.',
           false, NOW(), 'bibliographicOverture', gen_random_uuid(),
           (SELECT id FROM users WHERE username = 'gnorium'), NOW()),
         ('\(placeholder)', '\(placeholder)', 'bibliographic_explication', 'Web tests placeholder.',
-          'Web tests task {page}', false, NOW(), NULL, NULL, NULL, NULL)
+          'Web tests task {page}', 'Web tests summary.', 'Web tests {transcript}', '', 'Web tests carry on.',
+          false, NOW(), NULL, NULL, NULL, NULL)
       """)
     defer { _ = try? TestAdmin.query("DELETE FROM prompt_vignettes WHERE id IN ('\(id)', '\(placeholder)')") }
     try await withPage(engine, gnorium, viewport: .desktop) { page in

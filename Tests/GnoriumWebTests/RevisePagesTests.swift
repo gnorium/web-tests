@@ -411,7 +411,8 @@ struct RevisePagesTests {
     let work = try ScratchCommit(owner: contributor)
     let parent = "bibliographic_arbitration"
     let slot = parent + "_autocompaction"
-    let active = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
+    // One vignette holds the process's every prompt (user, 2026-10-17).
+    let active = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(parent)'")
     func remove() {
       _ = try? TestAdmin.query("DELETE FROM revisions WHERE requested_by_user_id = '\(user)'")
       work.remove()
@@ -480,7 +481,7 @@ struct RevisePagesTests {
         try await expect(page.locator("textarea[name='prompt-system-\(slot)']")).toContainText("Web tests summarizer system.")
         try await expect(page.locator("textarea[name='prompt-task-\(slot)']")).toContainText("Web tests summarizer task.")
       }
-      let still = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
+      let still = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(parent)'")
       #expect(still == active, "Acceptance merges the working copy; activation waits for Commit")
     } catch {
       remove()
@@ -864,7 +865,7 @@ struct RevisePagesTests {
       for (id, previous, proposed, offset) in [(a, system, afterA, 2), (b, afterA, afterB, 1)] {
         _ = try TestAdmin.query("""
           INSERT INTO revisions (id, revisable_type, revisable_id, prompt_changes_json, status, requested_by_user_id, created_at)
-          VALUES ('\(id)', 'bibliographicMadrigal', '\(work.madrigalID)', json_build_array(json_build_object('slot', '\(slot)', 'previous', json_build_object('system', '\(sql(previous))', 'task', '\(sql(task))'),
+          VALUES ('\(id)', 'bibliographicMadrigal', '\(work.madrigalID)', json_build_array(json_build_object('slot', '\(slot)', 'prompt', 'main', 'previous', json_build_object('system', '\(sql(previous))', 'task', '\(sql(task))'),
               'proposed', json_build_object('system', '\(sql(proposed))', 'task', '\(sql(task))')))::text, 'pending', '\(user)', now() - interval '\(offset) minute')
           """)
       }
@@ -967,7 +968,7 @@ struct RevisePagesTests {
         let evaluated = status == "accepted" ? "'\(user)', now()" : "NULL, NULL"
         _ = try TestAdmin.query("""
           INSERT INTO revisions (id, revisable_type, revisable_id, prompt_changes_json, status, requested_by_user_id, evaluated_by_user_id, evaluated_at, created_at)
-          VALUES ('\(id)', 'bibliographicMadrigal', '\(work.madrigalID)', json_build_array(json_build_object('slot', '\(slot)', 'previous', json_build_object('system', '\(sql(system))', 'task', '\(sql(task))'),
+          VALUES ('\(id)', 'bibliographicMadrigal', '\(work.madrigalID)', json_build_array(json_build_object('slot', '\(slot)', 'prompt', 'main', 'previous', json_build_object('system', '\(sql(system))', 'task', '\(sql(task))'),
               'proposed', json_build_object('system', '\(sql(proposed))', 'task', '\(sql(task))')))::text, '\(status)', '\(user)', \(evaluated), now() - interval '\(offset) minute')
           """)
       }
