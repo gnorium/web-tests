@@ -14,9 +14,9 @@ struct GlossPhraseTests {
   static let idiomService = "https://example.org/iiif/webtests-phrase"
   static let idiomTEI = """
     <TEI><text><body><pb n="1" facs="\(idiomService)/full/1300,/0/default.jpg"/>\
-    <p><s><w lemma="he" type="pronoun">He</w> <phr type="idiom" lemma="kick the bucket">\
-    <w lemma="kick" type="verb" msd="Tense=Past">kicked</w> <w lemma="the" type="article">the</w> \
-    <w lemma="bucket" type="noun">bucket</w></phr><pc>.</pc></s></p></body></text></TEI>
+    <p><s><w lemma="he" class="pronoun">He</w> <phr class="idiom" lemma="kick the bucket">\
+    <w lemma="kick" class="verb" msd="Tense=Past">kicked</w> <w lemma="the" class="article">the</w> \
+    <w lemma="bucket" class="noun">bucket</w></phr><pc>.</pc></s></p></body></text></TEI>
     """
 
   /// A word inside a phrase opens the phrase first: its type and lemma and
@@ -78,7 +78,7 @@ struct GlossPhraseTests {
         try await expect(rows.nth(1).locator(".gloss-word")).toBeVisible()
         try await expect(rows.nth(0).locator(".gloss-word")).toBeHidden()
         try await expect(rows.nth(1).locator(".datum-label")).toHaveTexts([
-          "Language", "Lemma", "Class", "Morphology", "Phrase", "Phrase lemma", "Phrase type",
+          "Language", "Lemma", "Class", "Morphology", "Phrase", "Phrase lemma", "Phrase class",
           "Lexico-record",
         ])
         try await expect(rows.nth(1).locator(".datum-value")).toHaveTexts([

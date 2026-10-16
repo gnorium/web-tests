@@ -8,7 +8,7 @@ import WebTestsTesting
 /// row a page—whose trace shows the tool calls it read and saved with.
 @Suite("Bibliographic explication sessions", .serialized)
 struct BibliographicExplicationSessionsTests {
-  static let page = #"<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><pb n="1"/><p><s><w lemma="sea" type="noun">sea</w></s><lb/></p></body></text></TEI>"#
+  static let page = #"<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><pb n="1"/><p><s><w lemma="sea" class="noun">sea</w></s><lb/></p></body></text></TEI>"#
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aBibliographicExplicationShowsItsChunkSessionsAndNoProcesses(engine: BrowserEngine, layout: Layout) async throws {

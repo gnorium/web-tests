@@ -25,9 +25,9 @@ struct GlossTests {
   static let service = "https://example.org/iiif/webtests-words"
   static let tei = """
     <TEI><text><body><pb n="1" facs="\(service)/full/1300,/0/default.jpg"/>\
-    <p><s><w lemma="the" type="article" msd="Definite=Def|PronType=Art">The</w> \
-    <w lemma="scratchword" type="noun" msd="Number=Plur">scratchwords</w> \
-    <w lemma="stand" type="verb" msd="Tense=Past">stood</w><pc>.</pc></s></p><fw type="pageNum">12</fw>\
+    <p><s><w lemma="the" class="article" msd="Definite=Def|PronType=Art">The</w> \
+    <w lemma="scratchword" class="noun" msd="Number=Plur">scratchwords</w> \
+    <w lemma="stand" class="verb" msd="Tense=Past">stood</w><pc>.</pc></s></p><fw type="pageNum">12</fw>\
     </body></text></TEI>
     """
 
@@ -199,7 +199,7 @@ struct GlossTests {
           fetch('\(scratch.reading.work.path)/testaments/\(scratch.versionID)/glosses?resemblance='
             + encodeURIComponent('\(Self.service)') + '&line=1&word=2', { headers: { Accept: 'application/json' } })
             .then(r => r.json())
-            .then(j => [j.surface, j.lemma, j.type, j.morphology, j.record.title, j.sentiment.id,
+            .then(j => [j.surface, j.lemma, j.class, j.morphology, j.record.title, j.sentiment.id,
               j.equivalents[0].form, j.equivalents[0].relation, j.html.includes('gloss-view'), j.data[0].label].join('|'))
           """)
         #expect(json == .string("scratchwords|scratchword|Noun|Number: Plural|\(english.title)|s-1-1|\(german.title)|broader sense|true|Language"))

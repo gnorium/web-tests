@@ -83,7 +83,7 @@ struct CitationsTests {
       tei: """
         <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
         <pb n="1" facs="https://example.org/iiif/web-tests-incoming/full/1300,/0/default.jpg"/>
-        <p><w lemma="report" type="noun">Report</w><lb/></p>
+        <p><w lemma="report" class="noun">Report</w><lb/></p>
         </body></text></TEI>
         """)
     let catalog = try ScratchWork(owner: admin)

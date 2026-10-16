@@ -19,8 +19,8 @@ struct TEILayoutTests {
     <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
     <pb n="10" facs="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/>
     <fw type="pageNum" rend="align(left)">10</fw> <fw type="header" rend="align(center)">On the Goodness</fw>
-    <lg><l rend="indent(1)"><s><w lemma="the" type="article">The</w> <w lemma="mighty" type="adjective">migh-<lb break="no"/>ty</w> <w lemma="power" type="noun">Power</w><lb/><w lemma="that" type="pronoun">that</w> <w lemma="form" type="verb">form'd</w> <w lemma="the" type="article">the</w> <w lemma="world" type="noun">world</w></s></l></lg>
-    <note place="foot" rend="align(center)"><w lemma="buy" type="verb">Bought</w><lb/><w lemma="in" type="preposition">in</w><lb/><num value="1800">1800</num></note>
+    <lg><l rend="indent(1)"><s><w lemma="the" class="article">The</w> <w lemma="mighty" class="adjective">migh-<lb break="no"/>ty</w> <w lemma="power" class="noun">Power</w><lb/><w lemma="that" class="pronoun">that</w> <w lemma="form" class="verb">form'd</w> <w lemma="the" class="article">the</w> <w lemma="world" class="noun">world</w></s></l></lg>
+    <note place="foot" rend="align(center)"><w lemma="buy" class="verb">Bought</w><lb/><w lemma="in" class="preposition">in</w><lb/><num value="1800">1800</num></note>
     <fw type="catch" rend="align(right)">Here,</fw>
     </body></text></TEI>
     """#
@@ -111,7 +111,7 @@ struct TEILayoutTests {
   static let abbreviationTEI = #"""
     <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
     <pb n="4" facs="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/>
-    <p><w lemma="take" type="verb">took</w> <w lemma="his" type="pronoun">his</w> <choice><abbr>M.A.</abbr><expan>Master of Arts</expan></choice> <w lemma="degree" type="noun">degree</w></p>
+    <p><w lemma="take" class="verb">took</w> <w lemma="his" class="pronoun">his</w> <choice><abbr>M.A.</abbr><expan>Master of Arts</expan></choice> <w lemma="degree" class="noun">degree</w></p>
     </body></text></TEI>
     """#
 
@@ -179,7 +179,7 @@ struct TEILayoutTests {
     <facsimile><surface n="1" ulx="0" uly="0" lrx="1000" lry="1000"><graphic url="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/><zone xml:id="p1-z1" ulx="40" uly="60" lrx="160" lry="210"/></surface></facsimile>
     <text><body>
     <pb n="1" facs="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/>
-    <p><w lemma="when" type="adverb"><hi rend="initial" facs="#p1-z1">W</hi>hen</w> <w lemma="in" type="preposition">in</w> <w lemma="the" type="article">the</w> <w lemma="course" type="noun">course</w></p>
+    <p><w lemma="when" class="adverb"><hi rend="initial" facs="#p1-z1">W</hi>hen</w> <w lemma="in" class="preposition">in</w> <w lemma="the" class="article">the</w> <w lemma="course" class="noun">course</w></p>
     </body></text></TEI>
     """#
 
@@ -230,8 +230,8 @@ struct TEILayoutTests {
     <facsimile><surface n="1" ulx="0" uly="0" lrx="1000" lry="1000"><graphic url="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/><zone xml:id="p1-z1" ulx="100" uly="200" lrx="400" lry="600"/></surface></facsimile>
     <text><body>
     <pb n="1" facs="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/>
-    <p><w lemma="a" type="article">A</w> <w lemma="woodcut" type="noun">woodcut</w><lb/></p>
-    <figure type="illustration" facs="#p1-z1"><head><w lemma="figure" type="noun">Fig.</w> <num value="1">1</num></head><figDesc>Woodcut of the bones of a hand.</figDesc></figure>
+    <p><w lemma="a" class="article">A</w> <w lemma="woodcut" class="noun">woodcut</w><lb/></p>
+    <figure type="illustration" facs="#p1-z1"><head><w lemma="figure" class="noun">Fig.</w> <num value="1">1</num></head><figDesc>Woodcut of the bones of a hand.</figDesc></figure>
     </body></text></TEI>
     """#
 
