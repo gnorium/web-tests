@@ -557,7 +557,7 @@ struct EdgeFadeTests {
       let cases: [(String, String, String, Bool)] = [
         (titlePage, "breadcrumb", title, true),
         (shortTitlePage, "breadcrumb-short", short.title, false),
-        ("\(long.path)/vignettes", "breadcrumb-deep", "Biblio-record Vignettes", false),
+        ("/vignettes/biblio-records", "breadcrumb-vignettes", "Vignettes", false),
       ]
       for (path, name, text, overflows) in cases {
         try await page.openHydrated(path)

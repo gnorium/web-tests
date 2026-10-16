@@ -88,35 +88,32 @@ struct RecordBreadcrumbsTests {
     }
   }
 
-  /// A voiced record's Vignettes page walks the record's address, then
-  /// its own crumb. With the footer's home that is seven crumbs, every one in
-  /// sight (no overflow menu, 2026-10-04): the language a link that goes to
-  /// its page.
+  /// A voiced record's "Vignettes" link opens Vignettes on its
+  /// Biblio-records tab, filtered to the record by its address's segments;
+  /// the page is crumbed by its name alone.
   @Test(arguments: gnorium.engines, Layout.allCases)
-  func aVignettesPageWalksItsRecordsPath(engine: BrowserEngine, layout: Layout) async throws {
+  func aRecordsVignettesLinkOpensVignettesFilteredToIt(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let (work, namesake) = try ScratchRecord.pair()
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-        try await page.openHydrated("\(work.path)/vignettes")
+        try await page.openHydrated(work.path)
+        let segments = work.path.split(separator: "/").dropFirst().map(String.init)
+        let query = zip(["language", "title", "type", "voice-names"], segments).map { "\($0)=\($1)" }
+          .joined(separator: "&")
+        let vignettes = "/vignettes/biblio-records?\(query)"
+        let link = page.locator(".record-sidebar a[href='\(vignettes)']")
+        try await expect(link).toHaveText("Vignettes")
+        try await link.click()
+        try await expect(page).toHaveURL(vignettes) { url in url.path == "/vignettes/biblio-records" }
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
         let trail = page.locator("footer .footer-breadcrumbs")
-        try await expect(trail.locator(".breadcrumb-item")).toHaveCount(7)
-        try await expect(trail.locator(".breadcrumb-current")).toHaveText("Biblio-record Vignettes")
-        let titleSlug = work.path.split(separator: "/")[2]
-        for href in [
-          "/", "/biblio-records", "/biblio-records/eng", "/biblio-records/eng/\(titleSlug)", "/biblio-records/eng/\(titleSlug)/report",
-          work.path,
-        ] {
-          try await expect(trail.locator(".breadcrumb-item > a[href='\(href)']")).toBeVisible()
-        }
-        try await expect(trail.locator(".breadcrumb-overflow")).toHaveCount(0)
-        let english = trail.locator(".breadcrumb-item > a[href='/biblio-records/eng']")
-        try await expect(english).toHaveText("English")
-        try await english.click()
-        try await expect(page).toHaveURL("/biblio-records/eng") { url in url.path == "/biblio-records/eng" }
-        try await expect(page.locator("main a[href='\(work.path)']")).toHaveCount(1)
+        try await expect(trail.locator(".breadcrumb-item")).toHaveCount(2)
+        try await expect(trail.locator(".breadcrumb-current")).toHaveText("Vignettes")
+        try await expect(page.locator(".page-heading")).toHaveText("Vignettes")
+        // Its record's filters in force; none of its namesake's rows.
+        try await expect(page.locator("main a[href='\(namesake.path)']")).toHaveCount(0)
       }
     } catch {
       work.remove()
