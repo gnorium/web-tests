@@ -6,7 +6,7 @@ import WebTestsTesting
 @Suite("Public sponsorship layout", .serialized)
 struct SponsorLayoutTests {
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func publicReadingAndPooledSpending(engine: BrowserEngine, layout: Layout) async throws {
+  func publicReadingOfWhatSponsorsGave(engine: BrowserEngine, layout: Layout) async throws {
     guard gnorium.engines.contains(engine) else { return }
     guard let path = ProcessInfo.processInfo.environment["GNORIUM_SPONSOR_FIXTURE_PATH"],
       FileManager.default.fileExists(atPath: path) else {
@@ -19,10 +19,9 @@ struct SponsorLayoutTests {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/\(name)")
       try await expect(page.locator(".sponsor-content h1")).toHaveText("Sponsor Gnorium")
-      try await expect(page.locator(".sponsor-content h2").first).toHaveText("Shared Sponsorship Pool")
+      try await expect(page.locator(".sponsor-content h2").first).toHaveText("Sponsorship")
       try await expect(page.locator(".sponsor-content")).toContainText("Online sponsorship is not available yet")
       try await expect(page.locator(".sponsor-content")).toContainText("$12.50")
-      try await expect(page.locator(".sponsor-content a[href='/mission-control/antiphons/bibliographic/fixture-run']")).toHaveText("Bibliographic antiphon")
       let readable = try await page.evaluate("""
         (() => {
           const main = document.querySelector('main.sponsor-content');
@@ -54,7 +53,7 @@ struct SponsorLayoutTests {
           """, as: String.self)
         print("Sponsor layout diagnostic: \(diagnostic)")
       }
-      #expect(readable, "Public pooled accounting is readable without checkout or administrative controls")
+      #expect(readable, "What sponsors gave is readable without checkout or administrative controls")
       try await page.expectNoHorizontalOverflow()
       try await page.expectNoErrors()
     }
