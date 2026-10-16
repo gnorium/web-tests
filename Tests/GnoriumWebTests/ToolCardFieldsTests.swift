@@ -20,7 +20,7 @@ struct ToolCardFieldsTests {
   static let conventions =
     #"{"ok": true, "tool": "read_conventions", "version": "3", "content": "Rule one.\nRule two."}"#
   static let search =
-    #"{"ok": true, "tool": "web_search", "engine": "perplexity", "engine_name": "Perplexity", "searches": 1, "pages": [{"title": "Page", "url": "https://example.org/page"}, {"title": "Other", "url": "https://example.org/other"}]}"#
+    #"{"ok": true, "tool": "web_search", "results": [{"url": "https://example.org/page", "title": "Page", "published_date": "2024-05-01", "text": "The page's text."}, {"url": "https://example.org/other", "title": "Other", "text": "Other text."}]}"#
   static let saved =
     #"{"ok": true, "tool": "save_page", "saved": "1", "findings_count": 0, "note": null, "features": {"blank": ["blank"], "counts": {"lines": 0, "hands": 2}}, "findings": [{"kind": "gap", "flags": [false, true]}]}"#
   static let tei = (1...40).map { #"<p n="\#($0)">Line \#($0)</p>"# }.joined(separator: "\n")
@@ -262,12 +262,12 @@ struct ToolCardFieldsTests {
             return getComputedStyle(content).rowGap + ' ' + (fields ? getComputedStyle(fields).rowGap : '8px');
           })()
           """, as: String.self) == "16px 8px", "Inputs and output 16 apart, datums 8")
-        // A web search: its engine and pages under their own keys, one
-        // nested group a page.
+        // A web search: its results under their own key, one nested group
+        // a page.
         let search = try await page.evaluate(Self.signature("computorium-session-tool-ws"), as: String.self)
         for line in [
-          "0|query=sea", "0|engine=perplexity", "0|engine_name=Perplexity", "0|searches=1",
-          "0|pages[0]={}", "1|title=Page", "1|url=https://example.org/page", "0|pages[1]={}", "1|title=Other",
+          "0|query=sea", "0|results[0]={}", "1|url=https://example.org/page", "1|title=Page",
+          "1|published_date=2024-05-01", "1|text=The page's text.", "0|results[1]={}", "1|title=Other",
         ] {
           #expect(search.contains(line), "web_search shows \(line): \(search)")
         }
