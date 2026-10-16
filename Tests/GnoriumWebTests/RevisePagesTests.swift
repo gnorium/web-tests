@@ -881,14 +881,15 @@ struct RevisePagesTests {
           try await page.waitForLoadState()
           try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("as accepted")
         }
-        // Enabled, its warning hidden until pressed; pressed, shown, the
-        // form not sent.
+        // Enabled, its gate's alert hidden until pressed; pressed, shown,
+        // the form not sent (`ActionGateView`).
         let button = page.locator("\(revert) button")
+        let alert = page.locator("#revision-\(a)-verdict-1 .action-gate-alert")
         try await expect(button).toBeEnabled()
-        try await expect(page.locator("\(revert) .refusal-view")).toBeHidden()
+        try await expect(alert).toBeHidden()
         try await button.click()
-        try await expect(page.locator("\(revert) .refusal-view")).toBeVisible()
-        try await expect(page.locator("\(revert) .refusal-view")).toContainText(refused)
+        try await expect(alert).toBeVisible()
+        try await expect(alert).toContainText(refused)
         let status = try TestAdmin.query("SELECT status FROM revisions WHERE id = '\(a)'")
         #expect(status.trimmingCharacters(in: .whitespacesAndNewlines) == "accepted")
         // Its own page: the header's Revert enabled, the same warning when
@@ -896,7 +897,7 @@ struct RevisePagesTests {
         try await page.openHydrated("\(madrigalPath)/revisions/\(a)")
         try await expect(page.locator("button[form='revision-revert']")).toBeEnabled()
         try await page.locator("button[form='revision-revert']").click()
-        try await expect(page.locator(".refusal-view").filter(hasText: refused)).toBeVisible()
+        try await expect(page.locator(".action-gate-alert").filter(hasText: refused)).toBeVisible()
         try await page.expectNoErrors()
       }
       // Without the client (the form sent as a browser sends it, no
@@ -904,8 +905,9 @@ struct RevisePagesTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(madrigalPath)
         _ = try await page.evaluate("(() => { HTMLFormElement.prototype.submit.call(document.querySelector(\"\(revert)\")); return 1 })()", as: Int.self)
-        try await expect(page.locator("\(revert) .refusal-view"), timeout: .seconds(15)).toBeVisible()
-        try await expect(page.locator("\(revert) .refusal-view")).toContainText(refused)
+        let alert = page.locator("#revision-\(a)-verdict-1 .action-gate-alert")
+        try await expect(alert, timeout: .seconds(15)).toBeVisible()
+        try await expect(alert).toContainText(refused)
         let at = try await page.url()
         #expect(at.hasSuffix("#refused-\(a)-revert"), "At the warning: \(at)")
       }
@@ -999,7 +1001,7 @@ struct RevisePagesTests {
         try await expect(clash).toContainText("Web tests C.")
         try await expect(clash).toContainText("Web tests A.")
         try await page.locator("button[form='revision-accept']").click()
-        try await expect(page.locator(".refusal-view").filter(hasText: refused)).toBeVisible()
+        try await expect(page.locator(".action-gate-alert").filter(hasText: refused)).toBeVisible()
         let status = try TestAdmin.query("SELECT status FROM revisions WHERE id = '\(c)'")
         #expect(status.trimmingCharacters(in: .whitespacesAndNewlines) == "pending")
 
@@ -1050,10 +1052,11 @@ struct RevisePagesTests {
     try await admin.remove()
   }
 
-  /// Every item of a revision's "Changed" line (on the page open now) links
-  /// to its revision's own page in source mode, where an element holds its
-  /// anchor; a resemblance's turns the reader there instead (user,
-  /// 2026-10-09).
+  /// Every step of every item of a revision's "Changed" line (on the page
+  /// open now) links to its revision's own page in source mode, where an
+  /// element holds its anchor—a canvas's node its row; a resemblance's
+  /// turns the reader there instead, and XML opens the reader with XML on
+  /// (user, 2026-10-09, 2026-10-16).
   static func expectChangedLinksLand(_ page: Page, revision id: String, on revisionPath: String) async throws {
     let hrefs = try await page.evaluate(
       "JSON.stringify([...document.querySelectorAll('#revision-\(id) .locution-thread-event-changed a')].map(a => a.getAttribute('href')))"
@@ -1066,6 +1069,12 @@ struct RevisePagesTests {
         parts.count == 2 && parts[0].lowercased() == "\(revisionPath)?source=code".lowercased(),
         "\(link) is on \(revisionPath) in source mode")
       guard parts.count == 2, !parts[1].hasPrefix("resemblance-") else { continue }
+      // A canvas path's XML step: the reader, its XML on (user, 2026-10-16).
+      if parts[1] == "reader" {
+        try await page.openHydrated(link)
+        try await expect(page.locator(".artifact-view .artifact-xml-toggle[aria-pressed='true']").first).toBeAttached()
+        continue
+      }
       try await page.openHydrated(parts[0])
       try await expect(page.locator("[id='\(parts[1])']")).toBeAttached()
     }

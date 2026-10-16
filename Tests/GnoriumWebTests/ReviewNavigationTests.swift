@@ -70,16 +70,16 @@ struct ReviewNavigationTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome])
-  func benchmarkTimesSortByLocalClockAcrossMidnightAndNoon(engine: BrowserEngine) async throws {
+  func baselineTimesSortByLocalClockAcrossMidnightAndNoon(engine: BrowserEngine) async throws {
     guard gnorium.engines.contains(engine) else { return }
-    // The real Benchmarks page supplies its server-rendered table. Only
-    // browser copies of its rows change; benchmark history is read-only.
+    // The real Baselines page supplies its server-rendered table. Only
+    // browser copies of its rows change; baseline history is read-only.
     try await withPage(engine, gnorium, viewport: .desktop) { page in
       try await page.setTimeZone("America/New_York")
-      try await page.openHydrated("/mission-control/benchmarks")
-      let table = page.locator(".benchmarks-table-view").first
+      try await page.openHydrated("/mission-control/baselines")
+      let table = page.locator(".baselines-table-view").first
       try await expect(table.locator("tbody tr").first).toBeAttached()
-      #expect(try await table.evaluate("el => !!el.querySelector('[data-benchmark-time-sort][data-sort-value] time[datetime]')") == .bool(true))
+      #expect(try await table.evaluate("el => !!el.querySelector('[data-baseline-time-sort][data-sort-value] time[datetime]')") == .bool(true))
       _ = try await table.evaluate("""
         table => {
           table.id = 'web-tests-time-sort';
@@ -88,7 +88,7 @@ struct ReviewNavigationTests {
           const rows = [[23, 59], [13, 0], [9, 31], [0, 1], [12, 0], [9, 0]].map(([hour, minute]) => {
             const row = source.cloneNode(true);
             row.dataset.webTestsMinute = String(hour * 60 + minute);
-            const cell = row.querySelector('[data-benchmark-time-sort]');
+            const cell = row.querySelector('[data-baseline-time-sort]');
             cell.dataset.sortValue = '9999';
             cell.querySelector('time').dateTime = new Date(2026, 0, 2, hour, minute).toISOString();
             return row;
@@ -102,7 +102,7 @@ struct ReviewNavigationTests {
       let ordered = "[...document.querySelectorAll('#web-tests-time-sort tbody tr')].map(row => Number(row.dataset.webTestsMinute))"
       #expect(try await page.evaluate(ordered, as: [Int].self) == [1, 540, 571, 720, 780, 1439])
       #expect(try await page.evaluate("""
-        [...document.querySelectorAll('#web-tests-time-sort [data-benchmark-time-sort]')]
+        [...document.querySelectorAll('#web-tests-time-sort [data-baseline-time-sort]')]
           .every(cell => Number(cell.dataset.sortValue) === Number(cell.closest('tr').dataset.webTestsMinute))
         """, as: Bool.self))
       try await sort.click()
@@ -113,7 +113,7 @@ struct ReviewNavigationTests {
       try await sort.click()
       #expect(try await page.evaluate("""
         (() => {
-          const cells = [...document.querySelectorAll('#web-tests-time-sort [data-benchmark-time-sort]')];
+          const cells = [...document.querySelectorAll('#web-tests-time-sort [data-baseline-time-sort]')];
           const values = cells.map(cell => Number(cell.dataset.sortValue));
           return cells.every(cell => {
             const date = new Date(cell.querySelector('time').dateTime);

@@ -435,7 +435,7 @@ struct SubmissionTests {
           try await page.openHydrated(path)
           // Its one action: on a phone full width, wider content-width
           // (user, 2026-09-30).
-          let shape = try await page.locator(".record-actions .sign-in-gate-actions").evaluate(
+          let shape = try await page.locator(".record-actions .action-gate-actions").evaluate(
             """
             (g) => {
               const w = g.closest('.record-actions').getBoundingClientRect().width;
