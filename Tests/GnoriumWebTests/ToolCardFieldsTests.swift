@@ -326,19 +326,13 @@ struct ToolCardFieldsTests {
         for text in [signature, search, saved] {
           #expect(!text.contains("={\"") && !text.contains("[{"), "No object is printed as JSON: \(text)")
         }
-        // Bookkeeping the model never saw is nowhere: not between the
-        // cards, not under Raw.
+        // Bookkeeping the model never saw is nowhere between the cards.
+        // Raw is the chat template's text only: a trace without one has
+        // no Raw switch.
         let content = session.locator(".computorium-session-output-content")
         try await expect(content).not.toContainText("input_tokens")
         try await expect(content).not.toContainText("bookkeeping")
-        try await expect(session.locator(".computorium-session-markdown-toggle[data-toggle-hydrated='true']")).toHaveCount(1)
-        try await session.locator(".computorium-session-markdown-toggle button").click()
-        try await expect(session.locator(".computorium-session-output-fieldset")).toHaveAttribute("data-raw-view", "true")
-        try await expect(content).not.toContainText("input_tokens")
-        try await expect(content).not.toContainText("bookkeeping")
-        try await expect(session.locator(".computorium-session-tools-raw").first).toBeVisible()
-        try await expect(session.locator(".computorium-session-tools-raw").first).toContainText("read_conventions")
-        try await session.locator(".computorium-session-markdown-toggle button").click()
+        try await expect(session.locator(".computorium-session-markdown-toggle")).toBeHidden()
         recorded = [signature, search, saved]
         try await page.expectNoHorizontalOverflow()
 

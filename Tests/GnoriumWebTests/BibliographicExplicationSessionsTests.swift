@@ -161,8 +161,9 @@ struct BibliographicExplicationSessionsTests {
             return [bg(card) === white, bg(prompt) === seen, bg(summary) === seen, bg(summary.querySelector('legend')) === seen, even].join(' ')
           })()
           """, as: String.self) == "true true true true true", "Compaction card white, its prompt and summary gray, legends inside")
+        // Raw is the chat template's text only: none recorded, none drawn.
         let rawCount = try await page.locator(".computorium-session-view .computorium-session-output-raw").count()
-        #expect(rawCount > 0)
+        #expect(rawCount == 0)
       }
     } catch {
       remove(nocturneID: nocturneID, antiphonID: antiphonID, work: work)

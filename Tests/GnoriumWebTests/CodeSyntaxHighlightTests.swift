@@ -243,23 +243,12 @@ struct CodeSyntaxHighlightTests {
         _ = try await sent.evaluate("e => { e.scrollIntoView({block: 'center'}); return 1 }")
         try await Self.shots(page, "tool-call-xml")
 
-        // The task prompt's Raw and the reply's: Markdown.
+        // The task prompt's Raw: Markdown.
         try await page.locator(".computorium-session-task-fieldset .computorium-session-prompt-markdown-toggle button").first.click()
         let prompt = page.locator(".computorium-session-task-fieldset .computorium-session-prompt-body")
         try await expect(prompt).toBeVisible()
         try await expect(prompt).toHaveAttribute("data-code-syntax", "markdown")
         try await Self.expectStretch(page, "code-name", "# Skeat, page 5")
-        try await page.locator(".computorium-session-markdown-toggle button").first.click()
-        let reply = page.locator(".computorium-session-output-result.computorium-session-output-raw").last
-        try await expect(reply).toBeVisible()
-        var colored = false
-        for _ in 0..<20 where !colored {
-          colored = try await reply.evaluate(
-            "e => [...CSS.highlights.get('code-name')].some(r => e.contains(r.startContainer))"
-          ).bool == true
-          if !colored { try await Task.sleep(for: .milliseconds(100)) }
-        }
-        #expect(colored, "The reply's Raw is colored too")
         try await page.expectNoErrors()
       }
     } catch {
