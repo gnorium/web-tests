@@ -213,16 +213,23 @@ struct ArbitrationTests {
           })()
           """, as: String.self)
         #expect(inPlace == "true true true", "The panel updates in place (pushed, same spinner, its turn running on): \(inPlace)")
-        // Every figure that counts arbitration's calls opens a list holding
-        // them: the session is a row of the hour's list, its trace the call.
+        // Each figure the machines and arbitration both have is split
+        // (user, 2026-10-16): the machines' part opens the Nocturnes list,
+        // which holds no arbitration; arbitration's opens the Locutions list,
+        // gnorium's replies of the hour, this session's among them.
         let figures = page.locator("#live-region-live-telemetry .mission-control-dashboard-live-telemetry-figures")
+        let hour = "/mission-control/locutions/bibliographic?createdBy=gnorium&createdOn=-1h.."
         for label in ["Calls / min", "Tokens / min"] {
-          let href = try #require(try await figures.locator(".datum-view").filter(hasText: label).locator("a").first.getAttribute("href"))
-          #expect(href.contains("process=arbitration"), "\(label) lists arbitration's calls too: \(href)")
+          let links = figures.locator(".datum-view").filter(hasText: label).locator("a")
+          try await expect(links).toHaveCount(2)
+          let machines = try #require(try await links.nth(0).getAttribute("href"))
+          #expect(machines.hasPrefix("/mission-control/nocturnes/") && !machines.contains("arbitration"),
+            "\(label)'s machines open the nocturnes: \(machines)")
+          try await expect(links.nth(1)).toHaveAttribute("href", hour)
+          try await expect(links.nth(1)).toContainText("arbitration")
         }
-        let hour = try #require(try await figures.locator(".datum-view").filter(hasText: "Calls / min").locator("a").first.getAttribute("href"))
         try await page.openHydrated(hour)
-        try await expect(page.locator("a[href$='#locution-\(callID.uppercased())']").first).toBeAttached()
+        try await expect(page.locator("a[href$='#locution-\(replyID.uppercased())']").first).toBeAttached()
 
         // The thread: the call (its words and own actions), the Commit, then
         // gnorium's reply, submitted with the Commit under its own id, its

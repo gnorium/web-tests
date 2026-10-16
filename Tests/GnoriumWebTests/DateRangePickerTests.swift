@@ -7,8 +7,9 @@ import WebTestsTesting
 /// 2026-10-08): presets beside the calendar, as Google Analytics, Stripe,
 /// Grafana and Datadog lay theirs out—above it on a phone. The UI shows the
 /// reader's local days; the URL carries UTC. A preset stays relative
-/// (`?createdOn=-7d..`) and counts the reader's days, read from the `tz`
-/// cookie the client sets; two days picked make a fixed range, the UTC
+/// (`?createdOn=-7d..`) and counts the reader's days, in the zone the
+/// client sends with it (`&tz=`, nothing stored: no cookie); two days picked
+/// make a fixed range, the UTC
 /// instants that bound those local days. Run in India (+05:30) and New York
 /// (−04:00), by CDP time zone emulation, so a local day is never a UTC one.
 @Suite("Date range picker", .serialized)
@@ -29,9 +30,9 @@ struct DateRangePickerTests {
     try await withPage(engine, gnorium, viewport: viewport) { page in
       try await page.setTimeZone(zone)
       try await page.openHydrated(Self.list)
-      // A plain page view sets no cookie.
-      let before = try await page.evaluate("document.cookie", as: String.self)
-      #expect(!before.contains("tz="), "a plain view set the tz cookie: \(before)")
+      // Nothing tells a plain page view the reader's zone.
+      let plain = try await page.url()
+      #expect(!plain.contains("tz="), "a plain view carries the zone: \(plain)")
 
       // Every Created on cell is the reader's day of its moment.
       try await Self.expectLocalCells(page)
@@ -94,11 +95,11 @@ struct DateRangePickerTests {
       try await expect(value).toHaveValue("-7d..")
       try await expect(field).toHaveValue("Last 7 days")
       try await expect(lastWeek).toHaveAttribute("aria-pressed", "true")
-      // Filtering by date tells the server the reader's zone. (Chrome may
-      // name India's zone by its older alias, Asia/Calcutta.)
+      // Nothing is stored to tell the server the zone. (Chrome may name
+      // India's zone by its older alias, Asia/Calcutta.)
       let cookie = try await page.evaluate("document.cookie", as: String.self)
+      #expect(!cookie.contains("tz="), "a tz cookie: \(cookie)")
       let resolved = try await page.evaluate("Intl.DateTimeFormat().resolvedOptions().timeZone", as: String.self)
-      #expect(cookie.contains("tz=\(resolved)"), "the tz cookie: \(cookie), the browser's zone \(resolved) (\(zone))")
       try await expect(popover.locator(".date-picker-month-day[data-date='\(today)']"))
         .toHaveAttribute("aria-selected", "true")
       // Its ends read in the Date start and Date end fields, named as a
@@ -108,13 +109,15 @@ struct DateRangePickerTests {
       try await expect(popover.locator(".date-picker-start input"))
         .toHaveValue(try #require(DatePickerTests.words(try await DatePickerTests.localDay(page, -6))))
 
-      // Applied, the URL keeps it relative, the field reads it, and every
-      // row was created in the reader's last seven days.
+      // Applied, the URL keeps it relative and carries the reader's zone
+      // with it, the field reads it, and every row was created in the
+      // reader's last seven days.
       try await popover.getByRole(.button, name: "Done").click()
       try await page.locator(".filter-bar-apply").click()
-      try await expect(page, timeout: .seconds(15)).toHaveURL("createdOn=-7d..") { url in
-        URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
-          .contains { $0.name == "createdOn" && $0.value == "-7d.." } ?? false
+      try await expect(page, timeout: .seconds(15)).toHaveURL("createdOn=-7d..&tz=\(resolved)") { url in
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        return items.contains { $0.name == "createdOn" && $0.value == "-7d.." }
+          && items.contains { $0.name == "tz" && $0.value == resolved }
       }
       try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
       try await expect(page.locator(".filter-bar-value-input .date-picker-field input")).toHaveValue("Last 7 days")
