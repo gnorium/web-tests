@@ -26,7 +26,7 @@ struct ReviseEditorTests {
     (() => { const code = document.querySelector('.tei-page[data-active="true"] .tei-page-edit .code-code');
       const out = {};
       for (const name of ['code-tag', 'code-name', 'code-attr', 'code-value']) {
-        out[name] = [...(CSS.highlights?.get(name) ?? [])].filter(r => code.contains(r.startContainer)).map(r => r.toString());
+        out[name] = [...(CSS.highlights?.get(name) ?? [])].filter(r => code.contains(r.startContainer)).map((r => { const x = document.createRange(); x.setStart(r.startContainer, r.startOffset); x.setEnd(r.endContainer, r.endOffset); return x.toString() }));
       }
       return JSON.stringify(out); })()
     """

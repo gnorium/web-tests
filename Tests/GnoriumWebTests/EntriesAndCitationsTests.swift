@@ -254,7 +254,7 @@ struct EntriesAndCitationsTests {
   static func highlighted(_ name: String, on page: Page) async throws -> [String] {
     let value = try await page.evaluate(
       """
-      (() => { const h = CSS.highlights.get('\(name)'); return h ? [...h].map(r => r.toString()) : []; })()
+      (() => { const h = CSS.highlights.get('\(name)'); return h ? [...h].map((r => { const x = document.createRange(); x.setStart(r.startContainer, r.startOffset); x.setEnd(r.endContainer, r.endOffset); return x.toString() })) : []; })()
       """)
     guard case .array(let items) = value else { return [] }
     return items.compactMap(\.string)

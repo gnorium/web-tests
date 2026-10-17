@@ -42,7 +42,7 @@ struct CodeSyntaxHighlightTests {
   /// Each highlight's stretches, by name.
   static let highlights = """
     (() => Object.fromEntries(['code-tag', 'code-name', 'code-attr', 'code-value', 'code-entity', 'code-prefix',
-      'code-pi', 'code-cdata', 'code-comment'].map(n => [n, [...[...(CSS.highlights?.get(n) ?? [])].map(r => r.toString()), ...[...document.querySelectorAll('[data-code-kind=\"'+n+'\"]')].map(e => e.textContent)]])))()
+      'code-pi', 'code-cdata', 'code-comment'].map(n => [n, [...[...(CSS.highlights?.get(n) ?? [])].map((r => { const x = document.createRange(); x.setStart(r.startContainer, r.startOffset); x.setEnd(r.endContainer, r.endOffset); return x.toString() })), ...[...document.querySelectorAll('[data-code-kind=\"'+n+'\"]')].map(e => e.textContent)]])))()
     """
 
   static func stretches(_ page: Page) async throws -> [String: [String]] {

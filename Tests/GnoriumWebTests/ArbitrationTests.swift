@@ -361,21 +361,33 @@ struct ArbitrationTests {
         try await expect(reply.locator(".reactions-when")).toHaveAttribute("data-local-time-prefix", "By DeepSeek V4.1 Flash (deepseek-flash) on ")
         try await expect(reply.locator(".locution-markdown-toggle")).toHaveCount(0)
         try await expect(reply.locator(".reactions-controls > .replay-btn:first-child")).toHaveText("Replay")
-        // Replay plays in place: the reader stays where they were.
-        let before = try await page.evaluate("""
-          (() => { const el = document.querySelector('#locution-\(replyID.uppercased())')
+        // Replay brings the page to the stream's end, where its tokens
+        // appear, and follows it there (user, 2026-10-17): the reader starts
+        // where the reply's transcript end is out of view.
+        let tailInView = """
+          (() => { const content = document.querySelector('#locution-\(replyID.uppercased()) .computorium-session-output-content'), tail = content.lastElementChild
+            const r = tail.getBoundingClientRect(), s = getComputedStyle(content.parentElement)
+            const line = parseFloat(s.lineHeight) || parseFloat(s.fontSize) * 1.2
+            return r.bottom >= 0 && r.bottom - innerHeight <= line })()
+          """
+        let away = try await page.evaluate("""
+          (() => { const content = document.querySelector('#locution-\(replyID.uppercased()) .computorium-session-output-content'), tail = content.lastElementChild
+            // Room below a short thread, so the reader can stand past its end.
+            document.body.style.paddingBlockEnd = (2 * innerHeight) + 'px'
             const end = document.documentElement.scrollHeight - innerHeight
-            // Reading the reply, not at the page's end (where a replay follows the end).
-            window.scrollTo(0, Math.min(el.getBoundingClientRect().top + window.scrollY + 40, end - 200)); return window.scrollY })()
-          """, as: Double.self)
-        #expect(before > 0)
+            const bottom = tail.getBoundingClientRect().bottom + window.scrollY
+            // Past it where the page runs on below it, else above it.
+            window.scrollTo(0, bottom + 8 <= end ? bottom + 8 : 0)
+            const r = tail.getBoundingClientRect(); return r.bottom < 0 || r.bottom - innerHeight > 64 })()
+          """, as: Bool.self)
+        #expect(away, "The reader starts away from the transcript's end")
         // Clicked where it stands, without scrolling it into view first.
         _ = try await reply.locator(".replay-btn").evaluate("el => el.click()")
         try await Task.sleep(for: .milliseconds(400))
-        let during = try await page.evaluate("window.scrollY", as: Double.self)
+        let during = try await page.evaluate(tailInView, as: Bool.self)
         try await Task.sleep(for: .milliseconds(2000))
-        let after = try await page.evaluate("window.scrollY", as: Double.self)
-        #expect(abs(during - before) < 2 && abs(after - before) < 2, "Replay kept the place: \(before) → \(during) → \(after)")
+        let after = try await page.evaluate(tailInView, as: Bool.self)
+        #expect(during && after, "Replay scrolled to the stream's end and follows it: \(during) → \(after)")
         try await expect(reply.locator(".locution-anchor")).toHaveCount(0)
         // The page image in the task prompt as the model received it (user,
         // 2026-10-17): one stage at the message's whole width, zoomed in
@@ -620,8 +632,25 @@ struct ArbitrationTests {
         let locutionTick = page.locator("#locution-tick-\(firstID)")
         try await expect(work).toBeHidden()
         try await expect(locutionTick).toBeHidden()
+        // A header bearing a tick keeps its height when the tick shows, the
+        // box centered on the header's line (user, 2026-10-17).
+        let headers = """
+          [...document.querySelectorAll('.accordion-summary')].filter(s => s.querySelector('.call-tick-view'))
+            .map(s => s.getBoundingClientRect().height)
+          """
+        let ticks = """
+          [...document.querySelectorAll('.accordion-summary .call-tick-view')].filter(t => t.offsetParent)
+            .map(t => { const box = t.querySelector('.checkbox-icon').getBoundingClientRect()
+              const title = t.closest('.accordion-title').getBoundingClientRect()
+              return Math.abs((box.top + box.bottom) / 2 - (title.top + title.bottom) / 2) })
+          """
+        let before = try await page.evaluate(headers, as: [Double].self)
         try await body.focus()
         try await expect(page.locator("html")).toHaveAttribute("data-locution-attaching", "true")
+        let after = try await page.evaluate(headers, as: [Double].self)
+        #expect(!before.isEmpty && before == after, "headers keep their height as their ticks show: \(before) → \(after)")
+        let offsets = try await page.evaluate(ticks, as: [Double].self)
+        #expect(!offsets.isEmpty && offsets.allSatisfy { $0 < 0.5 }, "each tick centered on its header's line: \(offsets)")
         try await expect(locutionTick).toBeVisible()
         try await expect(locutionTick).toBeChecked(false)
         try await locutionTick.click()
