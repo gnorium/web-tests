@@ -478,8 +478,12 @@ struct SubmissionTests {
         try await expect(page.locator(".record-actions .alert-content")).toHaveText("Sign in to submit an amendment.")
         #expect(URL(string: try await page.url())?.path == work.path)
         try await page.openHydrated(Self.sentimentForm)
-        try await expect(page.locator("body")).not.toContainText("Sign in to submit a sentiment.")
+        // The gate's alert is drawn with the page, hidden until its action
+        // is pressed (`ActionGateView`, user 2026-10-16): not shown yet.
+        let gate = page.locator(".record-actions .action-gate-alert")
+        try await expect(gate).toBeHidden()
         try await page.locator(".record-actions button[type='submit']").click()
+        try await expect(gate).toBeVisible()
         try await expect(page.locator(".record-actions .alert-content")).toHaveText("Sign in to submit a sentiment.")
         #expect(URL(string: try await page.url())?.path == Self.sentimentForm)
       }

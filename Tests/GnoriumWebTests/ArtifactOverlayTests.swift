@@ -19,7 +19,7 @@ struct ArtifactOverlayTests {
       "/": .init(contentType: "text/html", body: Data(html.utf8)),
       "/loader.js": .init(contentType: "text/javascript", body: try Data(contentsOf: assets.appendingPathComponent("loader.js"))),
       "/client.wasm": .init(contentType: "application/wasm", body: try Data(contentsOf: assets.appendingPathComponent("client.wasm"))),
-      "/manifest": .init(contentType: "application/json", body: Data(#"{"canvases":[{"id":"/scan","w":1200,"h":2000,"img":"/scan.svg"}]}"#.utf8)),
+      "/manifest": .init(contentType: "application/json", body: Data(#"{"canvases":[{"id":"/scan","w":1200,"h":2000,"imgs":["/scan.svg"]}]}"#.utf8)),
       "/scan.svg": .init(contentType: "image/svg+xml", body: Data(#"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="2000"/>"#.utf8)),
     ])
     defer { server.stop() }
@@ -147,27 +147,60 @@ struct ArtifactOverlayTests {
 
   /// The synthetic page the structure tests read: thirty lines in a work
   /// frame, its text block measured on a blank scan four times the text's
-  /// actual size.
-  static func structureServer() async throws -> FixtureServer {
+  /// actual size; `blankPage`, a second page after it laid in blank, with
+  /// no markup of its own (`data-has-markup`), on a canvas of its own;
+  /// `blankCanvas`, a second page with markup whose canvas the manifest
+  /// shows with no image (`"blank":true`: changed at its source, no copy of
+  /// what was sent kept).
+  static func structureServer(blankPage: Bool = false, blankCanvas: Bool = false) async throws -> FixtureServer {
     let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let assets = root.appendingPathComponent("gnorium-web/Public")
     let css = try ["layout-view.css", "tei-view.css", "artifact-view.css", "canvas-view.css"].map {
       try String(contentsOf: assets.appendingPathComponent("style-sheets/" + $0), encoding: .utf8)
     }.joined(separator: "\n")
     let lines = (1...30).map { #"<span class="tei-line">Line \#($0) of the page.</span>"# }.joined()
-    let html = "<!doctype html><html><head><meta charset=\"utf-8\"><style>" + css + #"""
-      body{margin:0}.artifact-view{width:100%;height:600px}.artifact-viewer-container{height:560px;flex:none}.tei-line{display:block;font-family:serif!important;white-space:nowrap;letter-spacing:0.3em}</style><link rel="icon" href="data:,"></head><body><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest"><div class="artifact-viewer-container"><div class="artifact-markup-frame"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan" data-active="true" data-text-block="300,240 700,248 694,700 294,692"><div class="tei-page-text" data-layer="rendering" data-framed="true" style="--tei-frame-measure: 30; --tei-frame-height: 40; --tei-frame-margin: 5; --tei-page-width: 0; --tei-page-height: 0"><div class="tei-text-block">
-      """# + lines + #"""
-      </div></div></div></div></div></div><div class="artifact-object"><div class="canvas-view" data-service-id="/scan"><div class="canvas-viewport"><div class="canvas-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
+    let blank: String =
+      if blankPage {
+        #"<div class="tei-page" data-service-id="/blank" data-active="false" data-has-markup="false"><div class="tei-page-text" data-layer="rendering" data-framed="false"></div></div>"#
+      } else if blankCanvas {
+        #"<div class="tei-page" data-service-id="/blank" data-active="false" data-has-markup="true"><div class="tei-page-text" data-layer="rendering" data-framed="false"><div class="tei-text-block">"#
+          + lines + "</div></div></div>"
+      } else {
+        ""
+      }
+    let manifest: String =
+      if blankPage {
+        #"{"canvases":[{"id":"/scan","w":4800,"h":6400,"imgs":["/scan.svg"]},{"id":"/blank","w":4800,"h":6400,"imgs":["/scan.svg"]}]}"#
+      } else if blankCanvas {
+        #"{"canvases":[{"id":"/scan","w":4800,"h":6400,"imgs":["/scan.svg"]},{"blank":true,"id":"/blank","w":4800,"h":6400}]}"#
+      } else {
+        #"{"canvases":[{"id":"/scan","w":4800,"h":6400,"imgs":["/scan.svg"]}]}"#
+      }
+    let html = "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>" + css + #"""
+      body{margin:0}.artifact-view{width:100%;height:600px}.artifact-viewer-container{height:560px;flex:none}.tei-line{display:block;font-family:serif!important;white-space:nowrap;letter-spacing:0.3em}</style><link rel="icon" href="data:,"></head><body><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest"><div class="artifact-viewer-container"><div class="artifact-markup-frame"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan" data-active="true" data-has-markup="true" data-text-block="300,240 700,248 694,700 294,692"><div class="tei-page-text" data-layer="rendering" data-framed="true" style="--tei-frame-measure: 30; --tei-frame-height: 40; --tei-frame-margin: 5; --tei-page-width: 0; --tei-page-height: 0"><div class="tei-text-block">
+      """# + lines + "</div></div></div>" + blank + #"""
+      </div></div></div><div class="artifact-object"><div class="canvas-view" data-service-id="/scan"><div class="canvas-viewport"><div class="canvas-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
       """#
-    return try await FixtureServer(files: [
+    var files: [String: FixtureServer.File] = [
       "/": .init(contentType: "text/html", body: Data(html.utf8)),
       "/loader.js": .init(contentType: "text/javascript", body: try Data(contentsOf: assets.appendingPathComponent("loader.js"))),
       "/client.wasm": .init(contentType: "application/wasm", body: try Data(contentsOf: assets.appendingPathComponent("client.wasm"))),
-      "/manifest": .init(contentType: "application/json", body: Data(#"{"canvases":[{"id":"/scan","w":4800,"h":6400,"img":"/scan.svg"}]}"#.utf8)),
+      "/manifest": .init(
+        contentType: "application/json",
+        body: Data(manifest.utf8)),
       "/scan.svg": .init(contentType: "image/svg+xml", body: Data(#"<svg xmlns="http://www.w3.org/2000/svg" width="4800" height="6400"/>"#.utf8)),
       "/fonts/noto-sans.woff2": .init(contentType: "font/woff2", body: try Data(contentsOf: assets.appendingPathComponent("fonts/noto-sans.woff2"))),
-    ])
+    ]
+    // The built stylesheets the client asks for as it draws (`loader.js`:
+    // the list, then each sheet a view registers), so a page loads clean.
+    let sheets = assets.appendingPathComponent("style-sheets")
+    for name in try FileManager.default.contentsOfDirectory(atPath: sheets.path)
+    where name.hasSuffix(".css") || name.hasSuffix(".json") {
+      files["/style-sheets/\(name)"] = .init(
+        contentType: name.hasSuffix(".css") ? "text/css" : "application/json",
+        body: try Data(contentsOf: sheets.appendingPathComponent(name)))
+    }
+    return try await FixtureServer(files: files)
   }
 
   /// With the page's main text block measured on its scan
@@ -240,11 +273,13 @@ struct ArtifactOverlayTests {
             &&count(scan,'missing')===1&&count(edition,'within')===28&&count(scan,'within')===28;
           const strokes=(()=>{const q=r.querySelector('.artifact-structure [data-side=edition][data-state=within]'),o=r.querySelector('.artifact-structure [data-state=off]'),s=r.querySelector('.artifact-structure [data-side=scan]');
             return getComputedStyle(q).strokeWidth==='1px'&&getComputedStyle(o).strokeWidth==='2px'&&getComputedStyle(q).strokeDasharray==='none'&&getComputedStyle(s).strokeDasharray!=='none'})();
-          // The view fits the edition's page and the scan's structure, centered.
+          // The view fits the edition's page and the scan's structure, centered, in the pane's room: its
+          // client box less the text's inset (the TEI view's ring padding) on each side, as its own pane fits it.
           const pb=pane.getBoundingClientRect(),lb=layer().getBoundingClientRect(),reach=scanBlock()||[];
           const box=[Math.min(lb.left,...reach.map(p=>p[0])),Math.min(lb.top,...reach.map(p=>p[1])),Math.max(lb.right,...reach.map(p=>p[0])),Math.max(lb.bottom,...reach.map(p=>p[1]))];
+          const inset=parseFloat(getComputedStyle(r.querySelector('.tei-view')).paddingTop);
           const fits=box[0]>=pb.left-1&&box[1]>=pb.top-1&&box[2]<=pb.right+1&&box[3]<=pb.bottom+1
-            &&(Math.abs(box[2]-box[0]-pane.clientWidth)<1.5||Math.abs(box[3]-box[1]-pane.clientHeight)<1.5)
+            &&(Math.abs(box[2]-box[0]-(pane.clientWidth-2*inset))<1.5||Math.abs(box[3]-box[1]-(pane.clientHeight-2*inset))<1.5)
             &&Math.abs((box[0]+box[2])/2-(pb.left+pb.right)/2)<1.5&&Math.abs((box[1]+box[3])/2-(pb.top+pb.bottom)/2)<1.5;
           const detach=r.querySelector('.artifact-detach-toggle'),detachButton=detach.querySelector('button');
           const detachOn=!detach.hidden&&getComputedStyle(detach).display!=='none'&&detachButton.disabled&&detachButton.getAttribute('aria-disabled')==='true'&&detach.getAttribute('aria-pressed')==='false';
@@ -376,6 +411,149 @@ struct ArtifactOverlayTests {
     }
   }
 
+  /// The text at its fit, overlay on and off without zooming in it
+  /// leaves the text at its own pane's fit (user, 2026-10-17), side by side
+  /// and stacked on a phone, where the overlay's fit is about twice the
+  /// pane's: no scrollport on either axis, ringed (a page's diff state) or
+  /// not, at every device scale, and the fit kept as the fit, which
+  /// follows the pane. The overlay framed the page in the pane's whole
+  /// client box, a few pixels taller than its room, and off kept that
+  /// zoom: the pane scrolled by them (on a phone, by half the page).
+  @Test(arguments: [
+    (1440, 600, 1.0, false, false), (1440, 600, 1.0, true, false), (1309, 600, 1.1, true, false),
+    (1152, 600, 1.25, true, false), (1234, 600, 1.75, true, false), (1440, 600, 2.0, true, false),
+    (375, 812, 3.0, true, true),
+  ])
+  func overlayOffAtTheFitLeavesNoScrollport(width: Int, height: Int, scale: Double, ringed: Bool, touch: Bool) async throws {
+    let server = try await Self.structureServer()
+    defer { server.stop() }
+    let config = BrowserTestConfiguration(baseURL: URL(string: server.baseURL)!, engines: [.chrome], defaultTimeout: .seconds(30))
+    try await withPage(.chrome, config, viewport: .init(width: width, height: height, deviceScaleFactor: scale, touch: touch)) { page in
+      try await page.goto("/")
+      try await expect(page.locator("html")).toHaveAttribute("data-wasm-status", "started")
+      try await page.evaluate("new Promise(resolve=>setTimeout(resolve,700))")
+      let states = try await page.evaluate((Self.atTheFit + #"""
+          const out=[state()];
+          for(let cycle=0;cycle<2;cycle++){toggle(true);await wait(900);toggle(false);await wait(900);out.push(state())}
+          return JSON.stringify(out)})()
+        """#).replacingOccurrences(of: "RINGED", with: ringed ? "true" : "false"), as: String.self)
+      let samples = try JSONDecoder().decode([[Double]].self, from: Data(states.utf8))
+      let named = ["before", "after one overlay", "after two"]
+      for (sample, name) in zip(samples, named) {
+        #expect(sample[1] <= sample[2] && sample[3] <= sample[4],
+          "\(name) at \(width)×\(scale)\(ringed ? ", ringed" : ""): no scrollport (scroll \(sample[3])×\(sample[1]), client \(sample[4])×\(sample[2]))")
+        #expect(sample[5] == 1, "\(name) at \(width)×\(scale): the text kept at its fit")
+        #expect(abs(sample[0] - samples[0][0]) < 1e-6, "\(name) at \(width)×\(scale): its zoom \(sample[0]), the fit's \(samples[0][0])")
+      }
+      try await page.expectNoErrors()
+    }
+  }
+
+  /// A zoom the reader chose in the overlay is kept as it goes off (user,
+  /// 2026-10-14, kept 2026-10-17), side by side and stacked on a phone:
+  /// the text in its own pane at that zoom, past its fit, the pane
+  /// scrolling it, a zoom rather than the fit kept.
+  @Test(arguments: [(1440, 600, 1.0, false), (375, 812, 3.0, true)])
+  func overlayOffKeepsAZoomChosenInTheOverlay(width: Int, height: Int, scale: Double, touch: Bool) async throws {
+    let server = try await Self.structureServer()
+    defer { server.stop() }
+    let config = BrowserTestConfiguration(baseURL: URL(string: server.baseURL)!, engines: [.chrome], defaultTimeout: .seconds(30))
+    try await withPage(.chrome, config, viewport: .init(width: width, height: height, deviceScaleFactor: scale, touch: touch)) { page in
+      try await page.goto("/")
+      try await expect(page.locator("html")).toHaveAttribute("data-wasm-status", "started")
+      try await page.evaluate("new Promise(resolve=>setTimeout(resolve,700))")
+      let states = try await page.evaluate((Self.atTheFit + #"""
+          const fit=state();toggle(true);await wait(900);
+          const o=pane.getBoundingClientRect();
+          for(let i=0;i<6;i++){pane.dispatchEvent(new WheelEvent('wheel',{deltaY:-40,clientX:o.x+o.width/2,clientY:o.y+o.height/2,bubbles:true,cancelable:true}));await wait(30)}
+          await wait(100);const chosen=state();toggle(false);await wait(900);
+          return JSON.stringify([fit,chosen,state()])})()
+        """#).replacingOccurrences(of: "RINGED", with: "false"), as: String.self)
+      let samples = try JSONDecoder().decode([[Double]].self, from: Data(states.utf8))
+      let (fit, chosen, after) = (samples[0], samples[1], samples[2])
+      #expect(chosen[0] > fit[0] * 1.2, "at \(width): zoomed in the overlay, \(chosen[0]) over the pane's fit \(fit[0])")
+      #expect(abs(after[0] - chosen[0]) / chosen[0] < 0.01, "at \(width): off keeps the overlay's zoom \(chosen[0]), now \(after[0])")
+      #expect(after[5] == 0, "at \(width): a zoom kept, not the fit")
+      #expect(after[1] > after[2], "at \(width): the pane scrolls the zoomed text (scroll \(after[1]), client \(after[2]))")
+      try await page.expectNoErrors()
+    }
+  }
+
+  /// A page with no markup of its own (`TEIView`'s `data-has-markup`,
+  /// `TEIRenderer.hasMarkup`: a page laid in blank) has nothing for the
+  /// overlay to lay, and a page shown with no image (`blankCanvas`, the
+  /// manifest's `"blank":true`) nothing to compare its text against (user,
+  /// 2026-10-17)—one rule (`ArtifactView`'s `overlayApplies`): turned to
+  /// with the overlay on, the overlay goes off; its switch is disabled there
+  /// (`disabled`, `aria-disabled`), its label kept; back on a page with
+  /// markup and an image, with a measured text block or without one, it is
+  /// enabled again, the overlay still off. The page with no image shows its
+  /// text alone, as with the images off (`data-canvas-shown`, the image pane
+  /// put away); the page with one, its image again.
+  @Test(arguments: [true, false], [false, true])
+  func overlayIsOffAndDisabledOnAPageWithNoMarkupOrNoImage(registered: Bool, blankCanvas: Bool) async throws {
+    let server = try await Self.structureServer(blankPage: !blankCanvas, blankCanvas: blankCanvas)
+    defer { server.stop() }
+    let config = BrowserTestConfiguration(baseURL: URL(string: server.baseURL)!, engines: [.chrome], defaultTimeout: .seconds(30))
+    try await withPage(.chrome, config, viewport: .init(width: 1440, height: 600)) { page in
+      try await page.goto("/")
+      try await expect(page.locator("html")).toHaveAttribute("data-wasm-status", "started")
+      try await page.evaluate("new Promise(resolve=>setTimeout(resolve,700))")
+      let checks = try await page.evaluate(#"""
+        (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),r=document.querySelector('.artifact-view');
+          const wrap=r.querySelector('.artifact-overlay-toggle'),button=wrap.querySelector('button');
+          if(!REGISTERED)r.querySelector('.tei-page').removeAttribute('data-text-block');
+          const turn=async index=>{r.dispatchEvent(new CustomEvent('artifact-show-canvas',{detail:String(index)}));await wait(900)};
+          const shown=()=>r.querySelector('.artifact-markup .tei-page[data-active=true]').dataset.serviceId;
+          const enabled=()=>!button.disabled&&!button.hasAttribute('aria-disabled')&&button.textContent.trim()==='Overlay';
+          const disabled=()=>button.disabled&&button.getAttribute('aria-disabled')==='true'&&button.textContent.trim()==='Overlay';
+          const off=()=>r.dataset.overlayActive==='false'&&wrap.getAttribute('aria-pressed')==='false'&&button.getAttribute('aria-pressed')==='false'
+            &&r.dataset.overlayRegistered!=='true'&&!r.querySelector('.artifact-structure');
+          const pane=()=>getComputedStyle(r.querySelector('.artifact-object')).display;
+          const imaged=()=>r.dataset.canvasShown==='true'&&pane()!=='none';
+          const alone=()=>r.dataset.canvasShown==='false'&&pane()==='none';
+          const second=()=>BLANKCANVAS?alone():imaged();
+          const enabledFirst=shown()==='/scan'&&enabled();
+          // On, as its switch turns it on: pressed, then its event.
+          wrap.setAttribute('aria-pressed','true');button.setAttribute('aria-pressed','true');
+          wrap.dispatchEvent(new CustomEvent('toggle-button-update',{detail:'true'}));await wait(900);
+          const on=r.dataset.overlayActive==='true';
+          await turn(1);const offOnBlank=shown()==='/blank'&&off()&&disabled()&&second();
+          await turn(0);const enabledBack=shown()==='/scan'&&enabled()&&off()&&imaged();
+          await turn(1);const disabledAgain=shown()==='/blank'&&disabled()&&off()&&second();
+          return [enabledFirst,on,offOnBlank,enabledBack,disabledAgain].map(Number)})()
+        """#.replacingOccurrences(of: "REGISTERED", with: registered ? "true" : "false")
+          .replacingOccurrences(of: "BLANKCANVAS", with: blankCanvas ? "true" : "false"), as: [Int].self)
+      let lacking = blankCanvas ? "no image" : "no markup"
+      let named = [
+        "a page with markup and an image: the switch enabled", "the overlay on",
+        "turned to a page with \(lacking): the overlay off, its switch disabled"
+          + (blankCanvas ? ", the text alone" : ", the image shown"),
+        "back on a page with markup and an image: enabled, the overlay still off, the image shown",
+        "on the page with \(lacking) again: disabled, off" + (blankCanvas ? ", the text alone" : ""),
+      ]
+      for (check, name) in zip(checks, named) { #expect(check == 1, "\(name) (registered: \(registered))") }
+      try await page.expectNoErrors()
+    }
+  }
+
+  /// The fixture's reader at the text's fit, side by side or stacked:
+  /// `RINGED` rings the pane (gnorium-web TestamentView's diff state: its
+  /// border round); `toggle(on)`, `state()` (zoom, scroll and client
+  /// height, width, the fit stored), `wait`, `pane` defined; the caller
+  /// closes the function.
+  static let atTheFit = #"""
+    (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),r=document.querySelector('.artifact-view');
+      const toggle=on=>r.querySelector('.artifact-overlay-toggle').dispatchEvent(new CustomEvent('toggle-button-update',{detail:on?'true':'false'}));
+      const pane=r.querySelector('.artifact-markup'),layer=()=>r.querySelector('[data-layer=rendering]');
+      if(RINGED){const ring=document.createElement('style');ring.textContent='.artifact-markup{border:1px solid #888!important}';document.head.appendChild(ring);await wait(300)}
+      // To its fit: zoomed out past it, never below it.
+      const b=pane.getBoundingClientRect();
+      for(let i=0;i<40;i++){pane.dispatchEvent(new WheelEvent('wheel',{deltaY:40,clientX:b.x+b.width/2,clientY:b.y+b.height/2,bubbles:true,cancelable:true}));await wait(10)}
+      await wait(400);
+      const state=()=>[Number(layer().dataset.zoom),pane.scrollHeight,pane.clientHeight,pane.scrollWidth,pane.clientWidth,sessionStorage.getItem('gnorium:artifact-zoom:rendering')==='fit'?1:0];
+    """#
+
   /// The structure overlay's scene, worked out apart from the reader (the
   /// rule of `StructurePairing` and gnorium-python's structure image, step
   /// for step): the edition's rows (each line's ink, side by side one row),
@@ -401,8 +579,11 @@ struct ArtifactOverlayTests {
           for(const line of found){const drawn=rectOf(node,line.start,line.end),m=context.measureText(text.slice(line.start,line.end)),s=drawn.height/(m.fontBoundingBoxAscent+m.fontBoundingBoxDescent);
             const top=drawn.top+(m.fontBoundingBoxAscent-m.actualBoundingBoxAscent)*s,bottom=drawn.bottom-(m.fontBoundingBoxDescent-m.actualBoundingBoxDescent)*s;
             let left=Infinity,right=-Infinity;for(const [st,en,rect] of line.glyphs){const g=context.measureText(text.slice(st,en));left=Math.min(left,rect.left-g.actualBoundingBoxLeft*s);right=Math.max(right,rect.left+g.actualBoundingBoxRight*s)}
-            if(right>left&&bottom>top)lines.push([left,top,right,bottom,setting,lineEm,blockEl])}}}
-        lines.sort((a,c)=>a[1]-c[1]);const rows=[];for(const l of lines){const last=rows[rows.length-1];if(last&&l[1]<last[3]){last[0]=Math.min(last[0],l[0]);last[2]=Math.max(last[2],l[2]);last[3]=Math.max(last[3],l[3])}else rows.push([...l])}
+            // Its baseline (7): the font box's top plus the font's ascent; (8) the em of the line it is of.
+            if(right>left&&bottom>top)lines.push([left,top,right,bottom,setting,lineEm,blockEl,drawn.top+m.fontBoundingBoxAscent*s,lineEm])}}}
+        lines.sort((a,c)=>a[1]-c[1]);const rows=[];for(const l of lines){const last=rows[rows.length-1];if(last&&l[1]<last[3]){last[0]=Math.min(last[0],l[0]);last[2]=Math.max(last[2],l[2]);last[3]=Math.max(last[3],l[3]);
+          // A row's baseline its largest type's, the lower of equal ones.
+          if(l[8]>last[8]||(l[8]===last[8]&&l[7]>last[7])){last[7]=l[7];last[8]=l[8]}}else rows.push([...l])}
         // A justified block's last line is set from its start alone.
         rows.forEach((row,k)=>{if(row[4]==='justified'&&row[6]&&!rows.slice(k+1).some(o=>o[6]===row[6]))row[4]='left'});return rows};
       const editionMain=rowsOf([frame]);
@@ -424,9 +605,14 @@ struct ArtifactOverlayTests {
       const quads=[],marginBlocks=[];let main=true;
       for(const entry of page.dataset.scanLayout.split(';')){const p=entry.split(' ');const pts=p.slice(3).map(Number);const q=[0,1,2,3].map(i=>apply(h,[pts[2*i]/1000*W,pts[2*i+1]/1000*H]));
         const box=[Math.min(...q.map(v=>v[0])),Math.min(...q.map(v=>v[1])),Math.max(...q.map(v=>v[0])),Math.max(...q.map(v=>v[1]))];
+        // A line's baseline (7): the middle of its <path type="baseline">'s two ends, laid as its corners are.
+        if(pts.length===12){const a=apply(h,[pts[8]/1000*W,pts[9]/1000*H]),c2=apply(h,[pts[10]/1000*W,pts[11]/1000*H]);box[7]=(a[1]+c2[1])/2}
         if(p[0]==='block'){main=p[1]!=='marginalia';quads.push({kind:'block',main,box});if(!main)marginBlocks.push({box,lines:[]})}
         else if(p[0]==='line'){quads.push({kind:'line',main,box});if(!main&&marginBlocks.length)marginBlocks[marginBlocks.length-1].lines.push(box)}}
-      const rowsFrom=lines=>{lines.sort((a,c)=>a[1]-c[1]);const rows=[];for(const l of lines){const last=rows[rows.length-1];if(last&&l[1]<last[3]){last[0]=Math.min(last[0],l[0]);last[2]=Math.max(last[2],l[2]);last[3]=Math.max(last[3],l[3])}else rows.push([...l])}return rows};
+      const rowsFrom=lines=>{lines.sort((a,c)=>a[1]-c[1]);const rows=[];for(const l of lines){const last=rows[rows.length-1];if(last&&l[1]<last[3]){last[0]=Math.min(last[0],l[0]);last[2]=Math.max(last[2],l[2]);last[3]=Math.max(last[3],l[3]);
+        if(l[7]!=null&&(last[7]==null||l[7]>last[7]))last[7]=l[7]}else rows.push([...l])}return rows};
+      // Where a row's letters sit: its baseline, else its ink's bottom (typeface is not parity).
+      const seat=r=>r[7]!=null?r[7]:r[3];
       const scanMain=rowsFrom(quads.filter(q=>q.kind==='line'&&q.main).map(q=>q.box));
       // Each scan block of marginalia to the nearest note on its side of the frame.
       const F=(()=>{const e=frame.getBoundingClientRect();return [e.left,e.top,e.right,e.bottom]})();
@@ -443,12 +629,12 @@ struct ArtifactOverlayTests {
         return set==='left'?l:set==='right'?r:set==='center'?Math.abs((e[0]+e[2])/2-(s[0]+s[2])/2)<=em:l&&r};
       // Paired on e and s (each from its own box for a note), judged where each stands (E, S), by L.
       const pair=(e,s,L,E=e,S=s)=>{const n=e.length,m=s.length,c=[...Array(n+1)].map(()=>Array(m+1).fill(0)),st=[...Array(n+1)].map(()=>Array(m+1).fill(0));
-        for(let i=0;i<=n;i++)for(let j=0;j<=m;j++){if(!i&&!j)continue;let best=Infinity,mv=0;if(i&&j)best=c[i-1][j-1]+Math.abs(e[i-1][1]-s[j-1][1])+Math.abs(e[i-1][3]-s[j-1][3]);
+        for(let i=0;i<=n;i++)for(let j=0;j<=m;j++){if(!i&&!j)continue;let best=Infinity,mv=0;if(i&&j)best=c[i-1][j-1]+2*Math.abs(seat(e[i-1])-seat(s[j-1]));
           if(i&&c[i-1][j]+L<best){best=c[i-1][j]+L;mv=1}if(j&&c[i][j-1]+L<best){best=c[i][j-1]+L;mv=2}c[i][j]=best;st[i][j]=mv}
         const es=Array(n).fill('within'),ss=Array(m).fill('within');let i=n,j=m;
-        while(i||j){const mv=st[i][j];if(mv===0){const ok=Math.abs(E[i-1][1]-S[j-1][1])<=L/4&&Math.abs(E[i-1][3]-S[j-1][3])<=L/4&&across(E[i-1],S[j-1]);es[i-1]=ss[j-1]=ok?'within':'off';i--;j--}else if(mv===1){es[i-1]='extra';i--}else{ss[j-1]='missing';j--}}
+        while(i||j){const mv=st[i][j];if(mv===0){const ok=Math.abs(seat(E[i-1])-seat(S[j-1]))<=L/4&&across(E[i-1],S[j-1]);es[i-1]=ss[j-1]=ok?'within':'off';i--;j--}else if(mv===1){es[i-1]='extra';i--}else{ss[j-1]='missing';j--}}
         return [es,ss]};
-      const moved=(rows,[x,y])=>rows.map(r=>[r[0]-x,r[1]-y,r[2]-x,r[3]-y]);
+      const moved=(rows,[x,y])=>rows.map(r=>{const m=[r[0]-x,r[1]-y,r[2]-x,r[3]-y];if(r[7]!=null)m[7]=r[7]-y;return m});
       const [em,sm]=pair(editionMain,scanMain,L);const eg=[],sg=[];
       // A note's own L: its scan rows' median pitch, else its edition rows', else the body's.
       const pitch=rows=>{if(rows.length<2)return null;const d=rows.slice(1).map((r,k)=>r[1]-rows[k][1]).sort((a,c)=>a-c);return d[Math.floor(d.length/2)]};
@@ -541,7 +727,7 @@ struct ArtifactOverlayTests {
       "/": .init(contentType: "text/html", body: Data(html.utf8)),
       "/loader.js": .init(contentType: "text/javascript", body: try Data(contentsOf: assets.appendingPathComponent("loader.js"))),
       "/client.wasm": .init(contentType: "application/wasm", body: try Data(contentsOf: assets.appendingPathComponent("client.wasm"))),
-      "/manifest": .init(contentType: "application/json", body: Data(#"{"canvases":[{"id":"/scan","w":\#(size.width),"h":\#(size.height),"img":"/scan.jpg"}]}"#.utf8)),
+      "/manifest": .init(contentType: "application/json", body: Data(#"{"canvases":[{"id":"/scan","w":\#(size.width),"h":\#(size.height),"imgs":["/scan.jpg"]}]}"#.utf8)),
       "/scan.jpg": .init(contentType: "image/jpeg", body: scan),
       "/gloss": .init(contentType: "text/html", body: Data(#"<div class="gloss-view"><p>A gloss.</p></div>"#.utf8)),
     ]

@@ -186,7 +186,8 @@ struct CodeSyntaxHighlightTests {
     let nocturneID = UUID().uuidString.lowercased()
     func remove() {
       _ = try? TestAdmin.query(
-        "DELETE FROM bibliographic_explication_nocturnes WHERE id='\(nocturneID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
+        SessionTrace.delete(table: "bibliographic_explication_nocturnes", where: "id='\(nocturneID)'")
+          + "DELETE FROM bibliographic_explication_nocturnes WHERE id='\(nocturneID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
       work.remove()
     }
     do {
@@ -200,16 +201,16 @@ struct CodeSyntaxHighlightTests {
          "call_id": "syntax_write"],
         ["type": "text", "content": Self.markdown],
       ]
-      let output = String(decoding: try JSONSerialization.data(withJSONObject: blocks), as: UTF8.self)
       let user = try admin.column("id")
       _ = try TestAdmin.query(
         """
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, attempt, provider, model, output, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, attempt, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(nocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
-            'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '\(Self.sql(output))', 'passed', gen_random_uuid(), '\(antiphonID)', 1200, now());
+            'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 1200, now());
+        \(try SessionTrace.append(blocks, table: "bibliographic_explication_nocturnes", id: nocturneID))
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
@@ -243,8 +244,9 @@ struct CodeSyntaxHighlightTests {
         _ = try await sent.evaluate("e => { e.scrollIntoView({block: 'center'}); return 1 }")
         try await Self.shots(page, "tool-call-xml")
 
-        // The task prompt's Raw: Markdown.
-        try await page.locator(".computorium-session-task-fieldset .computorium-session-prompt-markdown-toggle button").first.click()
+        // The task prompt's Raw: Markdown, under the session's one Raw (its
+        // switch in the controls row, 2026-10-16 and 2026-10-17).
+        try await page.locator(".computorium-session-controls .computorium-session-markdown-toggle button").first.click()
         let prompt = page.locator(".computorium-session-task-fieldset .computorium-session-prompt-body")
         try await expect(prompt).toBeVisible()
         try await expect(prompt).toHaveAttribute("data-code-syntax", "markdown")

@@ -12,8 +12,11 @@ struct TooltipViewportTests {
   @Test(arguments: [BrowserEngine.chrome], widths)
   func endPlacedIdentifierBubbleStaysInsideTheViewport(engine: BrowserEngine, width: Int) async throws {
     guard gnorium.engines.contains(engine) else { return }
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    let vignettes = try ScratchVignettes()
+    defer { try? vignettes.remove() }
     try await withPage(engine, gnorium, viewport: Viewport(width: width, height: 900)) { page in
-      try await page.openHydrated("/mission-control/prompts/vignettes/compare?from=832FEFF0-9FD1-4711-86F9-AA1213C72996&to=CE0E6E42-ECF9-4BE8-A365-598219F30063")
+      try await page.openHydrated(vignettes.path)
       let triggers = page.locator(".vignette-identifier")
       try await expect(triggers).toHaveCount(2)
       // Left to right, then right to left, where a start-aligned bubble
@@ -36,14 +39,16 @@ struct TooltipViewportTests {
             const fits = b.left >= 0 && b.right <= root.clientWidth && b.top >= 0 && b.bottom <= root.clientHeight;
             const noScroll = root.scrollWidth <= innerWidth && root.scrollWidth <= root.clientWidth;
             const aimed = Math.abs(arrowX - center) <= 1;
-            const unwrapped = innerWidth < 768 || bubble.scrollWidth <= bubble.clientWidth && b.height < 2 * parseFloat(getComputedStyle(bubble).lineHeight) + 2 * parseFloat(getComputedStyle(bubble).paddingTop);
-            return JSON.stringify({ fits, noScroll, aimed, unwrapped, left: b.left, right: b.right, clientWidth: root.clientWidth, scrollWidth: root.scrollWidth, arrowX, center });
+            // The UUID wraps at the standard width (user, 2026-10-16), whole
+            // and inside the bubble.
+            const wrapped = b.width <= 256 + 0.5 && bubble.scrollWidth <= bubble.clientWidth;
+            return JSON.stringify({ fits, noScroll, aimed, wrapped, left: b.left, right: b.right, clientWidth: root.clientWidth, scrollWidth: root.scrollWidth, arrowX, center });
           })()
           """, as: String.self)
         #expect(report.contains("\"fits\":true"), "\(report)")
         #expect(report.contains("\"noScroll\":true"), "\(report)")
         #expect(report.contains("\"aimed\":true"), "\(report)")
-        #expect(report.contains("\"unwrapped\":true"), "\(report)")
+        #expect(report.contains("\"wrapped\":true"), "\(report)")
         try await page.mouse.move(x: 0, y: 0)
         try await expect(triggers.nth(index)).toHaveAttribute("data-visible", "false")
       }

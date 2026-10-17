@@ -54,15 +54,17 @@ struct ResemblanceAttachmentTests {
     let file = URL(fileURLWithPath: "/Users/Madhavik/Downloads/Gnorium/gnorium-web/Public").appendingPathComponent(name)
     do {
       let user = try admin.column("id")
+      let preparing: [[String: String]] = [["type": "thinking", "content": "Preparing the resemblance fixture."]]
       _ = try TestAdmin.query(
         """
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status, created_at, updated_at)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted', now(), now());
-        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, attempt, provider, model, output, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, attempt, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(nocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
-            'explication', '1', 1, 'fixture', 'fixture', '[{"type":"thinking","content":"Preparing the resemblance fixture."}]', 'passed',
+            'explication', '1', 1, 'fixture', 'fixture', 'passed',
             gen_random_uuid(), '\(antiphonID)', 1, now());
+        \(try SessionTrace.append(preparing, table: "bibliographic_explication_nocturnes", id: nocturneID))
         COMMIT;
         """)
       let antiphon = "/mission-control/antiphons/bibliographic/\(antiphonID)"
@@ -71,7 +73,7 @@ struct ResemblanceAttachmentTests {
         let original = try await page.evaluate("fetch('\(antiphon)').then(r=>r.text())", as: String.self)
         let mock = """
           <script>
-          window.__resemblanceMock='installed';
+          window.__resemblanceMock='installed'; window.__errs=[]; window.addEventListener('error',e=>window.__errs.push(String(e.message)));
           window.EventSource=class {
             constructor(url) { window.__resemblanceMockURL=url; window.__resemblanceMock='constructed'; this.handlers={}; setTimeout(()=>{
               window.__resemblanceMock='emitted';
@@ -90,9 +92,11 @@ struct ResemblanceAttachmentTests {
           .replacingOccurrences(of:"data-auto-watch=\"0\"",with:"data-auto-watch=\"1\"")
           .write(to:file,atomically:true,encoding:.utf8)
         try await page.openHydrated("/\(name)")
-        let image = page.locator("#computorium-session-tool-late-resemblance .expandable-attachment-image-viewport")
+        // The image the model received, once, in its round's message (user,
+        // 2026-10-17): the full-width stage, never inside the tool's card.
+        let image = page.locator(".computorium-session-view .expandable-attachment-view[data-presentation='received']")
         do { try await expect(image).toBeAttached() } catch {
-          print(try await page.evaluate("JSON.stringify({mock:window.__resemblanceMock,auto:document.querySelector('.process-container')?.dataset.autoWatch,kind:document.querySelector('.process-container')?.dataset.computoriumCoreKind,tools:document.querySelectorAll('.computorium-session-tool-call').length,url:window.__resemblanceMockURL,handlers:window.__resemblanceMockHandlers,focus:document.querySelector('.computorium-session-view')?.dataset.computoriumSessionResemblance,output:!!document.querySelector('.computorium-session-view .computorium-session-output-content')})",as:String.self))
+          print(try await page.evaluate("JSON.stringify({mock:window.__resemblanceMock,auto:document.querySelector('.process-container')?.dataset.autoWatch,kind:document.querySelector('.process-container')?.dataset.computoriumCoreKind,tools:document.querySelectorAll('.computorium-session-tool-call').length,url:window.__resemblanceMockURL,handlers:window.__resemblanceMockHandlers,focus:document.querySelector('.computorium-session-view')?.dataset.computoriumSessionResemblance,output:!!document.querySelector('.computorium-session-view .computorium-session-output-content'),atts:[...document.querySelectorAll('.expandable-attachment-view')].map(e=>e.dataset.presentation+'@'+(e.closest('[class]')?.parentElement?.className||'')),kids:[...(document.querySelector('.computorium-session-output-content')?.children||[])].map(e=>e.className).slice(-6),errs:window.__errs})",as:String.self))
           throw error
         }
         // Live, a tool card arrives closed and the thinking card open, each
@@ -106,33 +110,33 @@ struct ResemblanceAttachmentTests {
           """, as: String.self)
         #expect(arrived == "tool closed, thinking open", "A live tool card arrives closed; the thinking card open: \(arrived)")
         try await page.locator("#computorium-session-tool-late-resemblance summary").click()
-        // The detail in place: in the result box with every field the model
-        // received, its image its `image` datum's width and no taller than the bound,
-        // no chip and no lightbox (user, 2026-10-07).
-        // Opened, its image takes its height once it has loaded: wait for
-        // that before measuring it.
-        var sized = false
-        for _ in 0..<50 where !sized {
-          sized = try await page.evaluate(
-            "(()=>{const vp=document.querySelector('#computorium-session-tool-late-resemblance .computorium-session-tool-call-result-box .expandable-attachment-image-viewport');return !!vp&&vp.getBoundingClientRect().height>0})()",
+        // Opened, the card holds the tool's fields and no image; the image
+        // stands once, in the round's message, ready to zoom once read.
+        var shown = false
+        for _ in 0..<50 where !shown {
+          shown = try await page.evaluate(
+            "(()=>{const v=document.querySelectorAll(\".computorium-session-view .expandable-attachment-view[data-presentation='received']\");return v.length===1&&v[0].dataset.attachmentHydrated==='true'&&v[0].getBoundingClientRect().height>0})()",
             as: Bool.self)
-          if !sized { try await Task.sleep(for: .milliseconds(100)) }
+          if !shown { try await Task.sleep(for: .milliseconds(100)) }
         }
-        let parity = try await page.evaluate("""
-          (()=>{const card=document.querySelector('#computorium-session-tool-late-resemblance');const box=card.querySelector('.computorium-session-tool-call-result-box');const view=box&&box.querySelector('.expandable-attachment-view[data-presentation="inline"]');const vp=view&&view.querySelector('.expandable-attachment-image-viewport');const r=vp?vp.getBoundingClientRect():{height:0,width:0};const v=view&&view.closest('.datum-value');const cs=v?getComputedStyle(v):null;const w=v?v.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight):Infinity;return !!view && view.dataset.attachmentHydrated==='true' && r.height>0 && r.height<=innerHeight*.64+1 && r.width>=w-1 && !card.querySelector('.expandable-attachment-dialog') && box.textContent.includes('source_width') && box.textContent.includes('sent_width');})()
-          """, as:Bool.self)
-        #expect(parity,"A late SSE tool's zoom is in place in its result box with its fields")
+        #expect(shown, "A late SSE tool's image stands once in its round's message, hydrated")
+        let card = try await page.evaluate("""
+          (()=>{const card=document.querySelector('#computorium-session-tool-late-resemblance');const box=card.querySelector('.computorium-session-tool-call-result-box');return !card.querySelector('.expandable-attachment-view') && !!box && box.textContent.includes('source_width') && box.textContent.includes('sent_width');})()
+          """, as: Bool.self)
+        #expect(card, "The tool's card shows its fields and no image")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }
     } catch {
       try? FileManager.default.removeItem(at:file)
-      _ = try? TestAdmin.query("DELETE FROM bibliographic_explication_nocturnes WHERE id='\(nocturneID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
+      _ = try? TestAdmin.query(SessionTrace.delete(table: "bibliographic_explication_nocturnes", where: "id='\(nocturneID)'")
+        + "DELETE FROM bibliographic_explication_nocturnes WHERE id='\(nocturneID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
       work.remove()
       try await admin.remove(after:error)
     }
     try? FileManager.default.removeItem(at:file)
-    _ = try TestAdmin.query("DELETE FROM bibliographic_explication_nocturnes WHERE id='\(nocturneID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
+    _ = try TestAdmin.query(SessionTrace.delete(table: "bibliographic_explication_nocturnes", where: "id='\(nocturneID)'")
+      + "DELETE FROM bibliographic_explication_nocturnes WHERE id='\(nocturneID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
     work.remove()
     try await admin.remove()
   }

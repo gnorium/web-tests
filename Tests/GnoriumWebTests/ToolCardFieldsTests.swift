@@ -109,23 +109,22 @@ struct ToolCardFieldsTests {
     func cleanUp() {
       try? FileManager.default.removeItem(at: file)
       _ = try? TestAdmin.query(
-        "DELETE FROM bibliographic_explication_nocturnes WHERE id='\(nocturneID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
+        SessionTrace.delete(table: "bibliographic_explication_nocturnes", where: "id='\(nocturneID)'")
+          + "DELETE FROM bibliographic_explication_nocturnes WHERE id='\(nocturneID)'; DELETE FROM bibliographic_antiphons WHERE id='\(antiphonID)';")
       work.remove()
     }
     do {
       let user = try admin.column("id")
-      let output = String(
-        decoding: try JSONSerialization.data(
-          withJSONObject: Self.blocks(prefix: "") + [["type": "text", "content": "Done."]]), as: UTF8.self)
-        .replacingOccurrences(of: "'", with: "''")
+      let trace = Self.blocks(prefix: "") + [["type": "text", "content": "Done."]]
       _ = try TestAdmin.query(
         """
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, attempt, provider, model, output, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, attempt, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(nocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
-            'explication', '1', 1, 'DeepSeek', 'deepseek-flash', '\(output)', 'passed', gen_random_uuid(), '\(antiphonID)', 1200, now());
+            'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 1200, now());
+        \(try SessionTrace.append(trace, table: "bibliographic_explication_nocturnes", id: nocturneID))
         COMMIT;
         """)
       let antiphon = "/mission-control/antiphons/bibliographic/\(antiphonID)"
@@ -156,7 +155,10 @@ struct ToolCardFieldsTests {
         // each was recorded, before each round (user, 2026-10-10).
         let tools = session.locator(".computorium-session-tools")
         try await expect(tools).toHaveCount(3)
-        try await expect(tools.first.locator(".accordion-title")).toHaveText("Tools")
+        // Its name, then its JSON switch at the header's end, as a tool
+        // call's card (user, 2026-10-16: 378b642a0).
+        try await expect(tools.first.locator(".accordion-title .computorium-session-tools-name")).toHaveText("Tools")
+        try await expect(tools.first.locator(".accordion-title .computorium-session-tool-call-json-toggle")).toHaveCount(1)
         #expect(try await page.evaluate(
           "!document.querySelector('.computorium-session-tools details').hasAttribute('open')", as: Bool.self),
           "The Tools card is collapsed by default, like a compaction card")
@@ -207,6 +209,11 @@ struct ToolCardFieldsTests {
           })()
           """, as: Bool.self)
         #expect(gray, "A stub sits on the same gray box a result does")
+        // A card's body is drawn when it is first opened (user, 2026-10-16):
+        // the search's and the save's, read below.
+        for id in ["computorium-session-tool-ws", "computorium-session-tool-sp"] {
+          try await page.locator("#\(id)").locator(".accordion-summary").first.click()
+        }
         // White sends, gray sees: the thinking card, every card, and an
         // argument datum on the page's base ground; the result box gray
         // and its datums the read-only field's gray; no card alternates
@@ -327,12 +334,13 @@ struct ToolCardFieldsTests {
           #expect(!text.contains("={\"") && !text.contains("[{"), "No object is printed as JSON: \(text)")
         }
         // Bookkeeping the model never saw is nowhere between the cards.
-        // Raw is the chat template's text only: a trace without one has
-        // no Raw switch.
+        // Raw is the chat template's text, else the prompts as sent (the
+        // session's one Raw, 2026-10-16): a trace without a template has
+        // none of its text.
         let content = session.locator(".computorium-session-output-content")
         try await expect(content).not.toContainText("input_tokens")
         try await expect(content).not.toContainText("bookkeeping")
-        try await expect(session.locator(".computorium-session-markdown-toggle")).toBeHidden()
+        try await expect(session.locator(".chat-template-raw-view")).toHaveCount(0)
         recorded = [signature, search, saved]
         try await page.expectNoHorizontalOverflow()
 
@@ -361,11 +369,21 @@ struct ToolCardFieldsTests {
           };
           </script>
           """
+        // The mock tells the trace from its first block, as a watch with
+        // no resume claim is told it: the page's claim (`TraceResume`,
+        // 251f5a4ee) would have the watch carry on after the recorded
+        // cards and draw every card twice.
         try original.replacingOccurrences(of: "<head>", with: "<head>" + mock)
           .replacingOccurrences(of: "data-auto-watch=\"0\"", with: "data-auto-watch=\"1\"")
+          .replacingOccurrences(of: #"data-trace-resume="[^"]*""#, with: #"data-trace-resume="""#, options: .regularExpression)
           .write(to: file, atomically: true, encoding: .utf8)
         try await page.openHydrated("/\(name)")
         try await expect(page.locator("#computorium-session-tool-live_wt")).toBeAttached()
+        // Each body drawn when its card is first opened, as a recorded one's.
+        for id in ["live_rc", "live_ws", "live_sp", "live_wt"] {
+          try await page.locator("#computorium-session-tool-\(id)").locator(".accordion-summary").first.click()
+        }
+        try await page.locator(".computorium-session-tools").first.locator(".accordion-summary").first.click()
         try await expect(page.locator("#computorium-session-tool-live_rc .computorium-session-tool-stub .link-view")).toBeAttached()
         try await expect(page.locator("#computorium-session-tool-live_rc .computorium-session-tool-stub .datum-view")).toHaveCount(0)
         var live: [String] = []

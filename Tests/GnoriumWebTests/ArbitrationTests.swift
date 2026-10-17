@@ -16,21 +16,21 @@ struct ArbitrationTests {
   static let toolDefinition =
     #"[{"type":"function","function":{"name":"read_record","description":"Read the exact human Revise fields and attached evidence.","parameters":{"type":"object","properties":{},"additionalProperties":false}}}]"#
 
-  static func trace(upTo count: Int = .max) throws -> String {
-    let all: [[String: String]] = [
-      ["type": "task_prompt_instance", "content": task],
-      ["type": "image_sent", "url": sentImage, "source_sha256": "abc", "sha256": "def", "caption": ""],
-      ["type": "tools", "content": toolDefinition],
-      ["type": "thinking", "content": String(repeating: "Reading the selected evidence carefully.\n\n", count: 90)],
-      ["type": "tool", "name": "read_record", "arguments": "{}", "status": "ok", "call_id": "arbitration_read",
-       "result": #"{"nodes":[{"id":"work","label":"Work","number":"1","fields":[{"id":"title","label":"Title","value":"Web tests evidence"}]}],"evidence":{"id":"selected-evidence","kind":"canvas","label":"Title page","markup":"<p>Evidence fixture 2.</p>"}}"#],
-      ["type": "tools", "content": toolDefinition],
-      ["type": "text", "content": reply],
-    ]
-    let blocks = Array(all.prefix(count))
-    return String(decoding: try JSONSerialization.data(withJSONObject: blocks), as: UTF8.self)
-      .replacingOccurrences(of: "'", with: "''")
-  }
+  /// The sessions' table, which owns their traces (`SessionTrace`).
+  static let sessions = "bibliographic_arbitration_sessions"
+
+  /// The session's trace, its blocks as received: the first four while it
+  /// runs, the rest appended as it goes on.
+  static let trace: [[String: String]] = [
+    ["type": "task_prompt_instance", "content": task],
+    ["type": "image_sent", "url": sentImage, "source_sha256": "abc", "sha256": "def", "caption": ""],
+    ["type": "tools", "content": toolDefinition],
+    ["type": "thinking", "content": String(repeating: "Reading the selected evidence carefully.\n\n", count: 90)],
+    ["type": "tool", "name": "read_record", "arguments": "{}", "status": "ok", "call_id": "arbitration_read",
+     "result": #"{"nodes":[{"id":"work","label":"Work","number":"1","fields":[{"id":"title","label":"Title","value":"Web tests evidence"}]}],"evidence":{"id":"selected-evidence","kind":"canvas","label":"Title page","markup":"<p>Evidence fixture 2.</p>"}}"#],
+    ["type": "tools", "content": toolDefinition],
+    ["type": "text", "content": reply],
+  ]
 
   /// A madrigal of one explicated page (markup) and two laid in blank.
   static func tei(_ fixture: FixtureServer) -> String {
@@ -75,6 +75,7 @@ struct ArbitrationTests {
           committed_at = NULL WHERE committed_by_user_id = '\(adminID)';
         DELETE FROM locutions WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)' AND kind = 'reply';
         UPDATE locutions SET arbitration_session_id = NULL WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
+        \(SessionTrace.delete(table: Self.sessions, where: "locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)'"))
         DELETE FROM bibliographic_arbitration_sessions WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
         DELETE FROM locutions WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)';
         COMMIT;
@@ -183,11 +184,16 @@ struct ArbitrationTests {
         let replyID = try TestAdmin.query(
           "SELECT id FROM locutions WHERE arbitration_session_id = '\(sessionID)' AND kind = 'reply'")
         guard UUID(uuidString: replyID) != nil else { throw WebTestError("The Commit submitted no reply.") }
-        // Running (the row stands in for the live buffer here).
+        // Running (its trace's rows stand in for the live buffer here): its
+        // first four blocks, received 100ms apart—the rest follow on that
+        // pace, however long the test takes to append them, so a replay
+        // plays the whole trace in under a second.
+        let began = Date()
         _ = try TestAdmin.query("""
           BEGIN;
-          UPDATE bibliographic_arbitration_sessions SET result = 'running', output = '\(try Self.trace(upTo: 4))',
+          UPDATE bibliographic_arbitration_sessions SET result = 'running',
             error_message = NULL, held_by = 'web_tests', held_until = NOW() + interval '1 hour' WHERE id = '\(sessionID)';
+          \(try SessionTrace.append(Array(Self.trace.prefix(4)), table: Self.sessions, id: sessionID, start: began, stepMs: 100))
           UPDATE locutions SET call_status = 'running' WHERE id = '\(callID)';
           COMMIT;
           """)
@@ -229,7 +235,12 @@ struct ArbitrationTests {
           try await expect(links.nth(1)).toContainText("arbitration")
         }
         try await page.openHydrated(hour)
-        try await expect(page.locator("a[href$='#locution-\(replyID.uppercased())']").first).toBeAttached()
+        // Its row by its id: its trace holds no text block yet and its words
+        // are filled as it ends, so its Locution reads "—", unlinked
+        // (LocutionsView, MissionControlController.locutions).
+        let listed = page.locator("tr[data-row-id='\(replyID.uppercased())']")
+        try await expect(listed).toHaveCount(1)
+        try await expect(listed).toContainText("gnorium")
 
         // The thread: the call (its words and own actions), the Commit, then
         // gnorium's reply, submitted with the Commit under its own id, its
@@ -248,7 +259,9 @@ struct ArbitrationTests {
         let live = slot.locator(".computorium-session-view")
         try await expect(live, timeout: .seconds(15)).toContainText("Reading the selected evidence carefully.")
         try await expect(live).not.toContainText(Self.reply)
-        _ = try TestAdmin.query("UPDATE bibliographic_arbitration_sessions SET output = '\(try Self.trace())' WHERE id = '\(sessionID)'")
+        // The rest of its trace, appended as its next batch: a trace only grows.
+        _ = try TestAdmin.query(try SessionTrace.append(
+          Array(Self.trace.dropFirst(4)), table: Self.sessions, id: sessionID, start: began.addingTimeInterval(0.4), stepMs: 100))
         try await expect(live, timeout: .seconds(15)).toContainText(Self.reply)
         // A worker's Stop pauses it: the reply says why, in an info alert
         // under its transcript, and no mark turns any more; started again,
@@ -269,7 +282,7 @@ struct ArbitrationTests {
         _ = try await slot.evaluate("el => { window.__slot = el; return true }")
         _ = try TestAdmin.query("""
           BEGIN;
-          UPDATE bibliographic_arbitration_sessions SET result = 'passed', output = '\(try Self.trace())',
+          UPDATE bibliographic_arbitration_sessions SET result = 'passed',
             provider = 'deepseek', model = 'deepseek-flash', duration_ms = 1200, error_message = NULL,
             finished_at = NOW() WHERE id = '\(sessionID)';
           UPDATE locutions SET call_status = 'done' WHERE id = '\(callID)';
@@ -285,7 +298,10 @@ struct ArbitrationTests {
         let reply = page.locator("#locution-\(replyID.uppercased())")
         let session = reply.locator(".computorium-session-view")
         try await expect(session).toHaveCount(1)
-        try await expect(session.locator(".computorium-session-prompt-fieldset")).toHaveCount(2)
+        // Its received boxes as sent: our system prompt and the task, one
+        // box each (the template's own boxes stand around them, unlegended).
+        try await expect(session.locator(".computorium-session-system-fieldset")).toHaveCount(1)
+        try await expect(session.locator(".computorium-session-task-fieldset")).toHaveCount(1)
         try await expect(session).toContainText(Self.task)
         try await expect(session.locator(".computorium-session-output-rendered")).toContainText(Self.reply)
         try await expect(reply).toContainText("gnorium submitted locution")
@@ -306,17 +322,44 @@ struct ArbitrationTests {
         try await expect(reply.locator(".locution-call-evidence")).toHaveCount(0)
         try await expect(reply.locator(".locution-header")).toContainText("gnorium submitted locution \(replyID.uppercased()) replying to locution \(callID.uppercased())")
         try await expect(reply.locator(".locution-header a[href='#locution-\(callID.uppercased())']")).toHaveCount(1)
+        // Our two boxes legended, by name: the system prompt's, the task's.
         try await expect(session.locator(".computorium-session-prompt-fieldset legend")).toHaveCount(2)
-        // Embedded in the reply (user, 2026-10-12): its output box bare—no
-        // legend, so no session Raw and no byline—the model in the reply's
-        // ⓘ, the reply's own Raw at the start of its footer, Replay above it,
-        // and the page image in the task prompt, named by its resemblance.
-        try await expect(session.locator(".computorium-session-output-fieldset.computorium-session-output-embedded")).toHaveCount(1)
-        try await expect(session.locator(".computorium-session-output-legend")).toHaveCount(0)
-        try await expect(session.locator(".computorium-session-markdown-toggle")).toHaveCount(0)
-        try await expect(session.locator(".computorium-session-byline")).toHaveCount(0)
+        try await expect(session.locator(".computorium-session-system-fieldset .computorium-session-prompt-legend-title"))
+          .toHaveText("System prompt")
+        try await expect(session.locator(".computorium-session-task-fieldset .computorium-session-prompt-legend-title"))
+          .toHaveText("Task prompt")
+        // Embedded in the reply, the session reads as everywhere else (user,
+        // 2026-10-17): one stream, no box or legend around the model's
+        // output; one row of controls at its foot—Raw, then its ⓘ with the
+        // model and when—and, embedded alone and read-only, no pager, no
+        // re-run and no header. The reply's footer keeps the reply's ⓘ and
+        // Replay at its start, and no Raw of its own: its session's is the
+        // one. The page image in the task prompt as the model received it.
+        try await expect(session.locator(".computorium-session-output")).toHaveCount(1)
+        try await expect(session.locator(".computorium-session-output-fieldset, .computorium-session-output-legend"))
+          .toHaveCount(0)
+        let controls = session.locator(".computorium-session-controls")
+        try await expect(controls).toHaveCount(1)
+        try await expect(controls.locator(".computorium-session-controls-start .computorium-session-markdown-toggle"))
+          .toHaveCount(1)
+        let byline = controls.locator(".computorium-session-byline")
+        try await expect(byline).toHaveCount(1)
+        // Its words are the ⓘ's bubble, which hydration portals to <body>.
+        try await byline.hover()
+        try await expect(page.locator(
+          ".tooltip-view[data-portal='true'][data-visible='true'] .tooltip-content .computorium-session-byline-words"))
+          .toHaveAttribute("data-local-time-prefix", "By DeepSeek V4.1 Flash (deepseek-flash) on ")
+        try await page.mouse.move(x: 0, y: 0)
+        try await expect(session.locator(".computorium-session-page-nav, .computorium-session-rerun, .computorium-session-header"))
+          .toHaveCount(0)
+        #expect(try await session.evaluate("""
+          el => { const start = el.querySelector('.computorium-session-controls-start')
+            const kinds = [...start.children].map(e => e.classList.contains('computorium-session-markdown-toggle') ? 'raw'
+              : e.classList.contains('computorium-session-byline') ? 'info' : 'other').join(' ')
+            return !!el.lastElementChild?.classList.contains('computorium-session-controls') && kinds === 'raw info' }
+          """).bool == true, "One row at the session's foot: Raw, then its ⓘ")
         try await expect(reply.locator(".reactions-when")).toHaveAttribute("data-local-time-prefix", "By DeepSeek V4.1 Flash (deepseek-flash) on ")
-        try await expect(reply.locator(".reactions-controls .locution-markdown-toggle")).toHaveCount(1)
+        try await expect(reply.locator(".locution-markdown-toggle")).toHaveCount(0)
         try await expect(reply.locator(".reactions-controls > .replay-btn:first-child")).toHaveText("Replay")
         // Replay plays in place: the reader stays where they were.
         let before = try await page.evaluate("""
@@ -334,17 +377,33 @@ struct ArbitrationTests {
         let after = try await page.evaluate("window.scrollY", as: Double.self)
         #expect(abs(during - before) < 2 && abs(after - before) < 2, "Replay kept the place: \(before) → \(during) → \(after)")
         try await expect(reply.locator(".locution-anchor")).toHaveCount(0)
-        try await expect(session.locator(".computorium-session-task-fieldset .computorium-session-input-attachments")).toContainText("1.jpg")
-        // The image sent is one chip, no loose lines under it; the prompts
-        // as sent read in the base text color (user, 2026-10-15).
+        // The page image in the task prompt as the model received it (user,
+        // 2026-10-17): one stage at the message's whole width, zoomed in
+        // place—no chip, thumbnail, name or lightbox, no loose lines under
+        // it; the prompts as sent read in the base text color (user,
+        // 2026-10-15).
+        let taskImages = session.locator(".computorium-session-task-fieldset .computorium-session-task-images")
+        let received = session.locator(".expandable-attachment-view[data-presentation='received']")
+        try await expect(received).toHaveCount(1)
+        try await expect(taskImages.locator(".expandable-attachment-view[data-presentation='received']")).toHaveCount(1)
+        try await expect(received).toHaveAttribute("data-attachment-hydrated", "true")
+        try await expect(session.locator(
+          ".expandable-attachment-trigger, .expandable-attachment-image-thumb, .expandable-attachment-name, .expandable-attachment-dialog"
+        )).toHaveCount(0)
+        try await expect(session.locator(".computorium-session-task-fieldset")).not.toContainText("1.jpg")
         try await expect(session.locator(".computorium-session-sent-images")).toHaveCount(0)
-        // The address sent is gone and no copy is archived yet: the chip
+        #expect(try await taskImages.evaluate("""
+          el => { const s = getComputedStyle(el), inner = el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight)
+            const frame = el.querySelector('.expandable-attachment-image-frame').getBoundingClientRect()
+            return frame.width > 0 && Math.abs(frame.width - inner) <= 1 }
+          """).bool == true, "The received stage spans its message's width")
+        // The address sent is gone and no copy is archived yet: the stage
         // shows the page as the reader does, never a broken image.
-        #expect(try await session.locator(".computorium-session-task-fieldset .expandable-attachment-image-thumb").evaluate("""
+        #expect(try await received.locator("img.expandable-attachment-image-received").evaluate("""
           async img => { img.scrollIntoView(); img.loading = 'eager'
             for (let i = 0; i < 40 && !(img.complete && img.naturalWidth > 0); i++) await new Promise(r => setTimeout(r, 250))
             return img.complete && img.naturalWidth > 0 }
-          """).bool == true, "The chip falls back to an image that loads")
+          """).bool == true, "The received image falls back to an image that loads")
         #expect(try await session.locator(".computorium-session-task-fieldset").evaluate(
           "el => !el.innerText.includes('SHA-256') && !el.innerText.includes('Archived')").bool == true,
           "No hash or archive line on the surface (Raw keeps the hash)")
@@ -354,13 +413,20 @@ struct ArbitrationTests {
             const texts = [...el.querySelectorAll('.computorium-session-prompt-fieldset .computorium-session-prompt-rendered p')]
             return texts.length > 0 && texts.every(p => getComputedStyle(p).color === base) }
           """).bool == true, "Sent prompts read in the base text color")
-        // Raw: the user turn as sent, its image block where it stood.
+        // Raw, the session's one switch: the user turn as sent, its image
+        // block where it stood, in place of the rendered prompt and image;
+        // off again, the image as received.
         let taskFieldset = session.locator(".computorium-session-task-fieldset")
-        try await taskFieldset.locator(".computorium-session-prompt-markdown-toggle").click()
+        let raw = controls.locator(".computorium-session-markdown-toggle button")
+        try await raw.click()
+        try await expect(session).toHaveAttribute("data-raw-view", "true")
+        try await expect(taskFieldset.locator(".computorium-session-prompt-body")).toBeVisible()
         try await expect(taskFieldset.locator(".computorium-session-prompt-body")).toContainText("\"image_url\"")
         try await expect(taskFieldset.locator(".computorium-session-prompt-body")).toContainText("SHA-256 def")
-        try await expect(taskFieldset.locator(".computorium-session-input-attachments")).toBeHidden()
-        try await taskFieldset.locator(".computorium-session-prompt-markdown-toggle").click()
+        try await expect(taskImages).toBeHidden()
+        try await raw.click()
+        try await expect(session).toHaveAttribute("data-raw-view", "false")
+        try await expect(received).toBeVisible()
         // The tools offered, where the trace recorded them, before each
         // model call: the thinking's, and the reply's after the call
         // (user, 2026-10-10).
@@ -698,25 +764,34 @@ struct ArbitrationTests {
             '{"languageCode":"fra","tei":"<def xml:lang=\\"fr\\">Un sens feuille.</def>","confidence":"clear","reason":"Web tests."}');
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        let cases = [
+        // The process after Arbitration: the overture's page's explication,
+        // filled; the epilogue's completed translation sends nothing, so it
+        // has no accordion (user, 2026-10-17).
+        let cases: [(String, String?, String)] = [
           (scratch.overturePath, "Explication", "bibliographic_arbitration"),
-          ("/mission-control/epilogues/lexicographic/\(epilogue)?process=translation", "Translation", "lexicographic_arbitration"),
+          ("/mission-control/epilogues/lexicographic/\(epilogue)?process=translation", nil, "lexicographic_arbitration"),
         ]
         for (path, process, slot) in cases {
           try await page.openHydrated(path)
           let sections = page.locator(".prompt-previews-process")
-          try await expect(sections, timeout: .seconds(20)).toHaveCount(2)
+          try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20)).toHaveAttribute("aria-busy", "false")
+          try await expect(sections, timeout: .seconds(20)).toHaveCount(process == nil ? 1 : 2)
           try await expect(sections.nth(0)).toHaveAttribute("data-process", "Arbitration")
-          try await expect(sections.nth(1)).toHaveAttribute("data-process", process)
-          for (index, name, id) in [(0, "Arbitration", "prompt-preview-process-arbitration"), (1, process, "prompt-preview-process")] {
+          if let process { try await expect(sections.nth(1)).toHaveAttribute("data-process", process) }
+          // Arbitration's task with nothing ticked is its template; the
+          // process's is filled.
+          var shown = [(0, "Arbitration", "prompt-preview-process-arbitration", false)]
+          if let process { shown.append((1, process, "prompt-preview-process", true)) }
+          for (index, name, id, filled) in shown {
             // One accordion a process, its three nested (user, 2026-10-10).
             try await expect(sections.nth(index).locator("#\(id) .prompt-preview-title-words").first).toHaveText(name)
             try await expect(sections.nth(index).locator("#\(id)")).toHaveAttribute("data-expanded", "false")
             try await expect(sections.nth(index).getByText("System Prompt", exact: true)).toHaveCount(2)
-            // Its task filled as sent (or why it cannot be), its
-            // autocompaction's a template (user, 2026-10-10).
-            try await expect(sections.nth(index).getByText("Task Prompt", exact: true)).toHaveCount(1)
-            try await expect(sections.nth(index).getByText("Task Prompt Template", exact: true)).toHaveCount(1)
+            // Its task filled as sent, or its template where none can be
+            // (user, 2026-10-17); its autocompaction's a template (user,
+            // 2026-10-10).
+            try await expect(sections.nth(index).getByText("Task Prompt", exact: true)).toHaveCount(filled ? 1 : 0)
+            try await expect(sections.nth(index).getByText("Task Prompt Template", exact: true)).toHaveCount(filled ? 1 : 2)
             try await expect(sections.nth(index).getByText("Autocompaction", exact: true)).toHaveCount(1)
           }
           try await page.openHydrated(path.split(separator: "?").first.map(String.init)! + "/revise")

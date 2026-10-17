@@ -131,7 +131,7 @@ struct ReactionsTests {
 
         // A pill pressed anywhere, its emoji too, opens who reacted; it
         // toggles nothing (user, 2026-10-15).
-        let openDialog = page.locator(".reactions-reactors-dialog.dialog-view[data-open='true']")
+        let openDialog = page.locator(".reactions-reactors-dialog.dialog-view:modal")
         try await thumbs.locator(".reactions-emoji").click()
         try await expect(openDialog).toBeAttached()
         try await page.keyboard.press("Escape")
@@ -172,7 +172,7 @@ struct ReactionsTests {
         let count = party.locator(".reactions-count-button")
         try await expect(count).toHaveAttribute("aria-label", "2 reactions: 🎉, show who reacted")
         try await count.click()
-        let dialog = page.locator(".reactions-reactors-dialog.dialog-view[data-open='true']")
+        let dialog = page.locator(".reactions-reactors-dialog.dialog-view:modal")
         try await expect(dialog).toBeAttached()
         try await expect(dialog.locator(".modal-dialog-title .reactions-emoji")).toHaveText("🎉")
         let table = dialog.locator(".reactors-view .table-tbody tr")

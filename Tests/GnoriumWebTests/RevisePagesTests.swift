@@ -1072,7 +1072,13 @@ struct RevisePagesTests {
       guard parts.count == 2, !parts[1].hasPrefix("resemblance-") else { continue }
       // A canvas path's XML step: the reader, its XML on (user, 2026-10-16).
       if parts[1] == "reader" {
+        // Loaded afresh, as following the link from the madrigal does: the
+        // last step left this same page open without the hash, where going
+        // to it with one only scrolls and nothing hydrates again.
         try await page.openHydrated(link)
+        _ = try await page.reload()
+        try await expect(page.locator("html"), timeout: .seconds(20))
+          .toHaveAttribute("data-wasm-status", "started")
         try await expect(page.locator(".artifact-view .artifact-xml-toggle[aria-pressed='true']").first).toBeAttached()
         continue
       }

@@ -99,12 +99,15 @@ struct BaselinesTests {
       // Spending: baselines' part of it, beside production's.
       try await expect(page.locator("#spending").getByText("Baselines (", exact: false)).toBeAttached()
       try await expect(page.locator("#spending .baseline-spending-table").first).toBeAttached()
-      // Gold, as the item response fit finds it (user, 2026-10-17): what
-      // the data can say, the configurations, the gold pages and the runs;
-      // Run baseline is an admin's, and no page takes a vote.
+      // Gold, as the item response fit finds it (user, 2026-10-17):
+      // how many permitted pages are gold, the configurations, the gold
+      // pages, arbitration's revisers and the runs; Run baseline is an
+      // admin's, there is no Fit now, and no page takes a vote.
       let gold = page.locator("#gold")
-      try await expect(gold.locator(".baseline-gold-sufficiency")).toBeAttached()
-      try await expect(gold.locator(".baseline-gold-heading")).toHaveTexts(["Configurations", "Gold pages", "Baseline runs"])
+      try await expect(gold.locator(".baseline-gold-summary")).toBeAttached()
+      try await expect(gold.locator(".baseline-gold-heading"))
+        .toHaveTexts(["Configurations", "Gold pages", "Revisers", "Baseline runs"])
+      try await expect(gold.getByText("Fit now", exact: true)).toHaveCount(0)
       try await expect(gold.locator(".baseline-gold-run-form")).toHaveCount(0)
       try await expect(page.locator(".baseline-hard-vote-view")).toHaveCount(0)
       try await expect(page.locator("[data-table-column-id='hard']")).toHaveCount(0)

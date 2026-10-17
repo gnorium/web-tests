@@ -5,10 +5,10 @@ import WebTestsTesting
 
 /// A revision's origins against those it found (`OriginDiffView`, user
 /// 2026-10-08), drawn as the testament tree diff draws a tree: on a
-/// lexicographic overture's revision page, a step it moves framed yellow
+/// lexicographic overture's revision page, a step it moves framed orange
 /// with its "Diff: 4 → 1", one it removes framed red where it stood, one it
 /// adds in its plain frame with its fields green, one it edits open on the
-/// form's own fields, each changed one framed yellow with its "Diff:" line
+/// form's own fields, each changed one framed orange with its "Diff:" line
 /// under it, and no card tinted; its thread's "Origin" links to that diff. A scratch lexicographic folksong,
 /// overture and revision of a throwaway admin, removed after. Headless
 /// Chrome only (user: web-tests never in Safari).
@@ -141,9 +141,9 @@ struct OriginDiffTests {
             const added = root.querySelector(
               ".origin-diff-node[data-origin-change='added'] .diff-wrap-added input[name$='-name']");
             return {
-              moved: ring(card('changed'), '--border-color-yellow'),
+              moved: ring(card('changed'), '--border-color-orange'),
               removed: ring(card('removed'), '--border-color-red'),
-              field: !!meaning && ring(meaning, '--border-color-yellow'),
+              field: !!meaning && ring(meaning, '--border-color-orange'),
               added: !!added && ring(added, '--border-color-green'),
               untinted,
               filled: root.querySelector('.origin-step-old, .origin-step-new') === null,
@@ -162,14 +162,21 @@ struct OriginDiffTests {
               "origins-diff-v2-\(layout == .phone ? 375 : 1400).png"))
         }
 
-        // The thread names Origin among what changed, linked to that diff.
+        // The thread names Origin among what changed, linked to that diff,
+        // in source mode as every Changed link is (gnorium-web 9a4822a8f,
+        // `RevisePagesTests.expectChangedLinksLand`); the tree has no
+        // format toggle, so it opens as it is.
         try await tab.openHydrated(page)
         let link = tab.locator(".locution-thread-event-changed a").filter(hasText: "Origin")
         try await expect(link).toHaveCount(1)
         let href = try await link.evaluate("(el) => el.getAttribute('href')")
         #expect(
-          (href.string ?? "").lowercased() == "\(page)/revisions/\(revision)#apparatus-origin-tree",
+          (href.string ?? "").lowercased() == "\(page)/revisions/\(revision)?source=code#apparatus-origin-tree",
           "the thread's Origin does not link to the revision's diff: \(href)")
+        if let target = href.string {
+          try await tab.openHydrated(target)
+          try await expect(tab.locator(".origin-diff-view [id='apparatus-origin-tree']")).toBeAttached()
+        }
       }
     } catch {
       remove()

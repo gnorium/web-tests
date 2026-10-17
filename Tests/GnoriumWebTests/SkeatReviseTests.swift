@@ -74,10 +74,19 @@ struct SkeatReviseTests {
         let shown = try await raw.evaluate("e => e.textContent").string ?? ""
         #expect(shown.hasPrefix(#"<TEI xmlns="http://www.tei-c.org/ns/1.0">"#), "Raw is not headed: \(shown.prefix(120))")
         #expect(shown.contains("<tagsDecl>") && shown.contains(#"xml:id="text-block""#), "Raw has no header renditions")
-        // Its words as read, each <w> naming its scan zones (@facs).
-        let words = shown.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        // Its words as read, each <w> naming its scan zones (@facs); its
+        // surface as its <facsimile>, between the header and the text, never
+        // in the body (web-components ff0cb26, user, 2026-10-16).
+        let text = shown.range(of: "<text>")
+        let body = text.map { String(shown[$0.lowerBound...]) } ?? ""
+        let words = body.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
           .split(whereSeparator: \.isWhitespace).joined(separator: " ")
-        #expect(words.contains("Southern Evangelical Seminary") && !shown.contains("<facsimile"), "Raw's body")
+        #expect(words.contains("Southern Evangelical Seminary") && !body.contains("<facsimile"), "Raw's body")
+        let facsimile = shown.range(of: "<facsimile>")
+        #expect(
+          text.map { at in facsimile.map { $0.lowerBound < at.lowerBound } ?? false } ?? false
+            && shown.components(separatedBy: "<surface ").count == 2,
+          "Raw's facsimile is not the page's own surface ahead of its text")
 
         // The Revise page's editor: the same text.
         try await page.openHydrated("\(commit.madrigalPath)/revise?resemblance=1")

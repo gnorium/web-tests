@@ -10,8 +10,11 @@ import WebTestsTesting
 /// a process's every part under it (user, 2026-10-16). A value not knowable yet stays its slot, and the task is
 /// a "Task Prompt Template" then: Arbitration's `{query}` until the
 /// composer calls, filled as typed, back to `{query}` when @gnorium goes.
-/// An item its process has already processed says so. Autocompaction keeps
-/// its template, whose {transcript} exists mid-run.
+/// A call with nothing ticked is its template, every slot left, never an
+/// empty state; an item its process will never send a prompt for (one
+/// already processed) is not shown, nor a process with nothing to send
+/// (user, 2026-10-17). Autocompaction keeps its template, whose
+/// {transcript} exists mid-run.
 @Suite("Prompt preview filling", .serialized)
 struct PromptPreviewFillingTests {
   @Test(arguments: [BrowserEngine.chrome])
@@ -46,24 +49,41 @@ struct PromptPreviewFillingTests {
         let explication = page.locator("[data-process='Explication'] .prompt-preview-task .prompt-text-source").first
         let arbitrationSection = page.locator(".prompt-previews-process[data-process='Arbitration']")
         let explicationSection = page.locator(".prompt-previews-process[data-process='Explication']")
-        // A page unexplicated: the madrigal's one process is explication;
-        // no other process shows.
-        try await expect(page.locator(".prompt-previews-process")).toHaveCount(2)
-        // Nothing ticked, nothing a call would read (user, 2026-10-15).
-        try await expect(arbitrationSection.locator(".prompt-preview-task-notice"), timeout: .seconds(20))
-          .toContainText("Tick evidence, metadata, a prompt or a locution for this call.")
+        // Page 1 is explicated: explication sends nothing for it, and its
+        // accordion is not shown; no other process shows (user, 2026-10-17).
+        try await expect(page.locator(".prompt-previews-process")).toHaveCount(1)
+        try await expect(explicationSection).toHaveCount(0)
+        // Nothing ticked, nothing a call would read (user, 2026-10-15):
+        // its template, every slot left, never an empty state (user,
+        // 2026-10-17).
         let taskTitle = arbitrationSection.locator("#prompt-preview-task-arbitration .prompt-preview-title-words").first
-        // Page 1 is explicated: explication sends nothing for it.
-        try await expect(explicationSection.locator(".prompt-preview-task-notice"))
-          .toContainText("This evidence item has already been explicated")
+        try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt Template")
+        try await expect(arbitration).toContainText("{evidence}")
+        try await expect(arbitration).toContainText("{query}")
+        try await expect(page.locator(".prompt-previews-content .empty-section-view")).toHaveCount(0)
+        // Its variables listed above it, as its Revise form lists them;
+        // a prompt filled whole lists none (user, 2026-10-17).
+        let variables = page.locator("#prompt-preview-task-arbitration .prompt-variables-view .datum-view")
+        try await expect(variables).toHaveCount(3)
+        try await expect(variables.first.locator(".datum-text")).toHaveText("{evidence}")
 
-        // Page 3, unexplicated: its explication prompt, the neighbor's edge
-        // sentence filled as its session fills it, no slot left.
+        // Page 3, unexplicated: the madrigal's one process, explication, and
+        // its prompt, the neighbor's edge sentence filled as its session
+        // fills it, no slot left.
         try await page.locator("#madrigal-resemblances .roster-row .roster-label").nth(2).click()
         try await expect(page.locator("#artifact-page-input").first).toHaveValue("3")
         try await expect(explication, timeout: .seconds(20)).toContainText("Beta page sentence.")
+        try await expect(page.locator(".prompt-previews-process")).toHaveCount(2)
         try await expect(explication).not.toContainText("Alpha page sentence.")
         try await expect(explicationSection.getByText("Task Prompt", exact: true)).toHaveCount(1)
+        // Its page image as the session shows what it received (user,
+        // 2026-10-17): drawn in place, bound to zoom there, no chip.
+        let pageImage = explicationSection.locator(
+          ".prompt-preview-task .prompt-preview-images .expandable-attachment-view[data-presentation='received']")
+        try await expect(pageImage).toHaveCount(1)
+        try await expect(pageImage).toHaveAttribute("data-attachment-hydrated", "true")
+        try await expect(explicationSection.locator(".expandable-attachment-trigger, .expandable-attachment-dialog"))
+          .toHaveCount(0)
         // Autocompaction's alone stays a template.
         try await expect(explicationSection.getByText("Task Prompt Template", exact: true)).toHaveCount(1)
         let slots = try await page.evaluate(
@@ -87,6 +107,8 @@ struct PromptPreviewFillingTests {
         try await expect(arbitration).not.toContainText("Alpha page sentence.")
         try await expect(arbitration).toContainText("{query}")
         try await expect(taskTitle).toHaveText("Task Prompt Template")
+        try await expect(variables).toHaveCount(1)
+        try await expect(variables.first.locator(".datum-text")).toHaveText("{query}")
 
         // Arbitration's own box ticks every part of its prompts; one part
         // unticked leaves it partly ticked; the parts are read as sent.
@@ -121,6 +143,7 @@ struct PromptPreviewFillingTests {
         try await expect(arbitration).not.toContainText("{query}")
         try await expect(arbitration).toContainText("Beta page sentence.")
         try await expect(taskTitle).toHaveText("Task Prompt")
+        try await expect(variables).toHaveCount(0)
         let kept = try await page.evaluate(
           "window.__arbitrationSection === document.querySelector(\".prompt-previews-process[data-process='Arbitration']\")",
           as: Bool.self)
@@ -129,6 +152,55 @@ struct PromptPreviewFillingTests {
         try await expect(arbitration, timeout: .seconds(20)).not.toContainText("Why is beta here?")
         try await expect(arbitration).toContainText("{query}")
         try await expect(arbitration).toContainText("Beta page sentence.")
+
+        // Called again, page 2 unticked: nothing ticked, the template whole
+        // again—its query a slot too, never half filled—and its images gone.
+        try await box.fill("@gnorium Why is beta here?")
+        try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt")
+        let images = arbitrationSection.locator(
+          ".prompt-preview-task .prompt-preview-images .expandable-attachment-view[data-presentation='received']")
+        let sent = try await images.count()
+        try await page.locator("#madrigal-resemblances .roster-row").nth(1).locator("input").click()
+        try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt Template")
+        try await expect(arbitration).toContainText("{evidence}")
+        try await expect(arbitration).toContainText("{query}")
+        try await expect(arbitration).not.toContainText("Beta page sentence.")
+        try await expect(arbitration).not.toContainText("Why is beta here?")
+        try await expect(images).toHaveCount(0)
+        try await expect(arbitrationSection.locator(".empty-section-view")).toHaveCount(0)
+        // A prompt part ticked alone, in place: the prompt filled whole; unticked,
+        // its template again, the section never redrawn. The System Prompt:
+        // the process's box would attach its Task Prompt Template too, whose
+        // text keeps its `{evidence}` as written, never filled.
+        _ = try await page.evaluate(
+          "(() => { window.__arbitrationSection = document.querySelector(\".prompt-previews-process[data-process='Arbitration']\"); return true })()",
+          as: Bool.self)
+        try await page.locator("#prompt-tick-system-bibliographic_arbitration").click()
+        try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt")
+        try await expect(arbitration).toContainText("Arbitration › System Prompt")
+        try await expect(arbitration).toContainText("Why is beta here?")
+        try await expect(arbitration).not.toContainText("{evidence}")
+        try await expect(variables).toHaveCount(0)
+        try await page.locator("#prompt-tick-system-bibliographic_arbitration").click()
+        try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt Template")
+        try await expect(arbitration).toContainText("{evidence}")
+        try await expect(variables).toHaveCount(3)
+        try await expect(arbitration).not.toContainText("Arbitration › System Prompt")
+        let swapped = try await page.evaluate(
+          "window.__arbitrationSection === document.querySelector(\".prompt-previews-process[data-process='Arbitration']\")",
+          as: Bool.self)
+        #expect(swapped, "the Arbitration section was redrawn")
+        // Page 2 ticked again: its prompt, and the images it sends.
+        try await page.locator("#madrigal-resemblances .roster-row").nth(1).locator("input").click()
+        try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt")
+        try await expect(arbitration).toContainText("Beta page sentence.")
+        try await expect(images).toHaveCount(sent)
+        // Swapped in place, drawn and bound as the first were: one a line,
+        // zooming where they stand, no chip or lightbox (user, 2026-10-17).
+        #expect(sent > 0, "page 2 sends its image")
+        try await expect(images.first).toHaveAttribute("data-attachment-hydrated", "true")
+        try await expect(arbitrationSection.locator(".expandable-attachment-trigger, .expandable-attachment-dialog"))
+          .toHaveCount(0)
         try await page.expectNoErrors()
       }
     } catch {

@@ -61,12 +61,16 @@ struct OvertureResemblancesTests {
         try await expect(roster.locator(".roster-status[data-mark='ring'][data-tone='blue']")).toHaveCount(3)
         try await expect(roster.locator(".roster-status[data-status]")).toHaveCount(0)
 
-        // The preview is the page on screen's, never a notice.
+        // The preview is the page on screen's, filled, never a template.
         let task = page.locator("[data-process='Explication'] .prompt-preview-task .prompt-text-source").first
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
-        try await expect(page.locator("[data-process='Explication'] .prompt-preview-task-notice")).toHaveCount(0)
-        try await expect(page.locator(".prompt-previews-content .accordion-view")).toHaveCount(12)
+        try await expect(page.locator("[data-process='Explication'] #prompt-preview-task .prompt-preview-title-words").first)
+          .toHaveText("Task Prompt")
+        // Arbitration's and Explication's seven each: the process, its
+        // System, Task and Continuation Prompts (user, 2026-10-15) and its
+        // Autocompaction with its two.
+        try await expect(page.locator(".prompt-previews-content .accordion-view")).toHaveCount(14)
         try await expect(task).toContainText("Title page")
 
         // The pager moves the roster and the address.
@@ -95,10 +99,11 @@ struct OvertureResemblancesTests {
         try await expect(page.locator(".prompt-previews-heading")).toHaveText("Prompts")
         // One accordion a process, its prompts nested inside (user,
         // 2026-10-10), closed until opened.
-        try await expect(page.locator("#prompt-preview-process .accordion-title").first).toHaveText("Explication")
+        try await expect(page.locator("#prompt-preview-process .prompt-preview-title-words").first).toHaveText("Explication")
         try await expect(page.locator("#prompt-preview-process")).toHaveAttribute("data-expanded", "false")
-        try await expect(page.locator("#prompt-preview-process .accordion-title").nth(1)).toHaveText("System Prompt")
-        try await expect(page.locator("#prompt-preview-process .accordion-title").nth(3)).toHaveText("Autocompaction")
+        try await expect(page.locator("#prompt-preview-process .prompt-preview-title-words").nth(1)).toHaveText("System Prompt")
+        try await expect(page.locator("#prompt-preview-process .prompt-preview-title-words").nth(3)).toHaveText("Continuation Prompt")
+        try await expect(page.locator("#prompt-preview-process .prompt-preview-title-words").nth(4)).toHaveText("Autocompaction")
         try await shoot(page, "roster", layout)
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()

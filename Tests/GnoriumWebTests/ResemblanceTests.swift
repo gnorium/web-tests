@@ -103,9 +103,11 @@ struct ResemblanceTests {
         #expect(rowFits, "the header row needs more than its width")
         try await page.expectNoHorizontalOverflow()
         // Find is the search icon alone.
-        // A toggle, as the resemblance switch is: its button holds the name.
+        // A toggle, as the resemblance switch is: its button holds the name,
+        // the viewer's short one (gnorium-web 23bd89d5c, 2026-10-13: the
+        // viewer's tooltips shortened, as Overlay and XML).
         let find = viewer.locator(".testament-find-button button")
-        try await expect(find).toHaveAccessibleName("Find in this testament")
+        try await expect(find).toHaveAccessibleName("Search")
         try await expect(find).toHaveText("")
         // Find and the resemblance switch are the pager's medium chevrons'
         // size, 40, their icons' long edge the chevrons', 16 (icons are tight

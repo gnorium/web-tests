@@ -52,7 +52,7 @@ struct ArtifactZoomSyncTests {
       "/": .init(contentType: "text/html", body: Data(html.utf8)),
       "/loader.js": .init(contentType: "text/javascript", body: try Data(contentsOf: assets.appendingPathComponent("loader.js"))),
       "/client.wasm": .init(contentType: "application/wasm", body: try Data(contentsOf: wasm)),
-      "/manifest": .init(contentType: "application/json", body: Data(#"{"canvases":[{"id":"/scan","w":1200,"h":2000,"img":"/scan.svg"}]}"#.utf8)),
+      "/manifest": .init(contentType: "application/json", body: Data(#"{"canvases":[{"id":"/scan","w":1200,"h":2000,"imgs":["/scan.svg"]}]}"#.utf8)),
       "/scan.svg": .init(contentType: "image/svg+xml", body: Data(#"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="2000"><rect width="1200" height="2000" fill="white"/></svg>"#.utf8)),
     ])
     defer { server.stop() }

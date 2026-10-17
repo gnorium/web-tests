@@ -52,11 +52,18 @@ struct AccountCoreTests {
       const footer = document.querySelector('.layout-footer-wrapper').getBoundingClientRect();
       const style = getComputedStyle(document.querySelector('.account-core-card'));
       const title = getComputedStyle(document.querySelector('.account-core-title'));
+      // Sideways, against the root's own box: the page's width without the
+      // room the layout keeps for its scrollbar (`scrollbar-gutter: stable`
+      // on html, LayoutView). `clientWidth` leaves out only a scrollbar
+      // that is drawn, so with classic scroll bars (macOS "Show scroll
+      // bars: Always") a page too short to scroll counted the empty
+      // 15px gutter as room the card could be centered in.
+      const root = document.documentElement.getBoundingClientRect();
       return {
         top: card.top - header.bottom,
         bottom: footer.top - card.bottom,
-        left: card.left,
-        right: document.documentElement.clientWidth - card.right,
+        left: card.left - root.left,
+        right: root.right - card.right,
         width: card.width,
         padding: style.padding,
         titleSize: title.fontSize,

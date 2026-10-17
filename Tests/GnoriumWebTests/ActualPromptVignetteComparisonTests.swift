@@ -7,8 +7,13 @@ struct ActualPromptVignetteComparisonTests {
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func actualVignettesShowColoredChangesInFullWhiteContext(engine: BrowserEngine, layout: Layout) async throws {
     guard gnorium.engines.contains(engine) else { return }
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    // Its own pair: the dev vignettes it once read were merged away (one
+    // vignette per process, server migration 0146).
+    let vignettes = try ScratchVignettes()
+    defer { try? vignettes.remove() }
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-      try await page.openHydrated("/mission-control/prompts/vignettes/compare?from=832FEFF0-9FD1-4711-86F9-AA1213C72996&to=CE0E6E42-ECF9-4BE8-A365-598219F30063")
+      try await page.openHydrated(vignettes.path)
       try await expect(page.locator(".page-heading")).toContainText("Compare Prompt Vignettes")
       // The diff beside the changed prompt's box, under it, the box in Raw.
       let changed = page.locator(".prompt-compare-content .prompt-text-comparison:has(> .prompt-text-diff .diff-box)").first
@@ -38,8 +43,11 @@ struct ActualPromptVignetteComparisonTests {
   /// of the viewport, and stack (arrow turned down) only where they don't.
   @Test(arguments: [1440, 840, 600, 420, 320])
   func headerStacksOnlyWhenTheRowDoesNotFit(width: Int) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    let vignettes = try ScratchVignettes()
+    defer { try? vignettes.remove() }
     try await withPage(.chrome, gnorium, viewport: Viewport(width: width, height: 900)) { page in
-      try await page.openHydrated("/mission-control/prompts/vignettes/compare?from=832FEFF0-9FD1-4711-86F9-AA1213C72996&to=CE0E6E42-ECF9-4BE8-A365-598219F30063")
+      try await page.openHydrated(vignettes.path)
       let header = page.locator(".vignette-header")
       try await expect(header).toHaveAttribute("data-wrap-stacked")
       let fits = try await page.evaluate("""

@@ -64,12 +64,15 @@ struct TranslationScopeTests {
         // it alone would send it.
         let task = page.locator("[data-process='Translation'] .prompt-preview-task .prompt-text-source").first
         try await expect(task, timeout: .seconds(20)).toContainText("Translate these pages from Italian into English: 1.")
-        // Page 2's is fresh: nothing is sent for it.
+        // Page 2's is fresh: nothing is sent for it, and translation has no
+        // accordion (user, 2026-10-17).
         try await page.locator("#artifact-page-input").fill("2")
         try await page.locator("#artifact-page-input").press("Enter")
         try await expect(page.locator("#artifact-page-input")).toHaveValue("2")
-        try await expect(page.locator("[data-process='Translation'] .prompt-preview-task-notice"), timeout: .seconds(20))
-          .toContainText("This evidence item has already been translated")
+        try await expect(page.locator(".prompt-previews-process[data-process='Translation']"), timeout: .seconds(20))
+          .toHaveCount(0)
+        try await expect(page.locator(".prompt-previews-process[data-process='Arbitration']")).toHaveCount(1)
+        try await expect(page.locator(".prompt-previews-content .empty-section-view")).toHaveCount(0)
         _ = try await page.evaluate("""
           window.__translationSubmit = null;
           window.addEventListener('submit', event => {

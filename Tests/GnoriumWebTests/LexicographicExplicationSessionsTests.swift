@@ -10,26 +10,23 @@ import WebTestsTesting
 /// assigned, its last words—and no processes.
 @Suite("Lexicographic explication sessions", .serialized)
 struct LexicographicExplicationSessionsTests {
-  static func trace() throws -> String {
-    let blocks: [[String: String]] = [
-      ["type": "thinking", "content": "The sentence speaks of a person adding by hand."],
-      [
-        "type": "tool", "name": "read_quotation", "arguments": #"{"quotation":"u-1"}"#,
-        "result": #"{"ok": true, "quotation": "u-1", "sentence": "The ⟦computer⟧ added the columns."}"#,
-        "status": "ok", "call_id": "call_1",
-      ],
-      [
-        "type": "tool", "name": "assign",
-        "arguments": #"{"quotation":"u-1","status":"assigned","sentiments":["s-1-1"],"confidence":"clear","meaning":"a person who calculates","reason":"added the columns"}"#,
-        "result": #"{"ok": true, "quotation": "u-1", "unassigned": []}"#,
-        "status": "ok", "call_id": "call_2",
-      ],
-      ["type": "assignment", "quotation": "u-1", "content": "{}"],
-      ["type": "text", "content": "Both uses are the human calculator."],
-    ]
-    return String(decoding: try JSONSerialization.data(withJSONObject: blocks), as: UTF8.self)
-      .replacingOccurrences(of: "'", with: "''")
-  }
+  /// The session's trace, its blocks as received (`SessionTrace`).
+  static let trace: [[String: String]] = [
+    ["type": "thinking", "content": "The sentence speaks of a person adding by hand."],
+    [
+      "type": "tool", "name": "read_quotation", "arguments": #"{"quotation":"u-1"}"#,
+      "result": #"{"ok": true, "quotation": "u-1", "sentence": "The ⟦computer⟧ added the columns."}"#,
+      "status": "ok", "call_id": "call_1",
+    ],
+    [
+      "type": "tool", "name": "assign",
+      "arguments": #"{"quotation":"u-1","status":"assigned","sentiments":["s-1-1"],"confidence":"clear","meaning":"a person who calculates","reason":"added the columns"}"#,
+      "result": #"{"ok": true, "quotation": "u-1", "unassigned": []}"#,
+      "status": "ok", "call_id": "call_2",
+    ],
+    ["type": "assignment", "quotation": "u-1", "content": "{}"],
+    ["type": "text", "content": "Both uses are the human calculator."],
+  ]
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func anAntiphonIsOneSessionOnItsFirstCluster(engine: BrowserEngine, layout: Layout) async throws {
@@ -57,10 +54,11 @@ struct LexicographicExplicationSessionsTests {
             'Test via Stub', 3, 'quotation-v1', '["u-1","u-2","u-3"]');
         INSERT INTO quotation_clusters (id, quotation_clustering_id, position, quotation_ids_json)
           VALUES ('\(clusters[0])', '\(clustering)', 0, '["u-1","u-2"]'), ('\(clusters[1])', '\(clustering)', 1, '["u-3"]');
-        INSERT INTO lexicographic_explication_nocturnes (id, lexicographic_antiphon_id, process, attempt, provider, model, output, result,
+        INSERT INTO lexicographic_explication_nocturnes (id, lexicographic_antiphon_id, process, attempt, provider, model, result,
           duration_ms, quotation_cluster_id, created_at)
-          VALUES ('\(nocturne)', '\(antiphon)', 'explication', 1, 'openrouter', 'qwen/qwen3.8-max-0902', '\(try Self.trace())',
+          VALUES ('\(nocturne)', '\(antiphon)', 'explication', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
             'passed', 1200, '\(clusters[0])', now());
+        \(try SessionTrace.append(Self.trace, table: "lexicographic_explication_nocturnes", id: nocturne))
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -88,6 +86,7 @@ struct LexicographicExplicationSessionsTests {
     _ = try? TestAdmin.query(
       """
       BEGIN;
+      \(SessionTrace.delete(table: "lexicographic_explication_nocturnes", where: "lexicographic_antiphon_id = '\(antiphon)'"))
       DELETE FROM lexicographic_explication_nocturnes WHERE lexicographic_antiphon_id = '\(antiphon)';
       DELETE FROM quotation_clusterings WHERE lexicographic_antiphon_id = '\(antiphon)';
       DELETE FROM lexicographic_antiphons WHERE id = '\(antiphon)';

@@ -9,24 +9,23 @@ import WebTestsTesting
 /// last words—and no processes.
 @Suite("Translation sessions", .serialized)
 struct TranslationSessionsTests {
-  static func trace() throws -> String {
-    let blocks: [[String: String]] = [
-      ["type": "thinking", "content": "The page is a heading and a rule of arithmetic."],
-      [
-        "type": "tool", "name": "open_page", "arguments": #"{"page":"1"}"#,
-        "result": #"{"ok": true, "page": "1", "of": "1 of 2"}"#, "status": "ok", "call_id": "call_1",
-      ],
-      [
-        "type": "tool", "name": "write_translation",
-        "arguments": #"{"page":"1","segments":[{"key":"s1","text":"The rule of three","note":""}]}"#,
-        "result": #"{"ok": true, "written": ["s1"], "missing": []}"#, "status": "ok", "call_id": "call_2",
-      ],
-      ["type": "translated_page", "page": "1", "content": "{}"],
-      ["type": "text", "content": "Two pages of arithmetic, translated."],
-    ]
-    return String(decoding: try JSONSerialization.data(withJSONObject: blocks), as: UTF8.self)
-      .replacingOccurrences(of: "'", with: "''")
-  }
+  /// The sessions' table, which owns their traces (`SessionTrace`).
+  static let nocturnes = "bibliographic_translation_nocturnes"
+  /// The session's trace, its blocks as received (`SessionTrace`).
+  static let trace: [[String: String]] = [
+    ["type": "thinking", "content": "The page is a heading and a rule of arithmetic."],
+    [
+      "type": "tool", "name": "open_page", "arguments": #"{"page":"1"}"#,
+      "result": #"{"ok": true, "page": "1", "of": "1 of 2"}"#, "status": "ok", "call_id": "call_1",
+    ],
+    [
+      "type": "tool", "name": "write_translation",
+      "arguments": #"{"page":"1","segments":[{"key":"s1","text":"The rule of three","note":""}]}"#,
+      "result": #"{"ok": true, "written": ["s1"], "missing": []}"#, "status": "ok", "call_id": "call_2",
+    ],
+    ["type": "translated_page", "page": "1", "content": "{}"],
+    ["type": "text", "content": "Two pages of arithmetic, translated."],
+  ]
 
   static let tei = #"{"teiXml":"<TEI><text><body><pb n=\"1\" facs=\"https://example.org/iiif/wt1/full/1300,/0/default.jpg\"/><p>Regola del tre</p><pb n=\"2\" facs=\"https://example.org/iiif/wt2/full/1300,/0/default.jpg\"/><p>Somma</p></body></text></TEI>"}"#
 
@@ -39,6 +38,7 @@ struct TranslationSessionsTests {
     let antiphon = UUID().uuidString.lowercased()
     let madrigal = UUID().uuidString.lowercased()
     let serenade = UUID().uuidString.lowercased()
+    let nocturne = UUID().uuidString.lowercased()
     do {
       let user = try admin.column("id")
       // Failed: no worker takes it up, nothing is spent.
@@ -54,10 +54,11 @@ struct TranslationSessionsTests {
         INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, requested_by_user_id,
           processing_status, processing_error)
           VALUES ('\(serenade)', '\(madrigal)', 'eng', '\(user)', 'failed', 'Web tests');
-        INSERT INTO bibliographic_translation_nocturnes (id, bibliographic_serenade_id, process, chunk, attempt, provider, model, output,
+        INSERT INTO bibliographic_translation_nocturnes (id, bibliographic_serenade_id, process, chunk, attempt, provider, model,
           result, duration_ms, created_at)
-          VALUES (gen_random_uuid(), '\(serenade)', 'translation', '1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
-            '\(try Self.trace())', 'passed', 1200, now());
+          VALUES ('\(nocturne)', '\(serenade)', 'translation', '1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
+            'passed', 1200, now());
+        \(try SessionTrace.append(Self.trace, table: Self.nocturnes, id: nocturne))
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -94,6 +95,7 @@ struct TranslationSessionsTests {
     let antiphon = UUID().uuidString.lowercased()
     let madrigal = UUID().uuidString.lowercased()
     let serenade = UUID().uuidString.lowercased()
+    let nocturne = UUID().uuidString.lowercased()
     let stopped = "The bibliographic translation worker was stopped."
     do {
       let user = try admin.column("id")
@@ -109,10 +111,11 @@ struct TranslationSessionsTests {
         INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, requested_by_user_id,
           processing_status, processing_error)
           VALUES ('\(serenade)', '\(madrigal)', 'eng', '\(user)', 'pending', '\(stopped)');
-        INSERT INTO bibliographic_translation_nocturnes (id, bibliographic_serenade_id, process, chunk, attempt, provider, model, output,
+        INSERT INTO bibliographic_translation_nocturnes (id, bibliographic_serenade_id, process, chunk, attempt, provider, model,
           result, error_message, duration_ms, created_at)
-          VALUES (gen_random_uuid(), '\(serenade)', 'translation', '1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
-            '\(try Self.trace())', 'queued', '\(stopped)', 1200, now());
+          VALUES ('\(nocturne)', '\(serenade)', 'translation', '1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
+            'queued', '\(stopped)', 1200, now());
+        \(try SessionTrace.append(Self.trace, table: Self.nocturnes, id: nocturne))
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -137,6 +140,7 @@ struct TranslationSessionsTests {
     _ = try? TestAdmin.query(
       """
       BEGIN;
+      \(SessionTrace.delete(table: Self.nocturnes, where: "bibliographic_serenade_id = '\(serenade)'"))
       DELETE FROM bibliographic_translation_nocturnes WHERE bibliographic_serenade_id = '\(serenade)';
       DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';
       DELETE FROM bibliographic_madrigals WHERE id = '\(madrigal)';
