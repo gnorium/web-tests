@@ -54,7 +54,7 @@ struct LexicographicExplicationSessionsTests {
             'Test via Stub', 3, 'quotation-v1', '["u-1","u-2","u-3"]');
         INSERT INTO quotation_clusters (id, quotation_clustering_id, position, quotation_ids_json)
           VALUES ('\(clusters[0])', '\(clustering)', 0, '["u-1","u-2"]'), ('\(clusters[1])', '\(clustering)', 1, '["u-3"]');
-        INSERT INTO lexicographic_explication_nocturnes (id, lexicographic_antiphon_id, process, attempt, provider, model, result,
+        INSERT INTO lexicographic_explication_nocturnes (id, lexicographic_antiphon_id, process, instance, provider, model, result,
           duration_ms, quotation_cluster_id, created_at)
           VALUES ('\(nocturne)', '\(antiphon)', 'explication', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
             'passed', 1200, '\(clusters[0])', now());

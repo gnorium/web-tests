@@ -54,7 +54,7 @@ struct TranslationSessionsTests {
         INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, requested_by_user_id,
           processing_status, processing_error)
           VALUES ('\(serenade)', '\(madrigal)', 'eng', '\(user)', 'failed', 'Web tests');
-        INSERT INTO bibliographic_translation_nocturnes (id, bibliographic_serenade_id, process, chunk, attempt, provider, model,
+        INSERT INTO bibliographic_translation_nocturnes (id, bibliographic_serenade_id, process, chunk, instance, provider, model,
           result, duration_ms, created_at)
           VALUES ('\(nocturne)', '\(serenade)', 'translation', '1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
             'passed', 1200, now());
@@ -112,7 +112,7 @@ struct TranslationSessionsTests {
         INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, requested_by_user_id,
           processing_status, processing_error)
           VALUES ('\(serenade)', '\(madrigal)', 'eng', '\(user)', 'pending', '\(stopped)');
-        INSERT INTO bibliographic_translation_nocturnes (id, bibliographic_serenade_id, process, chunk, attempt, provider, model,
+        INSERT INTO bibliographic_translation_nocturnes (id, bibliographic_serenade_id, process, chunk, instance, provider, model,
           result, error_message, duration_ms, created_at)
           VALUES ('\(nocturne)', '\(serenade)', 'translation', '1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
             'queued', '\(stopped)', 1200, now());

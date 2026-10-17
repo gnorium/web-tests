@@ -45,7 +45,7 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, attempt, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(nocturneID)',
             (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1–2', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(),
@@ -220,7 +220,7 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, attempt, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(nocturneID)',
             (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(),
@@ -321,18 +321,18 @@ struct BibliographicExplicationSessionsTests {
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_nocturnes
-          (id, submission_id, process, resemblance, attempt, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          (id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(nocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 2, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 3000, now());
         \(try SessionTrace.append(blocks, table: Self.nocturnes, id: nocturneID, stepMs: 300))
         INSERT INTO bibliographic_explication_nocturnes
-          (id, submission_id, process, resemblance, attempt, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          (id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(failedNocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'DeepSeek', 'deepseek-flash',
             'failed', gen_random_uuid(), '\(antiphonID)', 500, now() - interval '1 second');
         \(try SessionTrace.append([["type": "thinking", "content": "Historical partial thought."]], table: Self.nocturnes, id: failedNocturneID))
         INSERT INTO bibliographic_explication_nocturnes
-          (id, submission_id, process, resemblance, attempt, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          (id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(otherNocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '2', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 100, now());
         \(try SessionTrace.append([["type": "text", "content": "Another finished session."]], table: Self.nocturnes, id: otherNocturneID))
@@ -402,9 +402,9 @@ struct BibliographicExplicationSessionsTests {
           try await expect(session.locator(".computorium-session-output-thinking-running")).toHaveCount(0)
           try await expect(otherRows.first).toHaveAttribute("data-computorium-session-status", "succeeded")
         }
-        // An older failed attempt remains failed in the card, while the list
+        // An older failed instance remains failed in the card, while the list
         // continues to report the session's later successful result.
-        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?resemblance=1&attempt=1")
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?resemblance=1&instance=1")
         try await expect(session).toHaveAttribute("data-computorium-session-status", "failed")
         let currentRows = page.locator(".roster-row[data-computorium-session-label='1']")
         try await expect(currentRows.first).toHaveAttribute("data-computorium-session-status", "succeeded")
@@ -425,13 +425,13 @@ struct BibliographicExplicationSessionsTests {
     try await admin.remove()
   }
 
-  /// The placement rule (user, 2026-10-10; one controls row, 2026-10-17):
-  /// the session's label at the top left of its card; at its foot one row
-  /// of controls, Raw then the info icon at the start edge, the evidence
-  /// pager at the end edge, on one line; no attempt pager (only the latest
-  /// attempt shows, older ones via the Ledger).
+  /// The placement rule (user, 2026-10-17): the session's label at the top
+  /// left of its card, the evidence pager right after it in the title
+  /// block; at its foot one row of controls from the start edge—Raw, the
+  /// info icon, and right after it the nocturne's instances' pager (two
+  /// instances, the latest shown), next to it, not at the end edge.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func pagersSitAtTheBottomRightOfWhatTheyPage(engine: BrowserEngine, layout: Layout) async throws {
+  func pagersSitBesideWhatTheyPage(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -444,7 +444,7 @@ struct BibliographicExplicationSessionsTests {
     do {
       let user = try admin.column("id")
       let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())')"
-      let columns = "(id, submission_id, process, resemblance, attempt, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)"
+      let columns = "(id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)"
       func text(_ content: String) -> [[String: String]] { [["type": "text", "content": content]] }
       _ = try TestAdmin.query("""
         BEGIN;
@@ -452,10 +452,10 @@ struct BibliographicExplicationSessionsTests {
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_nocturnes \(columns)
           VALUES ('\(nocturneIDs[0])', \(batch), 'explication', '1', 2, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now());
-        \(try SessionTrace.append(text("The second attempt."), table: Self.nocturnes, id: nocturneIDs[0]))
+        \(try SessionTrace.append(text("The second instance."), table: Self.nocturnes, id: nocturneIDs[0]))
         INSERT INTO bibliographic_explication_nocturnes \(columns)
           VALUES ('\(nocturneIDs[1])', \(batch), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now() - interval '1 second');
-        \(try SessionTrace.append(text("The first attempt."), table: Self.nocturnes, id: nocturneIDs[1]))
+        \(try SessionTrace.append(text("The first instance."), table: Self.nocturnes, id: nocturneIDs[1]))
         INSERT INTO bibliographic_explication_nocturnes \(columns)
           VALUES ('\(nocturneIDs[2])', \(batch), 'explication', '2', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 100, now());
         \(try SessionTrace.append(text("Another page."), table: Self.nocturnes, id: nocturneIDs[2]))
@@ -463,31 +463,43 @@ struct BibliographicExplicationSessionsTests {
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?resemblance=1")
-        try await expect(page.locator(".computorium-session-controls .computorium-session-page-nav")).toBeVisible()
-        try await expect(page.locator(".computorium-session-header .computorium-session-page-nav")).toHaveCount(0)
+        try await expect(page.locator(".computorium-session-title-block .computorium-session-page-nav")).toBeVisible()
+        try await expect(page.locator(".computorium-session-controls .computorium-session-page-nav")).toHaveCount(0)
+        let instances = page.locator(".computorium-session-controls-start .computorium-session-instance-nav")
+        try await expect(instances).toBeVisible()
+        try await expect(instances.locator(".page-box")).toHaveValue("2")
+        try await expect(instances).toHaveAttribute("data-count", "2")
+        try await expect(instances).toHaveAttribute("aria-label", "Instances")
         let report = try await page.evaluate(
           """
           (() => {
             const r = (s) => document.querySelector(s)?.getBoundingClientRect();
-            const card = r('.computorium-session-view'), pager = r('.computorium-session-controls .computorium-session-page-nav');
+            const card = r('.computorium-session-view'), pager = r('.computorium-session-title-block .computorium-session-page-nav');
             const label = r('.computorium-session-header .computorium-session-title-resemblance');
             const raw = r('.computorium-session-controls-start .computorium-session-markdown-toggle');
+            const info = r('.computorium-session-controls-start .computorium-session-byline');
+            const instances = r('.computorium-session-controls-start .computorium-session-instance-nav');
             const out = [];
-            if (!card || !pager || !label || !raw) return 'missing';
-            // Two attempts, no attempt pager (user, 2026-10-15).
-            if (document.querySelector('.computorium-session-attempt-nav')) out.push('an attempt pager');
+            if (!card || !pager || !label || !raw || !info || !instances) return 'missing';
+            // The evidence pager right after the label, in the title block.
+            const labelEl = document.querySelector('.computorium-session-title-resemblance');
+            if (!labelEl.nextElementSibling?.classList.contains('computorium-session-page-nav')) out.push('evidence pager not after the label');
+            if (pager.left < label.right) out.push('evidence pager overlaps the label');
+            if (Math.abs((label.top + label.bottom) / 2 - (pager.top + pager.bottom) / 2) > 4) out.push('label and evidence pager not on one line');
             // The row is the session's last: under everything it controls.
             const session = document.querySelector('.computorium-session-view');
             if (!session.lastElementChild?.classList.contains('computorium-session-controls')) out.push('controls not at the foot');
-            if (Math.abs(pager.right - card.right) > 1) out.push('pager right ' + pager.right + ' vs card ' + card.right);
             if (Math.abs(raw.left - card.left) > 1) out.push('raw not at the start: ' + (raw.left - card.left));
-            if (Math.abs((raw.top + raw.bottom) / 2 - (pager.top + pager.bottom) / 2) > 1) out.push('raw and pager not on one line');
-            if (label.top > card.top + 1 || Math.abs(label.left - card.left) > 1) out.push('label not top left');
-            // Raw first, then the info icon.
+            // The instances' pager next to the info icon, a gap apart, not at the end edge.
+            if (Math.abs(instances.left - info.right - 8) > 1) out.push('instance pager ' + (instances.left - info.right) + ' from the info icon');
+            if (Math.abs((info.top + info.bottom) / 2 - (instances.top + instances.bottom) / 2) > 1) out.push('info and instance pager not on one line');
+            if (instances.right > card.right - 16) out.push('instance pager at the end edge');
+            // Raw, then the info icon, then the instances' pager.
             const start = document.querySelector('.computorium-session-controls-start');
             const kinds = [...start.children].map(e => e.classList.contains('computorium-session-markdown-toggle') ? 'raw'
-              : e.classList.contains('computorium-session-byline') ? 'info' : 'other').join(' ');
-            if (kinds !== 'raw info') out.push('controls ' + kinds);
+              : e.classList.contains('computorium-session-byline') ? 'info'
+              : e.classList.contains('computorium-session-instance-nav') ? 'instances' : 'other').join(' ');
+            if (kinds !== 'raw info instances') out.push('controls ' + kinds);
             // A prompt's legend: its title, then its vignette's id, no Raw of
             // its own (the session's one is in the controls row).
             const inset = (e) => { const s = getComputedStyle(e); return s.paddingTop + ' ' + s.paddingBottom; };
@@ -551,7 +563,7 @@ struct BibliographicExplicationSessionsTests {
         ["type": "text", "content": "Saved."],
       ]
       let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())')"
-      let columns = "(id, submission_id, process, resemblance, attempt, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, prompt_vignette_id, created_at)"
+      let columns = "(id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, prompt_vignette_id, created_at)"
       _ = try TestAdmin.query("""
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
@@ -622,7 +634,7 @@ struct BibliographicExplicationSessionsTests {
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_nocturnes
-          (id, submission_id, process, resemblance, attempt, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          (id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(nocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now());
         \(try SessionTrace.append(blocks, table: Self.nocturnes, id: nocturneID))

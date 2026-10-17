@@ -452,7 +452,7 @@ struct RevisePagesTests {
         let paths = try await changed.evaluate(
           "e => [...e.querySelectorAll('.locution-thread-path')].map(p => [...p.children].filter(c => !c.classList.contains('breadcrumb-separator-view')).map(c => c.textContent).join(' › ')).join(' | ')")
         #expect(
-          paths.string == "Arbitration › Autocompaction › System Prompt | Arbitration › Autocompaction › Task Prompt Template",
+          paths.string == "Arbitration › Autocompaction › System Prompt | Arbitration › Autocompaction › Task Prompt",
           "\(paths)")
         let joined = try await changed.evaluate(
           "e => [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|')")
@@ -520,7 +520,7 @@ struct RevisePagesTests {
               return named.map(a => a.querySelector('.accordion-summary').textContent.trim()).join(' | ');
             })()
             """, as: String.self)
-          #expect(order == "System Prompt | Task Prompt Template | Continuation Prompt | Autocompaction", "\(slot): \(order)")
+          #expect(order == "System Prompt | Task Prompt | Continuation Prompt | Autocompaction", "\(slot): \(order)")
           let continuation = "\(slot)_continuation"
           try await expect(page.locator("textarea[name='prompt-task-\(continuation)']")).toHaveCount(1)
           try await expect(page.locator("textarea[name='prompt-system-\(continuation)']")).toHaveCount(0)

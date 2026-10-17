@@ -57,7 +57,7 @@ struct CodeBlockPaddingTests {
     }
   }
 
-  /// A madrigal's Revise page, Explication's Task Prompt Template rendered
+  /// A madrigal's Revise page, Explication's Task Prompt rendered
   /// in its capped column.
   @Test(arguments: [BrowserEngine.chrome])
   func revisePage(engine: BrowserEngine) async throws {

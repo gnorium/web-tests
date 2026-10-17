@@ -316,6 +316,13 @@ struct ArbitrationTests {
         try await expect(chip.locator(".rotating-ring-sector-view")).toHaveCount(0)
         try await expect(slot.locator(".computorium-session-output-thinking-running")).toHaveCount(0)
         try await expect(slot).not.toContainText("failed without a recorded reason")
+        // A provider-side stop pauses it too, in prose (user, 2026-10-17):
+        // the reason the server records, never the service's code.
+        _ = try TestAdmin.query("""
+          UPDATE bibliographic_arbitration_sessions SET error_message = 'Paused: no answer in round 6; carrying on.'
+          WHERE id = '\(sessionID)'
+          """)
+        try await expect(paused, timeout: .seconds(15)).toHaveText("Paused: no answer in round 6; carrying on.")
         _ = try TestAdmin.query("UPDATE bibliographic_arbitration_sessions SET result = 'running', error_message = NULL WHERE id = '\(sessionID)'")
         try await expect(paused, timeout: .seconds(15)).toHaveCount(0)
         try await expect(chip.locator(".info-chip-text")).toHaveText("Arbitrating")
@@ -477,6 +484,14 @@ struct ArbitrationTests {
             for (let i = 0; i < 40 && !(img.complete && img.naturalWidth > 0); i++) await new Promise(r => setTimeout(r, 250))
             return img.complete && img.naturalWidth > 0 }
           """).bool == true, "The received image falls back to an image that loads")
+        // Its box is the image as drawn, no taller than half the small
+        // viewport (user, 2026-10-17): no letterbox above or below.
+        #expect(try await received.locator("img.expandable-attachment-image-received").evaluate("""
+          img => { const r = img.getBoundingClientRect(), probe = document.createElement('div')
+            probe.style.height = '50svh'; document.body.appendChild(probe); const half = probe.getBoundingClientRect().height; probe.remove()
+            return r.height <= half + 1 && Math.abs(parseFloat(getComputedStyle(img).maxHeight) - half) <= 0.5
+              && Math.abs(r.width / r.height - img.naturalWidth / img.naturalHeight) * r.height <= 1 }
+          """).bool == true, "The received image's box is its drawn size, capped at 50svh")
         #expect(try await session.locator(".computorium-session-task-fieldset").evaluate(
           "el => !el.innerText.includes('SHA-256') && !el.innerText.includes('Archived')").bool == true,
           "No hash or archive line on the surface (Raw keeps the hash)")
@@ -520,6 +535,87 @@ struct ArbitrationTests {
               && thinking.clientHeight <= 256 && thinking.scrollHeight > thinking.clientHeight;
           }
           """).bool == true, "The reply grows to its session; its thinking keeps its own 256px scroll")
+        // Failed, its alert is prose (user, 2026-10-17): a session that
+        // stopped with the service's code reads "Stopped: …"; the code stays
+        // in the log and the trace. An admin's Resume takes the call up
+        // again as a new instance (user, 2026-10-17).
+        _ = try TestAdmin.query("""
+          BEGIN;
+          UPDATE bibliographic_arbitration_sessions SET result = 'failed',
+            error_message = 'SESSION_EMPTY_RESPONSE: round 6: empty response after 3 tries' WHERE id = '\(sessionID)';
+          UPDATE locutions SET call_status = 'failed' WHERE id = '\(callID)';
+          COMMIT;
+          """)
+        try await page.openHydrated(reading.path)
+        let failed = page.locator("#locution-\(replyID.uppercased())")
+        try await expect(failed.locator(".computorium-session-view")).toHaveAttribute("data-computorium-session-status", "failed")
+        try await expect(failed.locator(".computorium-session-failed-alert"))
+          .toContainText("Stopped: no answer in round 6 after 3 tries.")
+        try await expect(failed).not.toContainText("SESSION_")
+        // Resume: large, blue solid, semibold, a row of its own, as a
+        // call's Commit; posted to the call.
+        let resume = failed.locator(".locution-call-actions .locution-resume")
+        try await expect(resume).toHaveCount(1)
+        try await expect(resume).toHaveText("Resume")
+        try await expect(failed.locator("form.locution-resume-form[action$='/locutions/\(callID.uppercased())/resume']"))
+          .toHaveCount(1)
+        #expect(try await resume.evaluate("""
+          el => ['button-color-blue', 'button-weight-solid', 'button-size-large'].every(c => el.classList.contains(c))
+          """).bool == true, "Resume is large and blue solid")
+        #expect(try await resume.evaluate("""
+          el => getComputedStyle([...el.querySelectorAll('*')].find(n => !n.children.length && n.textContent.trim() === 'Resume') ?? el).fontWeight
+          """).string == "600", "Resume is semibold")
+        try await expect(failed.locator(".locution-pages-nav")).toHaveCount(0)
+        let vignette = try TestAdmin.query("SELECT prompt_vignette_id FROM bibliographic_arbitration_sessions WHERE id = '\(sessionID)'")
+        try await resume.click()
+        // A new instance of the same call: instance 2, the vignette the call
+        // was committed with, the call committed on it and the reply moved
+        // to it; instance 1 kept, failed.
+        try await expect(page.locator("#locution-\(replyID.uppercased()) .locution-pages-nav"), timeout: .seconds(15)).toHaveCount(1)
+        #expect(try TestAdmin.query("""
+          SELECT string_agg(instance || ':' || result, ',' ORDER BY instance) FROM bibliographic_arbitration_sessions
+          WHERE call_locution_id = '\(callID)'
+          """) == "1:failed,2:queued")
+        let second = try TestAdmin.query(
+          "SELECT id FROM bibliographic_arbitration_sessions WHERE call_locution_id = '\(callID)' AND instance = 2")
+        #expect(try TestAdmin.query("SELECT prompt_vignette_id FROM bibliographic_arbitration_sessions WHERE id = '\(second)'") == vignette)
+        #expect(try TestAdmin.query("SELECT call_status || '|' || arbitration_session_id FROM locutions WHERE id = '\(callID)'")
+          == "committed|\(second)")
+        #expect(try TestAdmin.query("SELECT arbitration_session_id FROM locutions WHERE id = '\(replyID)'") == second)
+        // Its instances' pager at the end of the reactions row, after the ⓘ:
+        // "2 of 2", the latest shown; paged back, instance 1's failed session.
+        let resumed = page.locator("#locution-\(replyID.uppercased())")
+        let pager = resumed.locator(".reactions-controls > .locution-pages-nav")
+        try await expect(pager).toHaveCount(1)
+        try await expect(pager).toHaveAttribute("data-count", "2")
+        try await expect(pager).toHaveAttribute("aria-label", "Instances")
+        try await expect(pager.locator(".page-box")).toHaveValue("2")
+        #expect(try await pager.evaluate(
+          "el => el.previousElementSibling?.classList.contains('reactions-raw-info') === true").bool == true,
+          "The pager follows the ⓘ")
+        try await expect(resumed.locator(".locution-page[data-page='2']")).toBeVisible()
+        try await expect(resumed.locator(".locution-page[data-page='1']")).toBeHidden()
+        try await expect(resumed.locator(".locution-page").first).toHaveAttribute("data-page", "2")
+        try await expect(resumed.locator(".locution-resume")).toHaveCount(0)
+        try await pager.locator(".pagination-prev").click()
+        try await expect(resumed.locator(".locution-page[data-page='1']")).toBeVisible()
+        try await expect(resumed.locator(".locution-page[data-page='2']")).toBeHidden()
+        try await expect(resumed.locator(".locution-page").first).toHaveAttribute("data-page", "1")
+        try await expect(resumed.locator(".locution-page[data-page='1'] .computorium-session-view"))
+          .toHaveAttribute("data-computorium-session-status", "failed")
+        try await expect(pager.locator(".page-box")).toHaveValue("1")
+        // An earlier instance is read, never reacted to: its picker disabled.
+        try await expect(resumed.locator(".reaction-picker-trigger")).toBeDisabled()
+        // The Resume, an act of the thread, its instances linked to the reply
+        // shown at them; followed, the reply pages to it.
+        let act = page.locator(".locution-thread-event-line").filter(hasText: "resumed locution \(callID.uppercased())")
+        try await expect(act).toContainText("resumed locution \(callID.uppercased()) instance 1, creating instance 2")
+        try await act.locator("a[href='#locution-\(replyID.uppercased())-instance-2']").click()
+        try await expect(pager.locator(".page-box")).toHaveValue("2")
+        try await expect(resumed.locator(".reaction-picker-trigger")).toBeEnabled()
+        // The ⓘ a bare icon: the controls 8 apart (user, 2026-10-17).
+        #expect(try await resumed.locator(".reactions-controls").evaluate("el => getComputedStyle(el).columnGap").string == "8px")
+        #expect(try TestAdmin.query("SELECT count(*) FROM bibliographic_arbitration_sessions WHERE call_locution_id = '\(callID)'") == "2")
         // An admin submits through exactly the same pending process, the
         // page ticked as any caller ticks it.
         try await page.locator("#locution-thread-locution-body").fill("@gnorium Read this evidence again.")
@@ -527,7 +623,7 @@ struct ArbitrationTests {
         try await page.locator(".locution-thread-submit").click()
         try await expect(page.locator(".locution-commit"), timeout: .seconds(15)).toHaveCount(1)
         try await expect(page.locator(".locution-call-status")).toHaveCount(0)
-        #expect(try TestAdmin.query("SELECT count(*) FROM bibliographic_arbitration_sessions WHERE locutable_id = '\(objectID)'") == "1")
+        #expect(try TestAdmin.query("SELECT count(*) FROM bibliographic_arbitration_sessions WHERE locutable_id = '\(objectID)'") == "2")
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
@@ -971,11 +1067,13 @@ struct ArbitrationTests {
             try await expect(sections.nth(index).locator("#\(id) .prompt-preview-title-words").first).toHaveText(name)
             try await expect(sections.nth(index).locator("#\(id)")).toHaveAttribute("data-expanded", "false")
             try await expect(sections.nth(index).getByText("System Prompt", exact: true)).toHaveCount(2)
-            // Its task filled as sent, or its template where none can be
-            // (user, 2026-10-17); its autocompaction's a template (user,
-            // 2026-10-10).
-            try await expect(sections.nth(index).getByText("Task Prompt", exact: true)).toHaveCount(filled ? 1 : 0)
-            try await expect(sections.nth(index).getByText("Task Prompt Template", exact: true)).toHaveCount(filled ? 1 : 2)
+            // Its task filled as sent, or its template where none can be,
+            // and its autocompaction's, each titled "Task Prompt" (user,
+            // 2026-10-17); a template lists its variables.
+            let titles = sections.nth(index).locator(".prompt-preview-title-words")
+            try await expect(titles.filter(hasText: "Task Prompt")).toHaveCount(2)
+            try await expect(titles.filter(hasText: "Template")).toHaveCount(0)
+            try await expect(sections.nth(index).locator(".prompt-variables-view")).toHaveCount(filled ? 1 : 2)
             try await expect(sections.nth(index).getByText("Autocompaction", exact: true)).toHaveCount(1)
           }
           try await page.openHydrated(path.split(separator: "?").first.map(String.init)! + "/revise")

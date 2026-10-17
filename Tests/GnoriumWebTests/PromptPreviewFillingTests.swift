@@ -7,8 +7,9 @@ import WebTestsTesting
 /// 2026-10-10): Arbitration's for what a call ticks (nothing until it
 /// ticks), its one process's for the Evidence roster's selected item, which
 /// a row's click changes; a prompt accordion's box ticks it for the call,
-/// a process's every part under it (user, 2026-10-16). A value not knowable yet stays its slot, and the task is
-/// a "Task Prompt Template" then: Arbitration's `{query}` until the
+/// a process's every part under it (user, 2026-10-16). A value not knowable
+/// yet stays its slot, the task titled "Task Prompt" all the same (user,
+/// 2026-10-17): Arbitration's `{query}` until the
 /// composer calls, filled as typed, back to `{query}` when @gnorium goes.
 /// A call with nothing ticked is its template, every slot left, never an
 /// empty state; an item its process will never send a prompt for (one
@@ -57,7 +58,7 @@ struct PromptPreviewFillingTests {
         // its template, every slot left, never an empty state (user,
         // 2026-10-17).
         let taskTitle = arbitrationSection.locator("#prompt-preview-task-arbitration .prompt-preview-title-words").first
-        try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt Template")
+        try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt")
         try await expect(arbitration).toContainText("{evidence}")
         try await expect(arbitration).toContainText("{query}")
         try await expect(page.locator(".prompt-previews-content .empty-section-view")).toHaveCount(0)
@@ -75,7 +76,9 @@ struct PromptPreviewFillingTests {
         try await expect(explication, timeout: .seconds(20)).toContainText("Beta page sentence.")
         try await expect(page.locator(".prompt-previews-process")).toHaveCount(2)
         try await expect(explication).not.toContainText("Alpha page sentence.")
-        try await expect(explicationSection.getByText("Task Prompt", exact: true)).toHaveCount(1)
+        // Its own task's accordion, titled by its heading's words.
+        try await expect(explicationSection.locator("#prompt-preview-task .prompt-preview-title-words").first)
+          .toHaveText("Task Prompt")
         // Its page image a line-high chip where it is attached, opening
         // the lightbox (user, 2026-10-17): a prompt read as Markdown, never
         // full size as the model received it.
@@ -86,8 +89,12 @@ struct PromptPreviewFillingTests {
         try await expect(pageImage.locator(".expandable-attachment-trigger")).toHaveCount(1)
         try await expect(explicationSection.locator(".expandable-attachment-view[data-presentation='received']"))
           .toHaveCount(0)
-        // Autocompaction's alone stays a template.
-        try await expect(explicationSection.getByText("Task Prompt Template", exact: true)).toHaveCount(1)
+        // Autocompaction's alone stays a template, its variables listed;
+        // both headings say "Task Prompt", the autocompaction's under its
+        // own accordion (user, 2026-10-17).
+        try await expect(explicationSection.locator(".prompt-preview-title-words").filter(hasText: "Task Prompt"))
+          .toHaveCount(2)
+        try await expect(explicationSection.locator(".prompt-variables-view")).toHaveCount(1)
         let slots = try await page.evaluate(
           """
           (() => {
@@ -108,7 +115,7 @@ struct PromptPreviewFillingTests {
         try await expect(arbitration, timeout: .seconds(20)).toContainText("Beta page sentence.")
         try await expect(arbitration).not.toContainText("Alpha page sentence.")
         try await expect(arbitration).toContainText("{query}")
-        try await expect(taskTitle).toHaveText("Task Prompt Template")
+        try await expect(taskTitle).toHaveText("Task Prompt")
         try await expect(variables).toHaveCount(1)
         try await expect(variables.first.locator(".datum-text")).toHaveText("{query}")
 
@@ -163,7 +170,7 @@ struct PromptPreviewFillingTests {
           ".prompt-preview-task .prompt-preview-images .expandable-attachment-view[data-presentation='line']")
         let sent = try await images.count()
         try await page.locator("#madrigal-resemblances .roster-row").nth(1).locator("input").click()
-        try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt Template")
+        try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt")
         try await expect(arbitration).toContainText("{evidence}")
         try await expect(arbitration).toContainText("{query}")
         try await expect(arbitration).not.toContainText("Beta page sentence.")
@@ -172,7 +179,7 @@ struct PromptPreviewFillingTests {
         try await expect(arbitrationSection.locator(".empty-section-view")).toHaveCount(0)
         // A prompt part ticked alone, in place: the prompt filled whole; unticked,
         // its template again, the section never redrawn. The System Prompt:
-        // the process's box would attach its Task Prompt Template too, whose
+        // the process's box would attach its Task Prompt too, whose
         // text keeps its `{evidence}` as written, never filled.
         _ = try await page.evaluate(
           "(() => { window.__arbitrationSection = document.querySelector(\".prompt-previews-process[data-process='Arbitration']\"); return true })()",
@@ -184,7 +191,7 @@ struct PromptPreviewFillingTests {
         try await expect(arbitration).not.toContainText("{evidence}")
         try await expect(variables).toHaveCount(0)
         try await page.locator("#prompt-tick-system-bibliographic_arbitration").click()
-        try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt Template")
+        try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt")
         try await expect(arbitration).toContainText("{evidence}")
         try await expect(variables).toHaveCount(3)
         try await expect(arbitration).not.toContainText("Arbitration › System Prompt")
