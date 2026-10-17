@@ -248,7 +248,17 @@ struct TestAdmin: Sendable {
     guard let psqlPath else { throw WebTestError(unavailableReason() ?? "psql is missing.") }
     let process = Process()
     process.executableURL = URL(fileURLWithPath: psqlPath)
-    process.arguments = [databaseURL, "-v", "ON_ERROR_STOP=1", "-q", "-At", "-c", sql]
+    // A large seed (a long trace) goes by a file: an argument that long is
+    // past the system's limit (E2BIG). Others keep `-c`, whose one
+    // statement string prints only its last result.
+    var file: URL? = nil
+    if sql.utf8.count > 64 * 1024 {
+      let written = FileManager.default.temporaryDirectory.appendingPathComponent("web-tests-\(UUID().uuidString).sql")
+      try sql.write(to: written, atomically: true, encoding: .utf8)
+      file = written
+    }
+    defer { if let file { try? FileManager.default.removeItem(at: file) } }
+    process.arguments = [databaseURL, "-v", "ON_ERROR_STOP=1", "-q", "-At"] + (file.map { ["-f", $0.path] } ?? ["-c", sql])
     let output = Pipe()
     process.standardOutput = output
     let errors = Pipe()

@@ -207,6 +207,19 @@ struct RawToggleStreamingTests {
       // The reply's run holds XML: colored; the end token's may hold none.
       return { exact: live.every((l, k) => l === fresh[k]) && live[0].length > 0, live, fresh };
     };
+    // Raw's nodes per run (elements, then text nodes), for a long task's
+    // report: what style recalculation and layout walk when Raw shows.
+    window.__rawNodes = () => {
+      const raw = window.__session().querySelector('.chat-template-raw-view');
+      if (!raw) return 'no Raw';
+      const runs = [...raw.children].map(run => {
+        const walker = document.createTreeWalker(run, NodeFilter.SHOW_TEXT);
+        let texts = 0;
+        while (walker.nextNode()) texts++;
+        return (run.getElementsByTagName('*').length + 1) + '/' + texts;
+      });
+      return runs.length + ' runs, elements/texts each: ' + runs.join(' ');
+    };
     // Through the page from its top, most of a screen a step: at each, the
     // view's code on screen colored, a frame after the scroll.
     window.__scrollThrough = async (raw) => {
@@ -298,7 +311,8 @@ struct RawToggleStreamingTests {
         }
         let long = try await page.evaluate(
           "JSON.stringify(window.__longTasks.filter(t => t.start + t.duration >= \(start)))", as: String.self)
-        #expect(long == "[]", "No long task (over 50 ms) while toggling Raw mid-stream: \(long)")
+        let nodes = try await page.evaluate("window.__rawNodes()", as: String.self)
+        #expect(long == "[]", "No long task (over 50 ms) while toggling Raw mid-stream: \(long); Raw: \(nodes)")
 
         // The stream ended: through the whole page in Raw, then in Markdown,
         // no code on screen is ever plain.

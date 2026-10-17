@@ -537,8 +537,8 @@ struct ArbitrationTests {
           """).bool == true, "The reply grows to its session; its thinking keeps its own 256px scroll")
         // Failed, its alert is prose (user, 2026-10-17): a session that
         // stopped with the service's code reads "Stopped: …"; the code stays
-        // in the log and the trace. An admin's Resume takes the call up
-        // again as a new instance (user, 2026-10-17).
+        // in the log and the trace. An admin's Continue carries the
+        // session on from its saved trace (user, 2026-10-18).
         _ = try TestAdmin.query("""
           BEGIN;
           UPDATE bibliographic_arbitration_sessions SET result = 'failed',
@@ -552,70 +552,87 @@ struct ArbitrationTests {
         try await expect(failed.locator(".computorium-session-failed-alert"))
           .toContainText("Stopped: no answer in round 6 after 3 tries.")
         try await expect(failed).not.toContainText("SESSION_")
-        // Resume: large, blue solid, semibold, a row of its own, as a
+        // Continue: large, blue solid, semibold, a row of its own, as a
         // call's Commit; posted to the call.
-        let resume = failed.locator(".locution-call-actions .locution-resume")
-        try await expect(resume).toHaveCount(1)
-        try await expect(resume).toHaveText("Resume")
-        try await expect(failed.locator("form.locution-resume-form[action$='/locutions/\(callID.uppercased())/resume']"))
+        let continueButton = failed.locator(".locution-call-actions .locution-continue")
+        try await expect(continueButton).toHaveCount(1)
+        try await expect(continueButton).toHaveText("Continue")
+        try await expect(failed.locator("form.locution-continue-form[action$='/locutions/\(callID.uppercased())/continue']"))
           .toHaveCount(1)
-        #expect(try await resume.evaluate("""
+        #expect(try await continueButton.evaluate("""
           el => ['button-color-blue', 'button-weight-solid', 'button-size-large'].every(c => el.classList.contains(c))
-          """).bool == true, "Resume is large and blue solid")
-        #expect(try await resume.evaluate("""
-          el => getComputedStyle([...el.querySelectorAll('*')].find(n => !n.children.length && n.textContent.trim() === 'Resume') ?? el).fontWeight
-          """).string == "600", "Resume is semibold")
+          """).bool == true, "Continue is large and blue solid")
+        #expect(try await continueButton.evaluate("""
+          el => getComputedStyle([...el.querySelectorAll('*')].find(n => !n.children.length && n.textContent.trim() === 'Continue') ?? el).fontWeight
+          """).string == "600", "Continue is semibold")
         try await expect(failed.locator(".locution-pages-nav")).toHaveCount(0)
+        // Its Raw, on a failed reply with a long trace (prod's ran past a
+        // megabyte): M↓ shows it without blocking the page, and again puts
+        // it away (user, 2026-10-18).
+        // Rounds as the template carries them: Raw is drawn from these.
+        let long = (0..<300).flatMap { index -> [[String: String]] in
+          let words = "Round \(index): " + String(repeating: "Reading the page again with care. ", count: 120)
+          return [
+            ["type": "chat_template_input", "content": "<｜User｜>" + words],
+            ["type": "thinking", "content": words],
+            ["type": "chat_template_output", "content": words, "end": "<｜end▁of▁sentence｜>"],
+          ]
+        }
+        _ = try TestAdmin.query("BEGIN; \(try SessionTrace.append(long, table: Self.sessions, id: sessionID)) COMMIT;")
+        try await page.openHydrated(reading.path)
+        let failedSession = failed.locator(".computorium-session-view")
+        let failedRaw = failed.locator(".reactions-raw-info .computorium-session-markdown-toggle button")
+        _ = try await page.evaluate("""
+          (() => { window.__long = []; new PerformanceObserver(l => { for (const e of l.getEntries()) window.__long.push(e.duration) })
+            .observe({ type: 'longtask' }); return true })()
+          """, as: Bool.self)
+        try await failedRaw.click()
+        try await expect(failedSession, timeout: .seconds(15)).toHaveAttribute("data-raw-view", "true")
+        try await expect(failedSession.locator(".chat-template-raw-view").first).toBeVisible()
+        try await failedRaw.click()
+        try await expect(failedSession).toHaveAttribute("data-raw-view", "false")
+        let blocked = try await page.evaluate("Math.max(0, ...window.__long)", as: Double.self)
+        #expect(blocked < 500, "No task blocked the page for long: \(blocked) ms")
         let vignette = try TestAdmin.query("SELECT prompt_vignette_id FROM bibliographic_arbitration_sessions WHERE id = '\(sessionID)'")
-        try await resume.click()
-        // A new instance of the same call: instance 2, the vignette the call
-        // was committed with, the call committed on it and the reply moved
-        // to it; instance 1 kept, failed.
-        try await expect(page.locator("#locution-\(replyID.uppercased()) .locution-pages-nav"), timeout: .seconds(15)).toHaveCount(1)
-        #expect(try TestAdmin.query("""
-          SELECT string_agg(instance || ':' || result, ',' ORDER BY instance) FROM bibliographic_arbitration_sessions
-          WHERE call_locution_id = '\(callID)'
-          """) == "1:failed,2:queued")
-        let second = try TestAdmin.query(
-          "SELECT id FROM bibliographic_arbitration_sessions WHERE call_locution_id = '\(callID)' AND instance = 2")
-        #expect(try TestAdmin.query("SELECT prompt_vignette_id FROM bibliographic_arbitration_sessions WHERE id = '\(second)'") == vignette)
-        #expect(try TestAdmin.query("SELECT call_status || '|' || arbitration_session_id FROM locutions WHERE id = '\(callID)'")
-          == "committed|\(second)")
-        #expect(try TestAdmin.query("SELECT arbitration_session_id FROM locutions WHERE id = '\(replyID)'") == second)
-        // Its instances' pager at the end of the reactions row, after the ⓘ:
-        // "2 of 2", the latest shown; paged back, instance 1's failed session.
+        try await continueButton.click()
+        // The same session continued, never restarted (user, 2026-10-18):
+        // no new session, queued again on its call (its saved trace the
+        // service carries on once a worker takes it), on the vignette it was
+        // committed with; the reply still its.
         let resumed = page.locator("#locution-\(replyID.uppercased())")
-        let pager = resumed.locator(".reactions-controls > .locution-pages-nav")
-        try await expect(pager).toHaveCount(1)
-        try await expect(pager).toHaveAttribute("data-count", "2")
-        try await expect(pager).toHaveAttribute("aria-label", "Instances")
-        try await expect(pager.locator(".page-box")).toHaveValue("2")
-        #expect(try await pager.evaluate(
-          "el => el.previousElementSibling?.classList.contains('reactions-raw-info') === true").bool == true,
-          "The pager follows the ⓘ")
-        try await expect(resumed.locator(".locution-page[data-page='2']")).toBeVisible()
-        try await expect(resumed.locator(".locution-page[data-page='1']")).toBeHidden()
-        try await expect(resumed.locator(".locution-page").first).toHaveAttribute("data-page", "2")
-        try await expect(resumed.locator(".locution-resume")).toHaveCount(0)
-        try await pager.locator(".pagination-prev").click()
-        try await expect(resumed.locator(".locution-page[data-page='1']")).toBeVisible()
-        try await expect(resumed.locator(".locution-page[data-page='2']")).toBeHidden()
-        try await expect(resumed.locator(".locution-page").first).toHaveAttribute("data-page", "1")
-        try await expect(resumed.locator(".locution-page[data-page='1'] .computorium-session-view"))
-          .toHaveAttribute("data-computorium-session-status", "failed")
-        try await expect(pager.locator(".page-box")).toHaveValue("1")
-        // An earlier instance is read, never reacted to: its picker disabled.
-        try await expect(resumed.locator(".reaction-picker-trigger")).toBeDisabled()
-        // The Resume, an act of the thread, its instances linked to the reply
-        // shown at them; followed, the reply pages to it.
-        let act = page.locator(".locution-thread-event-line").filter(hasText: "resumed locution \(callID.uppercased())")
-        try await expect(act).toContainText("resumed locution \(callID.uppercased()) instance 1, creating instance 2")
-        try await act.locator("a[href='#locution-\(replyID.uppercased())-instance-2']").click()
-        try await expect(pager.locator(".page-box")).toHaveValue("2")
-        try await expect(resumed.locator(".reaction-picker-trigger")).toBeEnabled()
+        try await expect(resumed.locator(".computorium-session-view"), timeout: .seconds(15))
+          .not.toHaveAttribute("data-computorium-session-status", "failed")
+        #expect(try TestAdmin.query("""
+          SELECT string_agg(id || ':' || instance || ':' || result, ',') FROM bibliographic_arbitration_sessions
+          WHERE call_locution_id = '\(callID)'
+          """) == "\(sessionID):1:queued")
+        #expect(try TestAdmin.query("SELECT prompt_vignette_id FROM bibliographic_arbitration_sessions WHERE id = '\(sessionID)'") == vignette)
+        #expect(try TestAdmin.query("SELECT call_status || '|' || arbitration_session_id FROM locutions WHERE id = '\(callID)'")
+          == "committed|\(sessionID)")
+        #expect(try TestAdmin.query("SELECT arbitration_session_id FROM locutions WHERE id = '\(replyID)'") == sessionID)
+        #expect(try TestAdmin.query("""
+          SELECT count(*) FROM event_logs WHERE action = 'continue' AND resource_id = '\(callID)' AND user_id = '\(adminID)'
+          """) == "1")
+        // One instance: no pager.
+        try await expect(resumed.locator(".locution-pages-nav")).toHaveCount(0)
+        // The Continue, an act of the thread.
+        let act = page.locator(".locution-thread-event-line").filter(hasText: "continued locution \(callID.uppercased())")
+        try await expect(act).toHaveCount(1)
+        try await expect(act).not.toContainText("instance")
+        // Waiting again: its Continue drawn hidden, shown only should it fail
+        // as the page watches—without a reload.
+        try await expect(resumed.locator(".locution-continue")).toBeHidden()
+        _ = try TestAdmin.query("""
+          BEGIN;
+          UPDATE bibliographic_arbitration_sessions SET result = 'failed', error_message = 'Stopped: no saved trace to continue from.'
+            WHERE id = '\(sessionID)';
+          UPDATE locutions SET call_status = 'failed' WHERE id = '\(callID)';
+          COMMIT;
+          """)
+        try await expect(resumed.locator(".locution-continue"), timeout: .seconds(20)).toBeVisible()
         // The ⓘ a bare icon: the controls 8 apart (user, 2026-10-17).
         #expect(try await resumed.locator(".reactions-controls").evaluate("el => getComputedStyle(el).columnGap").string == "8px")
-        #expect(try TestAdmin.query("SELECT count(*) FROM bibliographic_arbitration_sessions WHERE call_locution_id = '\(callID)'") == "2")
+        #expect(try TestAdmin.query("SELECT count(*) FROM bibliographic_arbitration_sessions WHERE call_locution_id = '\(callID)'") == "1")
         // An admin submits through exactly the same pending process, the
         // page ticked as any caller ticks it.
         try await page.locator("#locution-thread-locution-body").fill("@gnorium Read this evidence again.")
@@ -623,7 +640,7 @@ struct ArbitrationTests {
         try await page.locator(".locution-thread-submit").click()
         try await expect(page.locator(".locution-commit"), timeout: .seconds(15)).toHaveCount(1)
         try await expect(page.locator(".locution-call-status")).toHaveCount(0)
-        #expect(try TestAdmin.query("SELECT count(*) FROM bibliographic_arbitration_sessions WHERE locutable_id = '\(objectID)'") == "2")
+        #expect(try TestAdmin.query("SELECT count(*) FROM bibliographic_arbitration_sessions WHERE locutable_id = '\(objectID)'") == "1")
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
