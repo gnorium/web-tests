@@ -152,7 +152,7 @@ struct ArtifactOverlayTests {
   /// `blankCanvas`, a second page with markup whose canvas the manifest
   /// shows with no image (`"blank":true`: changed at its source, no copy of
   /// what was sent kept).
-  static func structureServer(blankPage: Bool = false, blankCanvas: Bool = false) async throws -> FixtureServer {
+  static func structureServer(blankPage: Bool = false, blankCanvas: Bool = false, imageSwitch: Bool = false) async throws -> FixtureServer {
     let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let assets = root.appendingPathComponent("gnorium-web/Public")
     let css = try ["layout-view.css", "tei-view.css", "artifact-view.css", "canvas-view.css"].map {
@@ -177,7 +177,9 @@ struct ArtifactOverlayTests {
         #"{"canvases":[{"id":"/scan","w":4800,"h":6400,"imgs":["/scan.svg"]}]}"#
       }
     let html = "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>" + css + #"""
-      body{margin:0}.artifact-view{width:100%;height:600px}.artifact-viewer-container{height:560px;flex:none}.tei-line{display:block;font-family:serif!important;white-space:nowrap;letter-spacing:0.3em}</style><link rel="icon" href="data:,"></head><body><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest"><div class="artifact-viewer-container"><div class="artifact-markup-frame"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan" data-active="true" data-has-markup="true" data-text-block="300,240 700,248 694,700 294,692"><div class="tei-page-text" data-layer="rendering" data-framed="true" style="--tei-frame-measure: 30; --tei-frame-height: 40; --tei-frame-margin: 5; --tei-page-width: 0; --tei-page-height: 0"><div class="tei-text-block">
+      body{margin:0}.artifact-view{width:100%;height:600px}.artifact-viewer-container{height:560px;flex:none}.tei-line{display:block;font-family:serif!important;white-space:nowrap;letter-spacing:0.3em}</style><link rel="icon" href="data:,"></head><body><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest">
+      """# + (imageSwitch ? #"<header><div class="artifact-canvas-toggle"><button>Resemblance</button></div></header>"# : "") + #"""
+      <div class="artifact-viewer-container"><div class="artifact-markup-frame"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan" data-active="true" data-has-markup="true" data-text-block="300,240 700,248 694,700 294,692"><div class="tei-page-text" data-layer="rendering" data-framed="true" style="--tei-frame-measure: 30; --tei-frame-height: 40; --tei-frame-margin: 5; --tei-page-width: 0; --tei-page-height: 0"><div class="tei-text-block">
       """# + lines + "</div></div></div>" + blank + #"""
       </div></div></div><div class="artifact-object"><div class="canvas-view" data-service-id="/scan"><div class="canvas-viewport"><div class="canvas-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
       """#
@@ -537,6 +539,157 @@ struct ArtifactOverlayTests {
     }
   }
 
+  /// The images put away (the header's Resemblance switch) with the overlay
+  /// on take the overlay with them (user, 2026-10-18): the pane leaves
+  /// overlay mode as the overlay's own switch would leave it (not active,
+  /// not registered, not fading, the pane scrolling again), the overlay's
+  /// switch off and disabled. The images back on bring the overlay back as
+  /// it was: on, registered, its switch pressed and enabled.
+  @Test(arguments: [true, false])
+  func imagesOffTakeTheOverlayWithThem(registered: Bool) async throws {
+    let server = try await Self.structureServer(imageSwitch: true)
+    defer { server.stop() }
+    let config = BrowserTestConfiguration(baseURL: URL(string: server.baseURL)!, engines: [.chrome], defaultTimeout: .seconds(30))
+    try await withPage(.chrome, config, viewport: .init(width: 1440, height: 600)) { page in
+      try await page.goto("/")
+      try await expect(page.locator("html")).toHaveAttribute("data-wasm-status", "started")
+      try await page.evaluate("new Promise(resolve=>setTimeout(resolve,700))")
+      let checks = try await page.evaluate(#"""
+        (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),r=document.querySelector('.artifact-view');
+          if(!REGISTERED)r.querySelector('.tei-page').removeAttribute('data-text-block');
+          const press=(wrap,on)=>{wrap.setAttribute('aria-pressed',on?'true':'false');wrap.querySelector('button').setAttribute('aria-pressed',on?'true':'false');
+            wrap.dispatchEvent(new CustomEvent('toggle-button-update',{detail:on?'true':'false'}))};
+          const images=r.querySelector('.artifact-canvas-toggle'),overlay=r.querySelector('.artifact-overlay-toggle'),button=overlay.querySelector('button');
+          const pane=r.querySelector('.artifact-markup');
+          press(images,true);await wait(900);
+          const imagesOn=r.dataset.canvasShown==='true';
+          press(overlay,true);await wait(900);
+          const on=()=>r.dataset.overlayActive==='true'&&overlay.getAttribute('aria-pressed')==='true'&&button.getAttribute('aria-pressed')==='true'
+            &&!button.disabled&&(r.dataset.overlayRegistered==='true')===REGISTERED;
+          const overlayOn=on();
+          press(images,false);await wait(900);
+          const off=r.dataset.canvasShown==='false'&&r.dataset.overlayActive==='false'&&r.dataset.overlayRegistered!=='true'
+            &&r.dataset.overlayFading!=='true'&&overlay.getAttribute('aria-pressed')==='false'&&button.getAttribute('aria-pressed')==='false'
+            &&button.disabled&&button.getAttribute('aria-disabled')==='true'&&getComputedStyle(pane).overflowY==='auto'
+            &&!r.querySelector('.artifact-structure');
+          press(images,true);await wait(900);
+          const back=r.dataset.canvasShown==='true'&&on();
+          return [imagesOn,overlayOn,off,back].map(Number)})()
+        """#.replacingOccurrences(of: "REGISTERED", with: registered ? "true" : "false"), as: [Int].self)
+      let named = [
+        "the images on", "the overlay on",
+        "the images off: the overlay off in the pane and its switch, disabled, the pane scrolling",
+        "the images back on: the overlay back on, its switch pressed",
+      ]
+      for (check, name) in zip(checks, named) { #expect(check == 1, "\(name) (registered: \(registered))") }
+      try await page.expectNoErrors()
+    }
+  }
+
+  /// A word whose `@facs` names several zones of one scan line—a title's
+  /// letter-spaced "OF", a zone a letter, as on prod madrigal dd5cc0b2's
+  /// page 3—is banded on the scan as one box, the union of its zones,
+  /// never its letters apart; the scan's point between two of its letters
+  /// marks it (user, 2026-10-18). A word broken over two lines is a band a
+  /// line. The model's grouping is the authority: words are planted as the
+  /// tools write them (`data-scan-layout`, `data-word-zones`).
+  @Test(arguments: [1440, 440])
+  func aLetterSpacedWordIsBandedAsOneBox(width: Int) async throws {
+    let server = try await Self.structureServer()
+    defer { server.stop() }
+    let config = BrowserTestConfiguration(baseURL: URL(string: server.baseURL)!, engines: [.chrome], defaultTimeout: .seconds(30))
+    try await withPage(.chrome, config, viewport: .init(width: width, height: 600)) { page in
+      try await page.goto("/")
+      try await expect(page.locator("html")).toHaveAttribute("data-wasm-status", "started")
+      try await page.evaluate("new Promise(resolve=>setTimeout(resolve,700))")
+      let checks = try await page.evaluate(#"""
+        (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),r=document.querySelector('.artifact-view');
+          const page=r.querySelector('.tei-page'),lines=[...page.querySelectorAll('.tei-line')];
+          // "OF" letter-spaced on line 1 (a zone a letter), "bro-ken" broken over lines 1 and 2, and "gypsy" with descenders.
+          lines[0].innerHTML='<span class="tei-word" data-line="1" data-word="1">OF</span> <span class="tei-word" data-line="1" data-word="2">bro-</span> <span class="tei-word" data-line="1" data-word="4">gypsy</span>';
+          lines[1].innerHTML='<span class="tei-word" data-line="1" data-word="2">ken</span>';
+          const zone=(type,id,[l,t,r,b])=>[type,type==='block'?'main':'-',id,l,t,r,t,r,b,l,b].join(' ');
+          page.dataset.scanLayout=[zone('block','-',[300,300,400,350]),zone('line','-',[300,300,400,320]),
+            zone('word','a1',[300,300,310,320]),zone('word','a2',[330,300,340,320]),zone('word','a3',[360,300,370,320]),
+            zone('word','b1',[380,300,400,320]),zone('line','-',[300,330,400,350]),zone('word','b2',[300,330,330,350]),zone('word','d1',[340,330,370,350])].join(';');
+          page.dataset.wordZones='1:1 a1 a2 a3;1:2 b1 b2;1:4 d1';
+          const bands=()=>[...document.querySelectorAll('.canvas-word')].filter(b=>!b.hidden).map(b=>b.getBoundingClientRect());
+          const words=[...page.querySelectorAll('.tei-word')],object=r.querySelector('.artifact-object');
+          words[0].dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await wait(100);
+          const of=bands();
+          // One band, the union's shape: 70 by 20 of the 0–1000 space on a 4800 by 6400 scan.
+          const ratio=of.length===1?(of[0].width/of[0].height)/((70*4800)/(20*6400)):0;
+          const one=of.length===1&&Math.abs(ratio-1)<0.05;
+          // The word marked as the scan's, its point on the scan (`at`: the band's fraction across).
+          const leave=async()=>{object.dispatchEvent(new MouseEvent('mouseleave'));r.querySelector('.artifact-markup').dispatchEvent(new MouseEvent('mouseleave'));await wait(50)};
+          const viaScan=async(w,across)=>{w.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await wait(100);const b=bands()[0];await leave();
+            object.dispatchEvent(new MouseEvent('mousemove',{clientX:b.x+across*b.width,clientY:b.y+b.height/2,bubbles:true}));await wait(100)};
+          // The edition's band as its word's face says it: the glyphs' width less the letter-spacing trailing the last
+          // letter; down, the face's ink envelope ("ÉÅfhgjpqy|" at 200px, measured in the word's font) scaled by the
+          // span's own font size and set on its baseline—whatever letters the word holds—in the span's own pixels
+          // (the zoom taken out). [matches, baseline, band top and bottom in the window's, band height in the span's].
+          const measure=w=>{const range=document.createRange();range.setStart(w,0);range.setEnd(w,w.childNodes.length);
+            const rects=[...range.getClientRects()].filter(q=>q.width>0),own=w.getBoundingClientRect(),scale=own.width/w.offsetWidth,style=getComputedStyle(w);
+            const text=[Math.min(...rects.map(q=>q.left)),Math.max(...rects.map(q=>q.right)),Math.min(...rects.map(q=>q.top)),Math.max(...rects.map(q=>q.bottom))];
+            const ctx=document.createElement('canvas').getContext('2d');ctx.font=style.fontStyle+' '+style.fontWeight+' 200px '+style.fontFamily;ctx.fontVariantCaps=style.fontVariantCaps;
+            const m=ctx.measureText('ÉÅfhgjpqy|'),unit=parseFloat(style.fontSize)*scale/200,baseline=rects[0].top+m.fontBoundingBoxAscent*unit;
+            const inkTop=baseline-m.actualBoundingBoxAscent*unit,inkBottom=baseline+m.actualBoundingBoxDescent*unit;
+            const spacing=parseFloat(style.letterSpacing)||0;
+            const px=name=>parseFloat(w.style.getPropertyValue('--artifact-band-'+name));
+            const matches=w.dataset.band==='true'&&Math.abs(px('width')*scale-(text[1]-text[0]-spacing*scale))<1&&Math.abs(px('height')*scale-(inkBottom-inkTop))<1
+              &&Math.abs(px('x')*scale-(text[0]-own.left))<1&&Math.abs(px('y')*scale-(inkTop-own.top))<1&&getComputedStyle(w).backgroundImage.includes('gradient');
+            return {matches,spacing,scale,baseline,height:px('height'),
+              bottom:own.top+(px('y')+px('height'))*scale,top:own.top+px('y')*scale,box:text[3]-text[2]}};
+          // The scan between O and F (x 320 of 300–370) marks the word.
+          await leave();
+          let gap=false,hug=false,caps=false,zoomed=false,of2=null;
+          if(of.length===1){const b=of[0];object.dispatchEvent(new MouseEvent('mousemove',{clientX:b.x+(320-300)/70*b.width,clientY:b.y+b.height/2,bubbles:true}));await wait(100);
+            gap=words[0].dataset.corresponding==='true'&&bands().length===1;
+            const m=measure(words[0]);hug=m.spacing>0&&m.matches;
+            of2=m;
+            // Zoomed with it marked, the band follows.
+            const pane=r.querySelector('.artifact-markup'),pb=pane.getBoundingClientRect(),layer=r.querySelector('[data-layer=rendering]'),before=Number(layer.dataset.zoom),scaled=m.scale;
+            for(let i=0;i<8;i++){pane.dispatchEvent(new WheelEvent('wheel',{deltaY:-40,clientX:pb.x+pb.width/2,clientY:pb.y+pb.height/2,bubbles:true,cancelable:true}));await wait(30)}
+            await wait(400);const now=measure(words[0]);
+            zoomed=Number(layer.dataset.zoom)>before&&words[0].dataset.corresponding==='true'&&Math.abs(now.scale-scaled)>0.01&&now.matches}
+          await leave();
+          // The same line, the same band: "OF" (capitals alone) and "gypsy" (descenders) share one top and one bottom, within a pixel;
+          // the descender word's band is no taller than its neighbor's and still reaches below its baseline.
+          await viaScan(words[0],0.5);
+          const o=measure(words[0]);
+          await leave();
+          await viaScan(words[2],0.5);
+          const g=measure(words[2]);
+          of2=o;
+          caps=!!of2&&g.matches&&Math.abs(g.top-of2.top)<1&&Math.abs(g.bottom-of2.bottom)<1;
+          const descends=words[2].dataset.corresponding==='true'&&g.matches&&!!of2&&g.height<=of2.height+1&&g.bottom>g.baseline+1;
+          // A smaller span's band is proportionally smaller: the same word at half the size.
+          await leave();
+          words[2].style.fontSize=(parseFloat(getComputedStyle(words[2]).fontSize)/2)+'px';await wait(100);
+          await viaScan(words[2],0.5);
+          const h=measure(words[2]);
+          const smaller=h.matches&&Math.abs(h.height/g.height-0.5)<0.05;
+          words[2].style.fontSize='';
+          await leave();
+          words[1].dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await wait(100);
+          const broken=bands().length===2&&words[3].dataset.corresponding==='true';
+          return [one,gap,hug,caps,zoomed,descends,smaller,broken].map(Number)})()
+        """#, as: [Int].self)
+      let named = [
+        "the letter-spaced word: one band, the union of its zones",
+        "the scan between its letters marks the word",
+        "the edition's band hugs the letter-spaced word: its glyphs' width less the trailing letter-spacing, its face's ink envelope down",
+        "words of one size on a line share one band top and bottom: an all-capitals word's and a lowercase one's",
+        "zoomed with the word marked, the band follows",
+        "a word with descenders: its band is no taller than its neighbor's and reaches below the baseline",
+        "a smaller span's band is proportionally smaller",
+        "the word broken over lines: a band a line, its other part marked",
+      ]
+      for (check, name) in zip(checks, named) { #expect(check == 1, "\(name) (width \(width))") }
+      try await page.expectNoErrors()
+    }
+  }
+
   /// The fixture's reader at the text's fit, side by side or stacked:
   /// `RINGED` rings the pane (gnorium-web TestamentView's diff state: its
   /// border round); `toggle(on)`, `state()` (zoom, scroll and client
@@ -600,7 +753,12 @@ struct ArtifactOverlayTests {
       const ink=inkBox(layer),edges=frame.getBoundingClientRect(),fs=getComputedStyle(frame);
       context.font=fs.fontStyle+' '+fs.fontWeight+' '+fs.fontSize+' '+fs.fontFamily;const space=context.measureText(' ').width*z;
       const spans=!!ink&&frame!==layer&&ink[0]-edges.left<=space&&edges.right-ink[2]<=space;
-      const laid=page.dataset.textBlockDerived==='true'?[edges.left,edges.top,edges.right,edges.bottom]:spans?ink:laidOn(zone,ink);
+      // Where the work's frame is declared (`data-scan-em`), always at the type's scale (user, 2026-10-17): the rendered em over
+      // the work's em on the scan, the scan at its own size from the block's top, centered across it (artifact-core
+      // `OverlayRegistration.laid`); else by the block, a derived one the frame whole.
+      const scanEm=Number(page.dataset.scanEm)/1000*W,renderedEm=parseFloat(fs.fontSize)*z,typeScale=scanEm>0&&renderedEm>0?renderedEm/scanEm:0;
+      const typedOn=([L,T,R],s)=>{const across=Math.hypot(zone[1][0]-zone[0][0],zone[1][1]-zone[0][1]),down=Math.hypot(zone[3][0]-zone[0][0],zone[3][1]-zone[0][1]),half=across*s/2,mid=(L+R)/2;return [mid-half,T,mid+half,T+down*s]};
+      const derived=page.dataset.textBlockDerived==='true',laid=typeScale>0?typedOn(derived?[edges.left,edges.top,edges.right]:ink,typeScale):derived?[edges.left,edges.top,edges.right,edges.bottom]:spans?ink:laidOn(zone,ink);
       const h=homography(zone,[[laid[0],laid[1]],[laid[2],laid[1]],[laid[2],laid[3]],[laid[0],laid[3]]]);
       const quads=[],marginBlocks=[];let main=true;
       for(const entry of page.dataset.scanLayout.split(';')){const p=entry.split(' ');const pts=p.slice(3).map(Number);const q=[0,1,2,3].map(i=>apply(h,[pts[2*i]/1000*W,pts[2*i+1]/1000*H]));
@@ -788,6 +946,27 @@ struct ArtifactOverlayTests {
             (document.activeElement||document.body).dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await wait(500);return JSON.stringify([covers,apart,still,[s.left,s.top,s.width,s.height],[q.left,q.top,q.width,q.height],[a.left,a.top,a.width,a.height]])})()
           """#, as: String.self)
         #expect(gloss.hasPrefix("[true,true,true"), "the gloss at \(width): covers the text pane, clear of the image, the image unmoved: \(gloss)")
+        // A click on a word's band on the scan does what a click on the word
+        // does (user, 2026-10-18): its gloss opens over the text pane, the
+        // pane brought to the word first; a press that moved (a pan) opens
+        // nothing.
+        let band = try await page.evaluate(#"""
+          (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),R=e=>e.getBoundingClientRect(),o=document.querySelector('.artifact-object'),p=document.querySelector('.artifact-markup');
+            document.querySelector('.tei-view').dataset.gloss='/gloss';
+            const words=[...p.querySelectorAll('.tei-page[data-active=true] .tei-word')],word=words[Math.floor(words.length/2)];
+            word.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await wait(100);
+            const band=[...document.querySelectorAll('.canvas-word')].find(b=>!b.hidden);if(!band)return 'noband';
+            const b=R(band),x=b.x+b.width/2,y=b.y+b.height/2;
+            o.dispatchEvent(new MouseEvent('mouseleave',{bubbles:true}));await wait(50);p.scrollTop=0;p.scrollLeft=0;await wait(50);
+            const press=(down,up)=>{o.dispatchEvent(new MouseEvent('mousedown',{clientX:down[0],clientY:down[1],bubbles:true}));o.dispatchEvent(new MouseEvent('mouseup',{clientX:up[0],clientY:up[1],bubbles:true}));o.dispatchEvent(new MouseEvent('click',{clientX:up[0],clientY:up[1],bubbles:true}))};
+            press([x,y],[x+20,y]);await wait(500);const open=()=>[...document.querySelectorAll('.gloss-sheet .sheet-panel')].some(e=>R(e).width>0),panned=!open();
+            o.dispatchEvent(new MouseEvent('mouseleave',{bubbles:true}));press([x,y],[x,y]);await wait(600);
+            const w=R(word),q=R(p);
+            const opened=open(),shown=w.bottom>q.top&&w.top<q.bottom&&w.right>q.left&&w.left<q.right;
+            (document.activeElement||document.body).dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await wait(500);
+            return JSON.stringify([panned,opened,shown])})()
+          """#, as: String.self)
+        #expect(band == "[true,true,true]", "a click on a word's band at \(width): a pan opens nothing, a click opens its gloss, the pane at the word: \(band)")
       }
       try await page.evaluate("document.querySelector('.artifact-overlay-toggle').dispatchEvent(new CustomEvent('toggle-button-update',{detail:'true'}))")
       // At rest: the motion and the panes' move done.

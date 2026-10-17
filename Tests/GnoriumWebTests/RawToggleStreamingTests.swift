@@ -62,6 +62,29 @@ struct RawToggleStreamingTests {
       new PerformanceObserver(list => { for (const e of list.getEntries()) window.__longTasks.push({ start: e.startTime, duration: e.duration }) })
         .observe({ type: 'longtask', buffered: true });
     } catch (_) {}
+    // Each long animation frame (Chrome's Long Animation Frames API), for
+    // a long task's report: the scripts it ran—who called them, from
+    // where, how long, how much of that was style and layout they forced—
+    // and its own rendering: the frame's callbacks (requestAnimationFrame,
+    // observers) from renderStart, then style and layout from
+    // styleAndLayoutStart to its end (paint is after it, not timed here).
+    window.__longFrames = [];
+    try {
+      new PerformanceObserver(list => {
+        for (const f of list.getEntries()) {
+          const end = f.startTime + f.duration;
+          window.__longFrames.push({
+            start: Math.round(f.startTime), duration: Math.round(f.duration), blocking: Math.round(f.blockingDuration),
+            callbacks: f.renderStart ? Math.round((f.styleAndLayoutStart || end) - f.renderStart) : 0,
+            styleAndLayout: f.styleAndLayoutStart ? Math.round(end - f.styleAndLayoutStart) : 0,
+            scripts: f.scripts.map(s => ({
+              invoker: s.invoker, type: s.invokerType, source: (s.sourceURL || '').split('/').pop() + ':' + (s.sourceFunctionName || ''),
+              duration: Math.round(s.duration), forcedStyleAndLayout: Math.round(s.forcedStyleAndLayoutDuration),
+            })),
+          });
+        }
+      }).observe({ type: 'long-animation-frame', buffered: true });
+    } catch (_) {}
     (() => {
       const fence = (n) => '```xml\\n' + Array.from({ length: 12 }, (_, i) => '<line n="' + n + '.' + i + '" type="x">Text ' + i + ' &amp; more</line>').join('\\n') + '\\n```\\n\\n';
       const prompt = (r) => '### Round ' + r + '\\n\\n' + Array.from({ length: 40 }, (_, k) => '### Step ' + k + '\\n\\nRead **page** ' + k + ' and `write` it.\\n\\n' + fence(r * 1000 + k)).join('');
@@ -312,7 +335,13 @@ struct RawToggleStreamingTests {
         let long = try await page.evaluate(
           "JSON.stringify(window.__longTasks.filter(t => t.start + t.duration >= \(start)))", as: String.self)
         let nodes = try await page.evaluate("window.__rawNodes()", as: String.self)
-        #expect(long == "[]", "No long task (over 50 ms) while toggling Raw mid-stream: \(long); Raw: \(nodes)")
+        // The long animation frames holding them: whose script, or the
+        // frame's own style and layout.
+        let frames = try await page.evaluate("""
+          JSON.stringify(window.__longFrames.filter(f => f.start + f.duration >= \(start)
+            && window.__longTasks.some(t => t.start < f.start + f.duration && t.start + t.duration > f.start)))
+          """, as: String.self)
+        #expect(long == "[]", "No long task (over 50 ms) while toggling Raw mid-stream: \(long); frames: \(frames); Raw: \(nodes)")
 
         // The stream ended: through the whole page in Raw, then in Markdown,
         // no code on screen is ever plain.

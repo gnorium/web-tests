@@ -293,7 +293,7 @@ struct RevisePagesTests {
             if (markup.dataset.diffState !== 'changed') return `markup ${markup.dataset.diffState}`
             if (viewer.dataset.diffState || (pager && pager.dataset.diffState)) return 'card or pager ringed'
             const frame = markup.closest('.artifact-markup-box')
-            if (!frame || getComputedStyle(frame, '::after').outlineStyle === 'none') return 'markup unringed'
+            if (!frame || frame.dataset.ring !== 'changed' || getComputedStyle(frame).outlineStyle === 'none') return 'markup unringed'
             return boxed.length === 0 ? 'ok' : `boxed ${boxed.length}`
           })()
           """, as: String.self)
@@ -313,18 +313,18 @@ struct RevisePagesTests {
             const orange = getComputedStyle(probe).borderTopColor; probe.remove()
             const card = document.querySelector('.artifact-view')
             const pane = card.querySelector('.artifact-markup')
-            const style = getComputedStyle(pane)
+            const box = pane.closest('.artifact-markup-box')
+            const style = getComputedStyle(box)
             for (const side of ['Top', 'Right', 'Bottom', 'Left']) {
               if (style['border' + side + 'Style'] !== 'solid') return side + ' border ' + style['border' + side + 'Style']
               if (style['border' + side + 'Color'] !== orange) return side + ' border ' + style['border' + side + 'Color']
-              if (style['padding' + side] !== '0px') return side + ' padding ' + style['padding' + side]
+              if (getComputedStyle(pane)['padding' + side] !== '0px') return side + ' padding ' + getComputedStyle(pane)['padding' + side]
             }
-            const overlay = getComputedStyle(pane.closest('.artifact-markup-box'), '::after')
-            if (overlay.borderTopStyle !== 'solid' || overlay.borderTopColor !== orange) return 'overlay border ' + overlay.borderTopStyle + ' ' + overlay.borderTopColor
-            if (overlay.outlineStyle !== 'solid' || overlay.outlineColor !== orange) return 'outline ' + overlay.outlineStyle + ' ' + overlay.outlineColor
-            if (overlay.outlineWidth !== '1px' || overlay.outlineOffset !== '-2px') return 'outline ' + overlay.outlineWidth + ' at ' + overlay.outlineOffset
+            if (style.outlineStyle !== 'solid' || style.outlineColor !== orange) return 'outline ' + style.outlineStyle + ' ' + style.outlineColor
+            if (style.outlineWidth !== '1px' || style.outlineOffset !== '-2px') return 'outline ' + style.outlineWidth + ' at ' + style.outlineOffset
+            if (getComputedStyle(box, '::after').content !== 'none') return 'a ring layer stands over the pane'
             const viewer = card.querySelector('.artifact-viewer-container')
-            const a = viewer.getBoundingClientRect(), b = pane.getBoundingClientRect()
+            const a = viewer.getBoundingClientRect(), b = box.getBoundingClientRect()
             const flush = (x, y) => Math.abs(x - y) < 1
             if (!flush(a.left + viewer.clientLeft, b.left) || !flush(a.top + viewer.clientTop, b.top) || !flush(a.bottom - viewer.clientTop, b.bottom)) return 'inset'
             if (card.dataset.canvasShown === 'false' && !flush(a.right - viewer.clientLeft, b.right)) return 'inset at the end'
@@ -342,7 +342,59 @@ struct RevisePagesTests {
         try await page.locator(".artifact-canvas-toggle button").first.click()
         try await expect(page.locator(".artifact-view")).toHaveAttribute("data-canvas-shown", "true")
         #expect(try await page.evaluate(ring, as: String.self) == "ok true", "Resemblance shown")
+        // Ringed, the label still stands over the text: the box's 1px edge
+        // moves the text and the label alike (TEILayoutTests has it unringed).
+        let aligned = """
+          (() => {
+            const start = (el) => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().left };
+            const label = document.querySelector('.artifact-canvas-label')
+            const text = document.querySelector(".artifact-markup .tei-page[data-active='true'] .tei-page-text[data-layer='rendering']")
+            if (!label || !label.textContent.trim()) return 'no label'
+            if (!text) return 'no text'
+            const box = document.querySelector('.artifact-markup-box')
+            if (!box.dataset.ring) return 'unringed'
+            const pane = text.closest('.tei-page')
+            const paneStyle = getComputedStyle(pane), textStyle = getComputedStyle(text)
+            const edge = pane.getBoundingClientRect().left + parseFloat(paneStyle.borderLeftWidth) + parseFloat(paneStyle.paddingLeft)
+              + parseFloat(textStyle.borderLeftWidth) + parseFloat(textStyle.paddingLeft)
+            return Math.abs(start(label) - edge) < 0.5 ? 'ok' : start(label) + ' vs ' + edge
+          })()
+          """
+        #expect(try await page.evaluate(aligned, as: String.self) == "ok", "Ringed, label and text align: resemblance put away")
+        let alignedAway = try await page.evaluate(aligned, as: String.self)
+        #expect(alignedAway == "ok", "Ringed, label and text: \(alignedAway)")
+        // Canvas shown: read the pixels.
+        RingPixels.expectTwoPixels(try await RingPixels.read(page, colorVariable: "--border-color-orange"), "desktop, canvas shown")
         try await page.locator(".artifact-canvas-toggle button").first.click()
+        try await expect(page.locator(".artifact-view")).toHaveAttribute("data-canvas-shown", "false")
+        RingPixels.expectTwoPixels(try await RingPixels.read(page, colorVariable: "--border-color-orange"), "desktop, canvas put away")
+        // Scrolled (the code under the ring), the phone, and zoomed.
+        _ = try await page.evaluate(
+          """
+          (() => {
+            for (const el of document.querySelectorAll('.artifact-markup-box, .artifact-markup-box *')) {
+              if (el.scrollHeight > el.clientHeight) el.scrollTop = 40
+              if (el.scrollWidth > el.clientWidth) el.scrollLeft = 20
+            }
+            return 1
+          })()
+          """, as: Int.self)
+        RingPixels.expectTwoPixels(try await RingPixels.read(page, colorVariable: "--border-color-orange"), "desktop, scrolled")
+        for (name, viewport) in [
+          ("phone", Viewport.phone), ("zoomed 2x", Viewport(width: 1400, height: 900, deviceScaleFactor: 2)),
+          ("phone, canvas shown", Viewport.phone),
+        ] {
+          try await page.setViewport(viewport)
+          if name.hasSuffix("canvas shown") {
+            try await page.locator(".artifact-canvas-toggle button").first.click()
+            try await expect(page.locator(".artifact-view")).toHaveAttribute("data-canvas-shown", "true")
+          }
+          RingPixels.expectTwoPixels(try await RingPixels.read(page, colorVariable: "--border-color-orange"), name)
+        }
+        try await page.setViewport(.desktop)
+        if try await page.evaluate("document.querySelector('.artifact-view').dataset.canvasShown", as: String.self) == "true" {
+          try await page.locator(".artifact-canvas-toggle button").first.click()
+        }
         try await expect(page.locator(".artifact-view")).toHaveAttribute("data-canvas-shown", "false")
         // The prompts as an object's read, the one changed open in Raw, its
         // diff under the box as a field's is; the other processes closed.

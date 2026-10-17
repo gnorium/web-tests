@@ -137,4 +137,75 @@ struct LocutionCollapseTests {
     scratch.remove()
     try await reader.remove()
   }
+
+  /// The section's toggle folds the whole thread over each locution's own
+  /// fold, never into it (user, 2026-10-18): one folded by its avatar,
+  /// then all folded and opened again, is still folded; the others open.
+  @Test(arguments: [BrowserEngine.chrome])
+  func expandAllReturnsEachLocutionToItsOwnFold(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let reader = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let scratch: ScratchCommit
+    do { scratch = try ScratchCommit(owner: reader) } catch { try await reader.remove(after: error) }
+    let openID = UUID().uuidString.lowercased()
+    let foldedID = UUID().uuidString.lowercased()
+    func removeLocutions() {
+      _ = try? TestAdmin.query("DELETE FROM locutions WHERE id IN ('\(openID)', '\(foldedID)');")
+    }
+    do {
+      let readerID = try reader.column("id")
+      let madrigalID = scratch.madrigalID.lowercased()
+      _ = try TestAdmin.query(
+        """
+        INSERT INTO locutions (id, locutable_type, locutable_id, author_id, content, created_at)
+          VALUES ('\(openID)', 'bibliographic_madrigal', '\(madrigalID)', '\(readerID)',
+                  'The long s is consistent.', now() - interval '1 minute'),
+                 ('\(foldedID)', 'bibliographic_madrigal', '\(madrigalID)', '\(readerID)',
+                  'The catchword is misread.', now());
+        """)
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [reader.cookie]) { page in
+        try await page.openHydrated(scratch.madrigalPath)
+        let open = page.locator("#locution-\(openID.uppercased())")
+        let folded = page.locator("#locution-\(foldedID.uppercased())")
+        let all = page.locator(".locution-thread-collapse")
+        let section = page.locator(".locution-thread-view")
+        try await expect(all).toHaveAttribute("aria-expanded", "true")
+
+        // One folded by its avatar.
+        try await folded.locator("button.locution-collapse").click()
+        try await expect(folded).toHaveAttribute("data-collapsed", "true")
+        try await expect(open).toHaveAttribute("data-collapsed", "false")
+        try await expect(all).toHaveAttribute("aria-expanded", "true")
+
+        // All folded: the section's fold, each one's own left as it was.
+        try await all.click()
+        try await expect(section).toHaveAttribute("data-all-collapsed", "true")
+        try await expect(all).toHaveAttribute("aria-expanded", "false")
+        try await expect(all).toHaveAttribute("aria-label", "Expand locutions")
+        try await expect(open).toHaveAttribute("data-collapsed", "true")
+        try await expect(folded).toHaveAttribute("data-collapsed", "true")
+        try await expect(open).not.toHaveAttribute("data-own-collapsed", "true")
+        try await expect(folded).toHaveAttribute("data-own-collapsed", "true")
+
+        // All opened: each as it was—the one folded by its avatar still folded.
+        try await all.click()
+        try await expect(section).toHaveAttribute("data-all-collapsed", "false")
+        try await expect(all).toHaveAttribute("aria-expanded", "true")
+        try await expect(open).toHaveAttribute("data-collapsed", "false")
+        try await expect(open.locator(".locution-body")).toBeVisible()
+        try await expect(folded).toHaveAttribute("data-collapsed", "true")
+        try await expect(folded.locator(".locution-body")).toBeHidden()
+        try await expect(folded.locator("button.locution-collapse")).toHaveAttribute("aria-expanded", "false")
+        try await page.expectNoErrors()
+      }
+    } catch {
+      removeLocutions()
+      scratch.remove()
+      try await reader.remove(after: error)
+    }
+    removeLocutions()
+    scratch.remove()
+    try await reader.remove()
+  }
 }

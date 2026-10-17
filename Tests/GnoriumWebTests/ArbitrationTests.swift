@@ -268,6 +268,11 @@ struct ArbitrationTests {
         // status as the new stream brings it. The page served with the
         // test's EventSource, whose frames the test sends.
         try await expectRenewKeepsArbitrating(page, path: reading.path, replyID: replyID)
+        // A revision the session suggests as the page watches joins the
+        // thread at once, its act drawn as the server draws it, no reload
+        // (user, 2026-10-18).
+        try await expectSuggestedRevisionJoinsTheThread(
+          page, path: reading.path, replyID: replyID, madrigalID: objectID, by: adminID)
 
         // The thread: the call (its words and own actions), the Commit, then
         // gnorium's reply, submitted with the Commit under its own id, its
@@ -594,6 +599,7 @@ struct ArbitrationTests {
         let blocked = try await page.evaluate("Math.max(0, ...window.__long)", as: Double.self)
         #expect(blocked < 500, "No task blocked the page for long: \(blocked) ms")
         let vignette = try TestAdmin.query("SELECT prompt_vignette_id FROM bibliographic_arbitration_sessions WHERE id = '\(sessionID)'")
+        _ = try await page.evaluate("(() => { window.__notReloaded = true; return true })()", as: Bool.self)
         try await continueButton.click()
         // The same session continued, never restarted (user, 2026-10-18):
         // no new session, queued again on its call (its saved trace the
@@ -613,6 +619,39 @@ struct ArbitrationTests {
         #expect(try TestAdmin.query("""
           SELECT count(*) FROM event_logs WHERE action = 'continue' AND resource_id = '\(callID)' AND user_id = '\(adminID)'
           """) == "1")
+        // Posted in place (user, 2026-10-18): no reload, the transcript's
+        // end brought into view and followed as the session goes on.
+        #expect(try await page.evaluate("window.__notReloaded === true", as: Bool.self), "Continue does not reload the page")
+        let continuedTailInView = """
+          (async () => {
+            for (let i = 0; i < 50; i++) {
+              const content = document.querySelector('#locution-\(replyID.uppercased()) .computorium-session-output-content')
+              // The last child drawn: the hidden Raw view the transcript ends in has no box.
+              const tail = content && ([...content.children].reverse().find(e => e.getClientRects().length > 0) ?? content)
+              const rect = tail && tail.getBoundingClientRect()
+              if (rect && rect.bottom <= innerHeight + 2 && rect.bottom > 0) return true
+              await new Promise(r => setTimeout(r, 100))
+            }
+            return false
+          })()
+          """
+        #expect(try await page.evaluate(continuedTailInView, as: Bool.self), "The transcript's end is in view after Continue")
+        _ = try TestAdmin.query("""
+          BEGIN;
+          \(try SessionTrace.append([["type": "thinking", "content": "Carried on: one more round of reading."]],
+            table: Self.sessions, id: sessionID))
+          COMMIT;
+          """)
+        #expect(try await page.evaluate("""
+          (async () => {
+            for (let i = 0; i < 100; i++) {
+              if (document.querySelector('#locution-\(replyID.uppercased())').textContent.includes('Carried on: one more round of reading.')) return true
+              await new Promise(r => setTimeout(r, 200))
+            }
+            return false
+          })()
+          """, as: Bool.self), "The continued session's new tokens arrive")
+        #expect(try await page.evaluate(continuedTailInView, as: Bool.self), "The page follows the transcript's end")
         // One instance: no pager.
         try await expect(resumed.locator(".locution-pages-nav")).toHaveCount(0)
         // The Continue, an act of the thread.
@@ -708,6 +747,76 @@ struct ArbitrationTests {
       """, as: Bool.self)
     try await expect(chip).toHaveText("Pending")
     try await expect(page.locator(".disputorium-core-header-status-chip .rotating-ring-sector-view")).toHaveCount(0)
+  }
+
+  /// The madrigal page, its arbitration session running, its reply's watch
+  /// the test's stand-in (as `expectRenewKeepsArbitrating`'s, at
+  /// `#suggest-test`): a suggested revision is filed (a row by the
+  /// throwaway admin, as the session's tool files gnorium's), then the
+  /// stream brings the `suggest_revision` call's result. Its act ("…
+  /// suggested revision ‹id›") is in the thread's timeline without a
+  /// reload, once, linked to its revision, after the entries before it.
+  func expectSuggestedRevisionJoinsTheThread(
+    _ page: Page, path: String, replyID: String, madrigalID: String, by userID: String
+  ) async throws {
+    try await page.addInitScript("""
+      if (location.hash === '#suggest-test') {
+        const Real = window.EventSource
+        window.EventSource = class {
+          constructor(url, options) {
+            if (!String(url).includes('/arbitration/stream')) return new Real(url, options)
+            this.url = url; this.handlers = {}
+            setTimeout(() => { this.emit('start', '{"watch":true,"process":"arbitration"}'); window.__suggestStream = this }, 0)
+          }
+          addEventListener(name, fn) { (this.handlers[name] ??= []).push(fn) }
+          emit(name, data) { for (const fn of this.handlers[name] ?? []) fn({ data }) }
+          close() {}
+        }
+      }
+      """)
+    let revisionID = UUID().uuidString
+    defer { _ = try? TestAdmin.query("DELETE FROM revisions WHERE id = '\(revisionID)'") }
+    // A query makes it a new document: the page the renew check left is at the
+    // same address, and a hash alone is no navigation (no reload, no init script).
+    try await page.openHydrated(path + "?suggest=1#suggest-test")
+    #expect(try await page.evaluate("""
+      (async () => { for (let i = 0; i < 50 && !window.__suggestStream; i++) await new Promise(r => setTimeout(r, 100)); return !!window.__suggestStream })()
+      """, as: Bool.self), "The reply's watch is attached")
+    let act = page.locator(".locution-thread-timeline #revision-\(revisionID)")
+    try await expect(act).toHaveCount(0)
+    _ = try await page.evaluate("(() => { window.__notReloaded = true; return true })()", as: Bool.self)
+    _ = try TestAdmin.query("""
+      INSERT INTO revisions (id, revisable_type, revisable_id, prompt_changes_json, status, requested_by_user_id, created_at)
+      VALUES ('\(revisionID)', 'bibliographicMadrigal', '\(madrigalID)', '[]', 'pending', '\(userID)', now())
+      """)
+    _ = try await page.evaluate("""
+      (() => { const label = document.querySelector('#locution-\(replyID.uppercased()) .computorium-session-view')
+          .dataset.computoriumSessionResemblance ?? ''
+        window.__suggestStream.emit('chunk', JSON.stringify({ type: 'tool', name: 'suggest_revision', arguments: '{}',
+          status: 'ok', call_id: 'web_tests_suggest', result: '{"revision":"\(revisionID)"}', resemblance: label }))
+        return true })()
+      """, as: Bool.self)
+    try await expect(act, timeout: .seconds(15)).toHaveCount(1)
+    try await expect(act.locator(".locution-thread-event-line")).toContainText("suggested revision")
+    try await expect(act.locator(".locution-thread-event-line a[href$='/revisions/\(revisionID)']")).toHaveCount(1)
+    // In its place: the last entry, its timestamp's ⓘ live.
+    #expect(try await page.evaluate("""
+      (() => { const entries = [...document.querySelectorAll('.locution-thread-timeline > *')]
+        return entries[entries.length - 1]?.id === 'revision-\(revisionID)' })()
+      """, as: Bool.self), "The act is the thread's last entry")
+    #expect(try await page.evaluate("window.__notReloaded === true", as: Bool.self), "The act arrives without a reload")
+    // The route behind it (`?part=thread`): the thread alone, with the act,
+    // none of the page around it.
+    let fragment = try await page.evaluate(
+      "fetch(location.pathname + '?part=thread').then(r => r.text())", as: String.self)
+    #expect(fragment.contains("id=\"revision-\(revisionID)\"") || fragment.lowercased().contains("id=\"revision-\(revisionID.lowercased())\""),
+      "the thread fragment holds the revision's act")
+    #expect(fragment.contains("suggested revision"), "the fragment says what was done")
+    #expect(fragment.contains("locution-thread-view"), "the fragment is the thread")
+    for chrome in ["<html", "<!DOCTYPE", "layout-main", "disputorium-core-view", "artifact-view"] {
+      #expect(!fragment.contains(chrome), "the fragment carries the page's chrome: \(chrome)")
+    }
+    try await page.expectNoErrors()
   }
 
   /// A madrigal of three explicated pages and one laid in blank.

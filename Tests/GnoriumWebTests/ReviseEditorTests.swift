@@ -388,6 +388,74 @@ struct ReviseEditorTests {
     }
   }
 
+  /// A changed page's XML and its diff under it, in the reader's one card
+  /// (user, 2026-10-18): each part its own scrollport under the wheel. The
+  /// code's pane, ringed orange, scrolls as the diff's zone does: its ring
+  /// is the house ring on the pane's box (1px border and 1px outline of one
+  /// color, no pseudo-element layer, no box-shadow), so nothing takes the
+  /// wheel from the pane. Chrome and Safari.
+  @Test(arguments: [BrowserEngine.chrome, .safari])
+  func aChangedPagesCodeScrollsAsItsDiffDoes(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let json = String(decoding: try JSONSerialization.data(withJSONObject: ["teiXml": try Self.skeatAsStored()]), as: UTF8.self)
+    let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let commit = try ScratchCommit(owner: contributor)
+    do {
+      _ = try TestAdmin.query(
+        "UPDATE bibliographic_madrigals SET proposed_content_json = '\(json.replacingOccurrences(of: "'", with: "''"))' WHERE id = '\(commit.madrigalID)'")
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
+        try await page.openHydrated("\(commit.madrigalPath)/revise")
+        try await Self.xmlOn(page)
+        let first = try await Self.expectColoredPage(page, 0)
+        let now = try await Self.paste(page, first.text.replacingOccurrences(of: #"reason="blank""#, with: #"reason="illegible""#))
+        #expect(now.ring == "changed" && now.diff, "the changed page: ring '\(now.ring)', diff \(now.diff)")
+        struct Parts: Decodable {
+          let pane: [Double]
+          let zone: [Double]
+          let overlay: String
+          let ring: [String]
+          let hit: Bool
+          let scrolls: Bool
+        }
+        let parts = try await page.evaluate(
+          """
+          (() => { const reader = document.querySelector('.artifact-view'); reader.scrollIntoView({ block: 'center' });
+            const pane = reader.querySelector('.artifact-markup'), zone = reader.querySelector('.artifact-under-markup');
+            const box = pane.parentElement; pane.scrollTop = 0; zone.scrollTop = 0;
+            const rect = e => { const b = e.getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; };
+            const [x, y] = rect(pane);
+            const style = getComputedStyle(box);
+            return { pane: rect(pane), zone: rect(zone), overlay: getComputedStyle(box, '::after').content,
+              ring: [style.borderTopWidth, style.borderTopColor, style.outlineWidth, style.outlineColor, style.boxShadow, getComputedStyle(pane).borderTopWidth],
+              hit: document.elementFromPoint(x, y)?.closest('.artifact-markup') === pane,
+              scrolls: /(auto|scroll)/.test(getComputedStyle(pane).overflowY) && pane.scrollHeight > pane.clientHeight + 1 }; })()
+          """, as: Parts.self)
+        #expect(parts.overlay == "none" || parts.overlay == "normal", "a layer stands over the code's pane: \(parts.overlay)")
+        let ring = parts.ring
+        #expect(ring[0] == "1px" && ring[2] == "1px" && ring[1] == ring[3] && ring[4] == "none" && ring[5] == "0px",
+          "the ring is not one border and one outline of one color on the box alone: \(ring)")
+        #expect(parts.hit, "the code's pane is not what the pointer is over")
+        #expect(parts.scrolls, "the code's pane is not a scrollport with more to show")
+        try await page.mouse.wheel(x: parts.pane[0], y: parts.pane[1], deltaY: 400)
+        try await Task.sleep(for: .milliseconds(600))
+        let pane = try await page.evaluate("(() => document.querySelector('.artifact-markup').scrollTop)()", as: Double.self)
+        #expect(pane > 0, "the wheel over the code did not scroll it")
+        let zoneBefore = try await page.evaluate("(() => document.querySelector('.artifact-under-markup').scrollTop)()", as: Double.self)
+        try await page.mouse.wheel(x: parts.zone[0], y: parts.zone[1], deltaY: 400)
+        try await Task.sleep(for: .milliseconds(600))
+        let zone = try await page.evaluate("(() => document.querySelector('.artifact-under-markup').scrollTop)()", as: Double.self)
+        #expect(zone > zoneBefore, "the wheel over the diff did not scroll it: \(zoneBefore) → \(zone)")
+        try await page.expectNoErrors()
+      }
+      commit.remove()
+      try await contributor.remove()
+    } catch {
+      commit.remove()
+      try await contributor.remove(after: error)
+    }
+  }
+
   /// The editor's line numbers through an emptied editor (user,
   /// 2026-10-15): emptied, it numbers its one line; typed into, the number
   /// stays in the gutter, never inline; a page pasted in is numbered in

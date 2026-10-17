@@ -9,9 +9,9 @@ import WebTestsTesting
 /// size down on a phone; paged back, the earlier words read as they were,
 /// and the reaction picker, Reply and Edit are disabled, not hidden: a
 /// reaction and a reply are made to the current instance only, which they
-/// record. Each Edit is an act of the thread, "edited locution ‹id›
-/// instance 1, creating instance 2", its instances linked to the locution
-/// shown at them.
+/// record. Each Edit is a new instance, an act of the thread, "submitted
+/// locution ‹id› instance 1, creating instance 2" (user, 2026-10-18), its
+/// instances linked to the locution shown at them.
 @Suite("Locution instances", .serialized)
 struct LocutionInstancesTests {
   static let words = ["The long s is consistent.", "The long s is consistent through the page.",
@@ -92,10 +92,10 @@ struct LocutionInstancesTests {
 
         // The thread's acts: each Edit, its instances linked; followed, the
         // locution is paged to it.
-        let acts = page.locator(".locution-thread-event-line").filter(hasText: "edited locution \(id)")
+        let acts = page.locator(".locution-thread-event-line").filter(hasText: "submitted locution \(id) instance")
         try await expect(acts).toHaveCount(2)
-        try await expect(acts.first).toContainText("edited locution \(id) instance 1, creating instance 2")
-        try await expect(acts.nth(1)).toContainText("edited locution \(id) instance 2, creating instance 3")
+        try await expect(acts.first).toContainText("submitted locution \(id) instance 1, creating instance 2")
+        try await expect(acts.nth(1)).toContainText("submitted locution \(id) instance 2, creating instance 3")
         try await acts.nth(1).locator("a[href='#locution-\(id)-instance-3']").click()
         try await expect(shown).toHaveText(Self.words[2])
         try await expect(pager.locator(".page-box")).toHaveValue("3")

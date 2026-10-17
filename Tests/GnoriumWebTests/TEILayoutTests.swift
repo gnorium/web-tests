@@ -265,9 +265,10 @@ struct TEILayoutTests {
     try await admin.remove()
   }
 
-  /// Paragraphs a paragraph's space apart, as a TEI reader sets a `<p>`;
-  /// verse lines close; a vertical `<space/>` that many of the text's
-  /// lines high, with or without dim="vertical" (user, 2026-10-11).
+  /// Paragraphs set close, as printed: the space between blocks is the
+  /// TEI's own (user, 2026-10-13), none where it declares none; a vertical
+  /// `<space/>` that many of the text's lines high, with or without
+  /// dim="vertical" (user, 2026-10-11).
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func paragraphsStandApartAndSpaceHasItsHeight(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -301,7 +302,7 @@ struct TEILayoutTests {
               spaces.length, ...spaces.map(s => Math.round(s.getBoundingClientRect().height / lh * 10) / 10)].join(' ');
           })()
           """, as: String.self)
-        #expect(measured == "16 2 16 2 2 1", "paragraph gap, verse gap, stanza gap, spaces and their heights in lines: \(measured)")
+        #expect(measured == "0 0 0 2 2 1", "paragraph gap, verse gap, stanza gap, spaces and their heights in lines: \(measured)")
       }
     } catch {
       reading.remove()
