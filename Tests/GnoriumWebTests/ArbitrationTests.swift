@@ -101,21 +101,22 @@ struct ArbitrationTests {
         try await expect(page.locator("#madrigal-resemblances .roster-row").nth(1).locator(".checkbox-input")).toBeDisabled()
         try await expect(page.locator(".field-validation-message-view"))
           .toContainText("Tick evidence, metadata, a prompt or a locution for this call.")
-        try await expect(page.locator(".locution-call-evidence")).toHaveCount(0)
+        try await expect(page.locator(".locution-call-page")).toHaveCount(0)
         #expect(try TestAdmin.query("SELECT count(*) FROM locutions WHERE locutable_id = '\(objectID)'") == "0")
         // Resemblance 1 has markup: explicated, queryable—and locked against a
-        // commit: its row keeps its mark and loses its checkbox.
-        try await page.openHydrated(reading.path + "?resemblance=0")
+        // commit: its row keeps its mark and loses its checkbox. Ticked
+        // from page 3, the page on screen (user, 2026-10-17).
+        try await page.openHydrated(reading.path + "?resemblance=2")
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".disputorium-core-work #artifact-page-total"), timeout: .seconds(20)).toHaveText("3")
-        try await expect(page.locator("#locution-thread-locution-resemblance")).toHaveValue("0")
+        try await expect(page.locator("#locution-thread-locution-resemblance")).toHaveValue("2")
         try await page.locator("#locution-thread-locution-body").fill("@gnorium What does the selected evidence support?")
         try await page.locator("#madrigal-resemblances .roster-row").nth(0).locator("input").click()
         try await page.locator(".locution-thread-submit").click()
         // Posted pending: no status chip on a call (user, 2026-10-11), and
         // no Commit for a contributor.
-        try await expect(page.locator(".locution-call-evidence"), timeout: .seconds(15)).toHaveCount(1)
+        try await expect(page.locator(".locution-call-page"), timeout: .seconds(15)).toHaveCount(1)
         try await expect(page.locator(".locution-call-status")).toHaveCount(0)
         try await expect(page.locator(".locution-commit")).toHaveCount(0)
       }
@@ -125,7 +126,7 @@ struct ArbitrationTests {
         """)
       #expect(UUID(uuidString: callID) != nil)
       let evidence = try TestAdmin.query("SELECT evidence_id || '|' || evidence_kind || '|' || call_process FROM locutions WHERE id = '\(callID)'")
-      #expect(evidence == "\(fixture.baseURL)/page-1|canvas|explication")
+      #expect(evidence == "\(fixture.baseURL)/page-1|image|explication")
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(reading.path)
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
@@ -159,12 +160,31 @@ struct ArbitrationTests {
               && commit.getBoundingClientRect().bottom <= reactions.getBoundingClientRect().top;
           }
           """).bool == true, "Commit sits between the call's words and its reactions")
-        // The evidence item it attached, linked to it in the reader (user,
-        // 2026-10-10).
-        // Its byline names the item it attached, linked to the page turned
-        // to it (user, 2026-10-12): "… submitted locution ‹id› on Resemblance 1".
-        try await expect(call.locator(".locution-header")).toContainText("submitted locution \(callID.uppercased()) on Resemblance 1")
-        try await expect(call.locator("a:has(.locution-call-evidence)")).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID.uppercased())?resemblance=0")
+        // Its byline names the page its writer was on, and nothing else,
+        // linked to the page turned to it (user, 2026-10-17): "… submitted
+        // locution ‹id› on Resemblance 3", not the page it ticked.
+        try await expect(call.locator(".locution-header")).toContainText("submitted locution \(callID.uppercased()) on Resemblance 3")
+        try await expect(call.locator("a:has(.locution-call-page)")).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID.uppercased())?resemblance=2")
+        // Its body stays as typed; what it ticked is one sentence in a box
+        // after it, as a revision's Changed line is: "Attached Resemblance
+        // 1.", the page's image a line-high chip opening the lightbox (user,
+        // 2026-10-17). No picture above the words; nothing full size, which
+        // only a session transcript shows.
+        try await expect(call.locator(".locution-anchor")).toHaveCount(0)
+        try await expect(call.locator(".locution-body-rendered")).toHaveText("@gnorium What does the selected evidence support?")
+        let attachments = call.locator(".list-sentence-view.locution-attachments")
+        try await expect(attachments).toHaveCount(1)
+        let words = try await attachments.evaluate(
+          "e => [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|') + '|' + e.querySelector('.locution-attachments-item a').textContent").string
+        #expect(words == "Attached |.|Resemblance 1", Comment(rawValue: words ?? "—"))
+        try await expect(attachments).toHaveCSS("border-top-style", "solid")
+        let attached = attachments.locator(".locution-attachment")
+        try await expect(attached).toHaveCount(1)
+        try await expect(attached).toHaveAttribute("data-presentation", "line")
+        try await expect(attached.locator(".expandable-attachment-trigger")).toHaveCount(1)
+        try await expect(call.locator(
+          ".expandable-attachment-view[data-presentation='received'], .expandable-attachment-view[data-presentation='inline']"))
+          .toHaveCount(0)
         try await expect(call.locator(".locution-commit")).toHaveText("Commit")
         try await expect(call.locator(".locution-commit-form[action$='/locutions/\(callID.uppercased())/commit']")).toHaveCount(1)
         try await call.locator(".locution-commit").click()
@@ -242,6 +262,13 @@ struct ArbitrationTests {
         try await expect(listed).toHaveCount(1)
         try await expect(listed).toContainText("gnorium")
 
+        // A watch stream that runs out of time ("renew") ends nothing (user,
+        // 2026-10-17): the reply's watch attaches again at once, the chip
+        // stays "Arbitrating" with no guess, and follows the session's own
+        // status as the new stream brings it. The page served with the
+        // test's EventSource, whose frames the test sends.
+        try await expectRenewKeepsArbitrating(page, path: reading.path, replyID: replyID)
+
         // The thread: the call (its words and own actions), the Commit, then
         // gnorium's reply, submitted with the Commit under its own id, its
         // session streaming in it (user, 2026-10-15).
@@ -258,6 +285,15 @@ struct ArbitrationTests {
           """, as: Bool.self), "Call, its commit, then gnorium's reply")
         let live = slot.locator(".computorium-session-view")
         try await expect(live, timeout: .seconds(15)).toContainText("Reading the selected evidence carefully.")
+        // While the session runs, the page's status chip says so (user,
+        // 2026-10-17): "Arbitrating", with arbitration's own mark, the
+        // turning ring sector—never explication's turning disc sector; its
+        // Thinking card's running mark the same.
+        let chip = page.locator(".disputorium-core-header-status-chip")
+        try await expect(chip.locator(".info-chip-text")).toHaveText("Arbitrating")
+        try await expect(chip.locator(".rotating-ring-sector-view")).toHaveCount(1)
+        try await expect(chip.locator(".rotating-sector-view")).toHaveCount(0)
+        try await ComputoriumMarks.checkThinking(page, process: "arbitration", scope: "#locution-\(replyID.uppercased())")
         try await expect(live).not.toContainText(Self.reply)
         // The rest of its trace, appended as its next batch: a trace only grows.
         _ = try TestAdmin.query(try SessionTrace.append(
@@ -273,10 +309,16 @@ struct ArbitrationTests {
         let paused = slot.locator(".computorium-session-paused-notice")
         try await expect(paused, timeout: .seconds(15)).toHaveText("The arbitration worker was stopped.")
         try await expect(paused).toHaveAttribute("data-color", "blue")
+        // Paused, the chip says the madrigal's own status again; running
+        // again, "Arbitrating".
+        try await expect(chip.locator(".info-chip-text")).toHaveText("Pending")
+        try await expect(chip.locator(".ring-icon-view")).toHaveCount(1)
+        try await expect(chip.locator(".rotating-ring-sector-view")).toHaveCount(0)
         try await expect(slot.locator(".computorium-session-output-thinking-running")).toHaveCount(0)
         try await expect(slot).not.toContainText("failed without a recorded reason")
         _ = try TestAdmin.query("UPDATE bibliographic_arbitration_sessions SET result = 'running', error_message = NULL WHERE id = '\(sessionID)'")
         try await expect(paused, timeout: .seconds(15)).toHaveCount(0)
+        try await expect(chip.locator(".info-chip-text")).toHaveText("Arbitrating")
         // The session ends and fills its reply: the same element, no second
         // reply drawn.
         _ = try await slot.evaluate("el => { window.__slot = el; return true }")
@@ -292,6 +334,9 @@ struct ArbitrationTests {
         try await expect(slot.locator(".computorium-session-view"), timeout: .seconds(15))
           .toHaveAttribute("data-computorium-session-status", "succeeded")
         #expect(try await slot.evaluate("el => el === window.__slot").bool == true, "The same element")
+        // Done, the chip says the madrigal's status again.
+        try await expect(chip.locator(".info-chip-text")).toHaveText("Pending")
+        try await expect(chip.locator(".rotating-ring-sector-view")).toHaveCount(0)
         try await expect(page.locator(".locution-view .computorium-session-view")).toHaveCount(1)
 
         try await page.openHydrated(reading.path)
@@ -314,12 +359,12 @@ struct ArbitrationTests {
             return top('#locution-\(callID.uppercased())') < top('#commit-\(callID.uppercased())')
               && top('#commit-\(callID.uppercased())') < top('#locution-\(replyID.uppercased())') })()
           """, as: Bool.self), "The commit stands between the call and its reply")
-        // Committed, the call still names its item; its reply names it too.
+        // Committed, the call still names its page; its reply names the
+        // call it answers instead.
         try await expect(call.locator(".locution-call-status")).toHaveCount(0)
         try await expect(call.locator(".locution-commit")).toHaveCount(0)
-        try await expect(call.locator(".locution-call-evidence")).toHaveText("Resemblance 1")
-        // The reply names the call it answers, not the evidence again.
-        try await expect(reply.locator(".locution-call-evidence")).toHaveCount(0)
+        try await expect(call.locator(".locution-call-page")).toHaveText("Resemblance 3")
+        try await expect(reply.locator(".locution-call-page")).toHaveCount(0)
         try await expect(reply.locator(".locution-header")).toContainText("gnorium submitted locution \(replyID.uppercased()) replying to locution \(callID.uppercased())")
         try await expect(reply.locator(".locution-header a[href='#locution-\(callID.uppercased())']")).toHaveCount(1)
         // Our two boxes legended, by name: the system prompt's, the task's.
@@ -330,37 +375,38 @@ struct ArbitrationTests {
           .toHaveText("Task prompt")
         // Embedded in the reply, the session reads as everywhere else (user,
         // 2026-10-17): one stream, no box or legend around the model's
-        // output; one row of controls at its foot—Raw, then its ⓘ with the
-        // model and when—and, embedded alone and read-only, no pager, no
-        // re-run and no header. The reply's footer keeps the reply's ⓘ and
-        // Replay at its start, and no Raw of its own: its session's is the
-        // one. The page image in the task prompt as the model received it.
+        // output; embedded alone and read-only, no pager, no re-run and no
+        // header, and no row of controls of its own. The reply's controls
+        // are one row, as a person's locution's (user, 2026-10-17): the
+        // reaction picker, its session's Raw, Replay, then one ⓘ with the
+        // model and when; no Raw of the locution's own. The page image in
+        // the task prompt as the model received it.
         try await expect(session.locator(".computorium-session-output")).toHaveCount(1)
         try await expect(session.locator(".computorium-session-output-fieldset, .computorium-session-output-legend"))
           .toHaveCount(0)
-        let controls = session.locator(".computorium-session-controls")
-        try await expect(controls).toHaveCount(1)
-        try await expect(controls.locator(".computorium-session-controls-start .computorium-session-markdown-toggle"))
-          .toHaveCount(1)
-        let byline = controls.locator(".computorium-session-byline")
-        try await expect(byline).toHaveCount(1)
-        // Its words are the ⓘ's bubble, which hydration portals to <body>.
-        try await byline.hover()
-        try await expect(page.locator(
-          ".tooltip-view[data-portal='true'][data-visible='true'] .tooltip-content .computorium-session-byline-words"))
-          .toHaveAttribute("data-local-time-prefix", "By DeepSeek V4.1 Flash (deepseek-flash) on ")
-        try await page.mouse.move(x: 0, y: 0)
+        try await expect(session.locator(".computorium-session-controls, .computorium-session-byline")).toHaveCount(0)
         try await expect(session.locator(".computorium-session-page-nav, .computorium-session-rerun, .computorium-session-header"))
           .toHaveCount(0)
-        #expect(try await session.evaluate("""
-          el => { const start = el.querySelector('.computorium-session-controls-start')
-            const kinds = [...start.children].map(e => e.classList.contains('computorium-session-markdown-toggle') ? 'raw'
-              : e.classList.contains('computorium-session-byline') ? 'info' : 'other').join(' ')
-            return !!el.lastElementChild?.classList.contains('computorium-session-controls') && kinds === 'raw info' }
-          """).bool == true, "One row at the session's foot: Raw, then its ⓘ")
-        try await expect(reply.locator(".reactions-when")).toHaveAttribute("data-local-time-prefix", "By DeepSeek V4.1 Flash (deepseek-flash) on ")
+        try await expect(reply.locator(".reactions-when")).toHaveCount(1)
+        try await expect(reply.locator(".reactions-when")).toHaveAttribute("data-local-time-prefix", "By deepseek-flash on ")
         try await expect(reply.locator(".locution-markdown-toggle")).toHaveCount(0)
-        try await expect(reply.locator(".reactions-controls > .replay-btn:first-child")).toHaveText("Replay")
+        try await expect(reply.locator(".reactions-raw-info > .replay-btn")).toHaveText("Replay")
+        let row = try await reply.evaluate("""
+          el => { const row = el.querySelector('.reactions-row')
+            const parts = [row.querySelector('.reaction-picker-view'),
+              ...row.querySelector('.reactions-raw-info').children]
+            const kinds = parts.map(e => e.classList.contains('reaction-picker-view') ? 'picker'
+              : e.classList.contains('computorium-session-markdown-toggle') ? 'raw'
+              : e.classList.contains('replay-btn') ? 'replay'
+              : e.classList.contains('reactions-when') ? 'info' : 'other').join(' ')
+            // One flex row: every control's middle on one line.
+            // The picker draws as its contents (display: contents): its button's box.
+            const box = e => getComputedStyle(e).display === 'contents' ? e.querySelector('button') : e
+            const middles = parts.map(e => { const r = box(e).getBoundingClientRect(); return r.top + r.height / 2 })
+            const oneLine = middles.every(m => Math.abs(m - middles[0]) <= 1)
+            return kinds + (getComputedStyle(row).display === 'flex' && oneLine ? ' one-row' : ' split ' + JSON.stringify(middles)) }
+          """).string
+        #expect(row == "picker raw replay info one-row", Comment(rawValue: row ?? "—"))
         // Replay brings the page to the stream's end, where its tokens
         // appear, and follows it there (user, 2026-10-17): the reader starts
         // where the reply's transcript end is out of view.
@@ -381,6 +427,15 @@ struct ArbitrationTests {
             const r = tail.getBoundingClientRect(); return r.bottom < 0 || r.bottom - innerHeight > 64 })()
           """, as: Bool.self)
         #expect(away, "The reader starts away from the transcript's end")
+        // Every word the chip says from here, for the replay's assertions.
+        try await expect(chip.locator(".info-chip-text")).toHaveText("Pending")
+        _ = try await page.evaluate("""
+          (() => { const text = document.querySelector('.disputorium-core-header-status-chip .info-chip-text')
+            window.__chipTexts = [text.textContent]
+            new MutationObserver(() => window.__chipTexts.push(text.textContent))
+              .observe(text, { childList: true, characterData: true, subtree: true })
+            return true })()
+          """, as: Bool.self)
         // Clicked where it stands, without scrolling it into view first.
         _ = try await reply.locator(".replay-btn").evaluate("el => el.click()")
         try await Task.sleep(for: .milliseconds(400))
@@ -389,6 +444,12 @@ struct ArbitrationTests {
         let after = try await page.evaluate(tailInView, as: Bool.self)
         #expect(during && after, "Replay scrolled to the stream's end and follows it: \(during) → \(after)")
         try await expect(reply.locator(".locution-anchor")).toHaveCount(0)
+        // Its replay says "Arbitrating" on the page's chip while it plays,
+        // the madrigal's status once it ends, as an explication's replay does.
+        #expect(try await page.evaluate("window.__chipTexts.includes('Arbitrating')", as: Bool.self),
+          "The chip said Arbitrating during the replay")
+        try await expect(chip.locator(".info-chip-text"), timeout: .seconds(15)).toHaveText("Pending")
+        try await expect(chip.locator(".rotating-ring-sector-view")).toHaveCount(0)
         // The page image in the task prompt as the model received it (user,
         // 2026-10-17): one stage at the message's whole width, zoomed in
         // place—no chip, thumbnail, name or lightbox, no loose lines under
@@ -429,7 +490,7 @@ struct ArbitrationTests {
         // block where it stood, in place of the rendered prompt and image;
         // off again, the image as received.
         let taskFieldset = session.locator(".computorium-session-task-fieldset")
-        let raw = controls.locator(".computorium-session-markdown-toggle button")
+        let raw = reply.locator(".computorium-session-markdown-toggle button")
         try await raw.click()
         try await expect(session).toHaveAttribute("data-raw-view", "true")
         try await expect(taskFieldset.locator(".computorium-session-prompt-body")).toBeVisible()
@@ -477,6 +538,63 @@ struct ArbitrationTests {
     remove()
     try await admin.remove()
     try await contributor.remove()
+  }
+
+  /// The madrigal page, its arbitration session running, with an
+  /// EventSource the test drives in place of the reply's watch stream: a
+  /// "renew" end reattaches the watch and leaves the chip on "Arbitrating";
+  /// the new stream's "succeeded" brings the madrigal's status back. The
+  /// stand-in is installed before the page's own scripts (`addInitScript`),
+  /// only on a document opened at `#renew-test`, so every later load is the
+  /// real page. Nothing is written to disk.
+  func expectRenewKeepsArbitrating(_ page: Page, path: String, replyID: String) async throws {
+    try await page.addInitScript("""
+      if (location.hash === '#renew-test') {
+        const Real = window.EventSource
+        window.__streams = []
+        window.EventSource = class {
+          // The reply's watch only; any other stream stays the real one.
+          constructor(url, options) {
+            if (!String(url).includes('/arbitration/stream')) return new Real(url, options)
+            this.url = url; this.handlers = {}; window.__streams.push(this)
+            setTimeout(() => { this.emit('start', '{"watch":true,"process":"arbitration"}'); window.__stream = this }, 0)
+          }
+          addEventListener(name, fn) { (this.handlers[name] ??= []).push(fn) }
+          emit(name, data) { for (const fn of this.handlers[name] ?? []) fn({ data }) }
+          close() {}
+        }
+        window.__label = () => document.querySelector('#locution-\(replyID.uppercased()) .computorium-session-view')
+          .dataset.computoriumSessionResemblance ?? ''
+        window.__status = (text) => window.__stream.emit('chunk',
+          JSON.stringify({ type: 'status', text, resemblance: window.__label(), canvas_index: -1, message: '' }))
+      }
+      """)
+    try await page.openHydrated(path + "#renew-test")
+    let chip = page.locator(".disputorium-core-header-status-chip .info-chip-text")
+    let session = page.locator("#locution-\(replyID.uppercased()) .computorium-session-view")
+    #expect(try await page.evaluate("""
+      (async () => { for (let i = 0; i < 50 && !window.__stream; i++) await new Promise(r => setTimeout(r, 100)); return !!window.__stream })()
+      """, as: Bool.self), "The reply's watch is attached")
+    _ = try await page.evaluate("(() => { window.__status('running'); return true })()", as: Bool.self)
+    try await expect(chip).toHaveText("Arbitrating")
+    // The stream's time is up: a new watch, nothing painted as ended.
+    _ = try await page.evaluate("(() => { window.__stream.emit('done', '{\"status\":\"renew\"}'); return true })()", as: Bool.self)
+    #expect(try await page.evaluate("""
+      (async () => { for (let i = 0; i < 50 && window.__streams.length < 2; i++) await new Promise(r => setTimeout(r, 100))
+        for (let i = 0; i < 50 && window.__stream !== window.__streams[1]; i++) await new Promise(r => setTimeout(r, 100))
+        return window.__streams.length === 2 && window.__stream === window.__streams[1] })()
+      """, as: Bool.self), "Renew attaches the watch again")
+    try await expect(chip).toHaveText("Arbitrating")
+    try await expect(page.locator(".disputorium-core-header-status-chip .rotating-ring-sector-view")).toHaveCount(1)
+    try await expect(session).not.toHaveAttribute("data-computorium-session-status", "succeeded")
+    // The new stream's status, the session's own: still running, then done.
+    _ = try await page.evaluate("(() => { window.__status('running'); return true })()", as: Bool.self)
+    try await expect(chip).toHaveText("Arbitrating")
+    _ = try await page.evaluate("""
+      (() => { window.__status('succeeded'); window.__stream.emit('done', '{"status":"passed","error":""}'); return true })()
+      """, as: Bool.self)
+    try await expect(chip).toHaveText("Pending")
+    try await expect(page.locator(".disputorium-core-header-status-chip .rotating-ring-sector-view")).toHaveCount(0)
   }
 
   /// A madrigal of three explicated pages and one laid in blank.
@@ -573,13 +691,20 @@ struct ArbitrationTests {
         let stored = try TestAdmin.query(
           "SELECT evidence_id || '|' || coalesce(evidence_ids, '') FROM locutions WHERE locutable_id = '\(objectID)' AND kind = 'call'")
         #expect(stored == "\(fixture.baseURL)/page-1|[\"\(fixture.baseURL)/page-1\",\"\(fixture.baseURL)/page-2\"]", Comment(rawValue: stored))
-        // Both named in the byline, each its own link: "on Resemblance 1
-        // and Resemblance 2" (user, 2026-10-12).
-        let links = page.locator(".locution-call-evidence")
-        try await expect(links).toHaveCount(2)
-        try await expect(links.nth(0)).toHaveText("Resemblance 1")
-        try await expect(links.nth(1)).toHaveText("Resemblance 2")
-        try await expect(page.locator(".locution-header").first).toContainText("on Resemblance 1 and Resemblance 2")
+        // The byline names the page on screen alone (user, 2026-10-17); both
+        // ticked pages are its Attachments, each image a line-high chip.
+        try await expect(page.locator(".locution-call-page")).toHaveCount(1)
+        try await expect(page.locator(".locution-header").first).toContainText("on Resemblance 1")
+        try await expect(page.locator(".locution-header").first).not.toContainText("Resemblance 2")
+        let both = try await page.locator(".locution-attachments").first.evaluate("""
+          el => [...el.querySelectorAll('.locution-attachments-item')].map(item => {
+            const path = item.querySelector('.locution-thread-path')
+            return path ? [...path.children].filter(c => !c.classList.contains('breadcrumb-separator-view'))
+              .map(c => c.textContent.trim()).join(' › ') : item.querySelector('a').textContent.trim() }).join(' | ')
+          """).string
+        #expect(both == "Resemblance 1 | Resemblance 2", Comment(rawValue: both ?? "—"))
+        try await expect(page.locator(".locution-attachments .locution-attachment[data-presentation='line']"))
+          .toHaveCount(2)
         try await page.expectNoErrors()
       }
     } catch {
@@ -593,8 +718,8 @@ struct ArbitrationTests {
   /// A call ticks its object's Metadata accordions whole and the thread's
   /// locutions (user, 2026-10-15, 2026-10-16): one box on each, shown only
   /// while a call is written, none ticked, a press on one keeping the box
-  /// focused. The call stores what was ticked, no evidence, and its byline
-  /// names the locution, linked.
+  /// focused. The call stores what was ticked; its byline names the page on
+  /// screen, and its Attached line what it ticked (user, 2026-10-17).
   @Test(arguments: [BrowserEngine.chrome])
   func aCallTicksMetadataAccordionsAndLocutions(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -665,6 +790,10 @@ struct ArbitrationTests {
         let isOpen = try await page.evaluate(open, as: String.self)
         #expect(isOpen == wasOpen, "a tick in the header leaves the accordion as it was")
         try await body.fill("@gnorium Is the title right?")
+        // And an image on another page than the one on screen (page 1).
+        let page2 = page.locator("#madrigal-resemblances .roster-row").nth(1).locator("input")
+        try await page2.click()
+        try await expect(page2).toBeChecked()
         try await page.locator(".locution-thread-submit").click()
         try await expect(page.locator(".locution-said + .locution-call-actions .locution-commit"), timeout: .seconds(15))
           .toHaveText("Commit")
@@ -672,8 +801,34 @@ struct ArbitrationTests {
           SELECT coalesce(evidence_id, '—') || '|' || coalesce(metadata_ids, '') || '|' || coalesce(locution_ids, '')
           FROM locutions WHERE locutable_id = '\(objectID)' AND kind = 'call'
           """)
-        #expect(stored == "—|[\"work\"]|[\"\(firstID)\"]", Comment(rawValue: stored))
-        try await expect(page.locator(".locution-call-evidence").first).toHaveText("locution \(firstID)")
+        #expect(stored == "\(fixture.baseURL)/page-2|[\"work\"]|[\"\(firstID)\"]", Comment(rawValue: stored))
+        // Its body as typed; the byline names the page on screen, and
+        // nothing ticked (user, 2026-10-17); its Attachments list the three
+        // in the order its message carries them—Metadata, evidence,
+        // locutions—the page's image a line-high chip.
+        let call = page.locator(".locution-view").last
+        try await expect(call.locator(".locution-header")).toContainText("on Resemblance 1")
+        try await expect(call.locator(".locution-header")).not.toContainText("Resemblance 2")
+        try await expect(call.locator(".locution-body-rendered")).toHaveText("@gnorium Is the title right?")
+        let attachments = call.locator(".list-sentence-view.locution-attachments")
+        try await expect(attachments).toContainText("Attached ")
+        let crumbs = try await attachments.evaluate("""
+          el => [...el.querySelectorAll('.locution-attachments-item')].map(item => {
+            const path = item.querySelector('.locution-thread-path')
+            return path ? [...path.children].filter(c => !c.classList.contains('breadcrumb-separator-view'))
+              .map(c => c.textContent.trim()).join(' › ') : item.querySelector('a').textContent.trim() }).join(' | ')
+          """).string
+        let joined = try await attachments.evaluate(
+          "e => [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|')").string
+        #expect(joined == "Attached |, |, and |.", Comment(rawValue: joined ?? "—"))
+        // Metadata by its node's heading, as its accordion names it.
+        #expect(crumbs?.hasPrefix("Metadata › ") == true && crumbs?.hasSuffix(" | Resemblance 2 | Locution \(firstID)") == true
+          && crumbs?.components(separatedBy: " | ").count == 3, Comment(rawValue: crumbs ?? "—"))
+        try await expect(attachments.locator(".locution-attachments-item a[href='#locution-\(firstID)']")).toHaveCount(1)
+        try await expect(attachments.locator(".locution-attachments-item").nth(1)
+          .locator(".locution-attachment[data-presentation='line']")).toHaveCount(1)
+        // A locution that ticks nothing, a plain one, has no Attachments.
+        try await expect(page.locator("#locution-\(firstID) .locution-attachments")).toHaveCount(0)
         try await page.expectNoErrors()
       }
     } catch {
@@ -743,8 +898,8 @@ struct ArbitrationTests {
         let crops = try JSONSerialization.jsonObject(with: Data(stored.utf8)) as? [String: [Int]]
         let crop = try #require(crops?[service], Comment(rawValue: stored))
         #expect(crop.count == 4 && crop[2] > 0 && crop[3] > 0 && crop[0] + crop[2] <= 1000 && crop[1] + crop[3] <= 1000)
-        try await expect(page.locator(".locution-call-evidence-crop").first)
-          .toHaveText(crop.map(String.init).joined(separator: " "))
+        // Its Attachments say a crop box was drawn on the page.
+        try await expect(page.locator(".locution-attachments-item").first).toContainText("crop")
         // The locution's control row: Raw right before the info icon (user,
         // 2026-10-12); the reactions button ends the pills, before the
         // controls (user, 2026-10-15).

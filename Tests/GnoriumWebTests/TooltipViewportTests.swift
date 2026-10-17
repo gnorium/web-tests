@@ -69,4 +69,65 @@ struct TooltipViewportTests {
       try await page.expectNoErrors()
     }
   }
+
+  /// WCAG 2.1 SC 1.4.13: the pointer moves from the trigger onto the
+  /// bubble, slowly and across the gap between them, and the bubble stays
+  /// for its link to be clicked; Escape dismisses it.
+  @Test(arguments: [BrowserEngine.chrome])
+  func bubbleStaysWhileThePointerTravelsOntoIt(engine: BrowserEngine) async throws {
+    guard gnorium.engines.contains(engine) else { return }
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    let vignettes = try ScratchVignettes()
+    defer { try? vignettes.remove() }
+    try await withPage(engine, gnorium, viewport: Viewport(width: 1440, height: 900)) { page in
+      try await page.openHydrated(vignettes.path)
+      let trigger = page.locator(".vignette-identifier").first
+      let shown = page.locator(".tooltip-view[data-portal='true'][data-visible='true'] .tooltip-content")
+      let link = shown.locator("a")
+
+      try await trigger.hover()
+      try await expect(link).toBeVisible()
+      // Read in place: a measure that scrolls dismisses the bubble, as a
+      // scroll does.
+      struct Middles: Decodable { let fromX, fromY, toX, toY: Double }
+      let middles = try await page.evaluate("""
+        (() => { const m = e => { const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] }
+          const [fromX, fromY] = m(document.querySelector('.vignette-identifier'))
+          const [toX, toY] = m(document.querySelector(".tooltip-view[data-portal='true'][data-visible='true'] .tooltip-content a"))
+          return { fromX, fromY, toX, toY } })()
+        """, as: Middles.self)
+      let start = (x: middles.fromX, y: middles.fromY)
+      let end = (x: middles.toX, y: middles.toY)
+      // Slower than the hide's grace: each step takes longer than it, so
+      // only a bubble that keeps itself under the pointer survives.
+      let steps = 12
+      for step in 1...steps {
+        let t = Double(step) / Double(steps)
+        try await page.mouse.move(x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t)
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(try await shown.isVisible(), "hidden at step \(step) of \(steps)")
+      }
+      // Resting over the bubble, it stays.
+      try await Task.sleep(for: .milliseconds(500))
+      try await expect(link).toBeVisible()
+
+      // Escape dismisses it with the pointer still over it.
+      try await page.keyboard.press("Escape")
+      try await expect(shown).toBeHidden()
+
+      // Back on the trigger and over again, the link takes the click.
+      try await trigger.hover()
+      try await expect(link).toBeVisible()
+      let href = try await page.evaluate(
+        "document.querySelector(\".tooltip-view[data-portal='true'][data-visible='true'] .tooltip-content a\").href", as: String.self)
+      for step in 1...steps {
+        let t = Double(step) / Double(steps)
+        try await page.mouse.move(x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t)
+        try await Task.sleep(for: .milliseconds(150))
+      }
+      try await page.mouse.click(x: end.x, y: end.y)
+      try await expect(page).toHaveURL(href)
+      try await page.expectNoErrors()
+    }
+  }
 }

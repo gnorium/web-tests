@@ -66,4 +66,33 @@ enum ComputoriumMarks {
       """, as: String.self)
     #expect(failures.isEmpty, "Computorium \(process) marks: \(failures)")
   }
+
+  /// The in-progress mark of each process, one rule for every mark a running
+  /// process draws (`ProcessInFlight.mark`, user, 2026-10-17): explication
+  /// the turning disc sector, translation the turning ring sector round a
+  /// still disc, arbitration the turning ring sector.
+  static func inProgressShape(_ process: String) -> String {
+    switch process {
+    case "translation": return ".rotating-ring-sector-with-disc-view"
+    case "arbitration": return ".rotating-ring-sector-view"
+    default: return ".rotating-sector-view"
+    }
+  }
+
+  /// Every Thinking card's running mark in `scope` is `process`'s
+  /// in-progress mark, never another process's.
+  static func checkThinking(_ page: Page, process: String, scope: String = ".computorium-session-view") async throws {
+    let shapes = [".rotating-sector-view", ".rotating-ring-sector-with-disc-view", ".rotating-ring-sector-view"]
+    let wrong = shapes.filter { $0 != inProgressShape(process) }.joined(separator: ", ")
+    let failures = try await page.evaluate(
+      """
+      (() => {
+        const marks = [...document.querySelectorAll('\(scope) .computorium-session-output-thinking-mark-running')];
+        if (!marks.length) return 'no thinking card';
+        return marks.every(m => m.querySelector('\(inProgressShape(process))') && !m.querySelector('\(wrong)'))
+          ? '' : 'wrong running mark';
+      })()
+      """, as: String.self)
+    #expect(failures.isEmpty, "Computorium \(process) thinking marks: \(failures)")
+  }
 }

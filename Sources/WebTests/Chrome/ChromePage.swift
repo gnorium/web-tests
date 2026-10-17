@@ -258,6 +258,10 @@ final class ChromePage: PageDriver, @unchecked Sendable {
       ["userAgent": .string(agent), "platform": .string(viewport.touch ? "iPhone" : "MacIntel")])
   }
 
+  func addInitScript(_ source: String) async throws {
+    _ = try await send("Page.addScriptToEvaluateOnNewDocument", ["source": .string(source)])
+  }
+
   func setTimeZone(_ identifier: String) async throws {
     _ = try await send("Emulation.setTimezoneOverride", ["timezoneId": .string(identifier)])
   }

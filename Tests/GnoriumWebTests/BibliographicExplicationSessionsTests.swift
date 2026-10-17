@@ -56,6 +56,7 @@ struct BibliographicExplicationSessionsTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)")
         try await ComputoriumMarks.check(page, process: "explication")
+        try await ComputoriumMarks.checkThinking(page, process: "explication")
         // No process cards: the process is the process's name.
         try await expect(page.locator(".processes-view")).toHaveCount(0)
         try await expect(page.getByText("Processes", exact: true)).toHaveCount(0)

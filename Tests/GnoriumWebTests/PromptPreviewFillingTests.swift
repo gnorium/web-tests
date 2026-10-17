@@ -76,13 +76,15 @@ struct PromptPreviewFillingTests {
         try await expect(page.locator(".prompt-previews-process")).toHaveCount(2)
         try await expect(explication).not.toContainText("Alpha page sentence.")
         try await expect(explicationSection.getByText("Task Prompt", exact: true)).toHaveCount(1)
-        // Its page image as the session shows what it received (user,
-        // 2026-10-17): drawn in place, bound to zoom there, no chip.
+        // Its page image a line-high chip where it is attached, opening
+        // the lightbox (user, 2026-10-17): a prompt read as Markdown, never
+        // full size as the model received it.
         let pageImage = explicationSection.locator(
-          ".prompt-preview-task .prompt-preview-images .expandable-attachment-view[data-presentation='received']")
+          ".prompt-preview-task .prompt-preview-images .expandable-attachment-view[data-presentation='line']")
         try await expect(pageImage).toHaveCount(1)
         try await expect(pageImage).toHaveAttribute("data-attachment-hydrated", "true")
-        try await expect(explicationSection.locator(".expandable-attachment-trigger, .expandable-attachment-dialog"))
+        try await expect(pageImage.locator(".expandable-attachment-trigger")).toHaveCount(1)
+        try await expect(explicationSection.locator(".expandable-attachment-view[data-presentation='received']"))
           .toHaveCount(0)
         // Autocompaction's alone stays a template.
         try await expect(explicationSection.getByText("Task Prompt Template", exact: true)).toHaveCount(1)
@@ -158,7 +160,7 @@ struct PromptPreviewFillingTests {
         try await box.fill("@gnorium Why is beta here?")
         try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt")
         let images = arbitrationSection.locator(
-          ".prompt-preview-task .prompt-preview-images .expandable-attachment-view[data-presentation='received']")
+          ".prompt-preview-task .prompt-preview-images .expandable-attachment-view[data-presentation='line']")
         let sent = try await images.count()
         try await page.locator("#madrigal-resemblances .roster-row").nth(1).locator("input").click()
         try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt Template")
@@ -195,11 +197,12 @@ struct PromptPreviewFillingTests {
         try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt")
         try await expect(arbitration).toContainText("Beta page sentence.")
         try await expect(images).toHaveCount(sent)
-        // Swapped in place, drawn and bound as the first were: one a line,
-        // zooming where they stand, no chip or lightbox (user, 2026-10-17).
+        // Swapped in place, drawn and bound as the first were: line-high
+        // chips opening the lightbox, never full size (user, 2026-10-17).
         #expect(sent > 0, "page 2 sends its image")
         try await expect(images.first).toHaveAttribute("data-attachment-hydrated", "true")
-        try await expect(arbitrationSection.locator(".expandable-attachment-trigger, .expandable-attachment-dialog"))
+        try await expect(images.first.locator(".expandable-attachment-trigger")).toHaveCount(1)
+        try await expect(arbitrationSection.locator(".expandable-attachment-view[data-presentation='received']"))
           .toHaveCount(0)
         try await page.expectNoErrors()
       }

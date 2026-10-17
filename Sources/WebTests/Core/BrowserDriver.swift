@@ -74,6 +74,9 @@ public protocol PageDriver: AnyObject, Sendable {
   /// Runs the page in an IANA time zone ("Asia/Kolkata") rather than the
   /// machine's: its `Date` and `Intl` read that zone.
   func setTimeZone(_ identifier: String) async throws
+  /// Runs `source` in every document this page loads from now on, before
+  /// any of the document's own scripts (Playwright's `addInitScript`).
+  func addInitScript(_ source: String) async throws
   /// Pointer events at viewport coordinates, in CSS pixels.
   func dispatchMouse(_ actions: [MouseAction]) async throws
   /// A tap: touch start and end at one point.

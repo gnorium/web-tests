@@ -132,6 +132,13 @@ public final class Page: @unchecked Sendable {
     try await driver.setTimeZone(identifier)
   }
 
+  /// Runs `source` in every document this page loads from now on, before
+  /// the document's own scripts (Playwright's `addInitScript`): Chrome only
+  /// (CDP `Page.addScriptToEvaluateOnNewDocument`).
+  public func addInitScript(_ source: String) async throws {
+    try await driver.addInitScript(source)
+  }
+
   /// Sets a cookie for this page's context.
   public func setCookie(name: String, value: String, url: URL? = nil, httpOnly: Bool = true) async throws {
     guard let target = url ?? context.baseURL else {

@@ -457,6 +457,10 @@ struct RevisePagesTests {
         let joined = try await changed.evaluate(
           "e => [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|')")
         #expect(joined.string == "Changed | and |.", "\(joined)")
+        // In a white box of its own, as a call's Attached line is (user,
+        // 2026-10-17): said of the revision, not words of the thread.
+        try await expect(page.locator(".list-sentence-view.locution-thread-event-changed")).toHaveCount(1)
+        try await expect(changed).toHaveCSS("border-top-style", "solid")
       }
       let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'").uppercased()
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in

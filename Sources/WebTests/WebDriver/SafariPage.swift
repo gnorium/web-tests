@@ -148,6 +148,10 @@ final class SafariPage: PageDriver, @unchecked Sendable {
 
   // MARK: - Emulation
 
+  func addInitScript(_ source: String) async throws {
+    throw EngineLimitation(engine: .safari, reason: "no script before a document's own over WebDriver.")
+  }
+
   func setTimeZone(_ identifier: String) async throws {
     throw EngineLimitation(engine: .safari, reason: "no time zone emulation over WebDriver.")
   }
