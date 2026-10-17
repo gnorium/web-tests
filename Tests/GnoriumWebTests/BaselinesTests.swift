@@ -6,7 +6,7 @@ import WebTestsTesting
 /// Baselines are public (user, 2026-09-29): Mission Control › Baselines
 /// lists a kind's baselines, a kind to a tab, by language and script with a
 /// chart of CER against cost per page and a table of baselines, then every
-/// dollar the kind spent on models; a baseline's page shows its scores, what ran and each item's diff against the gold; a
+/// dollar the kind spent on models; the gold the item response fit finds; a baseline's page shows its scores, what ran and each item's diff against the gold; a
 /// dataset's page says how its gold was made. Signed out, on phone and
 /// desktop, with nothing scrolling sideways.
 @Suite("Baselines", .serialized)
@@ -99,6 +99,15 @@ struct BaselinesTests {
       // Spending: baselines' part of it, beside production's.
       try await expect(page.locator("#spending").getByText("Baselines (", exact: false)).toBeAttached()
       try await expect(page.locator("#spending .baseline-spending-table").first).toBeAttached()
+      // Gold, as the item response fit finds it (user, 2026-10-17): what
+      // the data can say, the configurations, the gold pages and the runs;
+      // Run baseline is an admin's, and no page takes a vote.
+      let gold = page.locator("#gold")
+      try await expect(gold.locator(".baseline-gold-sufficiency")).toBeAttached()
+      try await expect(gold.locator(".baseline-gold-heading")).toHaveTexts(["Configurations", "Gold pages", "Baseline runs"])
+      try await expect(gold.locator(".baseline-gold-run-form")).toHaveCount(0)
+      try await expect(page.locator(".baseline-hard-vote-view")).toHaveCount(0)
+      try await expect(page.locator("[data-table-column-id='hard']")).toHaveCount(0)
       #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
 
       try await page.openHydrated("/mission-control/baselines/\(runID)")
