@@ -70,26 +70,42 @@ enum ComputoriumMarks {
   /// The in-progress mark of each process, one rule for every mark a running
   /// process draws (`ProcessInFlight.mark`, user, 2026-10-17): explication
   /// the turning disc sector, translation the turning ring sector round a
-  /// still disc, arbitration the turning ring sector.
-  static func inProgressShape(_ process: String) -> String {
+  /// still disc, arbitration by what it works on (user, 2026-10-18): an
+  /// uncalibrated overture the dotted ring sector, a calibrated overture or a
+  /// madrigal with nothing explicated the ring sector, an explicated madrigal
+  /// or untranslated epilogue the disc sector, a translated epilogue the
+  /// ring sector round a still disc.
+  static func inProgressShape(_ process: String, arbitrated: String = "uncalibratedOverture") -> String {
     switch process {
     case "translation": return ".rotating-ring-sector-with-disc-view"
-    case "arbitration": return ".rotating-dotted-ring-sector-view"
+    case "arbitration":
+      switch arbitrated {
+      case "calibratedOverture", "unexplicatedMadrigal": return ".rotating-ring-sector-view"
+      case "explicatedMadrigal", "untranslatedEpilogue": return ".rotating-sector-view"
+      case "translatedEpilogue": return ".rotating-ring-sector-with-disc-view"
+      default: return ".rotating-dotted-ring-sector-view"
+      }
     default: return ".rotating-sector-view"
     }
   }
 
   /// Every Thinking card's running mark in `scope` is `process`'s
   /// in-progress mark, never another process's.
-  static func checkThinking(_ page: Page, process: String, scope: String = ".computorium-session-view") async throws {
-    let shapes = [".rotating-sector-view", ".rotating-ring-sector-with-disc-view", ".rotating-dotted-ring-sector-view"]
-    let wrong = shapes.filter { $0 != inProgressShape(process) }.joined(separator: ", ")
+  static func checkThinking(
+    _ page: Page, process: String, arbitrated: String = "uncalibratedOverture", scope: String = ".computorium-session-view"
+  ) async throws {
+    let shapes = [
+      ".rotating-sector-view", ".rotating-ring-sector-with-disc-view", ".rotating-dotted-ring-sector-view",
+      ".rotating-ring-sector-view",
+    ]
+    let shape = inProgressShape(process, arbitrated: arbitrated)
+    let wrong = shapes.filter { $0 != shape }.joined(separator: ", ")
     let failures = try await page.evaluate(
       """
       (() => {
         const marks = [...document.querySelectorAll('\(scope) .computorium-session-output-thinking-mark-running')];
         if (!marks.length) return 'no thinking card';
-        return marks.every(m => m.querySelector('\(inProgressShape(process))') && !m.querySelector('\(wrong)'))
+        return marks.every(m => m.querySelector('\(shape)') && !m.querySelector('\(wrong)'))
           ? '' : 'wrong running mark';
       })()
       """, as: String.self)

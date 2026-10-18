@@ -94,8 +94,32 @@ struct EpilogueTranslationTests {
         try await expect(english.locator("button")).toHaveAttribute("aria-pressed", "false")
         try await expect(viewer).toHaveAttribute("data-translated", "false")
         try await expect(viewer.locator(".artifact-canvas-toggle button")).toHaveAttribute("aria-pressed", "false")
+        // The English switch is an icon-only circle bearing the traced flag,
+        // plain while off, solid blue with a white flag once on.
+        let englishButton = english.locator("button")
+        try await expect(englishButton).toHaveAttribute("aria-label", "Read in English")
+        #expect(try await englishButton.evaluate("el => getComputedStyle(el).borderRadius").string == "50%")
+        try await expect(english.locator("svg")).toHaveCount(1)
+        let flagPath = try await english.locator("svg path").evaluate("el => el.getAttribute('d')").string
+        #expect(try #require(flagPath).hasPrefix("M 1024,512"))
+        let probe = "(token) => { const d = document.createElement('div'); d.style.color = 'var(' + token + ')'; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c; }"
+        let blue = try await page.evaluate("(\(probe))('--background-color-blue')", as: String.self)
+        let white = try await page.evaluate("(\(probe))('--color-on-solid')", as: String.self)
+        let offFill = try await englishButton.evaluate("el => getComputedStyle(el).backgroundColor").string
+        #expect(try #require(offFill) != blue, "off, the English switch is not solid blue")
         // The English layer shown: its page is stale, the pane ringed orange.
         try await english.locator("button").click()
+        // The pointer rests on it after the click: solid blue or its hover.
+        let blueHover = try await page.evaluate("(\(probe))('--background-color-blue-hover')", as: String.self)
+        // The fill eases to blue (the button's transition), so read it once it has settled.
+        var onFill: String? = nil
+        for _ in 0..<30 {
+          onFill = try await englishButton.evaluate("el => getComputedStyle(el).backgroundColor").string
+          if onFill == blue || onFill == blueHover { break }
+          try await Task.sleep(for: .milliseconds(100))
+        }
+        #expect(onFill == blue || onFill == blueHover, "on, the English switch is solid blue: \(onFill ?? "none")")
+        #expect(try await english.locator("svg path").evaluate("el => getComputedStyle(el).fill").string == white)
         try await expect(viewer).toHaveAttribute("data-translated", "true")
         try await expect(pane).toHaveAttribute("data-diff-state", "stale")
         let orange = try await page.evaluate(

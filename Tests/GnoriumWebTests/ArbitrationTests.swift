@@ -292,13 +292,16 @@ struct ArbitrationTests {
         try await expect(live, timeout: .seconds(15)).toContainText("Reading the selected evidence carefully.")
         // While the session runs, the page's status chip says so (user,
         // 2026-10-17): "Arbitrating", with arbitration's own mark, the
-        // turning ring sector—never explication's turning disc sector; its
-        // Thinking card's running mark the same.
+        // mark by what it works on (user, 2026-10-18): this madrigal has a
+        // page explicated, so the turning disc sector, as an epilogue's;
+        // an overture's the dotted ring sector, an unexplicated madrigal's
+        // the plain ring sector. Its Thinking card's running mark the same.
         let chip = page.locator(".disputorium-core-header-status-chip")
         try await expect(chip.locator(".info-chip-text")).toHaveText("Arbitrating")
-        try await expect(chip.locator(".rotating-dotted-ring-sector-view")).toHaveCount(1)
-        try await expect(chip.locator(".rotating-sector-view")).toHaveCount(0)
-        try await ComputoriumMarks.checkThinking(page, process: "arbitration", scope: "#locution-\(replyID.uppercased())")
+        try await expect(chip.locator(".rotating-sector-view")).toHaveCount(1)
+        try await expect(chip.locator(".rotating-dotted-ring-sector-view, .rotating-ring-sector-view")).toHaveCount(0)
+        try await ComputoriumMarks.checkThinking(
+          page, process: "arbitration", arbitrated: "explicatedMadrigal", scope: "#locution-\(replyID.uppercased())")
         try await expect(live).not.toContainText(Self.reply)
         // The rest of its trace, appended as its next batch: a trace only grows.
         _ = try TestAdmin.query(try SessionTrace.append(
@@ -318,7 +321,7 @@ struct ArbitrationTests {
         // again, "Arbitrating".
         try await expect(chip.locator(".info-chip-text")).toHaveText("Pending")
         try await expect(chip.locator(".ring-icon-view")).toHaveCount(1)
-        try await expect(chip.locator(".rotating-dotted-ring-sector-view")).toHaveCount(0)
+        try await expect(chip.locator(".rotating-sector-view")).toHaveCount(0)
         try await expect(slot.locator(".computorium-session-output-thinking-running")).toHaveCount(0)
         try await expect(slot).not.toContainText("failed without a recorded reason")
         // A provider-side stop pauses it too, in prose (user, 2026-10-17):
@@ -348,7 +351,7 @@ struct ArbitrationTests {
         #expect(try await slot.evaluate("el => el === window.__slot").bool == true, "The same element")
         // Done, the chip says the madrigal's status again.
         try await expect(chip.locator(".info-chip-text")).toHaveText("Pending")
-        try await expect(chip.locator(".rotating-dotted-ring-sector-view")).toHaveCount(0)
+        try await expect(chip.locator(".rotating-sector-view")).toHaveCount(0)
         try await expect(page.locator(".locution-view .computorium-session-view")).toHaveCount(1)
 
         try await page.openHydrated(reading.path)
@@ -461,7 +464,7 @@ struct ArbitrationTests {
         #expect(try await page.evaluate("window.__chipTexts.includes('Arbitrating')", as: Bool.self),
           "The chip said Arbitrating during the replay")
         try await expect(chip.locator(".info-chip-text"), timeout: .seconds(15)).toHaveText("Pending")
-        try await expect(chip.locator(".rotating-dotted-ring-sector-view")).toHaveCount(0)
+        try await expect(chip.locator(".rotating-sector-view")).toHaveCount(0)
         // The page image in the task prompt as the model received it (user,
         // 2026-10-17): one stage at the message's whole width, zoomed in
         // place—no chip, thumbnail, name or lightbox, no loose lines under
@@ -737,7 +740,7 @@ struct ArbitrationTests {
         return window.__streams.length === 2 && window.__stream === window.__streams[1] })()
       """, as: Bool.self), "Renew attaches the watch again")
     try await expect(chip).toHaveText("Arbitrating")
-    try await expect(page.locator(".disputorium-core-header-status-chip .rotating-dotted-ring-sector-view")).toHaveCount(1)
+    try await expect(page.locator(".disputorium-core-header-status-chip .rotating-sector-view")).toHaveCount(1)
     try await expect(session).not.toHaveAttribute("data-computorium-session-status", "succeeded")
     // The new stream's status, the session's own: still running, then done.
     _ = try await page.evaluate("(() => { window.__status('running'); return true })()", as: Bool.self)
@@ -746,7 +749,7 @@ struct ArbitrationTests {
       (() => { window.__status('succeeded'); window.__stream.emit('done', '{"status":"passed","error":""}'); return true })()
       """, as: Bool.self)
     try await expect(chip).toHaveText("Pending")
-    try await expect(page.locator(".disputorium-core-header-status-chip .rotating-dotted-ring-sector-view")).toHaveCount(0)
+    try await expect(page.locator(".disputorium-core-header-status-chip .rotating-sector-view")).toHaveCount(0)
   }
 
   /// The madrigal page, its arbitration session running, its reply's watch
