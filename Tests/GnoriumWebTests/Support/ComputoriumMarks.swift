@@ -74,7 +74,7 @@ enum ComputoriumMarks {
   static func inProgressShape(_ process: String) -> String {
     switch process {
     case "translation": return ".rotating-ring-sector-with-disc-view"
-    case "arbitration": return ".rotating-ring-sector-view"
+    case "arbitration": return ".rotating-dotted-ring-sector-view"
     default: return ".rotating-sector-view"
     }
   }
@@ -82,7 +82,7 @@ enum ComputoriumMarks {
   /// Every Thinking card's running mark in `scope` is `process`'s
   /// in-progress mark, never another process's.
   static func checkThinking(_ page: Page, process: String, scope: String = ".computorium-session-view") async throws {
-    let shapes = [".rotating-sector-view", ".rotating-ring-sector-with-disc-view", ".rotating-ring-sector-view"]
+    let shapes = [".rotating-sector-view", ".rotating-ring-sector-with-disc-view", ".rotating-dotted-ring-sector-view"]
     let wrong = shapes.filter { $0 != inProgressShape(process) }.joined(separator: ", ")
     let failures = try await page.evaluate(
       """

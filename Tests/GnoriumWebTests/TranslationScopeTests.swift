@@ -123,7 +123,7 @@ struct TranslationScopeTests {
   }
 
   /// Find reads the layer on screen (user, 2026-10-11): the original, or,
-  /// with the record rule's language switch on, the translation, each
+  /// with the reader's English switch on, the translation, each
   /// searched over the whole book by the server and its match marked in
   /// the page.
   @Test(arguments: [BrowserEngine.chrome])
@@ -189,7 +189,7 @@ struct TranslationScopeTests {
           .toHaveAttribute("data-page-index", "1")
         // The translation on screen: its words are found, the original's
         // are not.
-        try await page.locator(".apparatus-rule-language-toggle").first.click()
+        try await viewer.locator(".artifact-english-toggle button").click()
         try await find.fill("the sum")
         try await expect(count, timeout: .seconds(10)).toHaveText("1 of 1")
         #expect(try await page.evaluate("CSS.highlights.get('find-current')?.size ?? 0", as: Int.self) == 1)

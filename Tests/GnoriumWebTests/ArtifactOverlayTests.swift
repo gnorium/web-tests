@@ -673,7 +673,17 @@ struct ArtifactOverlayTests {
           await leave();
           words[1].dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await wait(100);
           const broken=bands().length===2&&words[3].dataset.corresponding==='true';
-          return [one,gap,hug,caps,zoomed,descends,smaller,broken].map(Number)})()
+          // The pair: the marked word and the scan's band wear one yellow at one opacity (user, 2026-10-18).
+          const probe=document.createElement('div');document.body.appendChild(probe);
+          probe.style.backgroundColor='color-mix(in srgb, var(--color-yellow) calc(var(--opacity-low) * 100%), transparent)';
+          const mixed=getComputedStyle(probe).backgroundColor;
+          probe.style.backgroundColor='var(--color-yellow)';const solid=getComputedStyle(probe).backgroundColor;probe.remove();
+          const scanBand=[...document.querySelectorAll('.canvas-word')].find(b=>!b.hidden),scanStyle=getComputedStyle(scanBand);
+          const lowOpacity=getComputedStyle(document.documentElement).getPropertyValue('--opacity-low').trim();
+          const marked=page.querySelector('.tei-word[data-corresponding="true"]');
+          const yellow=!!scanBand&&scanStyle.backgroundColor===solid&&Math.abs(parseFloat(scanStyle.opacity)-parseFloat(lowOpacity))<0.001
+            &&!!marked&&marked.dataset.band==='true'&&getComputedStyle(marked).backgroundImage.split(mixed).length===3;
+          return [one,gap,hug,caps,zoomed,descends,smaller,broken,yellow].map(Number)})()
         """#, as: [Int].self)
       let named = [
         "the letter-spaced word: one band, the union of its zones",
@@ -684,6 +694,7 @@ struct ArtifactOverlayTests {
         "a word with descenders: its band is no taller than its neighbor's and reaches below the baseline",
         "a smaller span's band is proportionally smaller",
         "the word broken over lines: a band a line, its other part marked",
+        "the marked word and the scan's band wear one yellow at one opacity",
       ]
       for (check, name) in zip(checks, named) { #expect(check == 1, "\(name) (width \(width))") }
       try await page.expectNoErrors()

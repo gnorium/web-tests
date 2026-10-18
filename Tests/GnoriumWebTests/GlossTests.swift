@@ -94,12 +94,13 @@ struct GlossTests {
         let pane = page.locator(".artifact-markup-frame").first
         try await expect(pane.locator(".gloss-sheet")).toHaveCount(1)
         // Once the panel has slid in (the ellipsis menu's motion), it is the
-        // pane's box.
+        // pane's box (`.artifact-markup-box`, with its 1px edge the state
+        // ring is drawn on; the text inside it is inset by that edge).
         let covers = try await pane.evaluate(
           """
           async (el) => {
             await new Promise((r) => setTimeout(r, 400));
-            const p = el.querySelector('.artifact-markup').getBoundingClientRect(), s = el.querySelector('.gloss-sheet .sheet-panel').getBoundingClientRect();
+            const p = el.querySelector('.artifact-markup-box').getBoundingClientRect(), s = el.querySelector('.gloss-sheet .sheet-panel').getBoundingClientRect();
             return Math.abs(s.top - p.top) <= 1 && Math.abs(s.left - p.left) <= 1
               && Math.abs(s.height - p.height) <= 1 && Math.abs(s.width - p.width) <= 1;
           }

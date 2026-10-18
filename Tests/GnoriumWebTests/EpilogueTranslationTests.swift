@@ -86,12 +86,22 @@ struct EpilogueTranslationTests {
         let pane = viewer.locator(".artifact-markup")
         // The original shown: no translation's ring.
         try await expect(pane).not.toHaveAttribute("data-diff-state", "stale")
+        // English is the reader's own switch (user, 2026-10-18), off at
+        // first, with the page images' switch; no page-wide one.
+        try await expect(page.locator(".apparatus-rule-language-toggle")).toHaveCount(0)
+        let english = viewer.locator(".artifact-english-toggle")
+        try await expect(english).toHaveCount(1)
+        try await expect(english.locator("button")).toHaveAttribute("aria-pressed", "false")
+        try await expect(viewer).toHaveAttribute("data-translated", "false")
+        try await expect(viewer.locator(".artifact-canvas-toggle button")).toHaveAttribute("aria-pressed", "false")
         // The English layer shown: its page is stale, the pane ringed orange.
-        try await page.locator(".apparatus-rule-language-toggle").first.click()
+        try await english.locator("button").click()
+        try await expect(viewer).toHaveAttribute("data-translated", "true")
         try await expect(pane).toHaveAttribute("data-diff-state", "stale")
         let orange = try await page.evaluate(
           "getComputedStyle(document.documentElement).getPropertyValue('--border-color-orange').trim()", as: String.self)
-        let ring = try await pane.evaluate("el => getComputedStyle(el).borderTopColor").string
+        // The ring is drawn on the pane's box (`.artifact-markup-box`), not the pane.
+        let ring = try await viewer.locator(".artifact-markup-box").evaluate("el => getComputedStyle(el).borderTopColor").string
         #expect(try #require(ring) == (try await page.evaluate(
           "(() => { const d = document.createElement('div'); d.style.color = '\(orange)'; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c; })()",
           as: String.self)), "the stale ring is \(ring ?? "none")")
