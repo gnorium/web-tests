@@ -5,7 +5,7 @@ import Foundation
 /// record's own reference (beside its title, in its closed Metadata) and the
 /// leaf's (beside its description, in its row's heading). Every row by its own
 /// id, removed in the order the foreign keys allow—except its submission and
-/// Folksong, which are submitted input and frozen, so they stay. Its
+/// Fountain, which are submitted input and frozen, so they stay. Its
 /// overture is committed, its antiphon submitted, and the madrigal that
 /// antiphon made permitted. With a `distinction`,
 /// the leaf's TEI holds it as its `<note type="usage" subtype="distinction">`
@@ -55,7 +55,7 @@ struct ScratchWord {
   ) throws {
     let user = try owner.column("id")
     var ids: [String: String] = [:]
-    for name in ["submission", "folksong", "overture", "antiphon", "madrigal", "lemma", "record", "version"] {
+    for name in ["submission", "fountain", "overture", "antiphon", "madrigal", "lemma", "record", "version"] {
       ids[name] = UUID().uuidString.lowercased()
     }
     overtureID = ids["overture"]!.uppercased()
@@ -92,7 +92,7 @@ struct ScratchWord {
       "tei":"<sense><def>A leaf sense.</def>\(note)</sense>"}]}
       """
     // Its title form as the Submit Sentiment form writes one: a submitted
-    // Folksong is frozen and stays, so it must be one the Folksongs list can
+    // Fountain is frozen and stays, so it must be one the Fountains list can
     // read (an empty form fails the whole list).
     let titleForm = #"{"title":"\#(title)"\#(romanized),"languageCode":"\#(language)","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
     let asciiForm = romanizedTitle ?? title
@@ -105,12 +105,12 @@ struct ScratchWord {
         VALUES ('\(ids["lemma"]!)', '\(title)', '\(asciiForm)', '\(asciiForm)', (SELECT id FROM languages WHERE iso639_3 = '\(language)'), 1, now(), now());
       INSERT INTO lexico_records (id, lemma_id, title, language_code, version, type, romanized_title, created_at, updated_at)
         VALUES ('\(ids["record"]!)', '\(ids["lemma"]!)', '\(title)', '\(language)', 1, 'noun', \(romanizedColumn), now(), now());
-      INSERT INTO lexicographic_folksongs (id, batch_id, language, title_form_json, anchors_json)
-        VALUES ('\(ids["folksong"]!)', '\(ids["submission"]!)', '\(language)', '\(titleForm)', '[]');
-      INSERT INTO lexicographic_overtures (id, lexicographic_folksong_id, title_form_json, anchors_json, committed_by_user_id, committed_at, created_at)
-        VALUES ('\(ids["overture"]!)', '\(ids["folksong"]!)', '\(titleForm)', '[]', '\(user)', now(), now());
-      INSERT INTO lexicographic_antiphons (id, lexicographic_folksong_id, lexicographic_overture_id, requested_by_user_id, processing_status, language, sentence, title_form_json, created_at, updated_at)
-        VALUES ('\(ids["antiphon"]!)', '\(ids["folksong"]!)', '\(ids["overture"]!)', '\(user)', 'submitted', '\(language)', '\(title)', '\(titleForm)', now(), now());
+      INSERT INTO lexicographic_fountains (id, batch_id, language, title_form_json, anchors_json)
+        VALUES ('\(ids["fountain"]!)', '\(ids["submission"]!)', '\(language)', '\(titleForm)', '[]');
+      INSERT INTO lexicographic_overtures (id, lexicographic_fountain_id, title_form_json, anchors_json, committed_by_user_id, committed_at, created_at)
+        VALUES ('\(ids["overture"]!)', '\(ids["fountain"]!)', '\(titleForm)', '[]', '\(user)', now(), now());
+      INSERT INTO lexicographic_antiphons (id, lexicographic_fountain_id, lexicographic_overture_id, requested_by_user_id, processing_status, language, sentence, title_form_json, created_at, updated_at)
+        VALUES ('\(ids["antiphon"]!)', '\(ids["fountain"]!)', '\(ids["overture"]!)', '\(user)', 'submitted', '\(language)', '\(title)', '\(titleForm)', now(), now());
       INSERT INTO lexicographic_madrigals (id, lexicographic_antiphon_id, lexico_record_id, proposed_content_json, processing_status, permitted_by_user_id, permitted_at, created_at, updated_at)
         VALUES ('\(ids["madrigal"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"record":\(vignette),"homographFlags":[],"evidenceRequests":[],"reasoning":"Web tests."}', \(submitted ? "'submitted', NULL, NULL" : "'permitted', '\(user)', now()"), now(), now());
       INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_madrigal_id, status, record_json, created_at)

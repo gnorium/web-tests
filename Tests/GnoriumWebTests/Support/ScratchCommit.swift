@@ -5,8 +5,8 @@ import Foundation
 /// madrigal (its own overture committed, its antiphon submitted) holding
 /// one page not read yet, so its one process is explication (user,
 /// 2026-10-10). Every row by its own id, removed in the order the foreign keys
-/// allow—except its submission and Folksong, which are submitted input and
-/// frozen: the Folksong is soft-deleted, as the site deletes one. Nothing here is ever committed: a test only opens and cancels.
+/// allow—except its submission and Fountain, which are submitted input and
+/// frozen: the Fountain is soft-deleted, as the site deletes one. Nothing here is ever committed: a test only opens and cancels.
 /// The madrigal's metadata holds what the witness's fields require (its
 /// page decodes them): the language, the source URL and its kind.
 struct ScratchCommit {
@@ -16,7 +16,7 @@ struct ScratchCommit {
   static let sourceURL = "https://web-tests.invalid/manifest.json"
 
   private let submissionID: String
-  private let folksongID: String
+  private let fountainID: String
   private let pendingOvertureID: String
   private let committedOvertureID: String
   private let antiphonID: String
@@ -31,7 +31,7 @@ struct ScratchCommit {
     self.owner = owner.username
     func id() -> String { UUID().uuidString.lowercased() }
     submissionID = id()
-    folksongID = id()
+    fountainID = id()
     pendingOvertureID = id()
     committedOvertureID = id()
     antiphonID = id()
@@ -40,12 +40,12 @@ struct ScratchCommit {
       """
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(submissionID)', '\(user)');
-      INSERT INTO bibliographic_folksongs (id, batch_id, source_url, language, processing_status, title, type, created_at)
-        VALUES ('\(folksongID)', '\(submissionID)', '\(sourceURL)', 'eng', 'pending', 'Web tests commit \(folksongID.prefix(8))', 'report', now());
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_folksong_id, source_url, language, processing_status, created_at)
-        VALUES ('\(pendingOvertureID)', '\(submissionID)', '\(folksongID)', '\(sourceURL)', 'eng', 'pending', now());
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_folksong_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
-        VALUES ('\(committedOvertureID)', '\(submissionID)', '\(folksongID)', '\(sourceURL)', 'eng', 'pending', '\(user)', now(), now());
+      INSERT INTO bibliographic_fountains (id, batch_id, source_url, language, processing_status, title, type, created_at)
+        VALUES ('\(fountainID)', '\(submissionID)', '\(sourceURL)', 'eng', 'pending', 'Web tests commit \(fountainID.prefix(8))', 'report', now());
+      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_fountain_id, source_url, language, processing_status, created_at)
+        VALUES ('\(pendingOvertureID)', '\(submissionID)', '\(fountainID)', '\(sourceURL)', 'eng', 'pending', now());
+      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_fountain_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
+        VALUES ('\(committedOvertureID)', '\(submissionID)', '\(fountainID)', '\(sourceURL)', 'eng', 'pending', '\(user)', now(), now());
       INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, resemblance_service_ids_json, processing_status, created_at, updated_at)
         VALUES ('\(antiphonID)', '\(committedOvertureID)', '\(user)', '[]', 'submitted', now(), now());
       INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, proposed_content_json, metadata_json, processing_status, created_at, updated_at)
@@ -70,7 +70,7 @@ struct ScratchCommit {
       DELETE FROM bibliographic_madrigals WHERE id = '\(madrigalID)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
       DELETE FROM bibliographic_overtures WHERE id IN ('\(pendingOvertureID)', '\(committedOvertureID)');
-      UPDATE bibliographic_folksongs SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(folksongID)';
+      UPDATE bibliographic_fountains SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(fountainID)';
       COMMIT;
       """)
   }

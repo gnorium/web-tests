@@ -199,13 +199,13 @@ struct ReviewNavigationTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome])
-  func pedigreeFolksongLinksOpenBothRecordKinds(engine: BrowserEngine) async throws {
+  func pedigreeFountainLinksOpenBothRecordKinds(engine: BrowserEngine) async throws {
     guard gnorium.engines.contains(engine) else { return }
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let line = try ScratchLine(owner: admin, links: 1)
     let word = try ScratchWord(owner: admin)
-    let overtureID = try TestAdmin.query("SELECT id FROM bibliographic_overtures WHERE bibliographic_folksong_id = '\(line.folksongID)';")
+    let overtureID = try TestAdmin.query("SELECT id FROM bibliographic_overtures WHERE bibliographic_fountain_id = '\(line.fountainID)';")
     do {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         for (kind, path) in [
@@ -214,12 +214,12 @@ struct ReviewNavigationTests {
         ] {
           try await page.openHydrated(path)
           try await page.locator("#pedigree-rows > .accordion-summary").click()
-          let folksong = page.locator("#pedigree-rows a[href*='/folksongs/\(kind)/']").first
-          try await expect(folksong).toBeVisible()
+          let fountain = page.locator("#pedigree-rows a[href*='/fountains/\(kind)/']").first
+          try await expect(fountain).toBeVisible()
           try await expect(page.locator("#pedigree-rows a[href*='/instances/']")).toHaveCount(0)
-          try await folksong.press("Enter")
-          try await expect(page).toHaveURL("Folksong page") { $0.path.contains("/folksongs/\(kind)/") }
-          try await expect(page.locator(".mission-control-object-header-title")).toContainText("Folksong")
+          try await fountain.press("Enter")
+          try await expect(page).toHaveURL("Fountain page") { $0.path.contains("/fountains/\(kind)/") }
+          try await expect(page.locator(".mission-control-object-header-title")).toContainText("Fountain")
           try await page.expectNoErrors()
         }
       }

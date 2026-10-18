@@ -11,7 +11,7 @@ import WebTestsTesting
 @Suite("Watchtower figure links")
 struct WatchtowerFigureLinksTests {
   /// Every figure: an object's, opening its object's own list (user,
-  /// 2026-10-10)—Folksongs, Overtures, Antiphons, Madrigals, Serenades,
+  /// 2026-10-10)—Fountains, Overtures, Antiphons, Madrigals, Serenades,
   /// Epilogues, Palinodes—and a process's, opening the nocturnes it counts
   /// (arbitration's, the calls' locutions by their Arbitration).
   static let figureLinks = ".watchtower-object-figures-view a[href], .watchtower-process-figures a[href]"
@@ -167,9 +167,9 @@ struct WatchtowerFigureLinksTests {
         $0.href.hasPrefix("/mission-control/locutions/")
       }.count
       try #require(arbitrationLinks == 27, "the nested Arbitration cards' locution links: \(arbitrationLinks)")
-      // An object's figure opens its own list, never the lifecycles.
-      let lifecycles = figures.filter { $0.href.contains("/lifecycles/") }.map(\.href)
-      #expect(lifecycles.isEmpty, "object figures open the lifecycles: \(lifecycles)")
+      // An object's figure opens its own list, never the lifetimes.
+      let lifetimes = figures.filter { $0.href.contains("/lifetimes/") }.map(\.href)
+      #expect(lifetimes.isEmpty, "object figures open the lifetimes: \(lifetimes)")
       for figure in figures {
         let count = try #require(Int(figure.text.prefix { $0.isNumber }))
         // Explication's figures count both kinds' nocturnes: the list they
@@ -193,6 +193,24 @@ struct WatchtowerFigureLinksTests {
     }
   }
 
+  /// The page stands on `href`. A link whose query counts the reader's days
+  /// (`createdOn=-7d..`) is followed with the reader's zone (`&tz=`, added
+  /// by the client when it is followed: nothing is stored), so the address
+  /// is `href` plus that zone; one that counts none is `href` as it was.
+  static func expectOpened(_ page: Page, _ href: String) async throws {
+    let zone = try await page.evaluate("Intl.DateTimeFormat().resolvedOptions().timeZone", as: String.self)
+    let zoned = href.contains("-7d..")
+    try await expect(page, timeout: .seconds(15)).toHaveURL(zoned ? "\(href)&tz=\(zone)" : href) { url in
+      let wanted = URLComponents(string: href)?.queryItems ?? []
+      var items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+      if zoned {
+        guard items.contains(where: { $0.name == "tz" && $0.value == zone }) else { return false }
+        items.removeAll { $0.name == "tz" }
+      }
+      return url.path == URLComponents(string: href)?.path && items == wanted
+    }
+  }
+
   /// The case that was broken: the sentiments' committed overtures.
   static let committedSentimentOvertures = "/mission-control/overtures/lexicographic?status=committed&createdOn=-7d.."
   /// The testaments' pending overtures, whose list must be filtered on the
@@ -211,7 +229,7 @@ struct WatchtowerFigureLinksTests {
       let phrase = try await link.textContent()
       let count = try #require(Int(phrase.prefix { $0.isNumber }), "\(href) reads \(phrase)")
       try await link.click()
-      try await expect(page, timeout: .seconds(15)).toHaveURL(href)
+      try await Self.expectOpened(page, href)
       try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
       let fields = try await page.locator(".filter-bar-field-picker .dropdown-selected-text").allTextContents()
       #expect(fields.contains("Process") && fields.contains("Status") && !fields.contains("Show"), "fields: \(fields)")
@@ -251,7 +269,7 @@ struct WatchtowerFigureLinksTests {
         let phrase = try await link.textContent()
         let shown = try #require(Int(phrase.prefix { $0.isNumber }), "\(href) reads \(phrase)")
         try await link.click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL(href)
+        try await Self.expectOpened(page, href)
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
 
         // The filter bar names what the link asked for, and no row stands

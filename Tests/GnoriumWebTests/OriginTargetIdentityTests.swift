@@ -12,7 +12,7 @@ struct OriginTargetIdentityTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let source = try ScratchWord(owner: admin)
     let submission = UUID().uuidString.lowercased()
-    let folksong = UUID().uuidString.lowercased()
+    let fountain = UUID().uuidString.lowercased()
     let overture = UUID().uuidString.lowercased()
     let revision = UUID().uuidString.lowercased()
     let step = UUID().uuidString
@@ -23,8 +23,8 @@ struct OriginTargetIdentityTests {
         BEGIN;
         DELETE FROM revisions WHERE revisable_id = '\(overture)';
         DELETE FROM lexicographic_overtures WHERE id = '\(overture)';
-        UPDATE lexicographic_folksongs SET deleted_at = now(), deleted_by = '\(admin.username)'
-          WHERE id = '\(folksong)' AND deleted_at IS NULL;
+        UPDATE lexicographic_fountains SET deleted_at = now(), deleted_by = '\(admin.username)'
+          WHERE id = '\(fountain)' AND deleted_at IS NULL;
         COMMIT;
         """)
       source.remove()
@@ -47,11 +47,11 @@ struct OriginTargetIdentityTests {
           '{senses,1,tei}', '"<sense><def>\(label)</def></sense>"')::text
           WHERE id = '\(source.versionID.lowercased())';
         INSERT INTO submissions (id, user_id) VALUES ('\(submission)', '\(user)');
-        INSERT INTO lexicographic_folksongs (id, batch_id, language, order_in_batch, processing_status,
+        INSERT INTO lexicographic_fountains (id, batch_id, language, order_in_batch, processing_status,
           title_form_json, anchors_json, created_at)
-          VALUES ('\(folksong)', '\(submission)', 'eng', 0, 'pending', '\(form)', '[]', now());
-        INSERT INTO lexicographic_overtures (id, lexicographic_folksong_id, title_form_json, anchors_json, origins_json, created_at)
-          VALUES ('\(overture)', '\(folksong)', '\(form)', '[]', '\(before)', now());
+          VALUES ('\(fountain)', '\(submission)', 'eng', 0, 'pending', '\(form)', '[]', now());
+        INSERT INTO lexicographic_overtures (id, lexicographic_fountain_id, title_form_json, anchors_json, origins_json, created_at)
+          VALUES ('\(overture)', '\(fountain)', '\(form)', '[]', '\(before)', now());
         INSERT INTO revisions (id, revisable_type, revisable_id, previous_content_json, content_json, status,
           requested_by_user_id, created_at)
           VALUES ('\(revision)', 'lexicographicOverture', '\(overture)',

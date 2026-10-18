@@ -7,7 +7,7 @@ import WebTestsTesting
 /// and no contribution counts—contributions are people's accepted
 /// outcomes—but its work, per kind behind Bibliographic and Lexicographic
 /// tabs in the card's header: a row for each object it works on, in
-/// lifecycle order, saying only what it does there—"9 locutions" on a
+/// lifetime order, saying only what it does there—"9 locutions" on a
 /// Disputorium object, "291 nocturnes" on a Computorium one—the phrase one
 /// link to that list filtered by the object. Its picture is always the
 /// logo.

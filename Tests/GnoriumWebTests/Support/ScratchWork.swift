@@ -4,8 +4,8 @@ import Foundation
 /// manifest, owned by the test's account: its overture committed, its
 /// antiphon submitted, and the madrigal that antiphon made permitted. Every
 /// row by its own id, removed in the order the foreign keys allow—except
-/// its submission and Folksong, which are submitted input and frozen: the
-/// Folksong is soft-deleted, as the site deletes one, and both stay.
+/// its submission and Fountain, which are submitted input and frozen: the
+/// Fountain is soft-deleted, as the site deletes one, and both stay.
 ///
 /// Its author is a typed name, as every voice is.
 struct ScratchWork {
@@ -24,14 +24,14 @@ struct ScratchWork {
   private let ids: [String: String]
   private let owner: String
 
-  /// `sourceURL` is its Folksong's and overture's source URL, fixed at
-  /// submission (a submitted Folksong can't be changed).
+  /// `sourceURL` is its Fountain's and overture's source URL, fixed at
+  /// submission (a submitted Fountain can't be changed).
   init(owner: TestAdmin, sourceURL: String = "https://example.org/web-tests") throws {
     self.owner = owner.username
     let user = try owner.column("id")
     var ids: [String: String] = [:]
     for name in [
-      "submission", "folksong", "overture", "antiphon", "record", "madrigal", "version", "authorship",
+      "submission", "fountain", "overture", "antiphon", "record", "madrigal", "version", "authorship",
     ] {
       ids[name] = UUID().uuidString.lowercased()
     }
@@ -47,7 +47,7 @@ struct ScratchWork {
     overtureID = ids["overture"]!.uppercased()
     madrigalID = ids["madrigal"]!.uppercased()
     self.ids = ids
-    let folksong = ids["folksong"]!.uppercased()
+    let fountain = ids["fountain"]!.uppercased()
     let metadata = """
       {"sourceUrl":"https://example.org/web-tests","sourceKind":"iiif-manifest","title":"\(title)",\
       "voices":[{"name":"\(author)","role":"author"}],\
@@ -58,8 +58,8 @@ struct ScratchWork {
     // (design-notes/node-uuids.md).
     let node = { UUID().uuidString }
     let shape = """
-      {"edition-\(folksong)":{"parent":"work","position":0,"uuid":"\(node())"},\
-      "manifest-\(folksong)":{"parent":"edition-\(folksong)","position":0,"uuid":"\(node())"},\
+      {"edition-\(fountain)":{"parent":"work","position":0,"uuid":"\(node())"},\
+      "manifest-\(fountain)":{"parent":"edition-\(fountain)","position":0,"uuid":"\(node())"},\
       "work":{"parent":null,"position":0,"uuid":"\(node())"}}
       """
     let voice = """
@@ -70,10 +70,10 @@ struct ScratchWork {
       """
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(ids["submission"]!)', '\(user)');
-      INSERT INTO bibliographic_folksongs (id, batch_id, source_url, language, processing_status, title, type, edition, year, created_at)
-        VALUES ('\(ids["folksong"]!)', '\(ids["submission"]!)', '\(sourceURL)', 'eng', 'pending', '\(title)', 'report', 'First edition', 1958, now());
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_folksong_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
-        VALUES ('\(ids["overture"]!)', '\(ids["submission"]!)', '\(ids["folksong"]!)', '\(sourceURL)', 'eng', 'pending', '\(user)', now(), now());
+      INSERT INTO bibliographic_fountains (id, batch_id, source_url, language, processing_status, title, type, edition, year, created_at)
+        VALUES ('\(ids["fountain"]!)', '\(ids["submission"]!)', '\(sourceURL)', 'eng', 'pending', '\(title)', 'report', 'First edition', 1958, now());
+      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_fountain_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
+        VALUES ('\(ids["overture"]!)', '\(ids["submission"]!)', '\(ids["fountain"]!)', '\(sourceURL)', 'eng', 'pending', '\(user)', now(), now());
       INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, resemblance_service_ids_json, processing_status, created_at, updated_at)
         VALUES ('\(ids["antiphon"]!)', '\(ids["overture"]!)', '\(user)', '[]', 'submitted', now(), now());
       INSERT INTO biblio_records (id, corpus_id, title, title_slug, type, language, genres, year, date_display, created_at, updated_at)
@@ -89,9 +89,9 @@ struct ScratchWork {
   }
 
   func remove() {
-    // An amendment submitted against it is a frozen Folksong naming its
+    // An amendment submitted against it is a frozen Fountain naming its
     // record and version (no foreign key): then the work stays whole, or
-    // the Folksong would name nothing and every page loading it would fail.
+    // the Fountain would name nothing and every page loading it would fail.
     let amended = "EXISTS (SELECT 1 FROM bibliographic_palinodes WHERE biblio_record_id = '\(ids["record"]!)')"
     _ = try? TestAdmin.query(
       """
@@ -103,7 +103,7 @@ struct ScratchWork {
       DELETE FROM biblio_record_voices WHERE id = '\(ids["authorship"]!)' AND NOT \(amended);
       DELETE FROM biblio_records WHERE id = '\(ids["record"]!)' AND NOT \(amended);
       DELETE FROM bibliographic_overtures WHERE id = '\(ids["overture"]!)' AND NOT \(amended);
-      UPDATE bibliographic_folksongs SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(ids["folksong"]!)';
+      UPDATE bibliographic_fountains SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(ids["fountain"]!)';
       COMMIT;
       """)
   }

@@ -78,7 +78,7 @@ struct TableResizeTests {
   @Test(arguments: gnorium.engines)
   func aColumnIsDraggedWiderAndFitsOnADoubleClick(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine)) { page in
-      for (path, column) in [("/lexico-records", "language"), ("/biblio-records", "type"), ("/mission-control/lifecycles/bibliographic", nil)] {
+      for (path, column) in [("/lexico-records", "language"), ("/biblio-records", "type"), ("/mission-control/lifetimes/bibliographic", nil)] {
         try await page.openHydrated(path)
         try await page.expectNoErrors()
         let id: String
@@ -135,29 +135,25 @@ struct TableResizeTests {
     guard gnorium.engines.contains(engine) else { return }
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/mission-control")
-      // Install observation before the client starts, using the actual public
-      // dashboard HTML on the same origin. A hydrated original table is not
-      // evidence that an SSE replacement was rehydrated.
+      // Count the live frames before the client starts, using the actual
+      // public dashboard HTML on the same origin. A live region is morphed in
+      // place (LiveRegionHydration), so its table node is kept, not replaced:
+      // what the test needs is that a frame for each region has been written
+      // in, and that the table still takes a drag afterward.
       let original = try await page.evaluate("fetch('/mission-control').then(response => response.text())", as: String.self)
       let observer = """
         <script>
         (() => {
-          const ids = ['workers-summary', 'recent-activity'];
-          const first = new Map(), replaced = new Set();
-          window.__liveTablesReplaced = false;
-          const observer = new MutationObserver(() => {
-            for (const id of ids) {
-              const table = document.querySelector(`#live-region-${id} .table-view`);
-              if (!table) continue;
-              if (!first.has(id)) first.set(id, table);
-              else if (first.get(id) !== table && table.dataset.tableHydrated === 'true') replaced.add(id);
+          const Native = window.EventSource;
+          window.__liveRegionFrames = new Set();
+          window.EventSource = class extends Native {
+            constructor(url, options) {
+              super(url, options);
+              this.addEventListener('chunk', event => {
+                try { window.__liveRegionFrames.add(JSON.parse(event.data).region) } catch (error) {}
+              });
             }
-            if (replaced.size === ids.length) {
-              window.__liveTablesReplaced = true;
-              observer.disconnect();
-            }
-          });
-          observer.observe(document.documentElement, {childList: true, subtree: true, attributes: true});
+          };
         })();
         </script>
         """
@@ -170,14 +166,15 @@ struct TableResizeTests {
         new Promise(resolve => {
           const deadline = Date.now() + 15000;
           const check = () => {
-            if (window.__liveTablesReplaced) resolve(true);
+            const frames = window.__liveRegionFrames;
+            if (frames.has('workers-summary') && frames.has('recent-activity')) setTimeout(() => resolve(true), 500);
             else if (Date.now() >= deadline) resolve(false);
             else setTimeout(check, 50);
           };
           check();
         })
         """, as: Bool.self)
-      #expect(liveTablesReady, "Observed SSE replacement nodes receive table interaction bindings")
+      #expect(liveTablesReady, "The live frames for both tables were written in")
       for selector in [".mission-control-workers-table", ".mission-control-dashboard-recent-activity-table"] {
         let headerSelector = "\(selector) th[data-table-column-id]:first-child"
         let before = try await page.evaluate("document.querySelector(\"\(headerSelector)\").getBoundingClientRect().width", as: Double.self)

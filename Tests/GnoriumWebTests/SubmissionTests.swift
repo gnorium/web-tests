@@ -79,9 +79,9 @@ struct SubmissionTests {
       _ = try? TestAdmin.query(
         """
         BEGIN;
-        DELETE FROM bibliographic_overtures WHERE bibliographic_folksong_id IN
-          (SELECT id FROM bibliographic_folksongs WHERE source_url LIKE '\(source)%');
-        UPDATE bibliographic_folksongs SET deleted_at = now(), deleted_by = '\(admin.username)'
+        DELETE FROM bibliographic_overtures WHERE bibliographic_fountain_id IN
+          (SELECT id FROM bibliographic_fountains WHERE source_url LIKE '\(source)%');
+        UPDATE bibliographic_fountains SET deleted_at = now(), deleted_by = '\(admin.username)'
           WHERE source_url LIKE '\(source)%' AND deleted_at IS NULL;
         COMMIT;
         """)
@@ -294,7 +294,7 @@ struct SubmissionTests {
       """
       SELECT e.title || '|' || coalesce(e.carrier, '') || '|' || coalesce(e.edition, '') || '|'
         || coalesce(e.copy_label, '') || '|' || coalesce(e.chosen_biblio_record_id::text, '') || '|' || count(o.id)
-        FROM bibliographic_folksongs e LEFT JOIN bibliographic_overtures o ON o.bibliographic_folksong_id = e.id
+        FROM bibliographic_fountains e LEFT JOIN bibliographic_overtures o ON o.bibliographic_fountain_id = e.id
         WHERE e.source_url = '\(source)/new' GROUP BY e.id;
       """
     ).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -392,21 +392,21 @@ struct SubmissionTests {
       $0.path == "/mission-control"
     }
     let evidence = try TestAdmin.query(
-      "SELECT id FROM bibliographic_folksongs WHERE source_url = '\(source)/placed';"
+      "SELECT id FROM bibliographic_fountains WHERE source_url = '\(source)/placed';"
     ).trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     #expect(!evidence.isEmpty, "No evidence.")
     let row = try TestAdmin.query(
       """
       SELECT e.title || '|' || coalesce(e.carrier, '') || '|' || coalesce(e.copy_label, '') || '|'
         || coalesce(e.edition, '') || '|' || e.chosen_biblio_record_id::text || '|' || o.chosen_biblio_record_id::text
-        FROM bibliographic_folksongs e JOIN bibliographic_overtures o ON o.bibliographic_folksong_id = e.id
+        FROM bibliographic_fountains e JOIN bibliographic_overtures o ON o.bibliographic_fountain_id = e.id
         WHERE e.source_url = '\(source)/placed';
       """
     ).trimmingCharacters(in: .whitespacesAndNewlines)
     let record = work.recordID.lowercased()
     #expect(row == "\(work.title)|printed|Copy 2||\(record)|\(record)", "\(row)")
     let placement = try TestAdmin.query(
-      "SELECT placement_json FROM bibliographic_folksongs WHERE source_url = '\(source)/placed';")
+      "SELECT placement_json FROM bibliographic_fountains WHERE source_url = '\(source)/placed';")
     let shape = try JSONSerialization.jsonObject(with: Data(placement.utf8)) as? [String: [String: Any]] ?? [:]
     let placedCopy = shape.first { $0.key.lowercased() == "copy-\(evidence.lowercased())" }
     let placedManifest = shape.first { $0.key.lowercased() == "manifest-\(evidence.lowercased())" }
@@ -509,8 +509,8 @@ struct SubmissionTests {
       _ = try? TestAdmin.query(
         """
         BEGIN;
-        DELETE FROM lexicographic_overtures WHERE lexicographic_folksong_id IN
-          (SELECT id FROM lexicographic_folksongs WHERE title_form_json::json ->> 'title' = 'webtestsnew\(suffix)'
+        DELETE FROM lexicographic_overtures WHERE lexicographic_fountain_id IN
+          (SELECT id FROM lexicographic_fountains WHERE title_form_json::json ->> 'title' = 'webtestsnew\(suffix)'
             OR chosen_lexico_record_id = '\(word.recordID.lowercased())');
         COMMIT;
         """)
@@ -562,13 +562,13 @@ struct SubmissionTests {
       """
       SELECT (e.title_form_json::json ->> 'title') || '|' || coalesce(e.chosen_lexico_record_id::text, '') || '|'
         || count(o.id)
-        FROM lexicographic_folksongs e LEFT JOIN lexicographic_overtures o ON o.lexicographic_folksong_id = e.id
+        FROM lexicographic_fountains e LEFT JOIN lexicographic_overtures o ON o.lexicographic_fountain_id = e.id
         WHERE e.title_form_json::json ->> 'title' = 'webtestsnew\(suffix)' GROUP BY e.id;
       """
     ).trimmingCharacters(in: .whitespacesAndNewlines)
     #expect(row == "webtestsnew\(suffix)||1", "\(row)")
     let sentiment = try TestAdmin.query(
-      "SELECT sentiment_json FROM lexicographic_folksongs WHERE title_form_json::json ->> 'title' = 'webtestsnew\(suffix)'")
+      "SELECT sentiment_json FROM lexicographic_fountains WHERE title_form_json::json ->> 'title' = 'webtestsnew\(suffix)'")
     #expect(sentiment.contains(#""register":["formal"]"#), "\(sentiment)")
   }
 
@@ -622,7 +622,7 @@ struct SubmissionTests {
       """
       SELECT (e.title_form_json::json ->> 'title') || '|' || e.chosen_lexico_record_id::text || '|'
         || o.chosen_lexico_record_id::text || '|' || e.placement_json
-        FROM lexicographic_folksongs e JOIN lexicographic_overtures o ON o.lexicographic_folksong_id = e.id
+        FROM lexicographic_fountains e JOIN lexicographic_overtures o ON o.lexicographic_fountain_id = e.id
         WHERE e.chosen_lexico_record_id = '\(word.recordID.lowercased())';
       """
     ).trimmingCharacters(in: .whitespacesAndNewlines)

@@ -44,9 +44,9 @@ struct LexicographicExplicationSessionsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO lexicographic_antiphons (id, lexicographic_folksong_id, lexicographic_madrigal_id, requested_by_user_id,
+        INSERT INTO lexicographic_antiphons (id, lexicographic_fountain_id, lexicographic_madrigal_id, requested_by_user_id,
           processing_status, processing_error, language, sentence, created_at, updated_at)
-          VALUES ('\(antiphon)', (SELECT lexicographic_folksong_id FROM lexicographic_overtures WHERE id = '\(word.overtureID)'),
+          VALUES ('\(antiphon)', (SELECT lexicographic_fountain_id FROM lexicographic_overtures WHERE id = '\(word.overtureID)'),
             '\(word.madrigalID)', '\(user)', 'failed', 'Needs a person: web tests', 'eng', '\(word.title)', now(), now());
         INSERT INTO quotation_clusterings (id, lexicographic_antiphon_id, method, threshold, model, model_version,
           dimensions, recipe, quotation_ids_json)
