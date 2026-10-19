@@ -15,7 +15,8 @@ import WebTestsTesting
 struct SystemAccountProfileTests {
   /// Each object, and its count's noun.
   static let rows = [
-    ("overture", "locution"), ("antiphon", "nocturne"), ("madrigal", "locution"), ("serenade", "nocturne"),
+    ("overture", "locution"), ("quatrain", "nocturne"), ("antiphon", "nocturne"), ("madrigal", "locution"),
+    ("serenade", "nocturne"),
     ("epilogue", "locution"),
   ]
 

@@ -11,7 +11,7 @@ import WebTestsTesting
 @Suite("Watchtower figure links")
 struct WatchtowerFigureLinksTests {
   /// Every figure: an object's, opening its object's own list (user,
-  /// 2026-10-10)—Fountains, Overtures, Antiphons, Madrigals, Serenades,
+  /// 2026-10-10)—Fountains, Overtures, Quatrains, Antiphons, Madrigals, Serenades,
   /// Epilogues, Palinodes—and a process's, opening the nocturnes it counts
   /// (arbitration's, the calls' locutions by their Arbitration).
   static let figureLinks = ".watchtower-object-figures-view a[href], .watchtower-process-figures a[href]"
@@ -129,9 +129,9 @@ struct WatchtowerFigureLinksTests {
   func theTwoSidesStandSideBySide(engine: BrowserEngine, layout: Layout) async throws {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/")
-      // Five chain objects, the entry, two palinodes and three nested cards.
+      // Six chain objects, the entry, two palinodes and three nested cards.
       let views = page.locator(".watchtower-object-figures-view")
-      try await expect(views).toHaveCount(11)
+      try await expect(views).toHaveCount(12)
       let rows = try await page.evaluate(
         """
         [...document.querySelectorAll('.watchtower-object-figures-view')].map(view => {
@@ -156,9 +156,9 @@ struct WatchtowerFigureLinksTests {
       try await page.openHydrated("/")
       let figures = try await Self.figures(page)
       try #require(figures.count >= 38, "the Watchtower shows \(figures.count) figure links")
-      // Explication and translation have three nocturne links each: 6.
+      // Calibration, explication and translation have three nocturne links each: 9.
       let nocturneLinks = figures.filter { $0.href.hasPrefix("/mission-control/nocturnes/") }.count
-      try #require(nocturneLinks == 6, "the processes' nocturne links: \(nocturneLinks)")
+      try #require(nocturneLinks == 9, "the processes' nocturne links: \(nocturneLinks)")
       // Arbitration's open the Locutions list (an arbitration session is no
       // nocturne): its calls by Status, gnorium's replies by Created by: three on its process card nested in each of
       // the three Disputorium objects' cards, whose object figures add three

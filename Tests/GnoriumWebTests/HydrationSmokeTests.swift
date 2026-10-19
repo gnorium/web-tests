@@ -7,7 +7,10 @@ import WebTestsTesting
 /// fail, and does not scroll sideways, on a phone and on a desktop.
 @Suite("Hydration smoke")
 struct HydrationSmokeTests {
-  static let pages = ["/", "/biblio-records", "/lexico-records", "biblio-record", "lexico-record", "/auth/sign-in"]
+  static let pages = [
+    "/", "/biblio-records", "/lexico-records", "biblio-record", "lexico-record", "/auth/sign-in",
+    "/mission-control/quatrains/bibliographic",
+  ]
 
   @Test(arguments: gnorium.engines, Layout.allCases)
   func pagesHydrateCleanly(engine: BrowserEngine, layout: Layout) async throws {

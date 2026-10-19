@@ -44,14 +44,14 @@ struct WatchtowerTests {
   }
 
   /// Each process card carries its group's place in the flow (user,
-  /// 2026-09-29): explication 1, translation 2; explication, of both kinds,
+  /// 2026-09-29): calibration 1, explication 2, translation 3; explication, of both kinds,
   /// and translation show one process and one card each.
   @Test(arguments: gnorium.engines)
   func processCardsCarryTheirGroupsNumber(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium) { page in
       try await page.openHydrated("/")
       for (process, numbers) in [
-        ("Explication", ["1"]), ("Translation", ["2"]),
+        ("Calibration", ["1"]), ("Explication", ["2"]), ("Translation", ["3"]),
       ] {
         let card = page.locator(".watchtower-processes-view[data-process='\(process)']").first
         try await expect(card.locator(".watchtower-process-number")).toHaveTexts(numbers)
@@ -59,7 +59,7 @@ struct WatchtowerTests {
       // No heading over a process's block: the block names its process.
       try await expect(page.locator(".watchtower-group-name")).toHaveCount(0)
       try await expect(page.locator(".watchtower-process-name")).toHaveTexts(
-        ["ARBITRATION", "EXPLICATION", "ARBITRATION", "TRANSLATION", "ARBITRATION"])
+        ["ARBITRATION", "CALIBRATION", "EXPLICATION", "ARBITRATION", "TRANSLATION", "ARBITRATION"])
     }
   }
 

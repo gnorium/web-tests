@@ -61,7 +61,7 @@ struct DashboardLayoutTests {
               return [...table.querySelectorAll('tbody tr')].map(r => r.querySelector('td').textContent.trim()).join(' ');
             })()
             """, as: String.self)
-          #expect(processes == "Arbitration Explication Translation", "\(tab): \(processes)")
+          #expect(processes == "Arbitration Calibration Explication Translation", "\(tab): \(processes)")
         }
         // The figure's link is the list it counts, whatever the Statuses
         // shown (`LocutionsResponse.url`): read from the figure, never typed.
