@@ -48,9 +48,9 @@ struct LevelStatesTests {
         try await page.openHydrated(scratch.path)
         try await expect(Self.chip(page)).toHaveText("Uncalibrated")
         try await expect(page.locator(".level-progress-line-view")).toHaveText("Calibrated: 1 of 4 pages")
-        // Sealed by its first Commit: its fields are frozen, and Commit is
-        // all that is left to do.
-        try await expect(page.locator(".mission-control-object-header-action-buttons > *")).toHaveTexts(["Commit"])
+        // Its first Commit seals nothing (user, 2026-10-20): it is revised
+        // until its promotion, and only Delete is gone.
+        try await expect(page.locator(".mission-control-object-header-action-buttons > *")).toHaveTexts(["Revise", "Commit"])
         // Its Commit is for calibration, over the pages it still owes,
         // ticked to begin with; the page calibrated is locked.
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_calibration")

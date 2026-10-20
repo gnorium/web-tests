@@ -77,12 +77,13 @@ struct GlossPhraseTests {
         try await expect(rows.locator(".accordion-summary")).toHaveTexts(["kicked", "the", "bucket"])
         try await expect(rows.nth(1).locator(".gloss-word")).toBeVisible()
         try await expect(rows.nth(0).locator(".gloss-word")).toBeHidden()
+        // The phrase's attributes read in name order (`TEIEncoding`): class, then lemma.
         try await expect(rows.nth(1).locator(".datum-label")).toHaveTexts([
-          "Language", "Lemma", "Class", "Morphology", "Phrase", "Phrase lemma", "Phrase class",
+          "Language", "Lemma", "Class", "Morphology", "Phrase", "Phrase class", "Phrase lemma",
           "Lexico-record",
         ])
         try await expect(rows.nth(1).locator(".datum-value")).toHaveTexts([
-          "English", "the", "Article", "—", "kicked the bucket", "kick the bucket", "Idiom", "—",
+          "English", "the", "Article", "—", "kicked the bucket", "Idiom", "kick the bucket", "—",
         ])
         try await page.expectNoHorizontalOverflow()
         try await page.keyboard.press("Escape")

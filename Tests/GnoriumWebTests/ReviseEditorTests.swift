@@ -681,8 +681,21 @@ struct ReviseEditorTests {
           _ = try await box.first.evaluate("e => { e.querySelector(\".diff-row[data-diff-line='inserted']\").scrollIntoView({block: 'center'}); return 1 }")
           try await page.screenshot(to: URL(fileURLWithPath: directory).appendingPathComponent("prompt-intraline.png"))
         }
-        // Filed, its revision's page draws the same marks.
-        try await page.locator(".revision-form button[type='submit']").click()
+        // Filed, its revision's page draws the same marks. Scrolled to, the
+        // sections above the button draw what comes into view and the page
+        // grows under it: the click waits until it stands still for a few
+        // frames.
+        let submit = page.locator(".revision-form button[type='submit']")
+        _ = try await submit.evaluate(
+          """
+          async e => { e.scrollIntoView({block: 'center'}); let last = '', still = 0;
+            for (let i = 0; i < 120 && still < 5; i++) {
+              await new Promise(r => requestAnimationFrame(r));
+              const b = e.getBoundingClientRect(); const now = b.top + ',' + b.left;
+              still = now === last ? still + 1 : 0; last = now }
+            return still }
+          """)
+        try await submit.click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the madrigal at its locution", where: RevisePagesTests.atLocution(commit.madrigalPath))
         let user = try contributor.column("id")

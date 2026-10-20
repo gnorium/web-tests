@@ -93,7 +93,11 @@ struct RawLayerSelectionTests {
       try await page.keyboard.insertText("<!-- typed -->")
       let value = try await page.evaluate(
         "(() => document.querySelector('.tei-page-edit textarea').value)()", as: String.self)
-      #expect(value.hasPrefix("<!-- typed --><div>"), "The form posts what was typed: \(value.prefix(40))")
+      // The editor holds the page as one TEI document, its header never in
+      // it (user, 2026-10-20): what is typed at its start stands before it.
+      #expect(
+        value.hasPrefix(#"<!-- typed --><TEI xmlns="http://www.tei-c.org/ns/1.0">"#),
+        "The form posts what was typed: \(value.prefix(60))")
       try await expect(page.locator(".testament-diff[data-edited='true']")).toHaveCount(1)
       try await page.expectNoErrors()
     }
