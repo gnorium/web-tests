@@ -68,7 +68,7 @@ struct ReceivedImageZoomTests {
       """ : "")
     <style>
     :root { --line-height-medium-26: 26px; --border-radius-minimal: 2px; --border-width-base: 1px;
-      --color-blue: #36c; --size-icon-small: 16px; --color-base: #202122 }
+      --color-blue: #36c; --size-icon-small: 26px; --color-base: #202122 }
     \(css)
     html, body { margin: 0 }
     .above { height: 1500px }
