@@ -97,7 +97,7 @@ struct AlertLayoutTests {
     <img src="/page.svg" alt="The page’s image as its source serves it now" loading="lazy" class="expandable-attachment-image-thumb" \
     style="display: block; flex-shrink: 0; width: var(--line-height-small-22); height: var(--line-height-small-22); \
     object-fit: contain"/>\
-    </button></div><span>.</span><span> The image shows the image that was sent, as archived.</span>\
+    </button></div><span>.</span><span> The image shown is the one that was sent, as archived.</span>\
     </div></div></div></div>
     """
 

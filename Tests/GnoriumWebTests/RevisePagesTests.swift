@@ -686,7 +686,8 @@ struct RevisePagesTests {
 
   /// A lexicographic madrigal's Revise page offers what a bibliographic
   /// one's does, in parallel (user, 2026-10-07): its record's identity and
-  /// each sentiment's label and usage, in its Sentiments tree. A
+  /// each sentiment's definition and usage, in its Sentiments tree (no
+  /// label since gnorium-web 95fe7ab3f, 2026-10-20). A
   /// change is one revision of its fields, in the madrigal's thread, that
   /// an admin accepts there—written into the madrigal—and reverts.
   /// An epilogue's definition in the record's language is revised the same
@@ -726,19 +727,16 @@ struct RevisePagesTests {
       let madrigalPath = "/mission-control/madrigals/lexicographic/\(word.madrigalID)"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(madrigalPath)/revise")
-        // Every sentiment's fields, under its number.
-        try await expect(page.locator("textarea[name='sentiment-0-label']")).toHaveValue("A branch sense.")
-        try await expect(page.locator("textarea[name='sentiment-1-label']")).toHaveValue("A leaf sense.")
+        // Every sentiment's fields, under its number: its definition first.
+        try await expect(page.locator(".sense-editor-view:has(textarea[name='sentiment-0-definition']) .sense-editor-definition"))
+          .toHaveText("A branch sense.")
+        try await expect(page.locator("textarea[name='sentiment-0-label'], textarea[name='sentiment-1-label']")).toHaveCount(0)
         // One field a usage axis, as Submit Sentiment draws them (user, 2026-10-09).
         for kind in ["grammar", "register", "domain", "region", "currency"] {
           try await expect(page.locator("input[name='sentiment-1-\(kind)']")).toBeAttached()
         }
         try await expect(page.locator("[data-item-list='sentiment-1-usage']")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
-        let leaf = page.locator("textarea[name='sentiment-1-label']")
-        try await leaf.fill("A leaf sense, as a person reads it.")
-        // Its diff is drawn as it is made, as a bibliographic field's is.
-        try await expect(page.locator("[data-diff-annotation][data-visible='true']").first).toBeAttached()
         // Its definition is its TEI (user, 2026-10-10), edited as a page's
         // markup is: rendered by default, the XML under Raw.
         let editor = page.locator(".sense-editor-view:has(textarea[name='sentiment-1-definition'])")
@@ -747,6 +745,8 @@ struct RevisePagesTests {
         try await editor.locator(".sense-editor-xml-toggle").click()
         try await expect(editor.locator(".sense-editor-raw .code-code")).toBeVisible()
         try await Self.replaceCode(editor.locator(".sense-editor-raw .code-code"), with: "<sense><def>A leaf sense, defined.</def></sense>", page: page)
+        // Its diff is drawn as it is made, as a bibliographic field's is.
+        try await expect(page.locator("[data-diff-annotation][data-visible='true']").first).toBeAttached()
         let posted = try await page.evaluate(
           "(() => document.querySelector(\"textarea[name='sentiment-1-definition']\").value)()", as: String.self)
         #expect(posted == "<sense><def>A leaf sense, defined.</def></sense>", "The form posts the XML typed: \(posted)")
@@ -764,7 +764,7 @@ struct RevisePagesTests {
         "SELECT id FROM revisions WHERE requested_by_user_id = '\(user)' AND revisable_type = 'lexicographicMadrigal' AND content_json IS NOT NULL AND status = 'pending'"
       ).uppercased()
       #expect(!id.isEmpty, "A revision of the madrigal is filed")
-      #expect(try content().contains("A leaf sense.\""), "The madrigal stands until it is accepted")
+      #expect(try content().contains("<def>A leaf sense.</def>"), "The madrigal stands until it is accepted")
 
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         let revisionPath = "\(madrigalPath)/revisions/\(id)"
@@ -778,14 +778,12 @@ struct RevisePagesTests {
         // linked, and its verdicts.
         try await page.openHydrated(madrigalPath)
         let event = page.locator("#revision-\(id)")
-        // Its label and its one usage field, each its own item by
+        // Its definition and its one usage field, each its own item by
         // its form's label, each linked to its place on the page.
         let changed = event.locator(".locution-thread-event-changed")
-        try await expect(changed).toHaveText("Changed Sentiment 1.1 Label, Sentiment 1.1 Definition, and Sentiment 1.1 Register.")
-        try await expect(changed.locator("a")).toHaveCount(3)
+        try await expect(changed).toHaveText("Changed Sentiment 1.1 Definition and Sentiment 1.1 Register.")
+        try await expect(changed.locator("a")).toHaveCount(2)
         // Each on the revision's own page, at its field there (user, 2026-10-09).
-        try await expect(changed.locator("a[href='\(revisionPath)?source=code#sentiment-1-label']"))
-          .toHaveText("Sentiment 1.1 Label")
         try await expect(changed.locator("a[href='\(revisionPath)?source=code#sentiment-1-definition']"))
           .toHaveText("Sentiment 1.1 Definition")
         try await expect(changed.locator("a[href='\(revisionPath)?source=code#sentiment-1-register']"))
@@ -798,8 +796,7 @@ struct RevisePagesTests {
         try await event.locator("form[action$='/accept'] button").click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the madrigal at its locution", where: Self.atLocution(madrigalPath))
-        #expect(try content().contains("A leaf sense, as a person reads it."), "Accepted, it is written into the madrigal")
-        #expect(try content().contains("<def>A leaf sense, defined.</def>"), "Its definition with it, as TEI")
+        #expect(try content().contains("<def>A leaf sense, defined.</def>"), "Accepted, its definition is written into the madrigal, as TEI")
         try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("as accepted")
         try await page.locator("#revision-\(id)-verdict-1 form[action$='/revert'] button").click()
         // Every verdict stays an act of the thread (user, 2026-10-10): the
@@ -819,8 +816,8 @@ struct RevisePagesTests {
             + "#revision-\(id)-verdict-2 form[action$='/accept']")).toHaveCount(0)
         try await expect(page.locator("#revision-\(id) form[action$='/accept']")).toHaveCount(1)
         #expect(try TestAdmin.query("SELECT status || ' ' || (evaluated_at IS NULL)::text FROM revisions WHERE id = '\(id)'") == "pending true")
-        #expect(!(try content().contains("as a person reads it")), "Reverted, it comes back out")
-        #expect(try content().contains("<def>A leaf sense.</def>"), "The TEI's definition with it")
+        #expect(!(try content().contains("A leaf sense, defined.")), "Reverted, it comes back out")
+        #expect(try content().contains("<def>A leaf sense.</def>"), "The TEI's definition as it was")
       }
 
       // An epilogue's definition in the record's language, the same way.

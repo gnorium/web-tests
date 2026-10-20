@@ -346,7 +346,7 @@ struct ChangedPageCanvasTests {
         _ = try TestAdmin.query("UPDATE wayback_saves SET status = 'saved' WHERE url = '\(full)'")
         try await page.openHydrated(commit.madrigalPath)
         try await expect(shownImage).toHaveAttribute("href", archived)
-        try await expect(said).toHaveText("The image shows the image that was sent, as archived.")
+        try await expect(said).toHaveText("The image shown is the one that was sent, as archived.")
         #expect(try await Self.readerRequests(page, "\(base)/page-1/") == 0, "never the image now")
 
         // Not archived (`"blank":true`): the text alone at once, no copy
