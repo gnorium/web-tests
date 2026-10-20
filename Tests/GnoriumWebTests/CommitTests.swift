@@ -6,11 +6,12 @@ import WebTestsTesting
 /// Committing a Disputorium object (user, 2026-10-07): the header's Commit,
 /// an admin's, posts at once—no dialog, no menu—for the object's ONE
 /// process, decided by its state, never chosen on its page (user,
-/// 2026-10-10): no process toggle anywhere. An overture commits for
-/// calibration of the pages it owes (ticked to begin with), then promotes to a
-/// madrigal; a madrigal for explication while any page is unexplicated, then
-/// promotes to an epilogue where its witness is translatable, else only
-/// Permit remains; an epilogue commits for translation.
+/// 2026-10-10): no process toggle anywhere. An overture commits once, for
+/// calibration of the pages it owes (ticked to begin with); a madrigal for
+/// explication while any page is unexplicated, then for translation (a
+/// serenade, which submits the first epilogue) where its witness is
+/// translatable, else only Permit remains; an epilogue commits for
+/// translation (user, 2026-10-20: no promotion).
 /// Every commit names its ticked evidence items: with none ticked it is
 /// refused under the roster before it is sent. The actions read Revise,
 /// Commit, Permit, Delete. Every submission is stopped before it leaves the
@@ -71,7 +72,7 @@ struct CommitTests {
         try await expect(page.locator(".process-toggle-view")).toHaveCount(0)
         try await expect(page.locator(".commit-dialog, .commit-menu")).toHaveCount(0)
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
-          .toHaveTexts(["Revise", "Commit", "Delete"])
+          .toHaveTexts(["Revise", "Commit", "Permit", "Delete"])
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_calibration")
         try await expect(page.locator(".commit-view input[name='scope']")).toHaveCount(0)
         let roster = page.locator(".overture-images").first
@@ -118,22 +119,19 @@ struct CommitTests {
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(2)).toHaveAttribute("data-locked", "false")
 
-        // Every page explicated, the witness Italian: the Commit promotes the
-        // madrigal to an epilogue, with nothing to tick (a madrigal holds no
-        // translation).
+        // Every page explicated, the witness Italian: the Commit is for
+        // translation, a serenade over the pages ticked.
         _ = try TestAdmin.query("""
           UPDATE bibliographic_madrigals SET proposed_content_json = '\(Self.madrigalTEI(fixture.baseURL, thirdRead: true))'
             WHERE id = '\(scratch.madrigalID)'
           """)
         try await page.openHydrated(scratch.madrigalPath)
-        try await expect(page.locator(".commit-process")).toHaveAttribute("value", "promote_epilogue")
-        try await expect(page.locator(".commit-ticked")).toHaveCount(0)
-        try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
+        try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_translation")
         #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
         try await page.locator(".commit-trigger").click()
-        let promotion = try #require(try await Self.posted(page))
-        #expect(promotion.process == "promote_epilogue")
-        #expect(promotion.ticked == nil)
+        let translation = try #require(try await Self.posted(page))
+        #expect(translation.process == "bibliographic_translation")
+        #expect(translation.ticked != nil, "the pages it sends to translation")
         try await expect(page.locator(".field-validation-message-view")).toHaveCount(0)
 
         // English and every page explicated: nothing to commit for.
@@ -157,12 +155,12 @@ struct CommitTests {
     try await admin.remove()
   }
 
-  /// A promotion refused while a revision filed on the object is open
+  /// A Commit for translation refused while a revision filed on the object is open
   /// (user, 2026-10-20: nothing hover-only): Commit stays enabled, and
   /// pressing it shows why in the header's alert—on a phone as on a
   /// desktop—and sends nothing.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func refusedPromotionSaysWhyWhenPressed(engine: BrowserEngine, layout: Layout) async throws {
+  func refusedCommitSaysWhyWhenPressed(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let fixture = try await FixtureServer.threePageManifest()
@@ -172,7 +170,7 @@ struct CommitTests {
     do { scratch = try ScratchCommit(owner: admin, sourceURL: fixture.baseURL + "/manifest.json") }
     catch { try await admin.remove(after: error) }
     do {
-      // Every page explicated, the witness Italian: the Commit promotes.
+      // Every page explicated, the witness Italian: the Commit is for translation.
       _ = try TestAdmin.query("""
         UPDATE bibliographic_madrigals SET proposed_content_json = '\(Self.madrigalTEI(fixture.baseURL, thirdRead: true))',
           metadata_json = (metadata_json::jsonb || '{"language":"ita"}'::jsonb)::text WHERE id = '\(scratch.madrigalID)'
@@ -180,7 +178,7 @@ struct CommitTests {
       let revisionID = try scratch.addOpenRevision()
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(scratch.madrigalPath)
-        try await expect(page.locator(".commit-process")).toHaveAttribute("value", "promote_epilogue")
+        try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_translation")
         let trigger = page.locator(".commit-trigger").first
         try await expect(trigger).not.toBeDisabled()
         let alert = page.locator(".action-gate-alert[data-gate-action='commit']").first
@@ -191,7 +189,7 @@ struct CommitTests {
         try await expect(alert).toContainText("Accept or reject its open revision first")
         let text = try await alert.innerText()
         #expect(text.lowercased().contains(revisionID), "The reason names the open revision: \(text)")
-        #expect(try await Self.posted(page) == nil, "a refused promotion was sent")
+        #expect(try await Self.posted(page) == nil, "a refused Commit was sent")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }

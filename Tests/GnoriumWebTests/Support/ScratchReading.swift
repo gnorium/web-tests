@@ -9,6 +9,8 @@ struct ScratchReading {
   private let antiphonID: String
   let madrigalID: String
   private let ownerID: String
+  /// The serenade `translation(to:)` committed the madrigal to.
+  private let serenadeID = UUID().uuidString.lowercased()
 
   init(owner: TestAdmin, tei: String, sourceURL: String = "https://example.org/web-tests") throws {
     work = try ScratchWork(owner: owner, sourceURL: sourceURL)
@@ -32,17 +34,20 @@ struct ScratchReading {
       """)
   }
 
-  /// The statements of the madrigal's Commit, for a test's own transaction:
-  /// the madrigal committed and promoted to the epilogue `epilogue` (its
-  /// thread's first), which carries its document and fields as they stand
-  /// and an empty translation of its language into English. A serenade
-  /// answers that epilogue. `remove` deletes it, after whatever answers it.
-  func promotion(to epilogue: String) -> String {
+  /// The statements of the madrigal's Commit for translation, for a test's
+  /// own transaction: the madrigal committed, its serenade (submitted), and
+  /// the first epilogue `epilogue` it submitted (its thread's first), which
+  /// carries the madrigal's document and fields as they stand and an empty
+  /// translation of its language into English. A serenade answers that
+  /// epilogue. `remove` deletes them, after whatever answers it.
+  func translation(to epilogue: String) -> String {
     """
     UPDATE bibliographic_madrigals SET processing_status = 'committed' WHERE id = '\(madrigalID)';
-    INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_madrigal_id, promoted_by_user_id,
+    INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, image_service_ids_json, requested_by_user_id, processing_status)
+      VALUES ('\(serenadeID)', '\(madrigalID)', 'eng', '[]', '\(ownerID)', 'submitted');
+    INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id,
       biblio_record_id, proposed_content_json, metadata_json, shape_json, translation_json, processing_status)
-      SELECT '\(epilogue)', '\(epilogue)', '\(work.overtureID.lowercased())', p.id, '\(ownerID)', p.biblio_record_id,
+      SELECT '\(epilogue)', '\(epilogue)', '\(work.overtureID.lowercased())', '\(serenadeID)', p.biblio_record_id,
         p.proposed_content_json, p.metadata_json, p.shape_json,
         json_build_object('sourceLanguage', p.metadata_json::jsonb->>'language', 'targetLanguage', 'eng', 'tei', '', 'pages', '[]'::json)::text,
         'pending'
@@ -54,7 +59,8 @@ struct ScratchReading {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      DELETE FROM bibliographic_epilogues WHERE bibliographic_madrigal_id = '\(madrigalID)';
+      DELETE FROM bibliographic_epilogues WHERE bibliographic_serenade_id = '\(serenadeID)';
+      DELETE FROM bibliographic_serenades WHERE id = '\(serenadeID)';
       DELETE FROM bibliographic_madrigals WHERE id = '\(madrigalID)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
       COMMIT;

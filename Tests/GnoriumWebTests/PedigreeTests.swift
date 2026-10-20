@@ -46,9 +46,9 @@ struct PedigreeTests {
             }
           })()
           """, as: Box.self)
-        // Fountain, overture, the madrigal promoted from it, and an
-        // antiphon and a madrigal per link after it.
-        #expect(box.groups == 121)
+        // Fountain, overture, its quatrain, halftone and antiphon, the first
+        // madrigal, and an antiphon and a madrigal per link after it.
+        #expect(box.groups == 124)
         #expect(box.maxHeight == "256px")
         #expect(box.overflowY == "auto")
         #expect(box.clientHeight <= 256)

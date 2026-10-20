@@ -1,13 +1,14 @@
 import Foundation
 
-/// An overture of four pages at a stage of its calibration (BUILD-PLAN U2),
-/// owned by the test's account and built by SQL (dev has no model): sealed by
-/// its first Commit or not, with the first `calibrated` pages filed by a
-/// submitted quatrain, and, when `promoted`, the madrigal its Commit made
-/// with the header it froze. Every row by its own id, removed in the order
-/// the foreign keys allow—except its submission and Fountain, which are
-/// submitted input and frozen: the Fountain is soft-deleted, as the site
-/// deletes one.
+/// An overture of four pages at a stage of its chain (user, 2026-10-21),
+/// owned by the test's account and built by SQL (dev has no model): committed
+/// or not; when `calibrated` > 0, its Commit's quatrain (submitted) with the
+/// first `calibrated` pages filed and the halftone it submitted; when
+/// `explicationCommitted` (every page calibrated), that halftone committed
+/// and the antiphon its Commit made, holding the frozen header. Every row by
+/// its own id, removed in the order the foreign keys allow—except its
+/// submission and Fountain, which are submitted input and frozen: the
+/// Fountain is soft-deleted, as the site deletes one.
 ///
 /// Its source is a PDF with a stored page list, so nothing is ever fetched.
 struct ScratchOverture {
@@ -15,31 +16,35 @@ struct ScratchOverture {
   static let labels = ["1", "2", "3", "4"]
 
   let overtureID: String
-  let madrigalID: String
+  let quatrainID: String
+  let halftoneID: String
+  let antiphonID: String
   let title: String
   private let submissionID: String
   private let fountainID: String
-  private let quatrainID: String
   private let layoutID: String
   private let nocturneIDs: [String]
   private let owner: String
   private let images: [String]
 
   var path: String { "/mission-control/overtures/bibliographic/\(overtureID)" }
-  var madrigalPath: String { "/mission-control/madrigals/bibliographic/\(madrigalID)" }
-  /// The pages' image service ids, as the overture's roster names them.
+  var quatrainPath: String { "/mission-control/quatrains/bibliographic/\(quatrainID)" }
+  var halftonePath: String { "/mission-control/halftones/bibliographic/\(halftoneID)" }
+  var antiphonPath: String { "/mission-control/antiphons/bibliographic/\(antiphonID)" }
+  /// The pages' image service ids, as the roster names them.
   var services: [String] { images.map { $0.components(separatedBy: "/full/")[0] } }
 
-  init(owner: TestAdmin, sealed: Bool = true, calibrated: Int = 0, promoted: Bool = false) throws {
-    precondition((0...4).contains(calibrated) && (!promoted || calibrated == 4))
+  init(owner: TestAdmin, sealed: Bool = true, calibrated: Int = 0, explicationCommitted: Bool = false) throws {
+    precondition((0...4).contains(calibrated) && (!explicationCommitted || calibrated == 4))
     self.owner = owner.username
     let user = try owner.column("id")
     func id() -> String { UUID().uuidString.lowercased() }
     submissionID = id()
     fountainID = id()
     overtureID = id()
-    madrigalID = id()
     quatrainID = id()
+    halftoneID = id()
+    antiphonID = id()
     layoutID = id()
     nocturneIDs = (0..<4).map { _ in id() }
     title = "Web tests overture \(fountainID.prefix(8))"
@@ -51,9 +56,9 @@ struct ScratchOverture {
     let pagesJSON = "[\(pages)]"
     let source = "https://web-tests.invalid/\(fountainID).pdf"
     let services = images.map { $0.components(separatedBy: "/full/")[0] }
-    let scope = "[" + services.prefix(calibrated).map { "\"\($0)\"" }.joined(separator: ",") + "]"
-    let sealing = sealed || calibrated > 0 || promoted
-    let committed = sealing ? "'\(user)', now()" : "NULL, NULL"
+    let scope = "[" + services.map { "\"\($0)\"" }.joined(separator: ",") + "]"
+    let committed = sealed || calibrated > 0 ? "'\(user)', now()" : "NULL, NULL"
+    let fields = #"{"title":"\#(title)","language":"eng","sourceUrl":"\#(source)","sourceKind":"pdf","type":"report"}"#
     var statements = """
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(submissionID)', '\(user)');
@@ -63,6 +68,8 @@ struct ScratchOverture {
         VALUES ('\(overtureID)', '\(submissionID)', '\(fountainID)', '\(source)', 'pdf', '\(pagesJSON)', 'eng', 'pending', '\(title)', \(committed), now());
       """
     if calibrated > 0 {
+      // The overture's Commit made one quatrain over every page; it filed
+      // `calibrated` of them and submitted the halftone.
       statements += """
 
         INSERT INTO bibliographic_quatrains (id, bibliographic_overture_id, requested_by_user_id, image_service_ids_json, processing_status, created_at, updated_at)
@@ -79,18 +86,23 @@ struct ScratchOverture {
             VALUES ('\(nocturneIDs[index])', '\(overtureID)', '\(services[index])', \(index + 1), '\(index + 1)', '\(layoutID)', '\(String(repeating: "b", count: 64))', 20.5, '{}', '{}', '{"width":2000.0,"body":45.4,"measure":55.1,"height":76.4}', now() - interval '1 minute');
           """
       }
+      let closed = explicationCommitted ? "'\(user)', now()" : "NULL, NULL"
+      statements += """
+
+        INSERT INTO bibliographic_halftones (id, bibliographic_overture_id, bibliographic_quatrain_id, metadata_json, committed_by_user_id, committed_at, created_at, updated_at)
+          VALUES ('\(halftoneID)', '\(overtureID)', '\(quatrainID)', '\(fields)', \(closed), now(), now());
+        """
     }
-    if promoted {
-      let tei = "<TEI><text><body>"
+    if explicationCommitted {
+      let tei = "<TEI><teiHeader/><text><body>"
         + images.enumerated().map { "<pb n=\"\($0.offset + 1)\" facs=\"\($0.element)\"/>" }.joined() + "</body></text></TEI>"
       let content = String(decoding: try JSONSerialization.data(withJSONObject: ["teiXml": tei]), as: UTF8.self)
         .replacingOccurrences(of: "'", with: "''")
+      let header = #"{"header_tei":"<teiHeader/>","face":null,"analysis_versions":[],"page_count":4,"fitted":[]}"#
       statements += """
 
-        INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_overture_id, proposed_content_json, metadata_json, processing_status, created_at, updated_at)
-          VALUES ('\(madrigalID)', '\(madrigalID)', '\(overtureID)', '\(content)', '{"language":"eng","sourceUrl":"\(source)","sourceKind":"pdf"}', 'pending', now(), now());
-        INSERT INTO bibliographic_headers (bibliographic_overture_id, header_tei, bibliographic_madrigal_id, frozen_by_user_id, analysis_versions_json, page_count)
-          VALUES ('\(overtureID)', '<teiHeader/>', '\(madrigalID)', '\(user)', '[]', 4);
+        INSERT INTO bibliographic_antiphons (id, bibliographic_halftone_id, document_json, header_json, metadata_json, requested_by_user_id, image_service_ids_json, processing_status, created_at, updated_at)
+          VALUES ('\(antiphonID)', '\(halftoneID)', '\(content)', '\(header)', '\(fields)', '\(user)', '\(scope)', 'submitted', now(), now());
         """
     }
     statements += "\nCOMMIT;"
@@ -102,8 +114,8 @@ struct ScratchOverture {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      DELETE FROM bibliographic_headers WHERE bibliographic_overture_id = '\(overtureID)';
-      DELETE FROM bibliographic_madrigals WHERE id = '\(madrigalID)';
+      DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
+      DELETE FROM bibliographic_halftones WHERE id = '\(halftoneID)';
       \(SessionTrace.delete(table: table, where: "bibliographic_quatrain_id = '\(quatrainID)'"))
       DELETE FROM calibration_observations WHERE bibliographic_calibration_nocturne_id IN (SELECT id FROM \(table) WHERE bibliographic_quatrain_id = '\(quatrainID)');
       DELETE FROM calibration_pages WHERE bibliographic_overture_id = '\(overtureID)';

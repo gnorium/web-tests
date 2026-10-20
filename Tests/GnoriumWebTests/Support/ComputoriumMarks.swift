@@ -70,19 +70,18 @@ enum ComputoriumMarks {
   /// The in-progress mark of each process, one rule for every mark a running
   /// process draws (`ProcessInFlight.mark`, user, 2026-10-17): explication
   /// the turning disc sector, translation the turning ring sector round a
-  /// still disc, arbitration by what it works on (user, 2026-10-18): an
-  /// uncalibrated overture the dotted ring sector, a calibrated overture or a
-  /// madrigal with nothing explicated the ring sector, an explicated madrigal
-  /// or untranslated epilogue the disc sector, a translated epilogue the
+  /// still disc, arbitration by the highest level its object has fully
+  /// reached (user, 2026-10-21): postulated the dotted ring sector,
+  /// calibrated the ring sector, explicated the disc sector, translated the
   /// ring sector round a still disc.
-  static func inProgressShape(_ process: String, arbitrated: String = "uncalibratedOverture") -> String {
+  static func inProgressShape(_ process: String, arbitrated: String = "postulated") -> String {
     switch process {
     case "translation": return ".rotating-ring-sector-with-disc-view"
     case "arbitration":
       switch arbitrated {
-      case "calibratedOverture", "unexplicatedMadrigal": return ".rotating-ring-sector-view"
-      case "explicatedMadrigal", "untranslatedEpilogue": return ".rotating-sector-view"
-      case "translatedEpilogue": return ".rotating-ring-sector-with-disc-view"
+      case "calibrated": return ".rotating-ring-sector-view"
+      case "explicated": return ".rotating-sector-view"
+      case "translated": return ".rotating-ring-sector-with-disc-view"
       default: return ".rotating-dotted-ring-sector-view"
       }
     default: return ".rotating-sector-view"
@@ -92,7 +91,7 @@ enum ComputoriumMarks {
   /// Every Thinking card's running mark in `scope` is `process`'s
   /// in-progress mark, never another process's.
   static func checkThinking(
-    _ page: Page, process: String, arbitrated: String = "uncalibratedOverture", scope: String = ".computorium-session-view"
+    _ page: Page, process: String, arbitrated: String = "postulated", scope: String = ".computorium-session-view"
   ) async throws {
     let shapes = [
       ".rotating-sector-view", ".rotating-ring-sector-with-disc-view", ".rotating-dotted-ring-sector-view",

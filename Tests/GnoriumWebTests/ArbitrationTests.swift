@@ -292,16 +292,17 @@ struct ArbitrationTests {
         try await expect(live, timeout: .seconds(15)).toContainText("Reading the selected evidence carefully.")
         // While the session runs, the page's status chip says so (user,
         // 2026-10-17): "Arbitrating", with arbitration's own mark, the
-        // mark by what it works on (user, 2026-10-18): this madrigal has a
-        // page explicated, so the turning disc sector, as an epilogue's;
-        // an overture's the dotted ring sector, an unexplicated madrigal's
-        // the plain ring sector. Its Thinking card's running mark the same.
+        // mark of the highest level its object has fully reached (user,
+        // 2026-10-21): this madrigal has one page of three explicated, so it
+        // is calibrated, the turning ring sector; an overture's the dotted
+        // ring sector, a fully explicated madrigal's the disc sector. Its
+        // Thinking card's running mark the same.
         let chip = page.locator(".disputorium-core-header-status-chip")
         try await expect(chip.locator(".info-chip-text")).toHaveText("Arbitrating")
-        try await expect(chip.locator(".rotating-sector-view")).toHaveCount(1)
-        try await expect(chip.locator(".rotating-dotted-ring-sector-view, .rotating-ring-sector-view")).toHaveCount(0)
+        try await expect(chip.locator(".rotating-ring-sector-view")).toHaveCount(1)
+        try await expect(chip.locator(".rotating-dotted-ring-sector-view, .rotating-sector-view")).toHaveCount(0)
         try await ComputoriumMarks.checkThinking(
-          page, process: "arbitration", arbitrated: "explicatedMadrigal", scope: "#locution-\(replyID.uppercased())")
+          page, process: "arbitration", arbitrated: "calibrated", scope: "#locution-\(replyID.uppercased())")
         try await expect(live).not.toContainText(Self.reply)
         // The rest of its trace, appended as its next batch: a trace only grows.
         _ = try TestAdmin.query(try SessionTrace.append(

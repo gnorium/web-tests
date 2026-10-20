@@ -28,7 +28,7 @@ struct EpilogueTranslationTests {
     let reading: ScratchReading
     do { reading = try ScratchReading(owner: admin, tei: tei, sourceURL: fixture.baseURL + "/manifest.json") }
     catch { try await admin.remove(after: error) }
-    let promoted = UUID().uuidString.lowercased()
+    let firstEpilogue = UUID().uuidString.lowercased()
     let earlier = UUID().uuidString.lowercased()
     let epilogue = UUID().uuidString.lowercased()
     let first = UUID().uuidString.lowercased()
@@ -71,16 +71,16 @@ struct EpilogueTranslationTests {
         UPDATE bibliographic_madrigals SET metadata_json =
           (metadata_json::jsonb || '{"language":"ita","sourceUrl":"\(fixture.baseURL)/manifest.json"}'::jsonb)::text
           WHERE id = '\(reading.madrigalID)';
-        \(reading.promotion(to: promoted))
+        \(reading.translation(to: firstEpilogue))
         INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, image_service_ids_json, requested_by_user_id, processing_status)
-          VALUES ('\(first)', '\(promoted)', 'eng', '[]', '\(user)', 'submitted');
+          VALUES ('\(first)', '\(firstEpilogue)', 'eng', '[]', '\(user)', 'submitted');
         INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id, proposed_content_json, metadata_json, translation_json, processing_status)
-          SELECT '\(earlier)', '\(promoted)', '\(reading.work.overtureID.lowercased())', '\(first)', p.proposed_content_json, p.metadata_json, '\(before)', 'pending'
+          SELECT '\(earlier)', '\(firstEpilogue)', '\(reading.work.overtureID.lowercased())', '\(first)', p.proposed_content_json, p.metadata_json, '\(before)', 'pending'
           FROM bibliographic_madrigals p WHERE p.id = '\(reading.madrigalID)';
         INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, image_service_ids_json, requested_by_user_id, processing_status)
           VALUES ('\(second)', '\(earlier)', 'eng', '[]', '\(user)', 'submitted');
         INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id, proposed_content_json, metadata_json, translation_json, processing_status)
-          SELECT '\(epilogue)', '\(promoted)', '\(reading.work.overtureID.lowercased())', '\(second)', p.proposed_content_json, p.metadata_json, '\(now)', 'pending'
+          SELECT '\(epilogue)', '\(firstEpilogue)', '\(reading.work.overtureID.lowercased())', '\(second)', p.proposed_content_json, p.metadata_json, '\(now)', 'pending'
           FROM bibliographic_madrigals p WHERE p.id = '\(reading.madrigalID)';
         COMMIT;
         """)

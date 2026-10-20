@@ -46,7 +46,7 @@ struct TranslationSessionsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        \(reading.promotion(to: epilogue))
+        \(reading.translation(to: epilogue))
         INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, requested_by_user_id,
           processing_status, processing_error)
           VALUES ('\(serenade)', '\(epilogue)', 'eng', '\(user)', 'failed', 'Web tests');
@@ -100,7 +100,7 @@ struct TranslationSessionsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        \(reading.promotion(to: epilogue))
+        \(reading.translation(to: epilogue))
         INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, requested_by_user_id,
           processing_status, processing_error)
           VALUES ('\(serenade)', '\(epilogue)', 'eng', '\(user)', 'pending', '\(stopped)');

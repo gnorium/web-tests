@@ -22,7 +22,7 @@ struct TranslationScopeTests {
     let reading: ScratchReading
     do { reading = try ScratchReading(owner: admin, tei: tei, sourceURL: fixture.baseURL + "/manifest.json") }
     catch { try await admin.remove(after: error) }
-    let promoted = UUID().uuidString.lowercased()
+    let firstEpilogue = UUID().uuidString.lowercased()
     let epilogue = UUID().uuidString.lowercased()
     let serenade = UUID().uuidString.lowercased()
     defer {
@@ -44,11 +44,11 @@ struct TranslationScopeTests {
         UPDATE bibliographic_madrigals SET metadata_json =
           (metadata_json::jsonb || '{"language":"ita","sourceUrl":"\(fixture.baseURL)/manifest.json"}'::jsonb)::text
           WHERE id = '\(reading.madrigalID)';
-        \(reading.promotion(to: promoted))
+        \(reading.translation(to: firstEpilogue))
         INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, image_service_ids_json, requested_by_user_id, processing_status)
-          VALUES ('\(serenade)', '\(promoted)', 'eng', '[]', '\(user)', 'submitted');
+          VALUES ('\(serenade)', '\(firstEpilogue)', 'eng', '[]', '\(user)', 'submitted');
         INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id, proposed_content_json, metadata_json, translation_json, processing_status)
-          SELECT '\(epilogue)', '\(promoted)', '\(reading.work.overtureID.lowercased())', '\(serenade)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
+          SELECT '\(epilogue)', '\(firstEpilogue)', '\(reading.work.overtureID.lowercased())', '\(serenade)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
           FROM bibliographic_madrigals p WHERE p.id = '\(reading.madrigalID)';
         COMMIT;
         """)
@@ -142,7 +142,7 @@ struct TranslationScopeTests {
     let reading: ScratchReading
     do { reading = try ScratchReading(owner: admin, tei: tei, sourceURL: fixture.baseURL + "/manifest.json") }
     catch { try await admin.remove(after: error) }
-    let promoted = UUID().uuidString.lowercased()
+    let firstEpilogue = UUID().uuidString.lowercased()
     let epilogue = UUID().uuidString.lowercased()
     let serenade = UUID().uuidString.lowercased()
     func clean() {
@@ -164,11 +164,11 @@ struct TranslationScopeTests {
         UPDATE bibliographic_madrigals SET metadata_json =
           (metadata_json::jsonb || '{"language":"ita","sourceUrl":"\(fixture.baseURL)/manifest.json"}'::jsonb)::text
           WHERE id = '\(reading.madrigalID)';
-        \(reading.promotion(to: promoted))
+        \(reading.translation(to: firstEpilogue))
         INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, image_service_ids_json, requested_by_user_id, processing_status)
-          VALUES ('\(serenade)', '\(promoted)', 'eng', '[]', '\(user)', 'submitted');
+          VALUES ('\(serenade)', '\(firstEpilogue)', 'eng', '[]', '\(user)', 'submitted');
         INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id, proposed_content_json, metadata_json, translation_json, processing_status)
-          SELECT '\(epilogue)', '\(promoted)', '\(reading.work.overtureID.lowercased())', '\(serenade)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
+          SELECT '\(epilogue)', '\(firstEpilogue)', '\(reading.work.overtureID.lowercased())', '\(serenade)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
           FROM bibliographic_madrigals p WHERE p.id = '\(reading.madrigalID)';
         COMMIT;
         """)

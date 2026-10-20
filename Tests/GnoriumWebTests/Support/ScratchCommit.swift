@@ -2,7 +2,8 @@ import Foundation
 
 /// Two Disputorium objects waiting on a commit, owned by the test's
 /// account: a pending overture, with one way to commit, and a pending
-/// madrigal (its own overture committed and promoted to it) holding
+/// madrigal (its own overture committed, its quatrain's halftone committed
+/// for explication, `ScratchChain`, whose antiphon submitted it) holding
 /// one page not read yet, so its one process is explication (user,
 /// 2026-10-10). Every row by its own id, removed in the order the foreign keys
 /// allow—except its submission and Fountain, which are submitted input and
@@ -21,14 +22,17 @@ struct ScratchCommit {
   private let committedOvertureID: String
   let madrigalID: String
   private let owner: String
+  private let chain = ScratchChain()
+  /// The serenade `addEpilogue` committed the madrigal to.
+  private let serenadeID = UUID().uuidString.lowercased()
 
   /// The work's title, which its objects' rows are titled by.
   var title: String { "Web tests commit \(fountainID.prefix(8))" }
   var overturePath: String { "/mission-control/overtures/bibliographic/\(pendingOvertureID)" }
   var madrigalPath: String { "/mission-control/madrigals/bibliographic/\(madrigalID)" }
 
-  /// The committed overture is the Fountain's first, so its chain (the
-  /// madrigal promoted from it) is the Fountain's lifetime.
+  /// The committed overture is the Fountain's first, so its chain (down to
+  /// the madrigal) is the Fountain's lifetime.
   init(owner: TestAdmin, sourceURL: String = ScratchCommit.sourceURL) throws {
     let user = try owner.column("id")
     self.owner = owner.username
@@ -48,19 +52,18 @@ struct ScratchCommit {
         VALUES ('\(pendingOvertureID)', '\(submissionID)', '\(fountainID)', '\(sourceURL)', 'eng', 'pending', now());
       INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_fountain_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
         VALUES ('\(committedOvertureID)', '\(submissionID)', '\(fountainID)', '\(sourceURL)', 'eng', 'pending', '\(user)', now(), now() - interval '1 minute');
-      INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_overture_id, proposed_content_json, metadata_json, processing_status, created_at, updated_at)
-        VALUES ('\(madrigalID)', '\(madrigalID)', '\(committedOvertureID)', '{"teiXml":"<TEI><text><body><pb n=\\"1\\" facs=\\"\(sourceURL.replacingOccurrences(of: "/manifest.json", with: ""))/page-1/full/max/0/default.jpg\\"/></body></text></TEI>"}', '{"language":"eng","sourceUrl":"\(sourceURL)","sourceKind":"iiif-manifest"}', 'pending', now(), now());
-      INSERT INTO bibliographic_headers (bibliographic_overture_id, header_tei, bibliographic_madrigal_id, frozen_by_user_id, analysis_versions_json, page_count)
-        VALUES ('\(committedOvertureID)', '<teiHeader/>', '\(madrigalID)', '\(user)', '[]', 1);
+      \(chain.insert(overture: committedOvertureID, user: user))
+      INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, proposed_content_json, metadata_json, processing_status, created_at, updated_at)
+        VALUES ('\(madrigalID)', '\(madrigalID)', '\(chain.antiphonID)', '{"teiXml":"<TEI><text><body><pb n=\\"1\\" facs=\\"\(sourceURL.replacingOccurrences(of: "/manifest.json", with: ""))/page-1/full/max/0/default.jpg\\"/></body></text></TEI>"}', '{"language":"eng","sourceUrl":"\(sourceURL)","sourceKind":"iiif-manifest"}', 'pending', now(), now());
       COMMIT;
       """)
   }
 
   /// Whether both objects are still uncommitted.
-  /// The epilogue the madrigal's Commit promoted it to, a page of the three
-  /// translated for each service in `translated` (the services are the
-  /// manifest's `page-1` to `page-3`), the rest stale where named; the
-  /// madrigal is committed with it, as a promotion leaves it.
+  /// The first epilogue: the madrigal committed for translation, its
+  /// serenade (submitted) having translated a page of the three for each
+  /// service in `translated` (the services are the manifest's `page-1` to
+  /// `page-3`), the rest stale where named.
   func addEpilogue(base: String, translated: [Int], stale: [Int] = []) throws {
     let id = UUID().uuidString.lowercased()
     let pages: [[String: Any]] = translated.map { number in
@@ -79,17 +82,24 @@ struct ScratchCommit {
       """
       BEGIN;
       UPDATE bibliographic_madrigals SET processing_status = 'committed' WHERE id = '\(madrigalID)';
-      INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_madrigal_id, promoted_by_user_id, proposed_content_json, metadata_json, translation_json, processing_status)
-        SELECT '\(id)', '\(id)', '\(committedOvertureID)', '\(madrigalID)', '\(user)', p.proposed_content_json, p.metadata_json, '\(json)', 'pending'
+      INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, image_service_ids_json, requested_by_user_id, processing_status)
+        VALUES ('\(serenadeID)', '\(madrigalID)', 'eng', '[]', '\(user)', 'submitted') ON CONFLICT (id) DO NOTHING;
+      INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id, proposed_content_json, metadata_json, translation_json, processing_status)
+        SELECT '\(id)', '\(id)', '\(committedOvertureID)', '\(serenadeID)', p.proposed_content_json, p.metadata_json, '\(json)', 'pending'
         FROM bibliographic_madrigals p WHERE p.id = '\(madrigalID)';
       COMMIT;
       """)
   }
 
+  /// The epilogues `addEpilogue` made, gone, so the next is the serenade's one.
+  func removeEpilogues() throws {
+    _ = try TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE bibliographic_serenade_id = '\(serenadeID)'")
+  }
+
   /// The epilogue `addEpilogue` made last.
   func epiloguePath() throws -> String {
     let id = try TestAdmin.query(
-      "SELECT id FROM bibliographic_epilogues WHERE bibliographic_madrigal_id = '\(madrigalID)'")
+      "SELECT id FROM bibliographic_epilogues WHERE bibliographic_serenade_id = '\(serenadeID)'")
       .trimmingCharacters(in: .whitespacesAndNewlines)
     return "/mission-control/epilogues/bibliographic/\(id)"
   }
@@ -119,9 +129,10 @@ struct ScratchCommit {
       """
       BEGIN;
       DELETE FROM revisions WHERE revisable_id IN ('\(madrigalID)', '\(pendingOvertureID)');
-      DELETE FROM bibliographic_epilogues WHERE bibliographic_madrigal_id = '\(madrigalID)';
-      DELETE FROM bibliographic_headers WHERE bibliographic_madrigal_id = '\(madrigalID)';
+      DELETE FROM bibliographic_epilogues WHERE bibliographic_serenade_id = '\(serenadeID)';
+      DELETE FROM bibliographic_serenades WHERE id = '\(serenadeID)';
       DELETE FROM bibliographic_madrigals WHERE id = '\(madrigalID)';
+      \(chain.delete)
       DELETE FROM bibliographic_overtures WHERE id IN ('\(pendingOvertureID)', '\(committedOvertureID)');
       UPDATE bibliographic_fountains SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(fountainID)';
       COMMIT;
