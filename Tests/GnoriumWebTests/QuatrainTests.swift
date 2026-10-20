@@ -99,7 +99,7 @@ struct QuatrainTests {
         try await expect(chip.locator(".rotating-dotted-ring-sector-view")).toHaveCount(1)
         try await expect(page.locator(".process-container")).toHaveAttribute("data-active-process", "calibration")
         // How far it has come: the pages of its scope that have passed.
-        try await expect(page.locator(".quatrain-progress-label")).toHaveText("Measuring resemblances: 1 of 4.")
+        try await expect(page.locator(".quatrain-progress-label")).toHaveText("Measuring images: 1 of 4.")
         // Pedigree: the overture, then the quatrain it was committed in.
         try await page.locator("#pedigree-rows > .accordion-summary").click()
         try await expect(page.locator("#pedigree-rows")).toContainText("Quatrain ID")
@@ -155,7 +155,7 @@ struct QuatrainTests {
         try await expect(page.locator(".computorium-core-header-status-chip").first).toContainText("Failed")
         try await expect(page.getByRole(.button, name: "Continue")).toHaveCount(0)
         try await expect(page.locator(".quatrain-progress")).toHaveCount(0)
-        try await expect(page.locator("div.computorium-core-view")).toContainText("Resemblance 2 cannot be measured.")
+        try await expect(page.locator("div.computorium-core-view")).toContainText("Image 2 cannot be measured.")
         // It opens on the page that failed it; the failed page's mark is the
         // red disc, the roster's failed dot.
         try await Self.expectRoster(
@@ -166,7 +166,7 @@ struct QuatrainTests {
             ("3", "running", "roster-status-running", "rotating-dotted-ring-sector-view"),
             ("4", "queued", "roster-status-pending", "dotted-ring-view"),
           ])
-        try await page.openHydrated(scratch.path + "?resemblance=1")
+        try await page.openHydrated(scratch.path + "?image=1")
         let colors = try await (page.locator(".computorium-core-sessions-slot").first.evaluate(
           "(el) => [...el.querySelectorAll('.roster-status')].map(m => getComputedStyle(m).color).join('|')"
         ).string ?? "").split(separator: "|").map(String.init)
@@ -187,7 +187,7 @@ struct QuatrainTests {
         // stay open until it has: wait for the move. Dev has no model
         // service, so the runner may fail it again at once, for another
         // reason than the one it had: either way it was taken up.
-        let before = "Resemblance 2 cannot be measured."
+        let before = "Image 2 cannot be measured."
         var status = try scratch.status()
         var error = try scratch.error()
         for _ in 0..<40 where status == "failed" && error == before {

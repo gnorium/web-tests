@@ -3,17 +3,17 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A region's coordinates seen on the resemblance while its markup is read or
+/// A region's coordinates seen on the image while its markup is read or
 /// edited in Raw (user, 2026-10-10): with the caret in a `bbox="x y w h"`
 /// (the 0–1000 space over the whole image) on the Revise page, or the
 /// pointer on an element whose `facs="#…"` names a zone in a read-only Raw,
-/// the resemblance pane draws the rectangle over the image, scaled to it; it
+/// the image pane draws the rectangle over the image, scaled to it; it
 /// follows the value as it is typed and goes when the caret or the pointer
 /// leaves. The witness's pages served on this machine
 /// (`FixtureServer.threePageManifest`, 800 × 1100). Chrome, desktop.
 @Suite("Markup regions", .serialized)
 struct MarkupRegionTests {
-  /// Where the resemblance on screen draws its region, against where the box
+  /// Where the image on screen draws its region, against where the box
   /// (0–1000) falls on the image as displayed, with its dimmed backdrop and
   /// the 0–1000 grid laid over the image (its 500 line at the image's
   /// midpoint): "none" when there is no region and no grid, "ok" within a
@@ -104,7 +104,7 @@ struct MarkupRegionTests {
     Issue.record("\(comment.rawValue): \(last)")
   }
 
-  static func showResemblance(_ page: Page) async throws {
+  static func showImage(_ page: Page) async throws {
     let viewer = page.locator(".artifact-view").first
     try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
     if try await viewer.getAttribute("data-canvas-shown") != "true" {
@@ -116,7 +116,7 @@ struct MarkupRegionTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome])
-  func theCaretInABboxDrawsItsRegionOnTheResemblance(engine: BrowserEngine) async throws {
+  func theCaretInABboxDrawsItsRegionOnTheImage(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let fixture = try await FixtureServer.threePageManifest()
@@ -133,7 +133,7 @@ struct MarkupRegionTests {
         """#)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(commit.madrigalPath)/revise")
-        try await Self.showResemblance(page)
+        try await Self.showImage(page)
         try await expect(page.locator(".tei-page-edit .code-code").first).toBeVisible()
         try await Self.expectRegion(page, [120, 340, 760, 380], "none", "No region before the caret is in one")
 
@@ -154,7 +154,7 @@ struct MarkupRegionTests {
         #expect(try await page.evaluate(Self.caretScript("After"), as: Bool.self))
         try await Self.expectRegion(page, [120, 340, 500, 380], "none", "The caret left the figure")
 
-        // Edited on the resemblance: its bottom-right handle dragged to (800,
+        // Edited on the image: its bottom-right handle dragged to (800,
         // 900) writes the whole numbers into the bbox, the box following;
         // one undo takes the drag back whole.
         #expect(try await page.evaluate(Self.caretScript("bbox=\"120 3"), as: Bool.self))
@@ -232,7 +232,7 @@ struct MarkupRegionTests {
         """#)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated(commit.madrigalPath)
-        try await Self.showResemblance(page)
+        try await Self.showImage(page)
         let code = page.locator(".tei-page[data-active='true'] .tei-page-raw .code-code").first
         try await expect(code).toBeVisible()
         _ = try await code.evaluate("e => { e.scrollIntoView({block: 'center'}); return true }")

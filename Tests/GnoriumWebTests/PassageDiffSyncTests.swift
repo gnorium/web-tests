@@ -26,9 +26,9 @@ struct PassageDiffSyncTests {
     case "artifact-zone":
       // Under the markup pane the diff is drawn whole and its zone scrolls
       // it (user, 2026-10-16).
-      source = "<div class='testament-view'><div class='artifact-markup scrollport'><div class='tei-page' data-active='true'><div data-layer='markup'><code class='code-code'>\(codeLines)</code></div></div></div><div class='artifact-under-markup'><div class='testament-diff' data-active='true'><div class='resemblance-diff-view diff-view'><div class='diff-box'><div class='diff-lines'>\(rows)</div></div></div></div></div></div>"
+      source = "<div class='testament-view'><div class='artifact-markup scrollport'><div class='tei-page' data-active='true'><div data-layer='markup'><code class='code-code'>\(codeLines)</code></div></div></div><div class='artifact-under-markup'><div class='testament-diff' data-active='true'><div class='image-diff-view diff-view'><div class='diff-box'><div class='diff-lines'>\(rows)</div></div></div></div></div></div>"
     case "artifact", "artifact-unwrapped":
-      source = "<div class='testament-view'><div class='artifact-markup scrollport'><div class='tei-page' data-active='true'><div data-layer='markup'><code class='code-code'>\(codeLines)</code></div></div></div><div class='testament-diff' data-active='true'><div class='resemblance-diff-view diff-view'><div class='diff-box'><div class='diff-lines'>\(rows)</div></div></div></div></div>"
+      source = "<div class='testament-view'><div class='artifact-markup scrollport'><div class='tei-page' data-active='true'><div data-layer='markup'><code class='code-code'>\(codeLines)</code></div></div></div><div class='testament-diff' data-active='true'><div class='image-diff-view diff-view'><div class='diff-box'><div class='diff-lines'>\(rows)</div></div></div></div></div>"
     default:
       source = "<form data-revise-form><div class='field-diff-view'><textarea>\(text)</textarea><div class='diff-box'>\(rows)</div></div></form>"
     }

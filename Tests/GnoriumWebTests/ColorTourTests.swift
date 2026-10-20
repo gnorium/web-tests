@@ -91,7 +91,7 @@ struct ColorTourTests {
         try await expect(viewer.locator(".testament-find-count"), timeout: .seconds(10)).toContainText("of")
         try await Self.shots(page, "find", ".madrigal-object .artifact-view")
         try await viewer.locator(".testament-find-button button").click()
-        try await Self.shots(page, "roster", "#madrigal-resemblances")
+        try await Self.shots(page, "roster", "#madrigal-images")
         try await Self.shots(page, "thread", "#revision-\(b)")
         try await Self.shots(page, "chip-links", "#locution-\(call.uppercased())")
         try await page.openHydrated("\(work.madrigalPath)/revisions/\(c)")

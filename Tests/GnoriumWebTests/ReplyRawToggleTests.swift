@@ -81,7 +81,7 @@ struct ReplyRawToggleTests {
       window.__total = chunks.length
       window.__emitted = 0
       window.__label = () => document.querySelector('#locution-\(replyID.uppercased()) .computorium-session-view')
-        ?.dataset.computoriumSessionResemblance ?? ''
+        ?.dataset.computoriumSessionImage ?? ''
       const Real = window.EventSource
       window.EventSource = class {
         constructor(url, options) {
@@ -89,10 +89,10 @@ struct ReplyRawToggleTests {
           this.handlers = {}
           setTimeout(() => {
             this.emit('start', '{"watch":true,"process":"arbitration"}')
-            this.emit('chunk', JSON.stringify({ type: 'status', text: 'running', resemblance: window.__label() }))
+            this.emit('chunk', JSON.stringify({ type: 'status', text: 'running', image: window.__label() }))
             const timer = setInterval(() => {
               for (let i = 0; i < 3 && window.__emitted < chunks.length; i++)
-                this.emit('chunk', JSON.stringify(Object.assign({ resemblance: window.__label() }, chunks[window.__emitted++])))
+                this.emit('chunk', JSON.stringify(Object.assign({ image: window.__label() }, chunks[window.__emitted++])))
               if (window.__emitted >= chunks.length) clearInterval(timer)
             }, 8)
           }, 0)
@@ -151,10 +151,10 @@ struct ReplyRawToggleTests {
     do {
       // The call: a contributor's, on the explicated page.
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        try await page.openHydrated(reading.path + "?resemblance=2")
+        try await page.openHydrated(reading.path + "?image=2")
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20)).toHaveAttribute("aria-busy", "false")
         try await page.locator("#locution-thread-locution-body").fill("@gnorium What does the selected evidence support?")
-        try await page.locator("#madrigal-resemblances .roster-row").nth(0).locator("input").click()
+        try await page.locator("#madrigal-images .roster-row").nth(0).locator("input").click()
         try await page.locator(".locution-thread-submit").click()
         try await expect(page.locator(".locution-call-page"), timeout: .seconds(15)).toHaveCount(1)
       }

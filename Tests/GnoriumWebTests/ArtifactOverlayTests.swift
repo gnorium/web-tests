@@ -178,7 +178,7 @@ struct ArtifactOverlayTests {
       }
     let html = "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>" + css + #"""
       body{margin:0}.artifact-view{width:100%;height:600px}.artifact-viewer-container{height:560px;flex:none}.tei-line{display:block;font-family:serif!important;white-space:nowrap;letter-spacing:0.3em}</style><link rel="icon" href="data:,"></head><body><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest">
-      """# + (imageSwitch ? #"<header><div class="artifact-canvas-toggle"><button>Resemblance</button></div></header>"# : "") + #"""
+      """# + (imageSwitch ? #"<header><div class="artifact-canvas-toggle"><button>Image</button></div></header>"# : "") + #"""
       <div class="artifact-viewer-container"><div class="artifact-markup-frame"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan" data-active="true" data-has-markup="true" data-text-block="300,240 700,248 694,700 294,692"><div class="tei-page-text" data-layer="rendering" data-framed="true" style="--tei-frame-measure: 30; --tei-frame-height: 40; --tei-frame-margin: 5; --tei-page-width: 0; --tei-page-height: 0"><div class="tei-text-block">
       """# + lines + "</div></div></div>" + blank + #"""
       </div></div></div><div class="artifact-object"><div class="canvas-view" data-service-id="/scan"><div class="canvas-viewport"><div class="canvas-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
@@ -539,7 +539,7 @@ struct ArtifactOverlayTests {
     }
   }
 
-  /// The images put away (the header's Resemblance switch) with the overlay
+  /// The images put away (the header's Image switch) with the overlay
   /// on take the overlay with them (user, 2026-10-18): the pane leaves
   /// overlay mode as the overlay's own switch would leave it (not active,
   /// not registered, not fading, the pane scrolling again), the overlay's

@@ -119,7 +119,7 @@ struct MissionControlNumberRangeTests {
       try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine), cookies: [admin.cookie]) {
         page in
         try await page.openHydrated(
-          "/mission-control/nocturnes/bibliographic?duration=1.5..&cost=..0.25&repeated=resemblance")
+          "/mission-control/nocturnes/bibliographic?duration=1.5..&cost=..0.25&repeated=image")
         try await page.expectNoErrors()
         let ranges = page.locator(".filter-bar-row .number-range-input-view")
         try await expect(ranges).toHaveCount(2)
@@ -129,7 +129,7 @@ struct MissionControlNumberRangeTests {
         try await expect(ranges.first.locator(".number-range-input-field input")).toHaveValue("From 1.5")
         try await expect(ranges.last.locator(".number-range-input-end input")).toHaveValue("0.25")
         try await expect(page.locator(".filter-bar-value-select input[type='hidden'][name='repeated']"))
-          .toHaveValue("resemblance")
+          .toHaveValue("image")
       }
     } catch {
       try await admin.remove(after: error)

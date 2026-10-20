@@ -515,7 +515,7 @@ struct ReviseEditorTests {
       _ = try TestAdmin.query(
         "UPDATE bibliographic_madrigals SET proposed_content_json = '\(json.replacingOccurrences(of: "'", with: "''"))' WHERE id = '\(commit.madrigalID)'")
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        try await page.openHydrated("\(commit.madrigalPath)/revise?resemblance=9")
+        try await page.openHydrated("\(commit.madrigalPath)/revise?image=9")
         try await Self.xmlOn(page)
         _ = try await Self.expectColoredPage(page, 9)
         func clear(_ g: Gutter, _ context: String) {
@@ -566,7 +566,7 @@ struct ReviseEditorTests {
       _ = try TestAdmin.query(
         "UPDATE bibliographic_madrigals SET proposed_content_json = '\(json.replacingOccurrences(of: "'", with: "''"))' WHERE id = '\(commit.madrigalID)'")
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        try await page.openHydrated("\(commit.madrigalPath)/revise?resemblance=9")
+        try await page.openHydrated("\(commit.madrigalPath)/revise?image=9")
         let input = page.locator("#artifact-page-input").first
         let active = page.locator(".artifact-markup .tei-page[data-active='true']")
         try await expect(input).toHaveValue("10")

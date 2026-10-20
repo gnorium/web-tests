@@ -72,12 +72,12 @@ struct EpilogueTranslationTests {
           (metadata_json::jsonb || '{"language":"ita","sourceUrl":"\(fixture.baseURL)/manifest.json"}'::jsonb)::text
           WHERE id = '\(reading.madrigalID)';
         \(reading.promotion(to: promoted))
-        INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, resemblance_service_ids_json, requested_by_user_id, processing_status)
+        INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, image_service_ids_json, requested_by_user_id, processing_status)
           VALUES ('\(first)', '\(promoted)', 'eng', '[]', '\(user)', 'submitted');
         INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id, proposed_content_json, metadata_json, translation_json, processing_status)
           SELECT '\(earlier)', '\(promoted)', '\(reading.work.overtureID.lowercased())', '\(first)', p.proposed_content_json, p.metadata_json, '\(before)', 'pending'
           FROM bibliographic_madrigals p WHERE p.id = '\(reading.madrigalID)';
-        INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, resemblance_service_ids_json, requested_by_user_id, processing_status)
+        INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, image_service_ids_json, requested_by_user_id, processing_status)
           VALUES ('\(second)', '\(earlier)', 'eng', '[]', '\(user)', 'submitted');
         INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id, proposed_content_json, metadata_json, translation_json, processing_status)
           SELECT '\(epilogue)', '\(promoted)', '\(reading.work.overtureID.lowercased())', '\(second)', p.proposed_content_json, p.metadata_json, '\(now)', 'pending'
@@ -145,7 +145,7 @@ struct EpilogueTranslationTests {
         try await expect(slot.locator(".testament-translation-diff")).toBeVisible()
         try await expect(slot.locator(".testament-translation-diff")).toContainText("The rule of three for numbers")
         try await expect(slot.locator(".testament-translation-diff")).toContainText("Rule of three")
-        try await expect(slot.locator(".resemblance-diff-view")).toHaveCount(0)
+        try await expect(slot.locator(".image-diff-view")).toHaveCount(0)
         if let shots = Self.shots { try await page.screenshot(to: URL(fileURLWithPath: shots + "/translation-diff.png")) }
         // Raw off: no diff; the noted block opens its note in the gloss.
         try await viewer.locator(".artifact-xml-toggle button").first.click()

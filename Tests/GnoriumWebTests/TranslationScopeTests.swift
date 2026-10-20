@@ -45,7 +45,7 @@ struct TranslationScopeTests {
           (metadata_json::jsonb || '{"language":"ita","sourceUrl":"\(fixture.baseURL)/manifest.json"}'::jsonb)::text
           WHERE id = '\(reading.madrigalID)';
         \(reading.promotion(to: promoted))
-        INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, resemblance_service_ids_json, requested_by_user_id, processing_status)
+        INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, image_service_ids_json, requested_by_user_id, processing_status)
           VALUES ('\(serenade)', '\(promoted)', 'eng', '[]', '\(user)', 'submitted');
         INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id, proposed_content_json, metadata_json, translation_json, processing_status)
           SELECT '\(epilogue)', '\(promoted)', '\(reading.work.overtureID.lowercased())', '\(serenade)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
@@ -97,7 +97,7 @@ struct TranslationScopeTests {
         // Page 2's translation is fresh: locked against a commit, its
         // checkbox gone (user, 2026-10-09); page 1's is stale, and ticks.
         // (The navbar clones the sidebar into its menu: the first roster.)
-        let rows = page.locator("#epilogue-resemblances").first.locator(".roster-row")
+        let rows = page.locator("#epilogue-images").first.locator(".roster-row")
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "false")
         try await expect(rows.nth(1)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(1).locator(".checkbox-icon-wrapper")).toBeHidden()
@@ -165,7 +165,7 @@ struct TranslationScopeTests {
           (metadata_json::jsonb || '{"language":"ita","sourceUrl":"\(fixture.baseURL)/manifest.json"}'::jsonb)::text
           WHERE id = '\(reading.madrigalID)';
         \(reading.promotion(to: promoted))
-        INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, resemblance_service_ids_json, requested_by_user_id, processing_status)
+        INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, image_service_ids_json, requested_by_user_id, processing_status)
           VALUES ('\(serenade)', '\(promoted)', 'eng', '[]', '\(user)', 'submitted');
         INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id, proposed_content_json, metadata_json, translation_json, processing_status)
           SELECT '\(epilogue)', '\(promoted)', '\(reading.work.overtureID.lowercased())', '\(serenade)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'

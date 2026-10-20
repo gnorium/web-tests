@@ -37,7 +37,7 @@ struct LongWitnessTests {
       _ = try TestAdmin.query(
         "UPDATE bibliographic_madrigals SET proposed_content_json = '\(Self.tei())' WHERE id = '\(scratch.madrigalID)'")
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
-        try await page.openHydrated(scratch.madrigalPath + "?resemblance=150")
+        try await page.openHydrated(scratch.madrigalPath + "?image=150")
         let viewer = page.locator(".madrigal-object .artifact-view")
         try await expect(viewer.locator("#artifact-page-total")).toHaveText("\(Self.pages)")
         // The page on screen, and the four either side fetched ahead.
@@ -53,7 +53,7 @@ struct LongWitnessTests {
         try await expect(viewer.locator(".artifact-markup .tei-page[data-page-index='146']")).toHaveCount(0)
 
         // The roster follows, and draws only rows around what is in view.
-        let roster = page.locator("#madrigal-resemblances").first
+        let roster = page.locator("#madrigal-images").first
         try await expect(roster.locator(".roster-row-selected")).toHaveAttribute("data-position", "151")
         let drawn = try await roster.locator(".roster-row").count()
         #expect(drawn < 80, "the roster drew \(drawn) rows")
@@ -66,7 +66,7 @@ struct LongWitnessTests {
         try await expect(ticked).toHaveAttribute("value", "151-152")
         // The list scrolled to its start: row 0 drawn and ticked, row 152 let go.
         _ = try await page.evaluate("""
-          (() => { const list = document.querySelector('#madrigal-resemblances .roster-options-list');
+          (() => { const list = document.querySelector('#madrigal-images .roster-options-list');
             list.querySelector('.roster-row').scrollIntoView(); window.scrollTo(0, 0);
             let s = list.parentElement; while (s) { s.scrollTop = 0; s = s.parentElement; } return true })()
           """, as: Bool.self)

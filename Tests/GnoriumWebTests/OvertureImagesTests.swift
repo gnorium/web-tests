@@ -3,17 +3,17 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// An overture's Resemblances roster, its testament's pager and its prompt
-/// preview stay on one resemblance (user, 2026-10-07): the pager moves the
+/// An overture's Images roster, its testament's pager and its prompt
+/// preview stay on one image (user, 2026-10-07): the pager moves the
 /// roster's current row, a row moves the reader, and the preview always
-/// shows the page on screen. An admin ticks the resemblances its commit sends
+/// shows the page on screen. An admin ticks the images its commit sends
 /// to calibration, every page it owes ticked to begin with; a tick never
 /// moves the reader. Every object has one
 /// process, decided by its state (user, 2026-10-10): no process toggle
 /// anywhere. The solid kind tabs carry the sliding pill.
 /// Nothing is committed here.
-@Suite("Overture resemblances", .serialized)
-struct OvertureResemblancesTests {
+@Suite("Overture images", .serialized)
+struct OvertureImagesTests {
   /// Whether `inner` sits on `outer` within a pixel.
   static func sameBox(_ inner: BoundingBox, _ outer: BoundingBox) -> Bool {
     abs(inner.x - outer.x) < 1.5 && abs(inner.y - outer.y) < 1.5
@@ -29,7 +29,7 @@ struct OvertureResemblancesTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func rosterPagerAndPreviewShareTheResemblance(engine: BrowserEngine, layout: Layout) async throws {
+  func rosterPagerAndPreviewShareTheImage(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let fixture = try await FixtureServer.threePageManifest()
@@ -51,7 +51,7 @@ struct OvertureResemblancesTests {
         try await expect(viewer.locator(".artifact-object")).toBeVisible()
         try await expect(viewer.locator(".artifact-canvas-toggle, .artifact-xml-toggle, .testament-find-button"))
           .toHaveCount(0)
-        let roster = page.locator(".overture-resemblances").first
+        let roster = page.locator(".overture-images").first
         let rows = roster.locator(".roster-row")
         try await expect(rows).toHaveCount(3)
         try await expect(rows.nth(0)).toHaveAttribute("class", "roster-row roster-row-check roster-row-selected")
@@ -81,7 +81,7 @@ struct OvertureResemblancesTests {
         try await expect(viewer.locator("#artifact-page-input")).toHaveValue("2")
         try await expect(rows.nth(1)).toHaveAttribute("class", "roster-row roster-row-check roster-row-selected")
         try await expect(rows.nth(0)).toHaveAttribute("class", "roster-row roster-row-check")
-        #expect(try await page.url().hasSuffix("?resemblance=1"))
+        #expect(try await page.url().hasSuffix("?image=1"))
 
         if layout == .desktop {
           // A row moves the reader, and the preview follows; it ticks nothing.

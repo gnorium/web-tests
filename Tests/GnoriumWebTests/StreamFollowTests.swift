@@ -61,9 +61,9 @@ struct StreamFollowTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(nocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'fixture', 'fixture', 'passed', gen_random_uuid(), '\(antiphonID)', 1, now());
         \(try SessionTrace.append(recorded, table: "bibliographic_explication_nocturnes", id: nocturneID))
@@ -82,7 +82,7 @@ struct StreamFollowTests {
             emit(name,data) { for (const fn of this.handlers[name]??[]) fn({data}) }
             close() {}
           };
-          window.__emit=(o)=>window.__stream.emit('chunk',JSON.stringify(Object.assign({resemblance:'1'},o)));
+          window.__emit=(o)=>window.__stream.emit('chunk',JSON.stringify(Object.assign({image:'1'},o)));
           window.__frames=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(r,50))));
           window.__line=(el)=>{ const s=getComputedStyle(el); return parseFloat(s.lineHeight)||parseFloat(s.fontSize)*1.2 };
           window.__state=()=>{

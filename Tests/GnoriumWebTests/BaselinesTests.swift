@@ -18,7 +18,7 @@ struct BaselinesTests {
 
   static func insert(datasetID: String, runID: String, name: String) throws {
     let item = """
-      {"id": "p1", "label": "Page one", "language": "en", "script": "Latn", "direction": "ltr", "canvas": 1,
+      {"id": "p1", "label": "Page one", "language": "en", "script": "Latn", "direction": "ltr", "image_index": 1,
        "image": null, "thumbnail": null, "gold_provenance": {"kind": "machine-assisted",
        "statement": "Checked word by word by an AI agent; pending human review.", "verified_by": null, "date": null},
        "gold": "a minnte of ſome\\nlonger line", "has_gold_markup": false, "notes": []}

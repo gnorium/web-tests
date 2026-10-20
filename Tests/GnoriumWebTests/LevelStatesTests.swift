@@ -54,7 +54,7 @@ struct LevelStatesTests {
         // Its Commit is for calibration, over the pages it still owes,
         // ticked to begin with; the page calibrated is locked.
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_calibration")
-        let roster = page.locator(".overture-resemblances").first
+        let roster = page.locator(".overture-images").first
         let rows = roster.locator(".roster-row")
         try await expect(rows).toHaveCount(4)
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
@@ -81,7 +81,7 @@ struct LevelStatesTests {
         #expect(sent.process == "bibliographic_calibration")
         #expect(sent.ticked == "1-3")
         _ = try await page.evaluate(
-          "(() => { document.querySelectorAll(\".overture-resemblances .roster-row input[form='commit-form']\").forEach(box => { if (box.checked) box.click() }); return true })()",
+          "(() => { document.querySelectorAll(\".overture-images .roster-row input[form='commit-form']\").forEach(box => { if (box.checked) box.click() }); return true })()",
           as: Bool.self)
         _ = try await page.evaluate("(() => { window.__commit = null; return true })()", as: Bool.self)
         try await page.locator(".commit-trigger").click()
@@ -142,7 +142,7 @@ struct LevelStatesTests {
         // The header will be frozen: the scale so far and a sentence saying so.
         try await expect(page.locator(".overture-promotion-note")).toContainText("freezes the scale below as its header")
         try await expect(page.locator(".calibration-scale-view")).toBeVisible()
-        let rows = page.locator(".overture-resemblances").first.locator(".roster-row")
+        let rows = page.locator(".overture-images").first.locator(".roster-row")
         try await expect(rows).toHaveCount(4)
         for index in 0..<4 { try await expect(rows.nth(index)).toHaveAttribute("data-locked", "true") }
         // Commit posts the promotion at once: nothing to tick.
@@ -221,7 +221,7 @@ struct LevelStatesTests {
         try await expect(Self.chip(page)).toHaveText("Partly explicated")
         try await expect(page.locator(".level-progress-line-view")).toHaveText("Explicated: 2 of 3 pages")
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_explication")
-        let rows = page.locator("#madrigal-resemblances").first.locator(".roster-row")
+        let rows = page.locator("#madrigal-images").first.locator(".roster-row")
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(2)).toHaveAttribute("data-locked", "false")
 
@@ -288,7 +288,7 @@ struct LevelStatesTests {
         try await expect(Self.chip(page)).toHaveText("Untranslated")
         try await expect(page.locator(".level-progress-line-view")).toHaveText("Translated: 0 of 3 pages")
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_translation")
-        let rows = page.locator("#epilogue-resemblances").first.locator(".roster-row")
+        let rows = page.locator("#epilogue-images").first.locator(".roster-row")
         try await expect(rows).toHaveCount(3)
         for index in 0..<3 { try await expect(rows.nth(index)).toHaveAttribute("data-locked", "false") }
         // Permit is offered untranslated.

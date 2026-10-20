@@ -74,7 +74,7 @@ struct CommitTests {
           .toHaveTexts(["Revise", "Commit", "Delete"])
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_calibration")
         try await expect(page.locator(".commit-view input[name='scope']")).toHaveCount(0)
-        let roster = page.locator(".overture-resemblances").first
+        let roster = page.locator(".overture-images").first
         try await expect(roster.locator(".roster-row"), timeout: .seconds(20)).toHaveCount(3)
         try await expect(roster.locator(".roster-row input[form='commit-form']:checked")).toHaveCount(3)
         #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
@@ -85,7 +85,7 @@ struct CommitTests {
         #expect(all.ticked == "0-2")
         // Nothing ticked: refused under the roster, never sent.
         _ = try await page.evaluate(
-          "(() => { window.__commit = null; document.querySelector(\".overture-resemblances\").querySelectorAll(\".roster-row input[form='commit-form']\").forEach(box => box.click()); return true })()",
+          "(() => { window.__commit = null; document.querySelector(\".overture-images\").querySelectorAll(\".roster-row input[form='commit-form']\").forEach(box => box.click()); return true })()",
           as: Bool.self)
         try await page.locator(".commit-trigger").click()
         try await expect(page.locator(".field-validation-message-view").first)
@@ -93,7 +93,7 @@ struct CommitTests {
         #expect(try await Self.posted(page) == nil, "an empty commit was sent")
         // A tick clears it, and Commit posts that item.
         _ = try await page.evaluate(
-          "(() => { document.querySelectorAll(\".overture-resemblances .roster-row input[form='commit-form']\")[1].click(); return true })()",
+          "(() => { document.querySelectorAll(\".overture-images .roster-row input[form='commit-form']\")[1].click(); return true })()",
           as: Bool.self)
         try await expect(page.locator(".field-validation-message-view")).toHaveCount(0)
         try await page.locator(".commit-trigger").click()
@@ -114,7 +114,7 @@ struct CommitTests {
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Commit", "Permit"])
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_explication")
-        let rows = page.locator("#madrigal-resemblances").first.locator(".roster-row")
+        let rows = page.locator("#madrigal-images").first.locator(".roster-row")
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(2)).toHaveAttribute("data-locked", "false")
 

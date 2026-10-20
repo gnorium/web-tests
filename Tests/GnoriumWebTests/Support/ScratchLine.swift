@@ -46,7 +46,7 @@ struct ScratchLine {
       } else {
         producer = ("bibliographic_antiphon_id", antiphonIDs[index])
         sql += """
-          INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status, created_at, updated_at)
+          INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status, created_at, updated_at)
             VALUES ('\(antiphonIDs[index])', '\(madrigalIDs[index - 1])', '\(user)', '[]', 'submitted', now(), now());
 
           """

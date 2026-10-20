@@ -10,8 +10,8 @@ import Foundation
 /// antiphon made permitted. With a `distinction`,
 /// the leaf's TEI holds it as its `<note type="usage" subtype="distinction">`
 /// (a `{branch}` in it a `<ptr>` to the branch). With an `anchor` (a
-/// testament's record, version and page, and the quotation's passage and
-/// word there), the leaf is attested by a quotation in that testament.
+/// testament's record, version and page, and the quote's passage and
+/// word there), the leaf is attested by a quote in that testament.
 struct ScratchWord {
   /// Its overture's, its madrigal's and its version's ids, as the server
   /// writes them.
@@ -30,14 +30,14 @@ struct ScratchWord {
   let leaf: String
   private let ids: [String: String]
 
-  /// Where a quotation is in a testament: its record, version and page
+  /// Where a quote is in a testament: its record, version and page
   /// (image service, and its place among the version's pages), and its word
-  /// by line and place in the line, with its surface, as the quotations service
+  /// by line and place in the line, with its surface, as the quotes service
   /// counts the page.
   struct Anchor {
     let recordID: String
     let versionID: String
-    let resemblanceID: String
+    let imageID: String
     let page: Int
     let line: Int
     let word: Int
@@ -74,20 +74,20 @@ struct ScratchWord {
       #"<note type=\"usage\" subtype=\"distinction\">"#
         + $0.replacingOccurrences(of: "{branch}", with: ##"<ptr target=\"#s-1\"/>"##) + "</note>"
     } ?? ""
-    let quotations = anchor.map {
+    let quotes = anchor.map {
       (
-        #"[{"biblioRecordID":"\#($0.recordID)","resemblanceID":"\#($0.resemblanceID)","end":{"line":\#($0.line),"surface":"\#($0.surface)","word":\#($0.word)},"id":"u-1","page":\#($0.page),"start":{"line":\#($0.line),"surface":"\#($0.surface)","word":\#($0.word)},"versionID":"\#($0.versionID)"}]"#,
+        #"[{"biblioRecordID":"\#($0.recordID)","imageID":"\#($0.imageID)","end":{"line":\#($0.line),"surface":"\#($0.surface)","word":\#($0.word)},"id":"u-1","page":\#($0.page),"start":{"line":\#($0.line),"surface":"\#($0.surface)","word":\#($0.word)},"versionID":"\#($0.versionID)"}]"#,
         #"["u-1"]"#,
-        #","chronology":[{"testamentTitle":"Web tests testament","text":"The scratch word stood in a sentence.","quotationID":"u-1","year":1901,"yearEnd":1901}]"#)
+        #","chronology":[{"testamentTitle":"Web tests testament","text":"The scratch word stood in a sentence.","quoteID":"u-1","year":1901,"yearEnd":1901}]"#)
     } ?? ("[]", "[]", "")
     let vignette = """
       {"lemmaForm":{"title":"\(title)"\(romanized),"inflections":[],"languageCode":"\(language)","origin":{"citations":[],"derivation":"","etymons":[]},\
       "class":"noun","sources":[{"locator":"s.v.","title":"Web tests dictionary","url":"https://dictionary.example.org/web-tests"}],\
-      "spellings":[]},"quotations":\(quotations.0),"selectionRunIDs":["run"]\(quotations.2),"senses":[\
+      "spellings":[]},"quotes":\(quotes.0),"selectionRunIDs":["run"]\(quotes.2),"senses":[\
       {"id":"s-1","uuid":"\(branch)","isLeaf":false,"label":"A branch sense.","usage":{"domain":[],"grammar":[],"region":[],"register":[]},\
-      "position":0,"quotationIDs":[],"rank":0,"relations":[],"selectionRunID":"run","tei":"<sense><def>A branch sense.</def></sense>"},\
+      "position":0,"quoteIDs":[],"rank":0,"relations":[],"selectionRunID":"run","tei":"<sense><def>A branch sense.</def></sense>"},\
       {"id":"s-1-1","uuid":"\(leaf)","isLeaf":true,"label":"A leaf sense.","usage":{"domain":[],"grammar":[],"region":[],"register":[]},\
-      "parentID":"s-1","position":0,"quotationIDs":\(quotations.1),"rank":1,"relations":[],"selectionRunID":"run",\
+      "parentID":"s-1","position":0,"quoteIDs":\(quotes.1),"rank":1,"relations":[],"selectionRunID":"run",\
       "sources":[{"locator":"sense 2","title":"Web tests senses","url":"https://senses.example.org/web-tests"}],\
       "tei":"<sense><def>A leaf sense.</def>\(note)</sense>"}]}
       """

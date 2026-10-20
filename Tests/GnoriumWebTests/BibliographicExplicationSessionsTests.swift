@@ -31,8 +31,8 @@ struct BibliographicExplicationSessionsTests {
           "result": #"{"ok": true, "tool": "save_page", "saved": "1", "findings_count": 0}"#,
           "status": "ok", "call_id": "call_1",
         ],
-        ["type": "canvas_xml", "label": "1", "content": Self.page],
-        ["type": "canvas_xml", "label": "2", "content": Self.page],
+        ["type": "image_xml", "label": "1", "content": Self.page],
+        ["type": "image_xml", "label": "2", "content": Self.page],
         [
           "type": "compaction", "mode": "auto", "micro": "0", "tokens_before": "100", "tokens_after": "60",
           "template_id": autoID, "system_prompt": "Summarize this session.",
@@ -43,9 +43,9 @@ struct BibliographicExplicationSessionsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(nocturneID)',
             (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1–2', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(),
@@ -218,9 +218,9 @@ struct BibliographicExplicationSessionsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(nocturneID)',
             (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(),
@@ -318,28 +318,28 @@ struct BibliographicExplicationSessionsTests {
       // 300ms apart, so the running card fills before it finishes.
       _ = try TestAdmin.query("""
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_nocturnes
-          (id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          (id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(nocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 2, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 3000, now());
         \(try SessionTrace.append(blocks, table: Self.nocturnes, id: nocturneID, stepMs: 300))
         INSERT INTO bibliographic_explication_nocturnes
-          (id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          (id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(failedNocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'DeepSeek', 'deepseek-flash',
             'failed', gen_random_uuid(), '\(antiphonID)', 500, now() - interval '1 second');
         \(try SessionTrace.append([["type": "thinking", "content": "Historical partial thought."]], table: Self.nocturnes, id: failedNocturneID))
         INSERT INTO bibliographic_explication_nocturnes
-          (id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          (id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(otherNocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '2', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 100, now());
         \(try SessionTrace.append([["type": "text", "content": "Another finished session."]], table: Self.nocturnes, id: otherNocturneID))
         COMMIT;
         """)
       try await withPage(engine, gnorium, cookies: [admin.cookie]) { page in
-        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?resemblance=1")
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?image=1")
         let session = page.locator(".computorium-session-view")
         let replay = page.locator(".replay-btn")
         let snapshot = """
@@ -404,7 +404,7 @@ struct BibliographicExplicationSessionsTests {
         }
         // An older failed instance remains failed in the card, while the list
         // continues to report the session's later successful result.
-        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?resemblance=1&instance=1")
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?image=1&instance=1")
         try await expect(session).toHaveAttribute("data-computorium-session-status", "failed")
         let currentRows = page.locator(".roster-row[data-computorium-session-label='1']")
         try await expect(currentRows.first).toHaveAttribute("data-computorium-session-status", "succeeded")
@@ -444,11 +444,11 @@ struct BibliographicExplicationSessionsTests {
     do {
       let user = try admin.column("id")
       let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())')"
-      let columns = "(id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)"
+      let columns = "(id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)"
       func text(_ content: String) -> [[String: String]] { [["type": "text", "content": content]] }
       _ = try TestAdmin.query("""
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_nocturnes \(columns)
           VALUES ('\(nocturneIDs[0])', \(batch), 'explication', '1', 2, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now());
@@ -462,7 +462,7 @@ struct BibliographicExplicationSessionsTests {
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?resemblance=1")
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?image=1")
         try await expect(page.locator(".computorium-session-title-block .computorium-session-page-nav")).toBeVisible()
         try await expect(page.locator(".computorium-session-controls .computorium-session-page-nav")).toHaveCount(0)
         let instances = page.locator(".computorium-session-controls-start .computorium-session-instance-nav")
@@ -475,14 +475,14 @@ struct BibliographicExplicationSessionsTests {
           (() => {
             const r = (s) => document.querySelector(s)?.getBoundingClientRect();
             const card = r('.computorium-session-view'), pager = r('.computorium-session-title-block .computorium-session-page-nav');
-            const label = r('.computorium-session-header .computorium-session-title-resemblance');
+            const label = r('.computorium-session-header .computorium-session-title-image');
             const raw = r('.computorium-session-controls-start .computorium-session-markdown-toggle');
             const info = r('.computorium-session-controls-start .computorium-session-byline');
             const instances = r('.computorium-session-controls-start .computorium-session-instance-nav');
             const out = [];
             if (!card || !pager || !label || !raw || !info || !instances) return 'missing';
             // The evidence pager right after the label, in the title block.
-            const labelEl = document.querySelector('.computorium-session-title-resemblance');
+            const labelEl = document.querySelector('.computorium-session-title-image');
             if (!labelEl.nextElementSibling?.classList.contains('computorium-session-page-nav')) out.push('evidence pager not after the label');
             if (pager.left < label.right) out.push('evidence pager overlaps the label');
             if (Math.abs((label.top + label.bottom) / 2 - (pager.top + pager.bottom) / 2) > 4) out.push('label and evidence pager not on one line');
@@ -530,7 +530,7 @@ struct BibliographicExplicationSessionsTests {
     try await admin.remove()
   }
 
-  /// A session's task prompt is the one it sent, filled—its resemblance, its
+  /// A session's task prompt is the one it sent, filled—its image, its
   /// neighbors, its conventions—as its trace recorded it (user,
   /// 2026-10-10), never the template's slots; a nocturne from before the trace
   /// recorded it shows its vignette's template, as it always has.
@@ -552,10 +552,10 @@ struct BibliographicExplicationSessionsTests {
       ).trimmingCharacters(in: .whitespacesAndNewlines)
       let template = try TestAdmin.query("SELECT task_prompt FROM prompt_vignettes WHERE id = '\(vignette)'")
         .trimmingCharacters(in: .whitespacesAndNewlines)
-      let sent = "Transcribe the canvas \"1\", shown above, exactly as it appears on its surface.\n\nThe last sentence of the image before: none (this is the witness's first canvas image)"
+      let sent = "Transcribe the image \"1\", shown above, exactly as it appears on its surface.\n\nThe last sentence of the image before: none (this is the witness's first canvas image)"
       let recorded: [[String: String]] = [
         ["type": "image_url", "content": "https://example.org/iiif/web-tests/full/1300,/0/default.jpg"],
-        ["type": "task_prompt_instance", "content": sent, "system_prompt": "Read the canvas as sent.", "template_id": vignette.uppercased()],
+        ["type": "task_prompt_instance", "content": sent, "system_prompt": "Read the image as sent.", "template_id": vignette.uppercased()],
         ["type": "text", "content": "Saved."],
       ]
       let old: [[String: String]] = [
@@ -563,10 +563,10 @@ struct BibliographicExplicationSessionsTests {
         ["type": "text", "content": "Saved."],
       ]
       let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())')"
-      let columns = "(id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, prompt_vignette_id, created_at)"
+      let columns = "(id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, prompt_vignette_id, created_at)"
       _ = try TestAdmin.query("""
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_nocturnes \(columns)
           VALUES ('\(nocturneIDs[0])', \(batch), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, '\(vignette)', now());
@@ -579,17 +579,17 @@ struct BibliographicExplicationSessionsTests {
       let task = ".computorium-session-view .computorium-session-task-fieldset .computorium-session-prompt-body"
       let system = ".computorium-session-view .computorium-session-prompt-fieldset:not(.computorium-session-task-fieldset) .computorium-session-prompt-body"
       try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine), cookies: [admin.cookie]) { page in
-        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?resemblance=1")
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?image=1")
         let shown = try await page.evaluate("document.querySelector('\(task)')?.textContent ?? ''", as: String.self)
         #expect(shown == sent, "The task prompt as sent: \(shown)")
         #expect(!shown.contains("{"), "No slot is left in the task prompt: \(shown)")
         try await expect(page.locator(".computorium-session-view .computorium-session-task-fieldset .computorium-session-prompt-legend-title"))
           .toHaveText("Task prompt")
         let systemShown = try await page.evaluate("document.querySelector('\(system)')?.textContent ?? ''", as: String.self)
-        #expect(systemShown == "Read the canvas as sent.", "The system prompt as sent: \(systemShown)")
+        #expect(systemShown == "Read the image as sent.", "The system prompt as sent: \(systemShown)")
         try await page.expectNoErrors()
 
-        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?resemblance=2")
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?image=2")
         let before = try await page.evaluate("document.querySelector('\(task)')?.textContent ?? ''", as: String.self)
         #expect(before.trimmingCharacters(in: .whitespacesAndNewlines) == template && before.contains("{evidence}"),
           "A nocturne that did not record its task shows its vignette's template")
@@ -631,17 +631,17 @@ struct BibliographicExplicationSessionsTests {
       ]
       _ = try TestAdmin.query("""
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_nocturnes
-          (id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+          (id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(nocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now());
         \(try SessionTrace.append(blocks, table: Self.nocturnes, id: nocturneID))
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine), cookies: [admin.cookie]) { page in
-        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?resemblance=1")
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?image=1")
         let check = """
           (() => {
             const out = [];

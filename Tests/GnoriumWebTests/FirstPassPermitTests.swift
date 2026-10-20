@@ -140,7 +140,7 @@ struct FirstPassPermitTests {
         try await pedigree.locator(".accordion-summary").first.click()
         let antiphon = "/mission-control/antiphons/bibliographic/\(pass.antiphonID)"
         try await expect(pedigree.locator("a[href='\(antiphon)']")).toHaveText(pass.antiphonID)
-        try await expect(pedigree.locator("a[href='\(antiphon)?resemblance=1']")).toHaveText("1")
+        try await expect(pedigree.locator("a[href='\(antiphon)?image=1']")).toHaveText("1")
         try await expect(pedigree).toContainText(pass.nocturneID)
         let groups = try await tab.evaluate(
           "[...document.querySelectorAll('.pedigree-group')].map(g => g.querySelector('.datum-label').textContent.trim()).join(' ')",

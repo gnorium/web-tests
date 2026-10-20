@@ -97,15 +97,15 @@ struct AlertLayoutTests {
     <img src="/page.svg" alt="The page’s image as its source serves it now" loading="lazy" class="expandable-attachment-image-thumb" \
     style="display: block; flex-shrink: 0; width: var(--line-height-small-22); height: var(--line-height-small-22); \
     object-fit: contain"/>\
-    </button></div><span>.</span><span> The resemblance shows the image that was sent, as archived.</span>\
+    </button></div><span>.</span><span> The image shows the image that was sent, as archived.</span>\
     </div></div></div></div>
     """
 
   /// A boxed alert whose words wrap at either width.
   static let boxed = """
     <div class="alert-view alert-orange" id="boxed"><div class="alert-motion-content">\(icon)<div class="alert-content">\
-    <span>A later markup of this testament changed this word, and the quotation is read where it was anchored \
-    until its word is explicated again; every quotation of the word waits with it, and none is shown changed \
+    <span>A later markup of this testament changed this word, and the quote is read where it was anchored \
+    until its word is explicated again; every quote of the word waits with it, and none is shown changed \
     until a person permits the new markup.</span></div></div></div>
     """
 
@@ -116,7 +116,7 @@ struct AlertLayoutTests {
     <div class="alert-view alert-orange" id="faults"><div class="alert-motion-content">\(icon)<div class="alert-content">\
     <div class="alert-line-view" data-heading="true" id="heading"><div class="alert-line-words">Page 5: 1 fault</div></div>\
     <div class="alert-line-view" id="line"><div class="alert-line-words" id="words">Box without its zone:</div>\
-    <div class="alert-line-aside" id="aside"><span class="resemblance-fault-detail" id="detail" data-edge-fade-view="expand" \
+    <div class="alert-line-aside" id="aside"><span class="image-fault-detail" id="detail" data-edge-fade-view="expand" \
     style="min-width:0;font-family:ui-monospace,monospace;white-space:nowrap;overflow:hidden">\(detail)</span></div></div>\
     </div></div></div>
     """

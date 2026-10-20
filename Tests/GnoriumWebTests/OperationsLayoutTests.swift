@@ -59,7 +59,7 @@ struct OperationsLayoutTests {
       }
       let roster = try await page.evaluate("""
         (() => {
-          const roster = document.querySelector('#fixture-resemblances');
+          const roster = document.querySelector('#fixture-images');
           const search = roster?.querySelector('.roster-search-input-wrapper');
           const list = roster?.closest('.mission-control-sidebar-list');
           if (!search || !list) return false;
@@ -70,7 +70,7 @@ struct OperationsLayoutTests {
             && getComputedStyle(list).rowGap === '16px';
         })()
         """, as: Bool.self)
-      #expect(roster, "Resemblance search is a 16px search input with no divider; sidebar sections use 16px spacing")
+      #expect(roster, "Image search is a 16px search input with no divider; sidebar sections use 16px spacing")
       // Locutions are counted, not the events beside them.
       try await expect(page.locator(".locution-thread-count")).toHaveText("0")
       try await expect(page.locator(".locution-thread-event")).toHaveCount(1)

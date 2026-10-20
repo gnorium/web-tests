@@ -225,7 +225,7 @@ struct ChangedPageCanvasTests {
   /// that page is on screen. The person's choice is kept: a page with an
   /// image shows it as the switch was left. And the reader asks the live
   /// service for nothing of that page—no tile, no image fetched ahead from
-  /// the pages beside it. Its source-change notice says what the resemblance
+  /// the pages beside it. Its source-change notice says what the image
   /// shows: the image that was sent, as archived, else none—updated in place
   /// where the archived copy fails to load. The witness's pages served on
   /// this machine (`FixtureServer.threePageManifest`). Chrome, desktop.
@@ -258,7 +258,7 @@ struct ChangedPageCanvasTests {
         let viewer = page.locator(".artifact-view").first
         let toggle = viewer.locator(".artifact-canvas-toggle button")
         let shownImage = viewer.locator(".canvas-view[data-active='true'] .canvas-tile-image[data-loaded='true']").first
-        // Page 1's notice: its last sentence, what the resemblance shows.
+        // Page 1's notice: its last sentence, what the image shows.
         let said = page.locator(".source-change-notice[data-service='\(base)/page-1'] .source-change-notice-reader").first
         // The live canvas first, the images switched on (the person's
         // choice, kept for the session): its tiles are the reader's own SVG
@@ -288,7 +288,7 @@ struct ChangedPageCanvasTests {
         // The notice no longer says the archived image is shown: it could
         // not be loaded.
         try await expect(said).toHaveText(
-          "The archived image that was sent could not be loaded, so no resemblance is shown.")
+          "The archived image that was sent could not be loaded, so no image is shown.")
         try await Task.sleep(for: .milliseconds(600))
         let alone = try await Self.panes(page)
         #expect(
@@ -346,7 +346,7 @@ struct ChangedPageCanvasTests {
         _ = try TestAdmin.query("UPDATE wayback_saves SET status = 'saved' WHERE url = '\(full)'")
         try await page.openHydrated(commit.madrigalPath)
         try await expect(shownImage).toHaveAttribute("href", archived)
-        try await expect(said).toHaveText("The resemblance shows the image that was sent, as archived.")
+        try await expect(said).toHaveText("The image shows the image that was sent, as archived.")
         #expect(try await Self.readerRequests(page, "\(base)/page-1/") == 0, "never the image now")
 
         // Not archived (`"blank":true`): the text alone at once, no copy
@@ -354,7 +354,7 @@ struct ChangedPageCanvasTests {
         _ = try TestAdmin.query("DELETE FROM wayback_saves WHERE url = '\(full)'")
         try await page.openHydrated(commit.madrigalPath)
         try await expect(toggle).toHaveAttribute("aria-disabled", "true")
-        try await expect(said).toHaveText("The image that was sent isn’t archived, so no resemblance is shown.")
+        try await expect(said).toHaveText("The image that was sent isn’t archived, so no image is shown.")
         try await Task.sleep(for: .milliseconds(600))
         let blank = try await Self.panes(page)
         #expect(

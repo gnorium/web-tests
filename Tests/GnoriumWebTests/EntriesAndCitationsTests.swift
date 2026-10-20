@@ -35,7 +35,7 @@ struct EntriesAndCitationsTests {
   {
     (1...count).map { line in
       """
-      INSERT INTO citations (id, biblio_record_version_id, biblio_record_id, testament_id, permitted_at, resemblance_id, page,
+      INSERT INTO citations (id, biblio_record_version_id, biblio_record_id, testament_id, permitted_at, image_id, page,
         start_line, start_word, start_surface, end_line, end_word, end_surface, element, kind, surface, parts_json,
         language_code, status, cited_biblio_record_id, cited_lexico_record_id, resolved_at, created_at,
         entry_heading, entry_head)
@@ -51,7 +51,7 @@ struct EntriesAndCitationsTests {
   /// `canon`'s entry for a work or a word, headed `heading`, on page 3.
   static func entry(in canon: ScratchWork, heading: String, work: String? = nil, word: String? = nil) -> String {
     """
-    INSERT INTO entries (id, biblio_record_version_id, work_record_id, testament_id, permitted_at, resemblance_id, page,
+    INSERT INTO entries (id, biblio_record_version_id, work_record_id, testament_id, permitted_at, image_id, page,
       start_line, start_word, start_surface, end_line, end_word, end_surface, kind, heading, parts_json, language_code,
       status, lexico_record_id, biblio_record_id, resolved_at, created_at)
       VALUES (gen_random_uuid(), '\(canon.versionID.lowercased())', '\(canon.recordID.lowercased())',
@@ -123,7 +123,7 @@ struct EntriesAndCitationsTests {
         try await expect(row.locator("a[href='\(catalogPath)']")).toHaveCount(1)
         try await expect(row).toContainText("Catalog")
         try await expect(row).toContainText("WEB TESTS HEADING")
-        try await expect(row.locator("a[href='\(catalogPath)/vignettes/\(catalog.versionID)?resemblance=2']")).toHaveCount(1)
+        try await expect(row.locator("a[href='\(catalogPath)/vignettes/\(catalog.versionID)?image=2']")).toHaveCount(1)
         try await expect(row).not.toContainText("Canon")
         // The works citing it in running text, one row each with how many.
         let citations = page.locator("#record-citations")

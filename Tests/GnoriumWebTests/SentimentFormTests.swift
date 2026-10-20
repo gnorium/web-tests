@@ -7,9 +7,9 @@ import WebTestsTesting
 /// edit mode: the record first (Lexico-record, Language, Script, Title,
 /// Type), then the tree with the new sentiment alone, open, its fields in
 /// its Metadata (its Form rows, Label, the Grammar, Register, Domain,
-/// Region and Currency usage). No card, no placement widget. No quotation
+/// Region and Currency usage). No card, no placement widget. No quote
 /// is cited, nothing is derived and no passage coins the word: the process
-/// finds the quotations by the title and the forms. A region is offered
+/// finds the quotes by the title and the forms. A region is offered
 /// under its language. A picked lexico-record stands with its own fields,
 /// its tree in the tree section, and stays chosen; unset, the typed fields
 /// come back as they were left. Nothing is submitted (`SubmissionTests`
@@ -59,7 +59,7 @@ struct SentimentFormTests {
       ).string
       #expect(order == "ok", "\(order ?? "")")
       // Nothing cited, nothing derived, nothing coined.
-      for gone in ["[id^='quotation-accordion']", "input[name='coins[]']", "[data-derived-scope]", "input[name='anchors']"] {
+      for gone in ["[id^='quote-accordion']", "input[name='coins[]']", "[data-derived-scope]", "input[name='anchors']"] {
         try await expect(form.locator(gone)).toHaveCount(0)
       }
       try await expect(form.locator(".framed-accordion-view, #sentiment-accordion, #sentiment-placement"))
@@ -71,7 +71,7 @@ struct SentimentFormTests {
       // No label: the machine writes it (user, 2026-10-09).
       try await expect(form.locator("#sentiment-0-label, textarea[name='sentiment-0-label']")).toHaveCount(0)
 
-      // No Form rows: a sentiment's forms are its quotations', never typed.
+      // No Form rows: a sentiment's forms are its quotes', never typed.
       try await expect(form.locator("[data-item-list='title-form'], .title-form-json")).toHaveCount(0)
       try await expect(form.locator("button[aria-label='Add Form']")).toHaveCount(0)
 

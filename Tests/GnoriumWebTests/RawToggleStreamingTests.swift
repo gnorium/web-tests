@@ -105,7 +105,7 @@ struct RawToggleStreamingTests {
             this.emit('start', '{}');
             const timer = setInterval(() => {
               for (let i = 0; i < 3 && window.__emitted < chunks.length; i++) {
-                this.emit('chunk', JSON.stringify(Object.assign({ resemblance: '1' }, chunks[window.__emitted++])));
+                this.emit('chunk', JSON.stringify(Object.assign({ image: '1' }, chunks[window.__emitted++])));
               }
               if (window.__emitted >= chunks.length) {
                 clearInterval(timer);
@@ -286,9 +286,9 @@ struct RawToggleStreamingTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, resemblance, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
           VALUES ('\(nocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
             'explication', '1', 1, 'fixture', 'fixture', 'passed', gen_random_uuid(), '\(antiphonID)', 1, now());
         \(try SessionTrace.append(recorded, table: "bibliographic_explication_nocturnes", id: nocturneID))

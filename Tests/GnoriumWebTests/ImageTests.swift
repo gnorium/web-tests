@@ -3,9 +3,9 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A testament's reader holds one resemblance per page in its
-/// viewer's resemblance slot (user, 2026-09-28): only the page on screen is shown
-/// and only its resemblance holds tiles; a resemblance paged away lets go of them, and
+/// A testament's reader holds one image per page in its
+/// viewer's image slot (user, 2026-09-28): only the page on screen is shown
+/// and only its image holds tiles; an image paged away lets go of them, and
 /// its transcript pages with it. The manifest and its pages' images are
 /// served on this machine (`FixtureServer.threePageManifest`): the server
 /// reads a source URL over https, or http to loopback for the tests, never a
@@ -13,12 +13,12 @@ import WebTestsTesting
 ///
 /// The page images are off until the reader asks for them (user,
 /// 2026-09-29): the transcript takes the whole width and no image is
-/// fetched; the header's Resemblance switch (the image icon alone, distinct
+/// fetched; the header's Image switch (the image icon alone, distinct
 /// from the pager's arrows, 2026-10-03) shows them, and the choice holds
 /// across the reader's pages and the site's navigation for the browser
 /// session (sessionStorage), and is off again in a new one.
-@Suite("Resemblances", .serialized)
-struct ResemblanceTests {
+@Suite("Images", .serialized)
+struct ImageTests {
   /// The fixture's three pages' image services.
   static func services(_ fixture: FixtureServer) -> [String] { (1...3).map { "\(fixture.baseURL)/page-\($0)" } }
 
@@ -30,10 +30,10 @@ struct ResemblanceTests {
     """
   }
 
-  /// Per resemblance: whether it is shown, and how many tile images it holds.
-  struct Resemblance: Decodable { let service: String; let shown: Bool; let tiles: Int }
+  /// Per image: whether it is shown, and how many tile images it holds.
+  struct Image: Decodable { let service: String; let shown: Bool; let tiles: Int }
 
-  static let resemblancesScript = """
+  static let imagesScript = """
     (viewer) => JSON.stringify([...viewer.querySelectorAll('.artifact-object .canvas-view')].map(s => ({
       service: s.dataset.serviceId,
       shown: getComputedStyle(s).display !== 'none',
@@ -103,13 +103,13 @@ struct ResemblanceTests {
         #expect(rowFits, "the header row needs more than its width")
         try await page.expectNoHorizontalOverflow()
         // Find is the search icon alone.
-        // A toggle, as the resemblance switch is: its button holds the name,
+        // A toggle, as the image switch is: its button holds the name,
         // the viewer's short one (gnorium-web 23bd89d5c, 2026-10-13: the
         // viewer's tooltips shortened, as Overlay and XML).
         let find = viewer.locator(".testament-find-button button")
         try await expect(find).toHaveAccessibleName("Search")
         try await expect(find).toHaveText("")
-        // Find and the resemblance switch are the pager's medium chevrons'
+        // Find and the image switch are the pager's medium chevrons'
         // size, 40, their icons' long edge the chevrons', 16 (icons are tight
         // to their glyph, 2026-10-01; an icon-only control on par with the
         // bars' 16px text takes its size, 2026-10-09): one row of medium
@@ -125,7 +125,7 @@ struct ResemblanceTests {
         #expect(abs(row.height - (control + 16)) < 1, "the header's row is \(control + 16)")
         for (name, control, icon) in [
           ("Find", find, find.locator("svg")),
-          ("Resemblance", toggle, toggle.locator("svg")),
+          ("Image", toggle, toggle.locator("svg")),
         ] {
           let box = try #require(try await control.boundingBox())
           let iconBox = try #require(try await icon.boundingBox())
@@ -136,8 +136,8 @@ struct ResemblanceTests {
         }
 
         // Off: the transcript alone, the whole width, and no image asked for.
-        // The switch is the image icon alone, named "Resemblance".
-        try await expect(toggle).toHaveAccessibleName("Resemblance")
+        // The switch is the image icon alone, named "Image".
+        try await expect(toggle).toHaveAccessibleName("Image")
         try await expect(viewer.locator(".artifact-canvas-toggle .toggle-button-label")).toHaveCount(0)
         try await expect(toggle.locator("svg.image-icon-view")).toHaveCount(1)
         try await expect(toggle).toHaveAttribute("aria-pressed", "false")
@@ -151,7 +151,7 @@ struct ResemblanceTests {
           .toHaveAttribute("data-service-id", services[1])
         #expect(try await page.evaluate(Self.imageRequestsScript(fixture)).double == 0, "an image was fetched while off")
 
-        // On: the page on screen's resemblance, beside the transcript.
+        // On: the page on screen's image, beside the transcript.
         try await toggle.click()
         try await expect(toggle).toHaveAttribute("aria-pressed", "true")
         try await expect(object).toBeVisible()
@@ -217,20 +217,20 @@ struct ResemblanceTests {
         // The page images, off by default, turned on.
         try await viewer.locator(".artifact-canvas-toggle button").click()
 
-        func resemblances() async throws -> [Resemblance] {
-          let json = try await viewer.evaluate(Self.resemblancesScript).string ?? "[]"
-          return try JSONDecoder().decode([Resemblance].self, from: Data(json.utf8))
+        func images() async throws -> [Image] {
+          let json = try await viewer.evaluate(Self.imagesScript).string ?? "[]"
+          return try JSONDecoder().decode([Image].self, from: Data(json.utf8))
         }
         func expectShown(_ index: Int) async throws {
           // The backdrop is drawn once the image service's format is probed.
           try await expect(viewer.locator(".artifact-object .canvas-view[data-active='true'] .canvas-tile-image").first)
             .toHaveCount(1)
-          let read = try await resemblances()
+          let read = try await images()
           let shown = read.filter(\.shown)
           #expect(shown.map(\.service) == [services[index]], "only page \(index + 1) is shown")
           #expect(shown.first.map { $0.tiles > 0 } == true, "the page on screen holds no tiles")
-          for resemblance in read where resemblance.service != services[index] {
-            #expect(resemblance.tiles == 0, "\(resemblance.service), off screen, holds tiles")
+          for image in read where image.service != services[index] {
+            #expect(image.tiles == 0, "\(image.service), off screen, holds tiles")
           }
           try await expect(
             viewer.locator(".artifact-markup .tei-page[data-active='true']")

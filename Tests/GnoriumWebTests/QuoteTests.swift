@@ -3,22 +3,22 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A quotation is shown in its testament (user, 2026-09-27): a sentiment's
-/// quotation is the transcript
+/// A quote is shown in its testament (user, 2026-09-27): a sentiment's
+/// quote is the transcript
 /// of its page and the pages either side, one after another in one bounded
 /// box, each opened by its label, fetched only once it comes into view and
 /// opened with its sentence (split across a page break here) in the middle,
 /// the sentence and, more strongly, the word marked; no images. It is
 /// headed by its testament's Chicago note (user, 2026-10-18), its title a
-/// link to the testament's row on its record's page at the quotation's
+/// link to the testament's row on its record's page at the quote's
 /// page; no breadcrumb, no header box. Anywhere in
 /// its highlight opens its gloss (user, 2026-10-09): its testament's Chicago
 /// note, its title linked to the testament at its page, then its words. A throwaway
 /// admin owns a scratch work with a permitted testament and a scratch word
 /// attested in it, made by SQL and removed after.
-@Suite("Quotation", .serialized)
-struct QuotationTests {
-  /// Five pages; the quotation on the third, its sentence ending on the
+@Suite("Quote", .serialized)
+struct QuoteTests {
+  /// Five pages; the quote on the third, its sentence ending on the
   /// fourth. On the third page the word is the third of its third line
   /// (after two `<lb/>`s: "Here the scratchword begins"): page 3, line 3, word 3.
   static let tei: String = {
@@ -40,7 +40,7 @@ struct QuotationTests {
   }()
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func anQuotationIsShownInItsTestament(engine: BrowserEngine, layout: Layout) async throws {
+  func anQuoteIsShownInItsTestament(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -58,7 +58,7 @@ struct QuotationTests {
         owner: admin,
         anchor: .init(
           recordID: scratch.reading.work.recordID, versionID: scratch.versionID,
-          resemblanceID: "https://example.org/iiif/webtests-p3", page: 3, line: 3, word: 3, surface: "scratchword"))
+          imageID: "https://example.org/iiif/webtests-p3", page: 3, line: 3, word: 3, surface: "scratchword"))
       word = scratchWord
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(scratchWord.path)
@@ -66,59 +66,59 @@ struct QuotationTests {
         let attestation = row.locator(".attestation-view")
         // Its first attestation against the margin, in the house style.
         try await expect(row.locator(".record-row-date").first).toHaveText("AD 1901")
-        // Closed, its quotation is not fetched.
-        try await expect(row.locator(".attestation-quotation")).toHaveAttribute("data-loaded", "false")
+        // Closed, its quote is not fetched.
+        try await expect(row.locator(".attestation-quote")).toHaveAttribute("data-loaded", "false")
         let fetchedBefore = try await page.evaluate(
-          "performance.getEntriesByType('resource').filter(e => e.name.includes('/quotation?')).length")
+          "performance.getEntriesByType('resource').filter(e => e.name.includes('/quote?')).length")
         #expect(fetchedBefore == .number(0))
 
         try await page.locator("#record-row-\(scratchWord.leaf) > .accordion-summary").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
-        let quotation = attestation.locator(".quotation-view")
-        try await expect(quotation).toHaveCount(1)
+        let quote = attestation.locator(".quote-view")
+        try await expect(quote).toHaveCount(1)
         // Headed by its testament's Chicago note, above the reader, nothing
         // else: no breadcrumb, no header box.
-        let heading = attestation.locator(".attestation-quotation > .chicago-citation-view")
+        let heading = attestation.locator(".attestation-quote > .chicago-citation-view")
         try await expect(heading).toHaveCount(1)
         let work = scratch.reading.work
         try await expect(heading).toHaveText("\(work.author), \(work.title) (1958), 3.")
         let headingAbove = try await attestation.evaluate(
-          "(view) => { const h = view.querySelector('.chicago-citation-view').getBoundingClientRect(); const q = view.querySelector('.quotation-view').getBoundingClientRect(); return h.bottom <= q.top }")
-        #expect(headingAbove == .bool(true), "the citation is not above the quotation")
+          "(view) => { const h = view.querySelector('.chicago-citation-view').getBoundingClientRect(); const q = view.querySelector('.quote-view').getBoundingClientRect(); return h.bottom <= q.top }")
+        #expect(headingAbove == .bool(true), "the citation is not above the quote")
         try await expect(attestation.locator(".breadcrumb-view")).toHaveCount(0)
         try await expect(attestation.locator(".header-view")).toHaveCount(0)
         // Its title links to the testament's leaf row on the record's page,
-        // its reader on the quotation's page.
+        // its reader on the quote's page.
         let headingLink = heading.locator("cite a")
         try await expect(headingLink).toHaveCount(1)
         let leafUUID = try TestAdmin.query(
           "SELECT shape_json::jsonb -> ('manifest-' || upper(f.id::text)) ->> 'uuid' FROM biblio_record_versions v, bibliographic_fountains f WHERE v.id = '\(scratch.versionID)' AND f.id = (SELECT bibliographic_fountain_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())');"
         ).trimmingCharacters(in: .whitespacesAndNewlines)
-        try await expect(headingLink).toHaveAttribute("href", "\(work.path)?resemblance=2#record-row-\(leafUUID)")
+        try await expect(headingLink).toHaveAttribute("href", "\(work.path)?image=2#record-row-\(leafUUID)")
         // The page and the pages either side, each opened by its label.
-        try await expect(quotation.locator(".tei-page")).toHaveCount(3)
-        try await expect(quotation.locator(".tei-line-mark")).toHaveTexts(["2", "3", "4"])
-        try await expect(quotation).not.toContainText("Page 1,")
-        try await expect(quotation).not.toContainText("Page 5,")
+        try await expect(quote.locator(".tei-page")).toHaveCount(3)
+        try await expect(quote.locator(".tei-line-mark")).toHaveTexts(["2", "3", "4"])
+        try await expect(quote).not.toContainText("Page 1,")
+        try await expect(quote).not.toContainText("Page 5,")
         // The sentence on both sides of the page break; the word more strongly.
-        try await expect(quotation.locator("mark[data-highlight='sentence']")).toHaveTexts([
+        try await expect(quote.locator("mark[data-highlight='sentence']")).toHaveTexts([
           "Here the", "begins", "and ended on the next page.",
         ])
-        let title = quotation.locator("mark[data-highlight='title']")
+        let title = quote.locator("mark[data-highlight='title']")
         try await expect(title).toHaveText("scratchword")
         // Stronger by color alone: its weight is the text's own.
-        let weights = try await quotation.evaluate(
+        let weights = try await quote.evaluate(
           "box => [...box.querySelectorAll('mark')].map(m => getComputedStyle(m).fontWeight).join(' ')")
         #expect(weights == .string("400 400 400 400"))
         // The word boxed as the OED boxes it; the sentence unboxed.
         try await expect(title).toHaveCSS("border-top-style", "solid")
-        try await expect(quotation.locator("mark[data-highlight='sentence']").first).toHaveCSS("border-top-style", "none")
+        try await expect(quote.locator("mark[data-highlight='sentence']").first).toHaveCSS("border-top-style", "none")
         // No images.
-        try await expect(quotation.locator("img")).toHaveCount(0)
+        try await expect(quote.locator("img")).toHaveCount(0)
         try await expect(attestation.locator(".artifact-view")).toHaveCount(0)
 
         // A bounded box, opened with the sentence in view.
-        let box = try #require(try await quotation.boundingBox())
+        let box = try #require(try await quote.boundingBox())
         let mark = try #require(try await title.boundingBox())
         // Fourteen lines of 26px, its padding and border.
         let tallest: Double = 14 * 26 + 2 * 16 + 2 + 1
@@ -129,39 +129,39 @@ struct QuotationTests {
         #expect(markBottom <= boxBottom)
         // Scrolled to the sentence only where the passage overflows its box:
         // reflowed at every width (user, 2026-10-07), a short one fits.
-        let scrolled = try await quotation.evaluate(
+        let scrolled = try await quote.evaluate(
           "box => box.scrollHeight > box.clientHeight + 1 ? box.scrollTop : -1")
         if case .number(let top) = scrolled { #expect(top != 0) } else { Issue.record("No scrollTop") }
 
-        // A word inside the quotation opens the quotation's gloss: its
+        // A word inside the quote opens the quote's gloss: its
         // Chicago note—the voice, the title italic (a report is
         // book-length), the date, the page as printed (its pb n)—then its
         // words, the one clicked expanded.
-        try await quotation.locator(".tei-word").filter(hasText: "begins").first.click()
-        let gloss = quotation.locator(".gloss-sheet[data-state='open']")
+        try await quote.locator(".tei-word").filter(hasText: "begins").first.click()
+        let gloss = quote.locator(".gloss-sheet[data-state='open']")
         try await expect(gloss).toHaveCount(1)
         try await expect(gloss.locator(".gloss-sheet-title .record-label-title")).toHaveText("scratchword")
         try await expect(gloss.locator(".gloss-sheet-title .record-label-meta")).toHaveCount(0)
         // Public, under the lexico-record quoting it.
-        let address = try await quotation.evaluate(
-          "(box) => box.closest('[data-quotation-gloss]').getAttribute('data-quotation-gloss')")
-        #expect(address.string?.contains("/quotations/") == true && address.string?.hasPrefix("/lexico-records/") == true, "the gloss is at \(address), the record at \(scratchWord.path)")
+        let address = try await quote.evaluate(
+          "(box) => box.closest('[data-quote-gloss]').getAttribute('data-quote-gloss')")
+        #expect(address.string?.contains("/quotes/") == true && address.string?.hasPrefix("/lexico-records/") == true, "the gloss is at \(address), the record at \(scratchWord.path)")
         let citation = gloss.locator(".chicago-citation-view")
         try await expect(citation).toHaveText("\(work.author), \(work.title) (1958), 3.")
         try await expect(citation.locator("cite.chicago-citation-title")).toHaveCSS("font-style", "italic")
         let begins = gloss.locator(".gloss-word-row").filter(hasText: "begins")
         try await expect(begins).toHaveCount(1)
         let open = try await begins.evaluate("(row) => row.querySelector('.accordion-details').hasAttribute('open')")
-        #expect(open == .bool(true), "the word clicked is not expanded in the quotation's gloss")
+        #expect(open == .bool(true), "the word clicked is not expanded in the quote's gloss")
         try await expect(gloss.locator(".gloss-word-row").filter(hasText: "scratchword")).toHaveCount(1)
 
-        // Its title opens the testament's page at the quotation's page.
+        // Its title opens the testament's page at the quote's page.
         let landed = try await page.evaluate(
           """
           fetch(document.querySelector('#record-row-\(scratchWord.leaf) .gloss-sheet .chicago-citation-view a').href)
             .then(r => (r.ok ? '' : 'HTTP ' + r.status + ' ') + new URL(r.url).pathname + new URL(r.url).search)
           """)
-        #expect(landed == .string("\(scratch.reading.work.path)/vignettes/\(scratch.versionID)?resemblance=2"))
+        #expect(landed == .string("\(scratch.reading.work.path)/vignettes/\(scratch.versionID)?image=2"))
         try await page.keyboard.press("Escape")
         try await expect(page.locator(".gloss-sheet[data-state='open']")).toHaveCount(0)
 
@@ -176,15 +176,15 @@ struct QuotationTests {
               if (!d.open) d.querySelector(':scope > .accordion-summary').click();
             slot.scrollIntoView({ block: 'center' }); return true })()
           """)
-        let objectQuotation = page.locator(".attestation-view .quotation-view").first
-        try await expect(objectQuotation).toHaveCount(1)
-        let objectAddress = try await objectQuotation.evaluate(
-          "(box) => box.closest('[data-quotation-gloss]').getAttribute('data-quotation-gloss')")
+        let objectQuote = page.locator(".attestation-view .quote-view").first
+        try await expect(objectQuote).toHaveCount(1)
+        let objectAddress = try await objectQuote.evaluate(
+          "(box) => box.closest('[data-quote-gloss]').getAttribute('data-quote-gloss')")
         #expect(
-          objectAddress.string?.hasPrefix(objectPath + "/quotations/") == true,
+          objectAddress.string?.hasPrefix(objectPath + "/quotes/") == true,
           "the object's gloss is at \(objectAddress)")
-        try await objectQuotation.locator(".tei-word").filter(hasText: "begins").first.click()
-        let objectGloss = objectQuotation.locator(".gloss-sheet[data-state='open']")
+        try await objectQuote.locator(".tei-word").filter(hasText: "begins").first.click()
+        let objectGloss = objectQuote.locator(".gloss-sheet[data-state='open']")
         try await expect(objectGloss.locator(".chicago-citation-view")).toHaveText(
           "\(work.author), \(work.title) (1958), 3.")
         try await expect(objectGloss.locator(".gloss-word-row").filter(hasText: "begins")).toHaveCount(1)
@@ -193,11 +193,11 @@ struct QuotationTests {
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
 
-        // Read again, the testament changed the word: the quotation is read where
+        // Read again, the testament changed the word: the quote is read where
         // it was anchored, still marked, and says it awaits explication again.
         _ = try TestAdmin.query(
           """
-          INSERT INTO word_reanchorings (id, from_version_id, to_version_id, anchor_json, status, reason, quotation_id, created_at)
+          INSERT INTO word_reanchorings (id, from_version_id, to_version_id, anchor_json, status, reason, quote_id, created_at)
             VALUES ('\(UUID().uuidString.lowercased())', '\(scratch.versionID)', '\(scratch.reading.work.versionID.lowercased())',
               '{}', 'flagged', 'Its reading changed in the later version: scratchword', 'u-1', now());
           """)
@@ -207,7 +207,7 @@ struct QuotationTests {
         let notice = attestation.locator(".markup-changed-view")
         try await expect(notice).toHaveText(
           "A later markup of this testament changed this word (Its reading changed in the later version: scratchword). It awaits explication again.")
-        try await expect(attestation.locator(".quotation-view mark[data-highlight='title']")).toHaveText("scratchword")
+        try await expect(attestation.locator(".quote-view mark[data-highlight='title']")).toHaveText("scratchword")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }

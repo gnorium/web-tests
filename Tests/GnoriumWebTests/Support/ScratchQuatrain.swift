@@ -50,7 +50,7 @@ struct ScratchQuatrain {
     let pagesJSON = "[\(pages)]"
     let source = "https://web-tests.invalid/\(fountainID).pdf"
     let scope = "[" + images.map { "\"\($0.components(separatedBy: "/full/")[0])\"" }.joined(separator: ",") + "]"
-    let error = status == "failed" ? "'Resemblance 2 cannot be measured.'" : "NULL"
+    let error = status == "failed" ? "'Image 2 cannot be measured.'" : "NULL"
     let services = images.map { $0.components(separatedBy: "/full/")[0] }
     let measured: [[String: String]] = [
       ["type": "thinking", "content": "Measuring the first page."],
@@ -73,15 +73,15 @@ struct ScratchQuatrain {
         VALUES ('\(fountainID)', '\(submissionID)', '\(source)', 'pdf', '\(pagesJSON)', 'eng', 'pending', '\(title)', 'report', now());
       INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_fountain_id, source_url, source_kind, source_pages_json, language, processing_status, title, committed_by_user_id, committed_at, created_at)
         VALUES ('\(overtureID)', '\(submissionID)', '\(fountainID)', '\(source)', 'pdf', '\(pagesJSON)', 'eng', 'pending', '\(title)', '\(user)', now(), now());
-      INSERT INTO bibliographic_quatrains (id, bibliographic_overture_id, requested_by_user_id, resemblance_service_ids_json, processing_status, processing_error, created_at, updated_at)
+      INSERT INTO bibliographic_quatrains (id, bibliographic_overture_id, requested_by_user_id, image_service_ids_json, processing_status, processing_error, created_at, updated_at)
         VALUES ('\(quatrainID)', '\(overtureID)', '\(user)', '\(scope)', '\(status)', \(error), now(), now());
-      INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, resemblance, instance, provider, model, result, error_message, duration_ms, created_at, finished_at)
+      INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, image, instance, provider, model, result, error_message, duration_ms, created_at, finished_at)
         VALUES ('\(nocturneIDs[0])', '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[0])', 1, 'DeepSeek', 'deepseek-flash', 'passed', NULL, 1500, now(), now()),
-          ('\(nocturneIDs[1])', '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[1])', 1, 'DeepSeek', 'deepseek-flash', 'failed', 'Resemblance 2 cannot be measured.', 900, now(), now()),
+          ('\(nocturneIDs[1])', '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[1])', 1, 'DeepSeek', 'deepseek-flash', 'failed', 'Image 2 cannot be measured.', 900, now(), now()),
           ('\(nocturneIDs[2])', '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[2])', 1, 'DeepSeek', 'deepseek-flash', '\(status == "submitted" ? "passed" : "running")', NULL, NULL, now(), NULL);
       INSERT INTO scan_layouts (id, image_url, fetched_url, bytes_sha256, width, height, analysis_version, layout, fetch_ms, measure_ms)
         VALUES ('\(layoutID)', '\(images[0])', '\(images[0])', '\(String(repeating: "a", count: 64))', 100, 100, '\(String(repeating: "b", count: 64))', '{}'::jsonb, 1, 1);
-      INSERT INTO calibration_pages (bibliographic_calibration_nocturne_id, bibliographic_overture_id, resemblance, ordinal, label, layout_id, analysis_version, em, judgment_json, tool_hashes_json, facts_json)
+      INSERT INTO calibration_pages (bibliographic_calibration_nocturne_id, bibliographic_overture_id, image, ordinal, label, layout_id, analysis_version, em, judgment_json, tool_hashes_json, facts_json)
         VALUES ('\(nocturneIDs[0])', '\(overtureID)', '\(services[0])', 1, '1', '\(layoutID)', '\(String(repeating: "b", count: 64))', 20.5, '{}', '{}', '{"width":2000.0,"body":45.4,"measure":55.1,"height":76.4}');
       \(try SessionTrace.append(measured, table: "bibliographic_calibration_nocturnes", id: nocturneIDs[0]))
       \(try SessionTrace.append(failedTrace, table: "bibliographic_calibration_nocturnes", id: nocturneIDs[1]))

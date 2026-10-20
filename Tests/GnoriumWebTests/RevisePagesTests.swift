@@ -20,13 +20,13 @@ struct RevisePagesTests {
     { url in url.path.lowercased() == path.lowercased() && (url.fragment ?? "").hasPrefix("revision-") }
   }
 
-  /// Revise opens on the resemblance the object's reader is showing (user,
+  /// Revise opens on the image the object's reader is showing (user,
   /// 2026-10-10): the Evidence roster's selected row, carried as
-  /// `?resemblance=` into the Revise link as the reader turns; the Revise
+  /// `?image=` into the Revise link as the reader turns; the Revise
   /// page's reader and editor open there, and its way back to the object
-  /// (the breadcrumb) names the resemblance on screen too.
+  /// (the breadcrumb) names the image on screen too.
   @Test(arguments: [BrowserEngine.chrome])
-  func reviseOpensOnTheResemblanceOnScreen(engine: BrowserEngine) async throws {
+  func reviseOpensOnTheImageOnScreen(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
@@ -46,49 +46,49 @@ struct RevisePagesTests {
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated(commit.madrigalPath)
-        let rows = page.locator("#madrigal-resemblances .roster-row")
+        let rows = page.locator("#madrigal-images .roster-row")
         try await expect(rows).toHaveCount(3)
         let revise = page.locator("a[data-value='revise']")
         try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise")
-        // Item 3 selected: the reader on resemblance 3, Revise opening there.
+        // Item 3 selected: the reader on image 3, Revise opening there.
         try await rows.nth(2).click()
-        try await expect(page).toHaveURL("the madrigal at resemblance 3") { $0.query == "resemblance=2" }
-        try await expect(page.locator("#madrigal-resemblances .roster-row-selected"))
+        try await expect(page).toHaveURL("the madrigal at image 3") { $0.query == "image=2" }
+        try await expect(page.locator("#madrigal-images .roster-row-selected"))
           .toHaveAttribute("data-computorium-session-id", "2")
-        try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise?resemblance=2")
+        try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise?image=2")
         try await revise.click()
-        try await expect(page).toHaveURL("the Revise page at resemblance 3") {
-          $0.path.lowercased() == "\(objectURL)/revise".lowercased() && $0.query == "resemblance=2"
+        try await expect(page).toHaveURL("the Revise page at image 3") {
+          $0.path.lowercased() == "\(objectURL)/revise".lowercased() && $0.query == "image=2"
         }
         let viewer = page.locator(".revise-bibliographic-object .artifact-view")
         try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
         try await expect(viewer.locator("#artifact-page-input")).toHaveValue("3")
         try await expect(viewer.locator(".tei-page[data-active='true']")).toHaveAttribute("data-service-id", services[2])
         try await expect(viewer.locator(".tei-page[data-active='true'] .tei-page-edit textarea")).toHaveCount(1)
-        // The way back names the resemblance on screen, and follows the pager.
-        let back = page.locator(".breadcrumb-link[href='\(objectURL)?resemblance=2']")
+        // The way back names the image on screen, and follows the pager.
+        let back = page.locator(".breadcrumb-link[href='\(objectURL)?image=2']")
         try await expect(back).toHaveCount(1)
         try await viewer.locator(".pagination-prev").first.click()
         try await expect(viewer.locator("#artifact-page-input")).toHaveValue("2")
-        try await expect(page).toHaveURL("the Revise page at resemblance 2") { $0.query == "resemblance=1" }
-        let backAtTwo = page.locator(".breadcrumb-link[href='\(objectURL)?resemblance=1']")
+        try await expect(page).toHaveURL("the Revise page at image 2") { $0.query == "image=1" }
+        let backAtTwo = page.locator(".breadcrumb-link[href='\(objectURL)?image=1']")
         try await expect(backAtTwo).toHaveCount(1)
         try await backAtTwo.click()
-        try await expect(page).toHaveURL("the madrigal at resemblance 2") {
-          $0.path.lowercased() == commit.madrigalPath.lowercased() && $0.query == "resemblance=1"
+        try await expect(page).toHaveURL("the madrigal at image 2") {
+          $0.path.lowercased() == commit.madrigalPath.lowercased() && $0.query == "image=1"
         }
-        try await expect(page.locator("#madrigal-resemblances .roster-row-selected"))
+        try await expect(page.locator("#madrigal-images .roster-row-selected"))
           .toHaveAttribute("data-computorium-session-id", "1")
         // The object's pager turns the roster and the Revise link alike.
         let reader = page.locator(".madrigal-object .artifact-view")
         try await expect(reader).toHaveAttribute("data-artifact-hydrated", "true")
         try await reader.locator(".pagination-next").first.click()
-        try await expect(page.locator("#madrigal-resemblances .roster-row-selected"))
+        try await expect(page.locator("#madrigal-images .roster-row-selected"))
           .toHaveAttribute("data-computorium-session-id", "2")
-        try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise?resemblance=2")
+        try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise?image=2")
         try await reader.locator(".pagination-prev").first.click()
         try await reader.locator(".pagination-prev").first.click()
-        try await expect(page.locator("#madrigal-resemblances .roster-row-selected"))
+        try await expect(page.locator("#madrigal-images .roster-row-selected"))
           .toHaveAttribute("data-computorium-session-id", "0")
         try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise")
       }
@@ -108,7 +108,7 @@ struct RevisePagesTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let user = try contributor.column("id")
     // The witness's pages served on this machine: the ring is checked
-    // with the resemblance shown too, which needs an image to show.
+    // with the image shown too, which needs an image to show.
     let fixture = try await FixtureServer.threePageManifest()
     defer { fixture.stop() }
     let commit = try ScratchCommit(owner: contributor, sourceURL: fixture.baseURL + "/manifest.json")
@@ -119,7 +119,7 @@ struct RevisePagesTests {
     }
     let inForce = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
     do {
-      // Two resemblances; the digitization's required provider.
+      // Two images; the digitization's required provider.
       _ = try TestAdmin.query(
         #"""
         UPDATE bibliographic_madrigals SET
@@ -258,11 +258,11 @@ struct RevisePagesTests {
         try await Self.expectChangedLinksLand(page, revision: id, on: "\(commit.madrigalPath)/revisions/\(id)")
 
         // Its page draws each diff where it is made: the record's tree,
-        // the markup under its resemblance, the prompts.
+        // the markup under its image, the prompts.
         try await page.openHydrated("\(commit.madrigalPath)/revisions/\(id)")
         try await expect(page.locator(".testament-tree-diff-view")).toHaveCount(1)
         // Under no heading of its own: the source diff, both sides laid out.
-        try await expect(page.getByText("Markup of resemblance 1")).toHaveCount(0)
+        try await expect(page.getByText("Markup of image 1")).toHaveCount(0)
         let pageDiff = page.locator(".testament-diff[data-edited='true'] .diff-view[data-diff-mode='code']").first
         try await expect(pageDiff).toBeAttached()
         // The page's diff is code against code, under Raw alone (user,
@@ -275,7 +275,7 @@ struct RevisePagesTests {
         try await page.locator(".artifact-xml-toggle button").first.click()
         try await expect(pageDiff).toBeHidden()
         // The changed page's markup pane alone wears the ring (user,
-        // 2026-10-09): never the whole card, the resemblance pane or the pager's
+        // 2026-10-09): never the whole card, the image pane or the pager's
         // number; the diff under it stands unboxed, as a changed field's
         // Diff line does.
         let unringed = try await page.evaluate(
@@ -283,7 +283,7 @@ struct RevisePagesTests {
           (() => {
             const slot = document.querySelector(".testament-diff[data-edited='true']")
             if (!slot) return 'no diff'
-            const boxed = [slot, ...slot.querySelectorAll('.resemblance-diff-view')].filter((el) => {
+            const boxed = [slot, ...slot.querySelectorAll('.image-diff-view')].filter((el) => {
               const style = getComputedStyle(el)
               return style.borderTopStyle !== 'none' || style.outlineStyle !== 'none'
             })
@@ -305,7 +305,7 @@ struct RevisePagesTests {
         // it; the pane itself without padding or inset, flush with the
         // viewer that clips it; the TEI view 1px inside it, so the outline
         // stays clear, the text's 16 inset its rendered layer's (user,
-        // 2026-10-10). With the resemblance put away and shown alike.
+        // 2026-10-10). With the image put away and shown alike.
         let ring = """
           (() => {
             const probe = document.createElement('span'); document.body.append(probe)
@@ -338,10 +338,10 @@ struct RevisePagesTests {
           })()
           """
         let putAway = try await page.evaluate(ring, as: String.self)
-        #expect(putAway == "ok false", "Resemblance put away: \(putAway)")
+        #expect(putAway == "ok false", "Image put away: \(putAway)")
         try await page.locator(".artifact-canvas-toggle button").first.click()
         try await expect(page.locator(".artifact-view")).toHaveAttribute("data-canvas-shown", "true")
-        #expect(try await page.evaluate(ring, as: String.self) == "ok true", "Resemblance shown")
+        #expect(try await page.evaluate(ring, as: String.self) == "ok true", "Image shown")
         // Ringed, the label still stands over the text: the box's 1px edge
         // moves the text and the label alike (TEILayoutTests has it unringed).
         let aligned = """
@@ -360,14 +360,14 @@ struct RevisePagesTests {
             return Math.abs(start(label) - edge) < 0.5 ? 'ok' : start(label) + ' vs ' + edge
           })()
           """
-        #expect(try await page.evaluate(aligned, as: String.self) == "ok", "Ringed, label and text align: resemblance put away")
+        #expect(try await page.evaluate(aligned, as: String.self) == "ok", "Ringed, label and text align: image put away")
         let alignedAway = try await page.evaluate(aligned, as: String.self)
         #expect(alignedAway == "ok", "Ringed, label and text: \(alignedAway)")
         // Canvas shown: read the pixels.
-        RingPixels.expectTwoPixels(try await RingPixels.read(page, colorVariable: "--border-color-orange"), "desktop, canvas shown")
+        RingPixels.expectTwoPixels(try await RingPixels.read(page, colorVariable: "--border-color-orange"), "desktop, image shown")
         try await page.locator(".artifact-canvas-toggle button").first.click()
         try await expect(page.locator(".artifact-view")).toHaveAttribute("data-canvas-shown", "false")
-        RingPixels.expectTwoPixels(try await RingPixels.read(page, colorVariable: "--border-color-orange"), "desktop, canvas put away")
+        RingPixels.expectTwoPixels(try await RingPixels.read(page, colorVariable: "--border-color-orange"), "desktop, image put away")
         // Scrolled (the code under the ring), the phone, and zoomed.
         _ = try await page.evaluate(
           """
@@ -382,10 +382,10 @@ struct RevisePagesTests {
         RingPixels.expectTwoPixels(try await RingPixels.read(page, colorVariable: "--border-color-orange"), "desktop, scrolled")
         for (name, viewport) in [
           ("phone", Viewport.phone), ("zoomed 2x", Viewport(width: 1400, height: 900, deviceScaleFactor: 2)),
-          ("phone, canvas shown", Viewport.phone),
+          ("phone, image shown", Viewport.phone),
         ] {
           try await page.setViewport(viewport)
-          if name.hasSuffix("canvas shown") {
+          if name.hasSuffix("image shown") {
             try await page.locator(".artifact-canvas-toggle button").first.click()
             try await expect(page.locator(".artifact-view")).toHaveAttribute("data-canvas-shown", "true")
           }
@@ -419,7 +419,7 @@ struct RevisePagesTests {
         // The madrigal's Evidence roster marks explication (user,
         // 2026-10-09): a first reading's pages green discs, markup added;
         // never a Computorium status.
-        let roster = page.locator("#madrigal-resemblances")
+        let roster = page.locator("#madrigal-images")
         try await expect(roster.locator(".roster-status[data-mark='disc'][data-tone='green']").first).toBeAttached()
         try await expect(roster.locator(".roster-status[data-status]")).toHaveCount(0)
         try await page.locator("#revision-\(id) form[action$='/accept'] button").click()
@@ -1111,7 +1111,7 @@ struct RevisePagesTests {
 
   /// Every step of every item of a revision's "Changed" line (on the page
   /// open now) links to its revision's own page in source mode, where an
-  /// element holds its anchor—a canvas's node its row; a resemblance's
+  /// element holds its anchor—an image's node its row; an image's
   /// turns the reader there instead, and XML opens the reader with XML on
   /// (user, 2026-10-09, 2026-10-16).
   static func expectChangedLinksLand(_ page: Page, revision id: String, on revisionPath: String) async throws {
@@ -1125,7 +1125,7 @@ struct RevisePagesTests {
       #expect(
         parts.count == 2 && parts[0].lowercased() == "\(revisionPath)?source=code".lowercased(),
         "\(link) is on \(revisionPath) in source mode")
-      guard parts.count == 2, !parts[1].hasPrefix("resemblance-") else { continue }
+      guard parts.count == 2, !parts[1].hasPrefix("image-") else { continue }
       // A canvas path's XML step: the reader, its XML on (user, 2026-10-16).
       if parts[1] == "reader" {
         // Loaded afresh, as following the link from the madrigal does: the

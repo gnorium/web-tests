@@ -84,35 +84,35 @@ struct ArbitrationTests {
     }
     do {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        // Resemblance 2 is laid in blank: pending explication, it has no box
+        // Image 2 is laid in blank: pending explication, it has no box
         // to tick, and the page on screen is never read unticked (user,
         // 2026-10-15). The box refuses the call under the field; nothing is
         // posted.
-        try await page.openHydrated(reading.path + "?resemblance=1")
+        try await page.openHydrated(reading.path + "?image=1")
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".disputorium-core-work #artifact-page-total"), timeout: .seconds(20)).toHaveText("3")
-        try await expect(page.locator("#locution-thread-locution-resemblance")).toHaveValue("1")
+        try await expect(page.locator("#locution-thread-locution-image")).toHaveValue("1")
         try await expect(page.locator("#locution-thread-process")).toHaveValue("explication")
         try await expect(page.locator(".locution-thread-form input[type='checkbox']")).toHaveCount(0)
         try await expect(page.locator(".locution-thread-submit")).toHaveText("Submit")
         try await page.locator("#locution-thread-locution-body").fill("@gnorium What does the selected evidence support?")
         try await page.locator(".locution-thread-submit").click()
-        try await expect(page.locator("#madrigal-resemblances .roster-row").nth(1).locator(".checkbox-input")).toBeDisabled()
+        try await expect(page.locator("#madrigal-images .roster-row").nth(1).locator(".checkbox-input")).toBeDisabled()
         try await expect(page.locator(".field-validation-message-view"))
           .toContainText("Tick evidence, metadata, a prompt or a locution for this call.")
         try await expect(page.locator(".locution-call-page")).toHaveCount(0)
         #expect(try TestAdmin.query("SELECT count(*) FROM locutions WHERE locutable_id = '\(objectID)'") == "0")
-        // Resemblance 1 has markup: explicated, queryable—and locked against a
+        // Image 1 has markup: explicated, queryable—and locked against a
         // commit: its row keeps its mark and loses its checkbox. Ticked
         // from page 3, the page on screen (user, 2026-10-17).
-        try await page.openHydrated(reading.path + "?resemblance=2")
+        try await page.openHydrated(reading.path + "?image=2")
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".disputorium-core-work #artifact-page-total"), timeout: .seconds(20)).toHaveText("3")
-        try await expect(page.locator("#locution-thread-locution-resemblance")).toHaveValue("2")
+        try await expect(page.locator("#locution-thread-locution-image")).toHaveValue("2")
         try await page.locator("#locution-thread-locution-body").fill("@gnorium What does the selected evidence support?")
-        try await page.locator("#madrigal-resemblances .roster-row").nth(0).locator("input").click()
+        try await page.locator("#madrigal-images .roster-row").nth(0).locator("input").click()
         try await page.locator(".locution-thread-submit").click()
         // Posted pending: no status chip on a call (user, 2026-10-11), and
         // no Commit for a contributor.
@@ -133,7 +133,7 @@ struct ArbitrationTests {
           .toHaveAttribute("aria-busy", "false")
         // The admin's roster: the explicated page has no checkbox, the
         // blank ones do.
-        let rows = page.locator("#madrigal-resemblances .roster-row")
+        let rows = page.locator("#madrigal-images .roster-row")
         try await expect(rows).toHaveCount(3)
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(0).locator(".checkbox-icon-wrapper")).toBeHidden()
@@ -143,7 +143,7 @@ struct ArbitrationTests {
         // Its checkbox's column kept, the locked row's ordinal, mark and
         // label line up with an unlocked row's (user, 2026-10-10).
         #expect(try await page.evaluate("""
-          (() => { const rows = document.querySelectorAll('#madrigal-resemblances .roster-row')
+          (() => { const rows = document.querySelectorAll('#madrigal-images .roster-row')
             const x = (row, s) => row.querySelector(s).getBoundingClientRect().left
             return ['.roster-marker', '.roster-status', '.roster-label'].every(s => x(rows[0], s) === x(rows[1], s)) })()
           """, as: Bool.self), "Locked and unlocked rows align")
@@ -162,11 +162,11 @@ struct ArbitrationTests {
           """).bool == true, "Commit sits between the call's words and its reactions")
         // Its byline names the page its writer was on, and nothing else,
         // linked to the page turned to it (user, 2026-10-17): "… submitted
-        // locution ‹id› on Resemblance 3", not the page it ticked.
-        try await expect(call.locator(".locution-header")).toContainText("submitted locution \(callID.uppercased()) on Resemblance 3")
-        try await expect(call.locator("a:has(.locution-call-page)")).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID.uppercased())?resemblance=2")
+        // locution ‹id› on Image 3", not the page it ticked.
+        try await expect(call.locator(".locution-header")).toContainText("submitted locution \(callID.uppercased()) on Image 3")
+        try await expect(call.locator("a:has(.locution-call-page)")).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID.uppercased())?image=2")
         // Its body stays as typed; what it ticked is one sentence in a box
-        // after it, as a revision's Changed line is: "Attached Resemblance
+        // after it, as a revision's Changed line is: "Attached Image
         // 1.", the page's image a line-high chip opening the lightbox (user,
         // 2026-10-17). No picture above the words; nothing full size, which
         // only a session transcript shows.
@@ -176,7 +176,7 @@ struct ArbitrationTests {
         try await expect(attachments).toHaveCount(1)
         let words = try await attachments.evaluate(
           "e => [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|') + '|' + e.querySelector('.locution-attachments-item a').textContent").string
-        #expect(words == "Attached |.|Resemblance 1", Comment(rawValue: words ?? "—"))
+        #expect(words == "Attached |.|Image 1", Comment(rawValue: words ?? "—"))
         try await expect(attachments).toHaveCSS("border-top-style", "solid")
         let attached = attachments.locator(".locution-attachment")
         try await expect(attached).toHaveCount(1)
@@ -378,7 +378,7 @@ struct ArbitrationTests {
         // call it answers instead.
         try await expect(call.locator(".locution-call-status")).toHaveCount(0)
         try await expect(call.locator(".locution-commit")).toHaveCount(0)
-        try await expect(call.locator(".locution-call-page")).toHaveText("Resemblance 3")
+        try await expect(call.locator(".locution-call-page")).toHaveText("Image 3")
         try await expect(reply.locator(".locution-call-page")).toHaveCount(0)
         try await expect(reply.locator(".locution-header")).toContainText("gnorium submitted locution \(replyID.uppercased()) replying to locution \(callID.uppercased())")
         try await expect(reply.locator(".locution-header a[href='#locution-\(callID.uppercased())']")).toHaveCount(1)
@@ -678,7 +678,7 @@ struct ArbitrationTests {
         // An admin submits through exactly the same pending process, the
         // page ticked as any caller ticks it.
         try await page.locator("#locution-thread-locution-body").fill("@gnorium Read this evidence again.")
-        try await page.locator("#madrigal-resemblances .roster-row").nth(0).locator("input").click()
+        try await page.locator("#madrigal-images .roster-row").nth(0).locator("input").click()
         try await page.locator(".locution-thread-submit").click()
         try await expect(page.locator(".locution-commit"), timeout: .seconds(15)).toHaveCount(1)
         try await expect(page.locator(".locution-call-status")).toHaveCount(0)
@@ -719,9 +719,9 @@ struct ArbitrationTests {
           close() {}
         }
         window.__label = () => document.querySelector('#locution-\(replyID.uppercased()) .computorium-session-view')
-          .dataset.computoriumSessionResemblance ?? ''
+          .dataset.computoriumSessionImage ?? ''
         window.__status = (text) => window.__stream.emit('chunk',
-          JSON.stringify({ type: 'status', text, resemblance: window.__label(), canvas_index: -1, message: '' }))
+          JSON.stringify({ type: 'status', text, image: window.__label(), image_index: -1, message: '' }))
       }
       """)
     try await page.openHydrated(path + "#renew-test")
@@ -795,9 +795,9 @@ struct ArbitrationTests {
       """)
     _ = try await page.evaluate("""
       (() => { const label = document.querySelector('#locution-\(replyID.uppercased()) .computorium-session-view')
-          .dataset.computoriumSessionResemblance ?? ''
+          .dataset.computoriumSessionImage ?? ''
         window.__suggestStream.emit('chunk', JSON.stringify({ type: 'tool', name: 'suggest_revision', arguments: '{}',
-          status: 'ok', call_id: 'web_tests_suggest', result: '{"revision":"\(revisionID)"}', resemblance: label }))
+          status: 'ok', call_id: 'web_tests_suggest', result: '{"revision":"\(revisionID)"}', image: label }))
         return true })()
       """, as: Bool.self)
     try await expect(act, timeout: .seconds(15)).toHaveCount(1)
@@ -860,7 +860,7 @@ struct ArbitrationTests {
         try await page.openHydrated(reading.path)
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
-        let roster = page.locator("#madrigal-resemblances")
+        let roster = page.locator("#madrigal-images")
         let rows = roster.locator(".roster-row")
         try await expect(rows).toHaveCount(4)
         // Commit mode: the three read pages locked, the blank one ticked for.
@@ -920,15 +920,15 @@ struct ArbitrationTests {
         // The byline names the page on screen alone (user, 2026-10-17); both
         // ticked pages are its Attachments, each image a line-high chip.
         try await expect(page.locator(".locution-call-page")).toHaveCount(1)
-        try await expect(page.locator(".locution-header").first).toContainText("on Resemblance 1")
-        try await expect(page.locator(".locution-header").first).not.toContainText("Resemblance 2")
+        try await expect(page.locator(".locution-header").first).toContainText("on Image 1")
+        try await expect(page.locator(".locution-header").first).not.toContainText("Image 2")
         let both = try await page.locator(".locution-attachments").first.evaluate("""
           el => [...el.querySelectorAll('.locution-attachments-item')].map(item => {
             const path = item.querySelector('.locution-thread-path')
             return path ? [...path.children].filter(c => !c.classList.contains('breadcrumb-separator-view'))
               .map(c => c.textContent.trim()).join(' › ') : item.querySelector('a').textContent.trim() }).join(' | ')
           """).string
-        #expect(both == "Resemblance 1 | Resemblance 2", Comment(rawValue: both ?? "—"))
+        #expect(both == "Image 1 | Image 2", Comment(rawValue: both ?? "—"))
         try await expect(page.locator(".locution-attachments .locution-attachment[data-presentation='line']"))
           .toHaveCount(2)
         try await page.expectNoErrors()
@@ -1017,7 +1017,7 @@ struct ArbitrationTests {
         #expect(isOpen == wasOpen, "a tick in the header leaves the accordion as it was")
         try await body.fill("@gnorium Is the title right?")
         // And an image on another page than the one on screen (page 1).
-        let page2 = page.locator("#madrigal-resemblances .roster-row").nth(1).locator("input")
+        let page2 = page.locator("#madrigal-images .roster-row").nth(1).locator("input")
         try await page2.click()
         try await expect(page2).toBeChecked()
         try await page.locator(".locution-thread-submit").click()
@@ -1033,8 +1033,8 @@ struct ArbitrationTests {
         // in the order its message carries them—Metadata, evidence,
         // locutions—the page's image a line-high chip.
         let call = page.locator(".locution-view").last
-        try await expect(call.locator(".locution-header")).toContainText("on Resemblance 1")
-        try await expect(call.locator(".locution-header")).not.toContainText("Resemblance 2")
+        try await expect(call.locator(".locution-header")).toContainText("on Image 1")
+        try await expect(call.locator(".locution-header")).not.toContainText("Image 2")
         try await expect(call.locator(".locution-body-rendered")).toHaveText("@gnorium Is the title right?")
         let attachments = call.locator(".list-sentence-view.locution-attachments")
         try await expect(attachments).toContainText("Attached ")
@@ -1048,7 +1048,7 @@ struct ArbitrationTests {
           "e => [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|')").string
         #expect(joined == "Attached |, |, and |.", Comment(rawValue: joined ?? "—"))
         // Metadata by its node's heading, as its accordion names it.
-        #expect(crumbs?.hasPrefix("Metadata › ") == true && crumbs?.hasSuffix(" | Resemblance 2 | Locution \(firstID)") == true
+        #expect(crumbs?.hasPrefix("Metadata › ") == true && crumbs?.hasSuffix(" | Image 2 | Locution \(firstID)") == true
           && crumbs?.components(separatedBy: " | ").count == 3, Comment(rawValue: crumbs ?? "—"))
         try await expect(attachments.locator(".locution-attachments-item a[href='#locution-\(firstID)']")).toHaveCount(1)
         try await expect(attachments.locator(".locution-attachments-item").nth(1)
@@ -1065,12 +1065,12 @@ struct ArbitrationTests {
     try await admin.remove()
   }
 
-  /// A crop box on an attached resemblance (user, 2026-10-10): in attach mode
+  /// A crop box on an attached image (user, 2026-10-10): in attach mode
   /// the reader's image of a ticked item takes a dragged box; the call
   /// stores it in the 0–1000 space by the item's id, and its locution shows
   /// the numbers beside the item's link.
   @Test(arguments: [BrowserEngine.chrome])
-  func aCropBoxDrawnOnAnAttachedResemblanceRidesWithTheCall(engine: BrowserEngine) async throws {
+  func aCropBoxDrawnOnAnAttachedImageRidesWithTheCall(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let fixture = try await FixtureServer.threePageManifest()
@@ -1086,7 +1086,7 @@ struct ArbitrationTests {
         try await page.openHydrated(reading.path)
         let viewer = page.locator(".artifact-view").first
         try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
-        let roster = page.locator("#madrigal-resemblances")
+        let roster = page.locator("#madrigal-images")
         let body = page.locator("#locution-thread-locution-body")
         // Submit at the right, under the box's right edge (user, 2026-10-10).
         let field = try #require(try await body.boundingBox())
@@ -1097,12 +1097,12 @@ struct ArbitrationTests {
         try await expect(roster).toHaveAttribute("data-mode", "attach")
         try await roster.locator(".roster-row").nth(0).locator("input").click()
         try await expect(roster.locator(".roster-row").nth(0).locator(".checkbox-input")).toBeChecked()
-        // The page images on; the ticked resemblance takes a box.
+        // The page images on; the ticked image takes a box.
         let toggle = viewer.locator(".artifact-canvas-toggle button")
         if try await toggle.getAttribute("aria-pressed") != "true" { try await toggle.click() }
-        let resemblance = viewer.locator(".canvas-view[data-active='true'] .canvas-viewport")
-        try await expect(resemblance).toHaveAttribute("data-cropping", "true")
-        let box = try #require(try await resemblance.boundingBox())
+        let image = viewer.locator(".canvas-view[data-active='true'] .canvas-viewport")
+        try await expect(image).toHaveAttribute("data-cropping", "true")
+        let box = try #require(try await image.boundingBox())
         let (x0, y0) = (box.x + box.width * 0.4, box.y + box.height * 0.4)
         let (x1, y1) = (box.x + box.width * 0.6, box.y + box.height * 0.55)
         try await page.mouse.move(x: x0, y: y0)
@@ -1111,7 +1111,7 @@ struct ArbitrationTests {
           try await page.mouse.move(x: x0 + (x1 - x0) * Double(step) / 5, y: y0 + (y1 - y0) * Double(step) / 5)
         }
         try await page.mouse.up(x: x1, y: y1)
-        try await expect(resemblance.locator(".canvas-crop")).toBeVisible()
+        try await expect(image.locator(".canvas-crop")).toBeVisible()
         try await expect(roster).toHaveAttribute("data-mode", "attach")
         try await page.locator(".locution-thread-submit").click()
         // Pending: no status chip; an admin's Commit stands under the call's words.
