@@ -3,18 +3,22 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A session's context line (user, 2026-10-18): its footer says "context
-/// 67,063 of 1,048,576, input …, output … (thinking …)"—the latest call's input over the
-/// window it ran against, and the calls summed—as recorded, and on as a
-/// watch's usage frames arrive; "—" before a call.
+/// A session's context line (user, 2026-10-18): its ⓘ's sentence ends
+/// "context 67,063 of 1,048,576, input …, output … (thinking …)" (user,
+/// 2026-10-21; no footer)—the latest call's input over the window it ran
+/// against, and the calls summed—as recorded, and on as a watch's usage
+/// frames arrive; "—" before a call.
 @Suite("Context line", .serialized)
 struct ContextLineTests {
-  static let footer = """
-    document.querySelector('.computorium-session-footer-meta').textContent.trim()
+  /// The context line at the end of the session's ⓘ, wherever its bubble
+  /// now is (portaled to <body> once bound).
+  static let line = """
+    (() => { const t = document.querySelector('.computorium-session-byline-words').textContent;
+      return t.slice(t.indexOf(', context ') + 2) })()
     """
 
   @Test(arguments: [BrowserEngine.chrome])
-  func theFooterSaysTheContextAndGoesOnLive(engine: BrowserEngine) async throws {
+  func theInfoSaysTheContextAndGoesOnLive(engine: BrowserEngine) async throws {
     guard gnorium.engines.contains(engine) else { return }
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -55,8 +59,11 @@ struct ContextLineTests {
         // Recorded: the trace's one call.
         try await page.openHydrated(antiphon)
         #expect(
-          try await page.evaluate(Self.footer, as: String.self)
+          try await page.evaluate(Self.line, as: String.self)
             == "context 67,063 of 1,048,576, input 67,063, output 845 (thinking 512)")
+        #expect(
+          try await page.evaluate("document.querySelector('.computorium-session-footer') === null", as: Bool.self),
+          "No footer line")
 
         // Live: a watch whose frames the test sends, from the trace's start.
         let original = try await page.evaluate("fetch('\(antiphon)').then(r=>r.text())", as: String.self)
@@ -86,22 +93,22 @@ struct ContextLineTests {
             // A new session: nothing called yet.
             window.__emit({ type: 'reset', text: '' })
             await window.__frames()
-            lines.push(\(Self.footer))
+            lines.push(\(Self.line))
             // The trace from its start: its first round's usage first.
             window.__emit({ type: 'thinking', reset: '1', text: 'Reading.' })
             window.__emit({ type: 'usage', input_tokens: 1200, output_tokens: 300, reasoning_tokens: 120,
               context_input_tokens: 1200, context_tokens: 1048576 })
             await window.__frames()
-            lines.push(\(Self.footer))
+            lines.push(\(Self.line))
             // The next round's: the context is its input, the tokens summed.
             window.__emit({ type: 'usage', input_tokens: 67063, output_tokens: 845, reasoning_tokens: 512,
               context_input_tokens: 67063, context_tokens: 1048576 })
             await window.__frames()
-            lines.push(\(Self.footer))
+            lines.push(\(Self.line))
             // A search: its tokens, the context as it was.
             window.__emit({ type: 'usage', input_tokens: 0, output_tokens: 0 })
             await window.__frames()
-            lines.push(\(Self.footer))
+            lines.push(\(Self.line))
             return lines
           })()
           """, as: [String].self)
