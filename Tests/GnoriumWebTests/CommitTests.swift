@@ -7,8 +7,10 @@ import WebTestsTesting
 /// an admin's, posts at once—no dialog, no menu—for the object's ONE
 /// process, decided by its state, never chosen on its page (user,
 /// 2026-10-10): no process toggle anywhere. An overture commits for
-/// explication; a madrigal for explication while any page is unexplicated,
-/// then for translation where its witness is translated, else not at all.
+/// calibration of the pages it owes (ticked to begin with), then promotes to a
+/// madrigal; a madrigal for explication while any page is unexplicated, then
+/// promotes to an epilogue where its witness is translatable, else only
+/// Permit remains; an epilogue commits for translation.
 /// Every commit names its ticked evidence items: with none ticked it is
 /// refused under the roster before it is sent. The actions read Revise,
 /// Commit, Permit, Delete. Every submission is stopped before it leaves the
@@ -63,21 +65,31 @@ struct CommitTests {
     catch { try await admin.remove(after: error) }
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        // An overture: explication; no toggle, no dialog.
+        // An overture: calibration of the pages it owes, every one ticked to
+        // begin with; no toggle, no dialog.
         try await page.openHydrated(scratch.overturePath)
         try await expect(page.locator(".process-toggle-view")).toHaveCount(0)
         try await expect(page.locator(".commit-dialog, .commit-menu")).toHaveCount(0)
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Commit", "Delete"])
-        try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_explication")
+        try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_calibration")
         try await expect(page.locator(".commit-view input[name='scope']")).toHaveCount(0)
         let roster = page.locator(".overture-resemblances").first
         try await expect(roster.locator(".roster-row"), timeout: .seconds(20)).toHaveCount(3)
+        try await expect(roster.locator(".roster-row input[form='commit-form']:checked")).toHaveCount(3)
         #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
+        // Commit posts the three ticked pages, in ranges (user, 2026-10-11).
+        try await page.locator(".commit-trigger").click()
+        let all = try #require(try await Self.posted(page))
+        #expect(all.process == "bibliographic_calibration")
+        #expect(all.ticked == "0-2")
         // Nothing ticked: refused under the roster, never sent.
+        _ = try await page.evaluate(
+          "(() => { window.__commit = null; document.querySelector(\".overture-resemblances\").querySelectorAll(\".roster-row input[form='commit-form']\").forEach(box => box.click()); return true })()",
+          as: Bool.self)
         try await page.locator(".commit-trigger").click()
         try await expect(page.locator(".field-validation-message-view").first)
-          .toContainText("Tick the evidence items this commit sends to explication.")
+          .toContainText("Tick the evidence items this commit sends to calibration.")
         #expect(try await Self.posted(page) == nil, "an empty commit was sent")
         // A tick clears it, and Commit posts that item.
         _ = try await page.evaluate(
@@ -86,9 +98,8 @@ struct CommitTests {
         try await expect(page.locator(".field-validation-message-view")).toHaveCount(0)
         try await page.locator(".commit-trigger").click()
         let one = try #require(try await Self.posted(page))
-        #expect(one.process == "bibliographic_explication")
+        #expect(one.process == "bibliographic_calibration")
         #expect(one.scope == nil)
-        // The ticked items' roster positions, in ranges (user, 2026-10-11).
         #expect(one.ticked == "1")
         try await page.expectNoErrors()
 
@@ -107,32 +118,23 @@ struct CommitTests {
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(2)).toHaveAttribute("data-locked", "false")
 
-        // Every page explicated, the witness Italian: translation, no page
-        // locked (a madrigal holds no translation).
+        // Every page explicated, the witness Italian: the Commit promotes the
+        // madrigal to an epilogue, with nothing to tick (a madrigal holds no
+        // translation).
         _ = try TestAdmin.query("""
           UPDATE bibliographic_madrigals SET proposed_content_json = '\(Self.madrigalTEI(fixture.baseURL, thirdRead: true))'
             WHERE id = '\(scratch.madrigalID)'
           """)
         try await page.openHydrated(scratch.madrigalPath)
-        try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_translation")
-        try await expect(rows.nth(0)).toHaveAttribute("data-locked", "false")
+        try await expect(page.locator(".commit-process")).toHaveAttribute("value", "promote_epilogue")
+        try await expect(page.locator(".commit-ticked")).toHaveCount(0)
+        try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
         #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
         try await page.locator(".commit-trigger").click()
-        try await expect(page.locator(".field-validation-message-view").first)
-          .toContainText("Tick the evidence items this commit sends to translation.")
-        #expect(try await Self.posted(page) == nil)
-        _ = try await page.evaluate(
-          "(() => { document.querySelectorAll(\"#madrigal-resemblances .roster-row input[form='commit-form']\")[0].click(); return true })()",
-          as: Bool.self)
-        try await page.locator(".commit-trigger").click()
-        let translation = try #require(try await Self.posted(page))
-        #expect(translation.process == "bibliographic_translation")
-        #expect(translation.ticked == "0")
-        // The prompts the tick asked for read before the record changes
-        // under them: one read after it was refused (an English record has
-        // no translation), and the page reported the refusal.
-        try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
-          .toHaveAttribute("aria-busy", "false")
+        let promotion = try #require(try await Self.posted(page))
+        #expect(promotion.process == "promote_epilogue")
+        #expect(promotion.ticked == nil)
+        try await expect(page.locator(".field-validation-message-view")).toHaveCount(0)
 
         // English and every page explicated: nothing to commit for.
         _ = try TestAdmin.query("""

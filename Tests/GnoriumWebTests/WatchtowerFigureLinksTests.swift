@@ -215,7 +215,7 @@ struct WatchtowerFigureLinksTests {
   static let committedSentimentOvertures = "/mission-control/overtures/lexicographic?status=committed&createdOn=-7d.."
   /// The testaments' pending overtures, whose list must be filtered on the
   /// first render, not only after Apply.
-  static let pendingTestamentOvertures = "/mission-control/overtures/bibliographic?status=pending"
+  static let pendingTestamentOvertures = "/mission-control/overtures/bibliographic?status=pending&status=calibrating"
 
   /// A process's figure opens the Nocturnes page: its filter bar names the
   /// process and the status, with no placeholder, and it lists as many
@@ -309,7 +309,9 @@ struct WatchtowerFigureLinksTests {
             """, as: [String].self)
           // A page holds 100 rows (PaginationView.perPage).
           #expect(statuses.count == min(total, 100), "\(href): \(statuses.count) overtures shown for \(total)")
-          #expect(statuses.allSatisfy { $0 == status }, "\(href): the rows' statuses are \(statuses)")
+          // A bibliographic overture waits on a Commit: pending, or calibrating once sealed.
+          let allowed = tab == "bibliographic" ? [status, "Calibrating"] : [status]
+          #expect(statuses.allSatisfy { allowed.contains($0) }, "\(href): the rows' statuses are \(statuses)")
         }
       }
     }

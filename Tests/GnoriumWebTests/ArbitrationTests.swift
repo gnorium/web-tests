@@ -52,7 +52,7 @@ struct ArbitrationTests {
     // then supplies the recorded result. It never enables a worker or model.
     let stopped = try TestAdmin.query("""
       SELECT (NOT p.enabled OR NOT c.enabled)::text FROM computorium_worker_pool p
-        CROSS JOIN computorium_worker_controls c WHERE p.singleton = true AND c.kind = 'arbitration'
+        CROSS JOIN computorium_specialists c WHERE p.singleton = true AND c.specialist = 'arbitration'
       """)
     guard stopped == "true" else {
       throw WebTestError("The arbitration browser fixture requires stopped dev workers so Commit cannot call a provider.")
@@ -319,7 +319,7 @@ struct ArbitrationTests {
         try await expect(paused).toHaveAttribute("data-color", "blue")
         // Paused, the chip says the madrigal's own status again; running
         // again, "Arbitrating".
-        try await expect(chip.locator(".info-chip-text")).toHaveText("Pending")
+        try await expect(chip.locator(".info-chip-text")).toHaveText("Partly explicated")
         try await expect(chip.locator(".ring-icon-view")).toHaveCount(1)
         try await expect(chip.locator(".rotating-sector-view")).toHaveCount(0)
         try await expect(slot.locator(".computorium-session-output-thinking-running")).toHaveCount(0)
@@ -350,7 +350,7 @@ struct ArbitrationTests {
           .toHaveAttribute("data-computorium-session-status", "succeeded")
         #expect(try await slot.evaluate("el => el === window.__slot").bool == true, "The same element")
         // Done, the chip says the madrigal's status again.
-        try await expect(chip.locator(".info-chip-text")).toHaveText("Pending")
+        try await expect(chip.locator(".info-chip-text")).toHaveText("Partly explicated")
         try await expect(chip.locator(".rotating-sector-view")).toHaveCount(0)
         try await expect(page.locator(".locution-view .computorium-session-view")).toHaveCount(1)
 
@@ -443,7 +443,7 @@ struct ArbitrationTests {
           """, as: Bool.self)
         #expect(away, "The reader starts away from the transcript's end")
         // Every word the chip says from here, for the replay's assertions.
-        try await expect(chip.locator(".info-chip-text")).toHaveText("Pending")
+        try await expect(chip.locator(".info-chip-text")).toHaveText("Partly explicated")
         _ = try await page.evaluate("""
           (() => { const text = document.querySelector('.disputorium-core-header-status-chip .info-chip-text')
             window.__chipTexts = [text.textContent]
@@ -463,7 +463,7 @@ struct ArbitrationTests {
         // the madrigal's status once it ends, as an explication's replay does.
         #expect(try await page.evaluate("window.__chipTexts.includes('Arbitrating')", as: Bool.self),
           "The chip said Arbitrating during the replay")
-        try await expect(chip.locator(".info-chip-text"), timeout: .seconds(15)).toHaveText("Pending")
+        try await expect(chip.locator(".info-chip-text"), timeout: .seconds(15)).toHaveText("Partly explicated")
         try await expect(chip.locator(".rotating-sector-view")).toHaveCount(0)
         // The page image in the task prompt as the model received it (user,
         // 2026-10-17): one stage at the message's whole width, zoomed in
@@ -748,7 +748,8 @@ struct ArbitrationTests {
     _ = try await page.evaluate("""
       (() => { window.__status('succeeded'); window.__stream.emit('done', '{"status":"passed","error":""}'); return true })()
       """, as: Bool.self)
-    try await expect(chip).toHaveText("Pending")
+    // The madrigal's state again: one page of three explicated.
+    try await expect(chip).toHaveText("Partly explicated")
     try await expect(page.locator(".disputorium-core-header-status-chip .rotating-sector-view")).toHaveCount(0)
   }
 
@@ -1173,11 +1174,11 @@ struct ArbitrationTests {
             '{"languageCode":"fra","tei":"<def xml:lang=\\"fr\\">Un sens feuille.</def>","confidence":"clear","reason":"Web tests."}');
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        // The process after Arbitration: the overture's page's explication,
+        // The process after Arbitration: the overture's page's calibration,
         // filled; the epilogue's completed translation sends nothing, so it
         // has no accordion (user, 2026-10-17).
         let cases: [(String, String?, String)] = [
-          (scratch.overturePath, "Explication", "bibliographic_arbitration"),
+          (scratch.overturePath, "Calibration", "bibliographic_arbitration"),
           ("/mission-control/epilogues/lexicographic/\(epilogue)?process=translation", nil, "lexicographic_arbitration"),
         ]
         for (path, process, slot) in cases {

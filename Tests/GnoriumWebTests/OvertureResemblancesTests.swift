@@ -7,7 +7,8 @@ import WebTestsTesting
 /// preview stay on one resemblance (user, 2026-10-07): the pager moves the
 /// roster's current row, a row moves the reader, and the preview always
 /// shows the page on screen. An admin ticks the resemblances its commit sends
-/// to explication; a tick never moves the reader. Every object has one
+/// to calibration, every page it owes ticked to begin with; a tick never
+/// moves the reader. Every object has one
 /// process, decided by its state (user, 2026-10-10): no process toggle
 /// anywhere. The solid kind tabs carry the sliding pill.
 /// Nothing is committed here.
@@ -56,18 +57,20 @@ struct OvertureResemblancesTests {
         try await expect(rows.nth(0)).toHaveAttribute("class", "roster-row roster-row-check roster-row-selected")
         // Each row is ticked for the commit, with the image service it names.
         try await expect(roster.locator("input[form='commit-form'][value='\(fixture.baseURL)/page-2']")).toHaveCount(1)
-        // An overture's pages have no markup yet: each a blue ring, pending
-        // explication (user, 2026-10-09)—never a Computorium status.
-        try await expect(roster.locator(".roster-status[data-mark='ring'][data-tone='blue']")).toHaveCount(3)
-        try await expect(roster.locator(".roster-status[data-status]")).toHaveCount(0)
+        // Every page is owed calibration (user, 2026-10-18): each a dotted
+        // ring waiting, and ticked for the Commit.
+        try await expect(roster.locator(".roster-status[data-process='calibration'][data-status='queued']"))
+          .toHaveCount(3)
+        try await expect(roster.locator(".roster-status[data-mark]")).toHaveCount(0)
+        try await expect(roster.locator("input[form='commit-form']:checked")).toHaveCount(3)
 
         // The preview is the page on screen's, filled, never a template.
-        let task = page.locator("[data-process='Explication'] .prompt-preview-task .prompt-text-source").first
+        let task = page.locator("[data-process='Calibration'] .prompt-preview-task .prompt-text-source").first
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
-        try await expect(page.locator("[data-process='Explication'] #prompt-preview-task .prompt-preview-title-words").first)
+        try await expect(page.locator("[data-process='Calibration'] #prompt-preview-task .prompt-preview-title-words").first)
           .toHaveText("Task Prompt")
-        // Arbitration's and Explication's seven each: the process, its
+        // Arbitration's and Calibration's seven each: the process, its
         // System, Task and Continuation Prompts (user, 2026-10-15) and its
         // Autocompaction with its two.
         try await expect(page.locator(".prompt-previews-content .accordion-view")).toHaveCount(14)
@@ -85,11 +88,12 @@ struct OvertureResemblancesTests {
           try await rows.nth(2).locator(".roster-label").click()
           try await expect(viewer.locator("#artifact-page-input")).toHaveValue("3")
           try await expect(rows.nth(2)).toHaveAttribute("class", "roster-row roster-row-check roster-row-selected")
-          try await expect(rows.nth(2).locator("input")).toBeChecked(false)
+          try await expect(rows.nth(2).locator("input")).toBeChecked()
           try await expect(task).toContainText("Colophon")
-          // A tick ticks, and leaves the reader where it is.
+          // A tick ticks (here, takes the page off the Commit), and leaves
+          // the reader where it is.
           try await rows.nth(0).locator("input").click()
-          try await expect(rows.nth(0).locator("input")).toBeChecked()
+          try await expect(rows.nth(0).locator("input")).toBeChecked(false)
           try await expect(viewer.locator("#artifact-page-input")).toHaveValue("3")
           try await expect(rows.nth(2)).toHaveAttribute("class", "roster-row roster-row-check roster-row-selected")
         }
@@ -99,7 +103,7 @@ struct OvertureResemblancesTests {
         try await expect(page.locator(".prompt-previews-heading")).toHaveText("Prompts")
         // One accordion a process, its prompts nested inside (user,
         // 2026-10-10), closed until opened.
-        try await expect(page.locator("#prompt-preview-process .prompt-preview-title-words").first).toHaveText("Explication")
+        try await expect(page.locator("#prompt-preview-process .prompt-preview-title-words").first).toHaveText("Calibration")
         try await expect(page.locator("#prompt-preview-process")).toHaveAttribute("data-expanded", "false")
         try await expect(page.locator("#prompt-preview-process .prompt-preview-title-words").nth(1)).toHaveText("System Prompt")
         try await expect(page.locator("#prompt-preview-process .prompt-preview-title-words").nth(3)).toHaveText("Continuation Prompt")
@@ -224,18 +228,18 @@ struct OvertureResemblancesTests {
         try await page.openHydrated("\(scratch.overturePath)/revise")
         // The form's required fields, filled so the browser lets it go.
         try await page.locator("[data-revise-form] input[name='title']").first.fill("Web tests legend title")
-        let prompts = page.locator(".prompt-revision-fields-process[data-process='bibliographic_explication']")
-        try await prompts.locator("#prompt-revision-process-bibliographic_explication .accordion-summary").first.click()
-        try await prompts.locator("#prompt-revision-system-accordion-bibliographic_explication .accordion-summary").first
+        let prompts = page.locator(".prompt-revision-fields-process[data-process='bibliographic_calibration']")
+        try await prompts.locator("#prompt-revision-process-bibliographic_calibration .accordion-summary").first.click()
+        try await prompts.locator("#prompt-revision-system-accordion-bibliographic_calibration .accordion-summary").first
           .click()
-        try await expect(prompts.locator("#prompt-revision-system-accordion-bibliographic_explication"))
+        try await expect(prompts.locator("#prompt-revision-system-accordion-bibliographic_calibration"))
           .toHaveAttribute("data-open-finished", "true")
-        try await prompts.locator("#prompt-revision-system-accordion-bibliographic_explication .prompt-text-markdown-toggle button")
+        try await prompts.locator("#prompt-revision-system-accordion-bibliographic_calibration .prompt-text-markdown-toggle button")
           .first.click()
         _ = try await page.evaluate(
           """
           (() => {
-            const area = document.querySelector("textarea[name='prompt-system-bibliographic_explication']")
+            const area = document.querySelector("textarea[name='prompt-system-bibliographic_calibration']")
             area.value = area.value + '\\nWeb tests legend suggestion.'
             area.dispatchEvent(new Event('input', { bubbles: true }))
             return true
@@ -266,21 +270,21 @@ struct OvertureResemblancesTests {
         try await page.openHydrated(scratch.overturePath)
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
-        try await expect(page.locator(".prompt-preview-system a[href$='/revisions/\(id)#prompt-change-bibliographic_explication-system']"))
+        try await expect(page.locator(".prompt-preview-system a[href$='/revisions/\(id)#prompt-change-bibliographic_calibration-system']"))
           .toHaveCount(1)
-        try await expect(page.locator("[data-process='Explication'] .prompt-preview-task a[href$='/revisions/\(id)#prompt-change-bibliographic_explication-task']").first)
+        try await expect(page.locator("[data-process='Calibration'] .prompt-preview-task a[href$='/revisions/\(id)#prompt-change-bibliographic_calibration-task']").first)
           .toBeAttached()
 
         // The task prompt's link: its accordion opened and in view, the
         // system prompt's open on its diff as before.
-        try await page.openHydrated("\(scratch.overturePath)/revisions/\(id)#prompt-change-bibliographic_explication-task")
-        try await expect(page.locator("#prompt-change-bibliographic_explication-system")).toHaveAttribute("data-expanded", "true")
-        try await expect(page.locator("#prompt-change-bibliographic_explication-task")).toHaveAttribute("data-expanded", "true")
-        try await expect(page.locator("#prompt-change-bibliographic_explication-task")).toHaveAttribute("data-open-finished", "true")
+        try await page.openHydrated("\(scratch.overturePath)/revisions/\(id)#prompt-change-bibliographic_calibration-task")
+        try await expect(page.locator("#prompt-change-bibliographic_calibration-system")).toHaveAttribute("data-expanded", "true")
+        try await expect(page.locator("#prompt-change-bibliographic_calibration-task")).toHaveAttribute("data-expanded", "true")
+        try await expect(page.locator("#prompt-change-bibliographic_calibration-task")).toHaveAttribute("data-open-finished", "true")
         let inView = try await page.evaluate(
           """
           (() => {
-            const box = document.getElementById('prompt-change-bibliographic_explication-task').getBoundingClientRect()
+            const box = document.getElementById('prompt-change-bibliographic_calibration-task').getBoundingClientRect()
             return box.top >= 0 && box.top < window.innerHeight
           })()
           """, as: Bool.self)

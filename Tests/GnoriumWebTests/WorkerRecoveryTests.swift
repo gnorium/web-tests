@@ -17,7 +17,7 @@ struct WorkerRecoveryTests {
     }
     let admin=try await TestAdmin.create(baseURL:gnorium.baseURL)
     func removeTemporaryControlActor() {
-      _ = try? TestAdmin.query("UPDATE computorium_worker_pool SET changed_by=NULL WHERE changed_by=(SELECT id FROM users WHERE username='\(admin.username)'); UPDATE computorium_worker_controls SET changed_by=NULL WHERE changed_by=(SELECT id FROM users WHERE username='\(admin.username)');")
+      _ = try? TestAdmin.query("UPDATE computorium_worker_pool SET changed_by=NULL WHERE changed_by=(SELECT id FROM users WHERE username='\(admin.username)'); UPDATE computorium_specialists SET changed_by=NULL WHERE changed_by=(SELECT id FROM users WHERE username='\(admin.username)');")
     }
     do {
       try await withPage(.chrome,gnorium,cookies:[admin.cookie]) { page in

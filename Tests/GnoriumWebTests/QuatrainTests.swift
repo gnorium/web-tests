@@ -117,7 +117,7 @@ struct QuatrainTests {
         // The scale so far: a bordered block headed by its columns, no
         // heading of its own; the dev model service is not there, so what is
         // unknown reads as a dash.
-        let scale = page.locator(".quatrain-scale")
+        let scale = page.locator(".calibration-scale-view")
         try await expect(scale).toHaveCount(1)
         for head in ["Axis", "Em", "Measurements", "Body", "Measure", "Height", "Margin", "Width"] {
           try await expect(scale.locator("th").filter(hasText: head).first).toBeAttached()

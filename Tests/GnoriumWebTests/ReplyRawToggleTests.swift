@@ -122,7 +122,7 @@ struct ReplyRawToggleTests {
     guard gnorium.engines.contains(engine) else { return }
     let stopped = try TestAdmin.query("""
       SELECT (NOT p.enabled OR NOT c.enabled)::text FROM computorium_worker_pool p
-        CROSS JOIN computorium_worker_controls c WHERE p.singleton = true AND c.kind = 'arbitration'
+        CROSS JOIN computorium_specialists c WHERE p.singleton = true AND c.specialist = 'arbitration'
       """)
     guard stopped == "true" else {
       throw WebTestError("The reply fixture requires stopped dev workers so Commit cannot call a provider.")

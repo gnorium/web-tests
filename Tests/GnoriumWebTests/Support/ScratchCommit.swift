@@ -55,6 +55,43 @@ struct ScratchCommit {
   }
 
   /// Whether both objects are still uncommitted.
+  /// The epilogue the madrigal's Commit promoted it to, a page of the three
+  /// translated for each service in `translated` (the services are the
+  /// manifest's `page-1` to `page-3`), the rest stale where named; the
+  /// madrigal is committed with it, as a promotion leaves it.
+  func addEpilogue(base: String, translated: [Int], stale: [Int] = []) throws {
+    let id = UUID().uuidString.lowercased()
+    let pages: [[String: Any]] = translated.map { number in
+      [
+        "service": "\(base)/page-\(number)", "label": "\(number)", "sourceDigest": "d",
+        "segments": [["key": "s1", "element": "p", "source": "Alpha", "translation": "Alpha, translated"]],
+        "stale": stale.contains(number),
+      ]
+    }
+    let layer: [String: Any] = ["sourceLanguage": "ita", "targetLanguage": "eng", "tei": "", "pages": pages]
+    let json = String(decoding: try JSONSerialization.data(withJSONObject: layer), as: UTF8.self)
+      .replacingOccurrences(of: "'", with: "''")
+    let user = try TestAdmin.query("SELECT id FROM users WHERE username = '\(owner)'")
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    _ = try TestAdmin.query(
+      """
+      BEGIN;
+      UPDATE bibliographic_madrigals SET processing_status = 'committed' WHERE id = '\(madrigalID)';
+      INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_madrigal_id, promoted_by_user_id, proposed_content_json, metadata_json, translation_json, processing_status)
+        SELECT '\(id)', '\(id)', '\(committedOvertureID)', '\(madrigalID)', '\(user)', p.proposed_content_json, p.metadata_json, '\(json)', 'pending'
+        FROM bibliographic_madrigals p WHERE p.id = '\(madrigalID)';
+      COMMIT;
+      """)
+  }
+
+  /// The epilogue `addEpilogue` made last.
+  func epiloguePath() throws -> String {
+    let id = try TestAdmin.query(
+      "SELECT id FROM bibliographic_epilogues WHERE bibliographic_madrigal_id = '\(madrigalID)'")
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    return "/mission-control/epilogues/bibliographic/\(id)"
+  }
+
   func stillPending() throws -> Bool {
     let overture = try TestAdmin.query(
       "SELECT committed_at IS NULL FROM bibliographic_overtures WHERE id = '\(pendingOvertureID)'")
@@ -67,6 +104,7 @@ struct ScratchCommit {
     _ = try? TestAdmin.query(
       """
       BEGIN;
+      DELETE FROM bibliographic_epilogues WHERE bibliographic_madrigal_id = '\(madrigalID)';
       DELETE FROM bibliographic_madrigals WHERE id = '\(madrigalID)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
       DELETE FROM bibliographic_overtures WHERE id IN ('\(pendingOvertureID)', '\(committedOvertureID)');

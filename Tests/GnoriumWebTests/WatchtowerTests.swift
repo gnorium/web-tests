@@ -59,7 +59,7 @@ struct WatchtowerTests {
       // No heading over a process's block: the block names its process.
       try await expect(page.locator(".watchtower-group-name")).toHaveCount(0)
       try await expect(page.locator(".watchtower-process-name")).toHaveTexts(
-        ["ARBITRATION", "CALIBRATION", "EXPLICATION", "ARBITRATION", "TRANSLATION", "ARBITRATION"])
+        ["ARBITRATION", "CALIBRATION", "ARBITRATION", "EXPLICATION", "ARBITRATION", "TRANSLATION"])
     }
   }
 
