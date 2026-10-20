@@ -3,8 +3,8 @@ import WebTests
 import WebTestsTesting
 
 /// The Gnorium dev server under test: `GNORIUM_BASE_URL` (default
-/// http://localhost:8080) on the engines in `BROWSERS` (default
-/// chrome,safari).
+/// http://localhost:8080) on the engines in `BROWSERS` (default chrome;
+/// safari only when named).
 let gnorium = BrowserTestConfiguration.fromEnvironment(prefix: "GNORIUM", defaultBaseURL: "http://localhost:8080")
 
 /// The layouts every page must hold up in.

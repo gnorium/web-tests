@@ -21,12 +21,13 @@ public struct BrowserTestConfiguration: Sendable {
   }
 
   /// Reads `<PREFIX>_BASE_URL` and `BROWSERS` (a comma-separated list:
-  /// "chrome,safari"), falling back to `defaultBaseURL` and every engine.
+  /// "chrome,safari"), falling back to `defaultBaseURL` and Chrome alone:
+  /// Safari runs only when named (it takes over the desktop).
   /// `WEB_TESTS_ARTIFACTS` moves the artifacts directory.
   public static func fromEnvironment(prefix: String, defaultBaseURL: String) -> BrowserTestConfiguration {
     let environment = ProcessInfo.processInfo.environment
     let base = environment["\(prefix)_BASE_URL"].flatMap { $0.isEmpty ? nil : $0 } ?? defaultBaseURL
-    var engines = BrowserEngine.allCases
+    var engines: [BrowserEngine] = [.chrome]
     if let list = environment["BROWSERS"], !list.isEmpty {
       engines = list.split(separator: ",").compactMap {
         BrowserEngine(rawValue: $0.trimmingCharacters(in: .whitespaces).lowercased())
