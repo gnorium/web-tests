@@ -3,15 +3,16 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A testament's header has its own switch, never tied to the XML switch
-/// (user, 2026-10-21): where there is a header, the footer's Header switch
-/// stands right after the XML switch (or alone, where no page is explicated
-/// and there is no XML switch), enabled, off by default. On, the header shows
-/// as code alone (no rendered side) in a pane of its own at the top of the
-/// markup's column, read-only on the code's gray, numbered from 1, whether
-/// the XML is on or off; the XML switch neither enables nor clears it. The
-/// page's XML never holds the header nor counts its lines on after it; a
-/// Revise editor's numbers start at 1. No rendered header box anywhere. A
+/// A testament's Header and XML switches are radio toggles sharing the
+/// markup's column (user, 2026-10-21): where there is a header, the footer's
+/// Header switch stands right after the XML switch (or alone, where no page
+/// is explicated and there is no XML switch), enabled, off by default.
+/// Neither on, the rendering; XML on, the page's code; Header on, the
+/// header's code alone in the column (no rendered side, no page's code, no
+/// diff), read-only on the code's gray, numbered from 1. Turning one on turns
+/// the other off; never stacked. The page's XML never holds the header nor
+/// counts its lines on after it; a Revise editor's numbers start at 1. No
+/// rendered header box anywhere. A
 /// document with no header has no switch. A testament whose pages are
 /// images alone shows its header in that column beside them while the switch
 /// is on, the images the whole viewer while it is off. The header row's Image
@@ -54,9 +55,11 @@ struct TestamentHeaderTests {
     /// The artifact's `data-header` and `data-raw`.
     let header: String
     let raw: String
-    /// The header's pane shown, over the markup's.
+    /// The header's pane shown, alone in the column: the markup's pane
+    /// (and a diff under it) put away.
     let shown: Bool
-    let above: Bool
+    let boxShown: Bool
+    let underShown: Bool
     let headerCount: Int
     let headerReset: String
     let headerGround: String
@@ -86,7 +89,9 @@ struct TestamentHeaderTests {
         const markup = view.querySelector('.artifact-markup')
         const pane = view.querySelector(".tei-page[data-active='true'] .tei-page-raw[data-layer='markup']")
         const own = pane ? pane.querySelector(':scope > .code-view, :scope > form .code-view') : null
-        const shown = !!head && getComputedStyle(head).display !== 'none' && head.getBoundingClientRect().height > 0
+        const visible = (e) => !!e && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().height > 0
+        const shown = visible(head)
+        const under = view.querySelector('.artifact-under-markup')
         const object = view.querySelector('.artifact-object')
         const body = view.querySelector('.artifact-viewer-container')
         return {
@@ -99,7 +104,8 @@ struct TestamentHeaderTests {
           header: view.getAttribute('data-header') || '',
           raw: view.getAttribute('data-raw') || '',
           shown,
-          above: shown && (!box || head.getBoundingClientRect().bottom <= box.getBoundingClientRect().top + 1),
+          boxShown: visible(box),
+          underShown: visible(under),
           headerCount: head ? head.querySelectorAll('.code-line').length : 0,
           headerReset: head ? getComputedStyle(head.querySelector('.code-code')).counterReset : '',
           headerGround: head ? getComputedStyle(head.querySelector('.code-view')).backgroundColor : '',
@@ -208,41 +214,45 @@ struct TestamentHeaderTests {
           try await expect(canvas.first).toHaveAttribute("data-weight", "subtle")
         }
 
-        // Header on, XML off: the header's code alone over the rendered
-        // page, on the gray, read-only, numbered from 1.
+        // Header on, XML off: the header's code alone in the column, the
+        // rendered page put away; on the gray, read-only, numbered from 1.
         try await toggle.click()
         state = try await Self.state(page)
         #expect(state.header == "true" && state.pressed == "true" && state.raw == "false", "header on: \(state)")
-        #expect(state.shown && state.above, "the header's pane is not over the markup's: \(state)")
+        #expect(state.shown && !state.boxShown && !state.underShown, "the header is not alone in the column: \(state)")
         #expect(state.headerCount == Self.headerLines, "the header has \(state.headerCount) lines")
         #expect(state.headerReset == "code-line 0")
         #expect(state.headerGround != state.markupGround, "the header is on the page's ground")
         #expect(!state.headerEditable)
         try await page.expectNoHorizontalOverflow()
 
-        // XML on: the page's code beside it, numbered from 1, holding no
-        // header; the header still on.
+        // XML on: the header off, the page's code alone, numbered from 1,
+        // holding no header.
         try await Self.setXML(page, true)
+        try await expect(view).toHaveAttribute("data-header", "false")
         state = try await Self.state(page)
-        #expect(state.header == "true" && state.shown && state.above, "XML on cleared the header: \(state)")
+        #expect(state.pressed == "false" && !state.shown && state.boxShown, "XML on kept the header: \(state)")
         #expect(state.pageReset == "code-line 0", "the page is numbered from \(state.pageReset)")
         #expect(!state.pageHoldsHeader, "the page's code holds the header")
 
-        // XML off again: the header untouched, the switch still enabled.
-        try await Self.setXML(page, false)
+        // Header on again: the XML off, the header alone.
+        try await toggle.click()
+        try await expect(view).toHaveAttribute("data-raw", "false")
         try await expect(view).toHaveAttribute("data-header", "true")
         state = try await Self.state(page)
-        #expect(state.shown && !state.disabled && state.pressed == "true", "XML off: \(state)")
+        #expect(state.shown && !state.boxShown && !state.disabled, "header on over XML: \(state)")
+        try await expect(view.locator(".artifact-xml-toggle button")).toHaveAttribute("aria-pressed", "false")
 
-        // Header off: the pane gone, the XML switch as it stood.
+        // Header off: neither on, the rendering.
         try await toggle.click()
         try await expect(view).toHaveAttribute("data-header", "false")
         state = try await Self.state(page)
-        #expect(!state.shown && state.raw == "false", "header off: \(state)")
+        #expect(!state.shown && state.boxShown && state.raw == "false", "header off: \(state)")
         try await page.expectNoErrors()
 
-        // Revise: the editor never holds the header nor counts on after it;
-        // the header's pane over it, read-only.
+        // Revise: the editor never holds the header and is numbered from 1;
+        // the header on puts the editor away (the XML off), read-only; the
+        // XML on again puts the header away.
         try await page.openHydrated("\(revising.madrigalPath)/revise")
         let reviseView = page.locator(".artifact-view").first
         try await Self.setXML(page, true)
@@ -250,13 +260,18 @@ struct TestamentHeaderTests {
           "(() => document.querySelector(\".tei-page[data-active='true'] .tei-page-edit textarea\").value)()",
           as: String.self)
         #expect(!value.contains("teiHeader"), "the editor holds the header: \(value.prefix(80))")
-        try await reviseView.locator(".artifact-header-toggle button").click()
-        state = try await Self.state(page)
-        #expect(state.shown && state.above && !state.headerEditable, "revise: \(state)")
         let first = try await page.evaluate(
           "(() => document.querySelector(\".tei-page[data-active='true'] .tei-page-edit .code-gutter-lines > span\")?.textContent ?? '')()",
           as: String.self)
-        #expect(first == "1", "the editor's first number is \(first) with the header on")
+        #expect(first == "1", "the editor's first number is \(first)")
+        try await reviseView.locator(".artifact-header-toggle button").click()
+        try await expect(reviseView).toHaveAttribute("data-raw", "false")
+        state = try await Self.state(page)
+        #expect(state.shown && !state.boxShown && !state.headerEditable, "revise: \(state)")
+        try await Self.setXML(page, true)
+        try await expect(reviseView).toHaveAttribute("data-header", "false")
+        state = try await Self.state(page)
+        #expect(!state.shown && state.boxShown, "revise, XML on again: \(state)")
       }
 
       // A document that declares no header: no switch.

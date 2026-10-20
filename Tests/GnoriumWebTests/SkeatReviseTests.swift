@@ -70,8 +70,8 @@ struct SkeatReviseTests {
         try await page.openHydrated("\(commit.madrigalPath)?image=1")
         try await page.locator(".artifact-xml-toggle button").first.click()
         // The page's code, never the document's header: that is the
-        // reader's Header pane's, as code, under its own switch (user,
-        // 2026-10-21).
+        // reader's Header pane's, as code, under its own switch, the two
+        // exclusive in the one column (user, 2026-10-21).
         let raw = page.locator(".artifact-markup .tei-page[data-active='true'] .tei-page-raw > .code-view .code-code").first
         try await expect(raw).toBeVisible()
         let shown = try await raw.evaluate("e => e.textContent").string ?? ""
@@ -81,6 +81,9 @@ struct SkeatReviseTests {
         try await expect(header).toBeVisible()
         let headerShown = try await header.evaluate("e => e.textContent").string ?? ""
         #expect(headerShown.contains("<tagsDecl>") && headerShown.contains(#"xml:id="text-block""#), "The header has no renditions")
+        // The header on turned the XML off: the page's code put away.
+        try await expect(page.locator(".artifact-view").first).toHaveAttribute("data-raw", "false")
+        try await expect(raw).toBeHidden()
         try await page.locator(".artifact-header-toggle button").first.click()
         // Its words as read, each <w> naming its scan zones (@facs); its
         // surface as its <facsimile>, between the header and the text, never

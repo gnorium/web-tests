@@ -4,8 +4,10 @@ import WebTestsTesting
 
 /// Each week of the Watchtower's visitor charts says its dates and figure in
 /// a real tooltip on its bar (user, 2026-10-20): shown on hover, on focus and
-/// on a tap alike, never only in a native title. Desktop and phone, Chrome
-/// headless.
+/// on a tap alike, never only in a native title. A week with no data has no
+/// bar, no tooltip and no focus stop (user, 2026-10-21); a week with a real
+/// zero keeps its zero-height bar and its "0 …" tooltip. Desktop and phone,
+/// Chrome headless.
 @Suite("Visitors chart tooltips", .serialized)
 struct VisitorsChartTooltipTests {
   static let shown = ".tooltip-view[data-portal='true'][data-visible='true'] .tooltip-content"
@@ -52,6 +54,42 @@ struct VisitorsChartTooltipTests {
           return t.height >= b.height && t.height >= 64 && t.width > 0;
         })()
         """, as: Bool.self))
+      // Every week of the three charts: known, a bar and its tooltip (a
+      // zero's bar zero high, its label "0 …"); unknown, none of them.
+      struct Weeks: Decodable {
+        let unknownWithParts: [String]
+        let knownWithoutParts: [String]
+        let knownLabeledUnknown: [String]
+        let zeroBarRaised: [String]
+      }
+      let weeksState = try await page.evaluate("""
+        (() => {
+          const out = { unknownWithParts: [], knownWithoutParts: [], knownLabeledUnknown: [], zeroBarRaised: [] }
+          for (const week of document.querySelectorAll('.watchtower-visitors-week')) {
+            const name = week.closest('.watchtower-visitors-trend').dataset.metric + ' ' + week.dataset.week
+            const tooltip = week.querySelector('.tooltip-view, .watchtower-visitors-week-tooltip')
+            const target = week.querySelector('.watchtower-visitors-week-target')
+            const focusable = week.querySelector('[tabindex]')
+            const rect = week.querySelector('.watchtower-visitors-week-bar rect')
+            if (week.dataset.known !== 'true') {
+              if (tooltip || target || focusable || rect) out.unknownWithParts.push(name)
+              continue
+            }
+            if (!tooltip || !target || !rect || target.getAttribute('tabindex') !== '0') { out.knownWithoutParts.push(name); continue }
+            const label = target.getAttribute('aria-label') || ''
+            if (label.includes('): 0 ')) {
+              if (rect.getBoundingClientRect().height > 0.5) out.zeroBarRaised.push(name)
+            } else if (label.includes('): —')) {
+              out.knownLabeledUnknown.push(name)
+            }
+          }
+          return out
+        })()
+        """, as: Weeks.self)
+      #expect(weeksState.unknownWithParts.isEmpty, "weeks with no data drawn as bars: \(weeksState.unknownWithParts)")
+      #expect(weeksState.knownWithoutParts.isEmpty, "known weeks without a bar or tooltip: \(weeksState.knownWithoutParts)")
+      #expect(weeksState.knownLabeledUnknown.isEmpty, "known weeks labeled unknown: \(weeksState.knownLabeledUnknown)")
+      #expect(weeksState.zeroBarRaised.isEmpty, "zero weeks with a raised bar: \(weeksState.zeroBarRaised)")
       try await page.expectNoHorizontalOverflow()
       try await page.expectNoErrors()
     }
