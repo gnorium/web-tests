@@ -2,7 +2,7 @@ import Foundation
 
 /// Two Disputorium objects waiting on a commit, owned by the test's
 /// account: a pending overture, with one way to commit, and a pending
-/// madrigal (its own overture committed, its antiphon submitted) holding
+/// madrigal (its own overture committed and promoted to it) holding
 /// one page not read yet, so its one process is explication (user,
 /// 2026-10-10). Every row by its own id, removed in the order the foreign keys
 /// allow—except its submission and Fountain, which are submitted input and
@@ -19,7 +19,6 @@ struct ScratchCommit {
   private let fountainID: String
   private let pendingOvertureID: String
   private let committedOvertureID: String
-  private let antiphonID: String
   let madrigalID: String
   private let owner: String
 
@@ -28,6 +27,8 @@ struct ScratchCommit {
   var overturePath: String { "/mission-control/overtures/bibliographic/\(pendingOvertureID)" }
   var madrigalPath: String { "/mission-control/madrigals/bibliographic/\(madrigalID)" }
 
+  /// The committed overture is the Fountain's first, so its chain (the
+  /// madrigal promoted from it) is the Fountain's lifetime.
   init(owner: TestAdmin, sourceURL: String = ScratchCommit.sourceURL) throws {
     let user = try owner.column("id")
     self.owner = owner.username
@@ -36,7 +37,6 @@ struct ScratchCommit {
     fountainID = id()
     pendingOvertureID = id()
     committedOvertureID = id()
-    antiphonID = id()
     madrigalID = id()
     _ = try TestAdmin.query(
       """
@@ -47,11 +47,11 @@ struct ScratchCommit {
       INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_fountain_id, source_url, language, processing_status, created_at)
         VALUES ('\(pendingOvertureID)', '\(submissionID)', '\(fountainID)', '\(sourceURL)', 'eng', 'pending', now());
       INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_fountain_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
-        VALUES ('\(committedOvertureID)', '\(submissionID)', '\(fountainID)', '\(sourceURL)', 'eng', 'pending', '\(user)', now(), now());
-      INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, resemblance_service_ids_json, processing_status, created_at, updated_at)
-        VALUES ('\(antiphonID)', '\(committedOvertureID)', '\(user)', '[]', 'submitted', now(), now());
-      INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, proposed_content_json, metadata_json, processing_status, created_at, updated_at)
-        VALUES ('\(madrigalID)', '\(madrigalID)', '\(antiphonID)', '{"teiXml":"<TEI><text><body><pb n=\\"1\\" facs=\\"\(sourceURL.replacingOccurrences(of: "/manifest.json", with: ""))/page-1/full/max/0/default.jpg\\"/></body></text></TEI>"}', '{"language":"eng","sourceUrl":"\(sourceURL)","sourceKind":"iiif-manifest"}', 'pending', now(), now());
+        VALUES ('\(committedOvertureID)', '\(submissionID)', '\(fountainID)', '\(sourceURL)', 'eng', 'pending', '\(user)', now(), now() - interval '1 minute');
+      INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_overture_id, proposed_content_json, metadata_json, processing_status, created_at, updated_at)
+        VALUES ('\(madrigalID)', '\(madrigalID)', '\(committedOvertureID)', '{"teiXml":"<TEI><text><body><pb n=\\"1\\" facs=\\"\(sourceURL.replacingOccurrences(of: "/manifest.json", with: ""))/page-1/full/max/0/default.jpg\\"/></body></text></TEI>"}', '{"language":"eng","sourceUrl":"\(sourceURL)","sourceKind":"iiif-manifest"}', 'pending', now(), now());
+      INSERT INTO bibliographic_headers (bibliographic_overture_id, header_tei, bibliographic_madrigal_id, frozen_by_user_id, analysis_versions_json, page_count)
+        VALUES ('\(committedOvertureID)', '<teiHeader/>', '\(madrigalID)', '\(user)', '[]', 1);
       COMMIT;
       """)
   }
@@ -120,8 +120,8 @@ struct ScratchCommit {
       BEGIN;
       DELETE FROM revisions WHERE revisable_id IN ('\(madrigalID)', '\(pendingOvertureID)');
       DELETE FROM bibliographic_epilogues WHERE bibliographic_madrigal_id = '\(madrigalID)';
+      DELETE FROM bibliographic_headers WHERE bibliographic_madrigal_id = '\(madrigalID)';
       DELETE FROM bibliographic_madrigals WHERE id = '\(madrigalID)';
-      DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
       DELETE FROM bibliographic_overtures WHERE id IN ('\(pendingOvertureID)', '\(committedOvertureID)');
       UPDATE bibliographic_fountains SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(fountainID)';
       COMMIT;

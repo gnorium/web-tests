@@ -1,8 +1,8 @@
 import Foundation
 
 /// A work with one explicated version whose tree holds one edition and its
-/// manifest, owned by the test's account: its overture committed, its
-/// antiphon submitted, and the madrigal that antiphon made permitted. Every
+/// manifest, owned by the test's account: its overture committed and
+/// promoted to its madrigal (the header frozen), that madrigal permitted. Every
 /// row by its own id, removed in the order the foreign keys allow—except
 /// its submission and Fountain, which are submitted input and frozen: the
 /// Fountain is soft-deleted, as the site deletes one, and both stay.
@@ -31,7 +31,7 @@ struct ScratchWork {
     let user = try owner.column("id")
     var ids: [String: String] = [:]
     for name in [
-      "submission", "fountain", "overture", "antiphon", "record", "madrigal", "version", "authorship",
+      "submission", "fountain", "overture", "record", "madrigal", "version", "authorship",
     ] {
       ids[name] = UUID().uuidString.lowercased()
     }
@@ -74,14 +74,14 @@ struct ScratchWork {
         VALUES ('\(ids["fountain"]!)', '\(ids["submission"]!)', '\(sourceURL)', 'eng', 'pending', '\(title)', 'report', 'First edition', 1958, now());
       INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_fountain_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
         VALUES ('\(ids["overture"]!)', '\(ids["submission"]!)', '\(ids["fountain"]!)', '\(sourceURL)', 'eng', 'pending', '\(user)', now(), now());
-      INSERT INTO bibliographic_antiphons (id, bibliographic_overture_id, requested_by_user_id, resemblance_service_ids_json, processing_status, created_at, updated_at)
-        VALUES ('\(ids["antiphon"]!)', '\(ids["overture"]!)', '\(user)', '[]', 'submitted', now(), now());
       INSERT INTO biblio_records (id, corpus_id, title, title_slug, type, language, genres, year, date_display, created_at, updated_at)
         VALUES ('\(ids["record"]!)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)',
           'report', 'eng', '[]', 1958, 'AD 1958', now(), now());
       \(voice)
-      INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, biblio_record_id, proposed_content_json, metadata_json, shape_json, processing_status, permitted_by_user_id, permitted_at, created_at, updated_at)
-        VALUES ('\(ids["madrigal"]!)', '\(ids["madrigal"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"teiXml":""}', '\(metadata)', '\(shape)', 'permitted', '\(user)', now(), now(), now());
+      INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_overture_id, biblio_record_id, proposed_content_json, metadata_json, shape_json, processing_status, permitted_by_user_id, permitted_at, created_at, updated_at)
+        VALUES ('\(ids["madrigal"]!)', '\(ids["madrigal"]!)', '\(ids["overture"]!)', '\(ids["record"]!)', '{"teiXml":""}', '\(metadata)', '\(shape)', 'permitted', '\(user)', now(), now(), now());
+      INSERT INTO bibliographic_headers (bibliographic_overture_id, header_tei, bibliographic_madrigal_id, frozen_by_user_id, analysis_versions_json, page_count)
+        VALUES ('\(ids["overture"]!)', '<teiHeader/>', '\(ids["madrigal"]!)', '\(user)', '[]', 1);
       INSERT INTO biblio_record_versions (id, biblio_record_id, bibliographic_madrigal_id, metadata_json, shape_json, status, created_at)
         VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["madrigal"]!)', '\(metadata)', '\(shape)', 1, now());
       COMMIT;
@@ -97,8 +97,8 @@ struct ScratchWork {
       """
       BEGIN;
       DELETE FROM biblio_record_versions WHERE id = '\(ids["version"]!)' AND NOT \(amended);
+      DELETE FROM bibliographic_headers WHERE bibliographic_madrigal_id = '\(ids["madrigal"]!)' AND NOT \(amended);
       DELETE FROM bibliographic_madrigals WHERE id = '\(ids["madrigal"]!)' AND NOT \(amended);
-      DELETE FROM bibliographic_antiphons WHERE id = '\(ids["antiphon"]!)' AND NOT \(amended);
       DELETE FROM url_histories WHERE entity_id = '\(ids["record"]!)' AND NOT \(amended);
       DELETE FROM biblio_record_voices WHERE id = '\(ids["authorship"]!)' AND NOT \(amended);
       DELETE FROM biblio_records WHERE id = '\(ids["record"]!)' AND NOT \(amended);

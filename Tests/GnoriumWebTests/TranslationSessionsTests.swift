@@ -27,16 +27,17 @@ struct TranslationSessionsTests {
     ["type": "text", "content": "Two pages of arithmetic, translated."],
   ]
 
-  static let tei = #"{"teiXml":"<TEI><text><body><pb n=\"1\" facs=\"https://example.org/iiif/wt1/full/1300,/0/default.jpg\"/><p>Regola del tre</p><pb n=\"2\" facs=\"https://example.org/iiif/wt2/full/1300,/0/default.jpg\"/><p>Somma</p></body></text></TEI>"}"#
+  static let tei = #"<TEI><text><body><pb n="1" facs="https://example.org/iiif/wt1/full/1300,/0/default.jpg"/><p>Regola del tre</p><pb n="2" facs="https://example.org/iiif/wt2/full/1300,/0/default.jpg"/><p>Somma</p></body></text></TEI>"#
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aSerenadeIsOneSessionPerChunk(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let work = try ScratchWork(owner: admin)
-    let antiphon = UUID().uuidString.lowercased()
-    let madrigal = UUID().uuidString.lowercased()
+    let reading: ScratchReading
+    do { reading = try ScratchReading(owner: admin, tei: Self.tei) }
+    catch { try await admin.remove(after: error) }
+    let epilogue = UUID().uuidString.lowercased()
     let serenade = UUID().uuidString.lowercased()
     let nocturne = UUID().uuidString.lowercased()
     do {
@@ -45,15 +46,10 @@ struct TranslationSessionsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
-          VALUES ('\(antiphon)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, biblio_record_id, proposed_content_json,
-          metadata_json, processing_status)
-          VALUES ('\(madrigal)', '\(madrigal)', '\(antiphon)', '\(work.recordID.lowercased())', '\(Self.tei)',
-            (SELECT metadata_json FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())'), 'committed');
-        INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, requested_by_user_id,
+        \(reading.promotion(to: epilogue))
+        INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, requested_by_user_id,
           processing_status, processing_error)
-          VALUES ('\(serenade)', '\(madrigal)', 'eng', '\(user)', 'failed', 'Web tests');
+          VALUES ('\(serenade)', '\(epilogue)', 'eng', '\(user)', 'failed', 'Web tests');
         INSERT INTO bibliographic_translation_nocturnes (id, bibliographic_serenade_id, process, chunk, instance, provider, model,
           result, duration_ms, created_at)
           VALUES ('\(nocturne)', '\(serenade)', 'translation', '1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
@@ -76,10 +72,10 @@ struct TranslationSessionsTests {
         try await expect(session.getByText("Two pages of arithmetic, translated.")).toBeAttached()
       }
     } catch {
-      remove(antiphon: antiphon, madrigal: madrigal, serenade: serenade, work: work)
+      remove(serenade: serenade, reading: reading)
       try await admin.remove(after: error)
     }
-    remove(antiphon: antiphon, madrigal: madrigal, serenade: serenade, work: work)
+    remove(serenade: serenade, reading: reading)
     try await admin.remove()
   }
 
@@ -92,9 +88,10 @@ struct TranslationSessionsTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let work = try ScratchWork(owner: admin)
-    let antiphon = UUID().uuidString.lowercased()
-    let madrigal = UUID().uuidString.lowercased()
+    let reading: ScratchReading
+    do { reading = try ScratchReading(owner: admin, tei: Self.tei) }
+    catch { try await admin.remove(after: error) }
+    let epilogue = UUID().uuidString.lowercased()
     let serenade = UUID().uuidString.lowercased()
     let nocturne = UUID().uuidString.lowercased()
     let stopped = "The bibliographic translation worker was stopped."
@@ -103,15 +100,10 @@ struct TranslationSessionsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, resemblance_service_ids_json, processing_status)
-          VALUES ('\(antiphon)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, biblio_record_id, proposed_content_json,
-          metadata_json, processing_status)
-          VALUES ('\(madrigal)', '\(madrigal)', '\(antiphon)', '\(work.recordID.lowercased())', '\(Self.tei)',
-            (SELECT metadata_json FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())'), 'committed');
-        INSERT INTO bibliographic_serenades (id, bibliographic_madrigal_id, target_language, requested_by_user_id,
+        \(reading.promotion(to: epilogue))
+        INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, requested_by_user_id,
           processing_status, processing_error)
-          VALUES ('\(serenade)', '\(madrigal)', 'eng', '\(user)', 'pending', '\(stopped)');
+          VALUES ('\(serenade)', '\(epilogue)', 'eng', '\(user)', 'pending', '\(stopped)');
         INSERT INTO bibliographic_translation_nocturnes (id, bibliographic_serenade_id, process, chunk, instance, provider, model,
           result, error_message, duration_ms, created_at)
           VALUES ('\(nocturne)', '\(serenade)', 'translation', '1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
@@ -130,24 +122,22 @@ struct TranslationSessionsTests {
         try await page.expectNoErrors()
       }
     } catch {
-      remove(antiphon: antiphon, madrigal: madrigal, serenade: serenade, work: work)
+      remove(serenade: serenade, reading: reading)
       try await admin.remove(after: error)
     }
-    remove(antiphon: antiphon, madrigal: madrigal, serenade: serenade, work: work)
+    remove(serenade: serenade, reading: reading)
     try await admin.remove()
   }
 
-  private func remove(antiphon: String, madrigal: String, serenade: String, work: ScratchWork) {
+  private func remove(serenade: String, reading: ScratchReading) {
     _ = try? TestAdmin.query(
       """
       BEGIN;
       \(SessionTrace.delete(table: Self.nocturnes, where: "bibliographic_serenade_id = '\(serenade)'"))
       DELETE FROM bibliographic_translation_nocturnes WHERE bibliographic_serenade_id = '\(serenade)';
       DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';
-      DELETE FROM bibliographic_madrigals WHERE id = '\(madrigal)';
-      DELETE FROM bibliographic_antiphons WHERE id = '\(antiphon)';
       COMMIT;
       """)
-    work.remove()
+    reading.remove()
   }
 }

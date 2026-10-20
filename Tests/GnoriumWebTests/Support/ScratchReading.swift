@@ -8,10 +8,12 @@ struct ScratchReading {
   let path: String
   private let antiphonID: String
   let madrigalID: String
+  private let ownerID: String
 
   init(owner: TestAdmin, tei: String, sourceURL: String = "https://example.org/web-tests") throws {
     work = try ScratchWork(owner: owner, sourceURL: sourceURL)
     let user = try owner.column("id")
+    ownerID = user
     antiphonID = UUID().uuidString.lowercased()
     madrigalID = UUID().uuidString.lowercased()
     path = "/mission-control/madrigals/bibliographic/\(madrigalID)"
@@ -30,10 +32,29 @@ struct ScratchReading {
       """)
   }
 
+  /// The statements of the madrigal's Commit, for a test's own transaction:
+  /// the madrigal committed and promoted to the epilogue `epilogue` (its
+  /// thread's first), which carries its document and fields as they stand
+  /// and an empty translation of its language into English. A serenade
+  /// answers that epilogue. `remove` deletes it, after whatever answers it.
+  func promotion(to epilogue: String) -> String {
+    """
+    UPDATE bibliographic_madrigals SET processing_status = 'committed' WHERE id = '\(madrigalID)';
+    INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_madrigal_id, promoted_by_user_id,
+      biblio_record_id, proposed_content_json, metadata_json, shape_json, translation_json, processing_status)
+      SELECT '\(epilogue)', '\(epilogue)', '\(work.overtureID.lowercased())', p.id, '\(ownerID)', p.biblio_record_id,
+        p.proposed_content_json, p.metadata_json, p.shape_json,
+        json_build_object('sourceLanguage', p.metadata_json::jsonb->>'language', 'targetLanguage', 'eng', 'tei', '', 'pages', '[]'::json)::text,
+        'pending'
+      FROM bibliographic_madrigals p WHERE p.id = '\(madrigalID)';
+    """
+  }
+
   func remove() {
     _ = try? TestAdmin.query(
       """
       BEGIN;
+      DELETE FROM bibliographic_epilogues WHERE bibliographic_madrigal_id = '\(madrigalID)';
       DELETE FROM bibliographic_madrigals WHERE id = '\(madrigalID)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
       COMMIT;
