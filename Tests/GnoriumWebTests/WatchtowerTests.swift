@@ -63,6 +63,41 @@ struct WatchtowerTests {
     }
   }
 
+  /// The chain top to bottom (user, 2026-10-21): each Disputorium card
+  /// over the machine its Commit moves forward to, the halftone between the
+  /// overture and the madrigal; and every process box splits its figures
+  /// into a Bibliographic and a Lexicographic column, one figure a row.
+  @Test(arguments: gnorium.engines)
+  func theHalftoneStandsInTheChainAndProcessesSplitByKind(engine: BrowserEngine) async throws {
+    try await withPage(engine, gnorium) { page in
+      try await page.openHydrated("/")
+      let chain = ["Fountain", "Overture", "Quatrain", "Halftone", "Antiphon", "Madrigal", "Serenade", "Epilogue"]
+      let names = try await page.locator(".watchtower-ladder .watchtower-object-name-link").allTextContents()
+      #expect(names.filter { chain.contains($0) } == chain, "the chain reads \(names)")
+      let description = try await page.evaluate("""
+        [...document.querySelectorAll('.watchtower-object-name-link')]
+          .find(e => e.textContent.trim() === 'Halftone')
+          ?.closest('.watchtower-object-view').querySelector('.watchtower-object-description')?.textContent.trim() ?? ''
+        """, as: String.self)
+      #expect(description == "The calibrated document people settle, then commit or permit.", "\(description)")
+      let columns = try await page.evaluate("""
+        [...document.querySelectorAll('.watchtower-process-figures')].map(box =>
+          [...box.querySelectorAll('.watchtower-figure-columns-column')].map(column =>
+            [column.querySelector('.watchtower-figure-columns-tab').textContent.trim(),
+             ...[...column.querySelectorAll('.live-figure-text')].map(f => f.textContent.trim().replace(/^\\S+ /, ''))]
+              .join('|')))
+        """, as: [[String]].self)
+      #expect(columns.count == 6, "calibration, explication, translation and three arbitrations: \(columns.count)")
+      for box in columns {
+        #expect(box == ["Bibliographic|running|finished (1w)|failed (1w)", "Lexicographic|running|finished (1w)|failed (1w)"],
+          "\(box)")
+      }
+      let promoted = try await page.evaluate(
+        "document.querySelector('.watchtower-view').textContent.toLowerCase().includes('promot')", as: Bool.self)
+      #expect(!promoted, "nothing on the Watchtower is promoted")
+    }
+  }
+
   @Test(arguments: gnorium.engines)
   func nestedLocutionsAreCommittedOnce(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium) { page in
