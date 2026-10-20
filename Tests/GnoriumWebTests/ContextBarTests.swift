@@ -3,29 +3,47 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A session's context line (user, 2026-10-18): its ⓘ's sentence ends
-/// "context 67,063 of 1,048,576, input …, output … (thinking …)" (user,
-/// 2026-10-21; no footer)—the latest call's input over the window it ran
-/// against, and the calls summed—as recorded, and on as a watch's usage
-/// frames arrive; "—" before a call.
-@Suite("Context line", .serialized)
-struct ContextLineTests {
-  /// The context line at the end of the session's ⓘ, wherever its bubble
-  /// now is (portaled to <body> once bound).
-  static let line = """
-    (() => { const t = document.querySelector('.computorium-session-byline-words').textContent;
-      return t.slice(t.indexOf(', context ') + 2) })()
+/// A session's context bar (user, 2026-10-21): "6% used  67.1k / 1M" and a
+/// bar of what the latest call read, by kind; its bubble lists each kind, the
+/// free space and the totals—as recorded, and on as a watch's usage and
+/// context frames arrive; one Context segment, the kinds "—", where no call
+/// said them; "—" before a call. The ⓘ says no usage.
+@Suite("Context bar", .serialized)
+struct ContextBarTests {
+  /// The bar's words, two kinds' rows, Context's, the free space's, two
+  /// segments' widths and the totals (the bubble is portaled to <body> once
+  /// bound): one line, " | " between.
+  static let bar = """
+    (() => { const b = document.querySelector('.session-context-bar-view');
+      const d = document.querySelector('.session-context-bar-details');
+      const row = k => { const r = d.querySelector(`.session-context-bar-row[data-category="${k}"]`);
+        return r.hidden ? 'hidden' : r.querySelector('.session-context-bar-count').textContent + ' '
+          + r.querySelector('.session-context-bar-share').textContent };
+      const seg = k => b.querySelector(`.session-context-bar-segment[data-category="${k}"]`).getAttribute('width');
+      return [b.querySelector('.session-context-bar-percent').textContent,
+        b.querySelector('.session-context-bar-tokens').textContent, row('tools'), row('tool_results'), row('context'),
+        row('free'), seg('tool_results'), seg('context'),
+        [...d.querySelectorAll('.session-context-bar-total')].map(e => e.textContent).join(' ')].join(' | ') })()
     """
 
+  /// A call's context block as `session_context` writes it: every value a
+  /// string; the kinds sum to 63,748, the chat template's 3,315 the rest of
+  /// the 67,063 read.
+  static let kinds: [String: String] = [
+    "window": "1048576", "used": "67063", "system_prompt": "1200", "tools": "3100", "task": "900",
+    "images": "2048", "tool_results": "41000", "model_output": "3500", "thinking": "12000",
+    "compaction_summaries": "0", "chat_template": "3315",
+  ]
+
   @Test(arguments: [BrowserEngine.chrome])
-  func theInfoSaysTheContextAndGoesOnLive(engine: BrowserEngine) async throws {
+  func theBarSaysTheContextByKindAndGoesOnLive(engine: BrowserEngine) async throws {
     guard gnorium.engines.contains(engine) else { return }
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
     let antiphonID = UUID().uuidString.lowercased()
     let nocturneID = UUID().uuidString.lowercased()
-    let name = "context-line-\(UUID().uuidString).html"
+    let name = "context-bar-\(UUID().uuidString).html"
     let file = URL(fileURLWithPath: "/Users/Madhavik/Downloads/Gnorium/gnorium-web/Public").appendingPathComponent(name)
     func cleanUp() {
       try? FileManager.default.removeItem(at: file)
@@ -41,6 +59,7 @@ struct ContextLineTests {
       let recorded: [[String: String]] = [
         ["type": "thinking", "content": "Reading."],
         ["type": "usage", "content": call],
+        ["type": "context"].merging(Self.kinds) { $1 },
         ["type": "text", "content": "Done."],
       ]
       _ = try TestAdmin.query(
@@ -56,14 +75,16 @@ struct ContextLineTests {
         """)
       let antiphon = "/mission-control/antiphons/bibliographic/\(antiphonID)"
       try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine), cookies: [admin.cookie]) { page in
-        // Recorded: the trace's one call.
+        // Recorded: the trace's one call, by kind; its cached input unknown.
         try await page.openHydrated(antiphon)
         #expect(
-          try await page.evaluate(Self.line, as: String.self)
-            == "context 67,063 of 1,048,576, input 67,063, output 845 (thinking 512)")
+          try await page.evaluate(Self.bar, as: String.self)
+            == "6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 40 | 0 | 67,063 — 845 512")
         #expect(
-          try await page.evaluate("document.querySelector('.computorium-session-footer') === null", as: Bool.self),
-          "No footer line")
+          try await page.evaluate(
+            "document.querySelector('.computorium-session-byline-words').textContent.includes('context')",
+            as: Bool.self) == false,
+          "The ⓘ says no usage")
 
         // Live: a watch whose frames the test sends, from the trace's start.
         let original = try await page.evaluate("fetch('\(antiphon)').then(r=>r.text())", as: String.self)
@@ -93,35 +114,42 @@ struct ContextLineTests {
             // A new session: nothing called yet.
             window.__emit({ type: 'reset', text: '' })
             await window.__frames()
-            lines.push(\(Self.line))
+            lines.push(\(Self.bar))
             // The trace from its start: its first round's usage first.
             window.__emit({ type: 'thinking', reset: '1', text: 'Reading.' })
             window.__emit({ type: 'usage', input_tokens: 1200, output_tokens: 300, reasoning_tokens: 120,
               context_input_tokens: 1200, context_tokens: 1048576 })
             await window.__frames()
-            lines.push(\(Self.line))
+            lines.push(\(Self.bar))
             // The next round's: the context is its input, the tokens summed.
-            window.__emit({ type: 'usage', input_tokens: 67063, output_tokens: 845, reasoning_tokens: 512,
-              context_input_tokens: 67063, context_tokens: 1048576 })
+            window.__emit({ type: 'usage', input_tokens: 67063, cached_tokens: 50000, output_tokens: 845,
+              reasoning_tokens: 512, context_input_tokens: 67063, context_tokens: 1048576 })
             await window.__frames()
-            lines.push(\(Self.line))
+            lines.push(\(Self.bar))
+            // What it read, by kind: the Context segment gives way to them.
+            window.__emit({ type: 'context', window: 1048576, used: 67063, system_prompt: 1200, tools: 3100,
+              task: 900, images: 2048, tool_results: 41000, model_output: 3500, thinking: 12000,
+              compaction_summaries: 0, chat_template: 3315 })
+            await window.__frames()
+            lines.push(\(Self.bar))
             // A search: its tokens, the context as it was.
             window.__emit({ type: 'usage', input_tokens: 0, output_tokens: 0 })
             await window.__frames()
-            lines.push(\(Self.line))
+            lines.push(\(Self.bar))
             return lines
           })()
           """, as: [String].self)
         #expect(lines == [
-          "context —, input —, output —",
-          "context 1,200 of 1,048,576, input 1,200, output 300 (thinking 120)",
-          "context 67,063 of 1,048,576, input 68,263, output 1,145 (thinking 632)",
-          "context 67,063 of 1,048,576, input 68,263, output 1,145 (thinking 632)",
+          "— used | — / — | — — | — — | — — | — — | 0 | 0 | — — — —",
+          "0% used | 1.2k / 1M | — — | — — | 1.2k 0.1% | 1M 99.9% | 0 | 1 | 1,200 — 300 120",
+          "6% used | 67.1k / 1M | — — | — — | 67.1k 6.4% | 981.5k 93.6% | 0 | 63 | 68,263 50,000 1,145 632",
+          "6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 40 | 0 | 68,263 50,000 1,145 632",
+          "6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 40 | 0 | 68,263 50,000 1,145 632",
         ], "\(lines)")
         #expect(
           try await page.evaluate(
             "document.querySelector('.computorium-session-view').dataset.contextUsage", as: String.self)
-            == "67063 1048576 68263 1145 632")
+            == "67063 1048576 68263 50000 1145 632 1200 3100 900 2048 41000 3500 12000 0 3315")
         try await page.expectNoErrors()
       }
     } catch {
