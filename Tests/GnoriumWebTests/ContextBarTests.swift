@@ -4,15 +4,17 @@ import WebTests
 import WebTestsTesting
 
 /// A session's context bar (user, 2026-10-21): "6% used  67.1k / 1M" and a
-/// bar of what the latest call read, by kind; its bubble lists each kind, the
-/// free space and the totals—as recorded, and on as a watch's usage and
-/// context frames arrive; one Context segment, the kinds "—", where no call
-/// said them; "—" before a call. The ⓘ says no usage.
+/// bar of what the latest call read, by kind; its popover's first line, each
+/// kind, the free space and the totals in aligned columns—as recorded, and
+/// on as a watch's usage and context frames arrive; one Context row where no
+/// call said the kinds; only what is known, never a row of "—"; before a
+/// call the bar "—" and no popover. The ⓘ says no usage.
 @Suite("Context bar", .serialized)
 struct ContextBarTests {
-  /// The bar's words, two kinds' rows, Context's, the free space's, two
-  /// segments' widths and the totals (the bubble is portaled to <body> once
-  /// bound): one line, " | " between.
+  /// The bar's state, the popover's emptiness and display, its first line,
+  /// the bar's words, two kinds' rows, Context's, the free space's, two
+  /// segments' widths and the totals (the popover is portaled to <body>
+  /// once bound): one line, " | " between; a hidden row "hidden".
   static let bar = """
     (() => { const b = document.querySelector('.session-context-bar-view');
       const d = document.querySelector('.session-context-bar-details');
@@ -20,10 +22,34 @@ struct ContextBarTests {
         return r.hidden ? 'hidden' : r.querySelector('.session-context-bar-count').textContent + ' '
           + r.querySelector('.session-context-bar-share').textContent };
       const seg = k => b.querySelector(`.session-context-bar-segment[data-category="${k}"]`).getAttribute('width');
-      return [b.querySelector('.session-context-bar-percent').textContent,
+      const sum = d.querySelector('.session-context-bar-summary');
+      return [b.dataset.context, d.dataset.empty, getComputedStyle(d.parentElement).display,
+        sum.hidden ? 'hidden' : sum.textContent, b.querySelector('.session-context-bar-percent').textContent,
         b.querySelector('.session-context-bar-tokens').textContent, row('tools'), row('tool_results'), row('context'),
         row('free'), seg('tool_results'), seg('context'),
-        [...d.querySelectorAll('.session-context-bar-total')].map(e => e.textContent).join(' ')].join(' | ') })()
+        [...d.querySelectorAll('.session-context-bar-totals > .session-context-bar-row')]
+          .map(r => r.hidden ? 'hidden' : r.querySelector('.session-context-bar-total').textContent).join(' ')
+      ].join(' | ') })()
+    """
+
+  /// Opened by a click: the popover shows, its rows a grid whose numbers
+  /// end on one edge; the bar a 40px box after Raw, before the ⓘ.
+  static let opened = """
+    (async () => { const b = document.querySelector('.session-context-bar-view');
+      b.querySelector('.session-context-bar-meter').click();
+      await new Promise(r => requestAnimationFrame(() => setTimeout(r, 300)));
+      const d = document.querySelector('.session-context-bar-details');
+      const bubble = getComputedStyle(d.parentElement);
+      const ends = [...d.querySelectorAll('.session-context-bar-row:not([hidden]) .session-context-bar-count')]
+        .map(e => Math.round(e.getBoundingClientRect().right));
+      const row = b.closest('.computorium-session-controls-start');
+      const order = [...row.children].map(e => e.classList.contains('session-context-bar-view') ? 'bar'
+        : e.querySelector('.computorium-session-markdown-toggle') || e.classList.contains('computorium-session-markdown-toggle') ? 'raw'
+        : e.querySelector('.computorium-session-byline-words') ? 'info' : 'other');
+      return [bubble.visibility, getComputedStyle(d.querySelector('.session-context-bar-breakdown')).display,
+        new Set(ends).size === 1 ? 'aligned' : 'ragged',
+        Math.round(b.querySelector('.session-context-bar-meter').getBoundingClientRect().height),
+        order.join(' ')].join(' | ') })()
     """
 
   /// A call's context block as `session_context` writes it: every value a
@@ -79,7 +105,8 @@ struct ContextBarTests {
         try await page.openHydrated(antiphon)
         #expect(
           try await page.evaluate(Self.bar, as: String.self)
-            == "6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 40 | 0 | 67,063 — 845 512")
+            == "window | false | block | 6% used · 67.1k of 1M tokens | 6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 40 | 0 | 67,063 hidden 845 512")
+        #expect(try await page.evaluate(Self.opened, as: String.self) == "visible | grid | aligned | 40 | raw bar info")
         #expect(
           try await page.evaluate(
             "document.querySelector('.computorium-session-byline-words').textContent.includes('context')",
@@ -140,11 +167,11 @@ struct ContextBarTests {
           })()
           """, as: [String].self)
         #expect(lines == [
-          "— used | — / — | — — | — — | — — | — — | 0 | 0 | — — — —",
-          "0% used | 1.2k / 1M | — — | — — | 1.2k 0.1% | 1M 99.9% | 0 | 1 | 1,200 — 300 120",
-          "6% used | 67.1k / 1M | — — | — — | 67.1k 6.4% | 981.5k 93.6% | 0 | 63 | 68,263 50,000 1,145 632",
-          "6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 40 | 0 | 68,263 50,000 1,145 632",
-          "6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 40 | 0 | 68,263 50,000 1,145 632",
+          "none | true | none | hidden | — used | — / — | hidden | hidden | hidden | hidden | 0 | 0 | hidden hidden hidden hidden",
+          "window | false | block | 0% used · 1.2k of 1M tokens | 0% used | 1.2k / 1M | hidden | hidden | 1.2k 0.1% | 1M 99.9% | 0 | 1 | 1,200 hidden 300 120",
+          "window | false | block | 6% used · 67.1k of 1M tokens | 6% used | 67.1k / 1M | hidden | hidden | 67.1k 6.4% | 981.5k 93.6% | 0 | 63 | 68,263 50,000 1,145 632",
+          "window | false | block | 6% used · 67.1k of 1M tokens | 6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 40 | 0 | 68,263 50,000 1,145 632",
+          "window | false | block | 6% used · 67.1k of 1M tokens | 6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 40 | 0 | 68,263 50,000 1,145 632",
         ], "\(lines)")
         #expect(
           try await page.evaluate(
