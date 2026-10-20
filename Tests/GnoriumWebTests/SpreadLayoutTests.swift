@@ -40,9 +40,10 @@ struct SpreadLayoutTests {
         try await expect(spread).toHaveAttribute("dir", rightToLeft ? "rtl" : "ltr")
         let pages = spread.locator(".tei-spread-page")
         try await expect(pages).toHaveCount(2)
-        // Each page headed by its own label, its text under it.
-        try await expect(pages.nth(0).locator(".tei-line-mark")).toHaveText("A1 verso")
-        try await expect(pages.nth(1).locator(".tei-line-mark")).toHaveText("A2 recto")
+        // Each page its text; no label over it, the reader paged beside its
+        // images (web-components bb50692, 2026-10-13: only a quote's pages,
+        // read one after another, carry their labels).
+        try await expect(pages.locator(".tei-line-mark")).toHaveCount(0)
         try await expect(pages.nth(0)).toContainText(verso)
         try await expect(pages.nth(1)).toContainText(recto)
         // Reflow off: side by side, equally wide, the first page on the
@@ -51,10 +52,10 @@ struct SpreadLayoutTests {
         let second = try #require(try await pages.nth(1).boundingBox())
         #expect(abs(first.y - second.y) < 0.5, "the pages are not side by side")
         #expect(abs(first.width - second.width) < 0.5, "the columns differ: \(first.width) vs \(second.width)")
-        // Each page's label on its first line, the two level.
-        let firstLabel = try #require(try await pages.nth(0).locator(".tei-line-mark").boundingBox())
-        let secondLabel = try #require(try await pages.nth(1).locator(".tei-line-mark").boundingBox())
-        #expect(abs(firstLabel.y - secondLabel.y) < 0.5, "the labels stand at \(firstLabel.y) and \(secondLabel.y)")
+        // Each page's first line level with the other's.
+        let firstLine = try #require(try await pages.nth(0).getByText(verso).first.boundingBox())
+        let secondLine = try #require(try await pages.nth(1).getByText(recto).first.boundingBox())
+        #expect(abs(firstLine.y - secondLine.y) < 0.5, "the first lines stand at \(firstLine.y) and \(secondLine.y)")
         if rightToLeft {
           #expect(first.x > second.x + second.width - 0.5, "the first page is not on the right")
         } else {

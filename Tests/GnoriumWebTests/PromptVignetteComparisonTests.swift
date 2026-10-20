@@ -69,13 +69,14 @@ struct PromptVignetteComparisonTests {
       try await expect(changed.locator(".prompt-text-view .diff-box")).toHaveCount(0)
       try await expect(changed.locator(":scope > .prompt-text-diff .diff-box")).toBeVisible()
       // Every prompt of the process, in the vignette's order (user,
-      // 2026-10-17): the autocompaction's two unchanged, the continuation
-      // changed.
+      // 2026-10-17), as the Revise page and the prompt previews list them
+      // (gnorium-web e140e4996): the continuation changed, then the
+      // autocompaction's two unchanged.
       try await expect(comparisons).toHaveCount(5)
-      try await expect(comparisons.nth(2).locator(".prompt-text-view")).toHaveAttribute("data-raw", "false")
+      try await expect(comparisons.nth(2).locator(".prompt-text-view")).toHaveAttribute("data-raw", "true")
+      try await expect(comparisons.nth(2).locator(":scope > .prompt-text-diff .diff-box")).toBeVisible()
       try await expect(comparisons.nth(3).locator(".prompt-text-view")).toHaveAttribute("data-raw", "false")
-      try await expect(comparisons.nth(4).locator(".prompt-text-view")).toHaveAttribute("data-raw", "true")
-      try await expect(comparisons.nth(4).locator(":scope > .prompt-text-diff .diff-box")).toBeVisible()
+      try await expect(comparisons.nth(4).locator(".prompt-text-view")).toHaveAttribute("data-raw", "false")
       let styled = try await page.evaluate("""
         (() => {
           const content = document.querySelector('.prompt-compare-content');

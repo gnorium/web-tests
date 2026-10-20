@@ -47,8 +47,10 @@ struct TestamentFormsTests {
     let work = try ScratchWork(owner: admin)
     let version = work.versionID.lowercased()
     let record = work.recordID.lowercased()
+    // The edition by its UUID, as every node is named (gnorium-server
+    // 9eb095fd, 2026-10-12).
     let edition = try TestAdmin.query(
-      "SELECT key FROM biblio_record_versions, jsonb_object_keys(shape_json::jsonb) AS key WHERE id = '\(version)' AND key LIKE 'edition-%';"
+      "SELECT shape_json::jsonb -> key ->> 'uuid' FROM biblio_record_versions, jsonb_object_keys(shape_json::jsonb) AS key WHERE id = '\(version)' AND key LIKE 'edition-%';"
     ).trimmingCharacters(in: .whitespacesAndNewlines)
     let extraction = UUID().uuidString.lowercased()
     let citations = [UUID().uuidString.lowercased(), UUID().uuidString.lowercased()]
