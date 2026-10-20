@@ -4,8 +4,8 @@ import WebTests
 import WebTestsTesting
 
 /// The quatrain as a Computorium object (BUILD-PLAN U1): in the sidebar's
-/// COMPUTORIUM, in its own list, and on its own page—how far the measuring
-/// has come, each page's state in the level-one marks, the scale so far, and
+/// COMPUTORIUM, in its own list, and on its own page—laid out as an
+/// antiphon's: each page's state in the level-one marks in the sidebar, and
 /// the sessions. A scratch quatrain built by SQL (dev has no model).
 @Suite("Quatrains", .serialized)
 struct QuatrainTests {
@@ -84,7 +84,7 @@ struct QuatrainTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func theQuatrainPageTellsHowFarItHasComeAndWhereEachPageStands(engine: BrowserEngine, layout: Layout) async throws {
+  func theQuatrainPageIsItsSessionsWithTheSidebar(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -98,8 +98,10 @@ struct QuatrainTests {
         try await expect(chip).toContainText("Calibrating")
         try await expect(chip.locator(".rotating-dotted-ring-sector-view")).toHaveCount(1)
         try await expect(page.locator(".process-container")).toHaveAttribute("data-active-process", "calibration")
-        // How far it has come: the pages of its scope that have passed.
-        try await expect(page.locator(".quatrain-progress-label")).toHaveText("Measuring images: 1 of 4.")
+        // As an antiphon's page (user, 2026-10-21): no progress line, no
+        // scale tables—only the session with the sidebar.
+        try await expect(page.locator(".quatrain-progress")).toHaveCount(0)
+        try await expect(page.locator(".calibration-scale-view")).toHaveCount(0)
         // Pedigree: the overture, then the quatrain it was committed in.
         try await page.locator("#pedigree-rows > .accordion-summary").click()
         try await expect(page.locator("#pedigree-rows")).toContainText("Quatrain ID")
@@ -114,15 +116,6 @@ struct QuatrainTests {
             ("3", "running", "roster-status-running", "rotating-dotted-ring-sector-view"),
             ("4", "queued", "roster-status-pending", "dotted-ring-view"),
           ])
-        // The scale so far: a bordered block headed by its columns, no
-        // heading of its own; the dev model service is not there, so what is
-        // unknown reads as a dash.
-        let scale = page.locator(".calibration-scale-view")
-        try await expect(scale).toHaveCount(1)
-        for head in ["Axis", "Em", "Measurements", "Body", "Measure", "Height", "Margin", "Width"] {
-          try await expect(scale.locator("th").filter(hasText: head).first).toBeAttached()
-        }
-        try await expect(scale.locator("h1, h2, h3, h4, h5, h6")).toHaveCount(0)
         // The sessions: the first page's, its tool call in the transcript.
         try await expect(page.locator(".computorium-session-view").getByText("measure_page").first).toBeAttached()
         // A quatrain not failed offers no Continue, even to an admin.
@@ -154,7 +147,6 @@ struct QuatrainTests {
         try await page.openHydrated(scratch.path)
         try await expect(page.locator(".computorium-core-header-status-chip").first).toContainText("Failed")
         try await expect(page.getByRole(.button, name: "Continue")).toHaveCount(0)
-        try await expect(page.locator(".quatrain-progress")).toHaveCount(0)
         try await expect(page.locator("div.computorium-core-view")).toContainText("Image 2 cannot be measured.")
         // It opens on the page that failed it; the failed page's mark is the
         // red disc, the roster's failed dot.

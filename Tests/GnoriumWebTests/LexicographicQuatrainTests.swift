@@ -3,9 +3,9 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A lexicographic quatrain's page: its measurements exactly as its closing
-/// session's tools gave them—the funnel, each count opening its quotes, the
-/// dated quotes year by year, and the declared flags by kind. A scratch
+/// A lexicographic quatrain's page, laid out as an antiphon's (user,
+/// 2026-10-21): its closing session in the sidebar and the main column, and
+/// no measurements (its halftone's page shows them). A scratch
 /// quatrain built by SQL (dev has no model) over one sentiment of a
 /// throwaway admin's overture, removed after.
 @Suite("Lexicographic quatrain")
@@ -120,7 +120,7 @@ struct LexicographicQuatrainTests {
   }
 
   @Test(arguments: gnorium.engines)
-  func theQuatrainPageShowsItsMeasurementsAsTheToolsGaveThem(engine: BrowserEngine) async throws {
+  func theQuatrainPageIsItsSessionWithTheSidebar(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let scratch = try Scratch(owner: admin)
@@ -130,54 +130,11 @@ struct LexicographicQuatrainTests {
         try await expect(page.locator("h1").first).toHaveText("Lexicographic Quatrain")
         try await expect(page.locator(".computorium-core-header-status-chip").first).toContainText("Submitted")
 
-        // The record's figures, as frozen.
-        let pool = page.locator(".calibration-measurements-pool-table tbody tr")
-        try await expect(pool.filter(hasText: "Key mismatch").first).toContainText("1")
-        try await expect(pool.filter(hasText: "Span").first).toContainText("1600–1650")
-
-        // The sentiment, by its definition; its funnel's counts as measured.
-        let sentiment = page.locator("#calibration-sentiment-\(scratch.sentimentID)")
-        try await expect(sentiment.locator("summary").first).toContainText("The land alongside a web test.")
-        try await sentiment.locator("summary").first.click()
-        let funnel = sentiment.locator(".calibration-measurements-funnel-table tbody tr")
-        try await expect(funnel).toHaveCount(6)
-        let earliest = funnel.filter(hasText: "Earliest").first
-        try await expect(earliest).toContainText("1")
-        try await expect(funnel.filter(hasText: "Gated").first).toContainText("1")
-
-        // A count opens its quotes: the accordion it names, its testament.
-        let list = page.locator("#calibration-\(scratch.sentimentID)-earliest-selected")
-        try await expect(list.locator(".calibration-measurements-quote").first).toBeHidden()
-        try await earliest.locator("a[href='#calibration-\(scratch.sentimentID)-earliest-selected']").click()
-        try await expect(list.locator(".calibration-measurements-quote")).toHaveCount(1)
-        try await expect(list.locator(".calibration-measurements-quote").first).toBeVisible()
-        try await expect(list.locator(".calibration-measurements-quote").first).toContainText("The First Folio")
-        try await expect(list.locator(".calibration-measurements-quote").first).toContainText("1600")
-
-        // Why each selected quote: its surprise and context words.
-        let selected = sentiment.locator(".calibration-measurements-selected-table tbody tr")
-        try await expect(selected).toHaveCount(2)
-        try await expect(selected.first).toContainText("2.5")
-        try await expect(selected.first).toContainText("river")
-
-        // Year by year: each exact year of the open quotes, in all and
-        // selected; the gated quote's year is not among them.
-        let years = sentiment.locator(".calibration-measurements-timeline-table tbody tr")
-        try await expect(years).toHaveCount(2)
-        try await expect(years.nth(0)).toContainText("1600")
-        try await expect(years.nth(0).locator("td").nth(1)).toHaveText("2")
-        try await expect(years.nth(0).locator("td").nth(2)).toHaveText("1")
-        try await expect(years.nth(1)).toContainText("1650")
-        try await expect(sentiment.locator(".calibration-measurements-timeline-table")).not.toContainText("1500")
-
-        // The flags, by kind; a kind with none is unknown.
-        let flags = page.locator("#calibration-flags")
-        try await expect(flags.locator("[data-kind='splitting'] .calibration-measurements-flag"))
-          .toContainText("Two groups by date.")
-        try await expect(flags.locator("[data-kind='dating'] .calibration-measurements-flag"))
-          .toContainText("One date stands apart.")
-        try await expect(flags.locator("[data-kind='dating'] .calibration-measurements-flag")).toContainText("q3")
-        try await expect(flags.locator("section[data-kind='lumping']")).toContainText("—")
+        // The session: one roster row in the sidebar, its transcript in the
+        // main column; no measurements under it.
+        try await expect(page.locator(".computorium-core-sessions-slot .roster-row").first).toContainText("Calibration")
+        try await expect(page.locator(".computorium-session-view")).toHaveCount(1)
+        try await expect(page.locator(".calibration-measurements-view")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }
