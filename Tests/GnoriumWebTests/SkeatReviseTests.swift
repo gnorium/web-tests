@@ -69,15 +69,15 @@ struct SkeatReviseTests {
         // The madrigal's own Raw: the page headed.
         try await page.openHydrated("\(commit.madrigalPath)?image=1")
         try await page.locator(".artifact-xml-toggle button").first.click()
-        // The page's code; the document's header drawn over it under the
-        // Header switch, never in the page's own code (web-components
-        // efaeb69, 2026-10-20).
+        // The page's code, never the document's header: that is the
+        // reader's Header pane's, as code, under its own switch (user,
+        // 2026-10-21).
         let raw = page.locator(".artifact-markup .tei-page[data-active='true'] .tei-page-raw > .code-view .code-code").first
         try await expect(raw).toBeVisible()
         let shown = try await raw.evaluate("e => e.textContent").string ?? ""
         #expect(shown.hasPrefix(#"<TEI xmlns="http://www.tei-c.org/ns/1.0">"#), "Raw is not headed: \(shown.prefix(120))")
         try await page.locator(".artifact-header-toggle button").first.click()
-        let header = page.locator(".artifact-markup .tei-page[data-active='true'] .tei-page-raw > .tei-page-header .code-code").first
+        let header = page.locator(".artifact-markup-frame > .artifact-document-header .code-code").first
         try await expect(header).toBeVisible()
         let headerShown = try await header.evaluate("e => e.textContent").string ?? ""
         #expect(headerShown.contains("<tagsDecl>") && headerShown.contains(#"xml:id="text-block""#), "The header has no renditions")
