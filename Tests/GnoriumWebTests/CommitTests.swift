@@ -156,4 +156,51 @@ struct CommitTests {
     scratch.remove()
     try await admin.remove()
   }
+
+  /// A promotion refused while a revision filed on the object is open
+  /// (user, 2026-10-20: nothing hover-only): Commit stays enabled, and
+  /// pressing it shows why in the header's alert—on a phone as on a
+  /// desktop—and sends nothing.
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func refusedPromotionSaysWhyWhenPressed(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let fixture = try await FixtureServer.threePageManifest()
+    defer { fixture.stop() }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let scratch: ScratchCommit
+    do { scratch = try ScratchCommit(owner: admin, sourceURL: fixture.baseURL + "/manifest.json") }
+    catch { try await admin.remove(after: error) }
+    do {
+      // Every page explicated, the witness Italian: the Commit promotes.
+      _ = try TestAdmin.query("""
+        UPDATE bibliographic_madrigals SET proposed_content_json = '\(Self.madrigalTEI(fixture.baseURL, thirdRead: true))',
+          metadata_json = (metadata_json::jsonb || '{"language":"ita"}'::jsonb)::text WHERE id = '\(scratch.madrigalID)'
+        """)
+      let revisionID = try scratch.addOpenRevision()
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated(scratch.madrigalPath)
+        try await expect(page.locator(".commit-process")).toHaveAttribute("value", "promote_epilogue")
+        let trigger = page.locator(".commit-trigger").first
+        try await expect(trigger).not.toBeDisabled()
+        let alert = page.locator(".action-gate-alert[data-gate-action='commit']").first
+        try await expect(alert).toBeHidden()
+        #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
+        try await trigger.click()
+        try await expect(alert).toBeVisible()
+        try await expect(alert).toContainText("Accept or reject its open revision first")
+        let text = try await alert.innerText()
+        #expect(text.lowercased().contains(revisionID), "The reason names the open revision: \(text)")
+        #expect(try await Self.posted(page) == nil, "a refused promotion was sent")
+        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoErrors()
+      }
+      #expect(try scratch.stillPending(), "nothing was committed")
+    } catch {
+      scratch.remove()
+      try await admin.remove(after: error)
+    }
+    scratch.remove()
+    try await admin.remove()
+  }
 }

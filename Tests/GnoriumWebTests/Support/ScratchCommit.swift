@@ -23,6 +23,8 @@ struct ScratchCommit {
   let madrigalID: String
   private let owner: String
 
+  /// The work's title, which its objects' rows are titled by.
+  var title: String { "Web tests commit \(fountainID.prefix(8))" }
   var overturePath: String { "/mission-control/overtures/bibliographic/\(pendingOvertureID)" }
   var madrigalPath: String { "/mission-control/madrigals/bibliographic/\(madrigalID)" }
 
@@ -92,6 +94,18 @@ struct ScratchCommit {
     return "/mission-control/epilogues/bibliographic/\(id)"
   }
 
+  /// A revision filed on the madrigal, still open (pending); its id.
+  func addOpenRevision() throws -> String {
+    let id = UUID().uuidString.lowercased()
+    let user = try TestAdmin.query("SELECT id FROM users WHERE username = '\(owner)'")
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    _ = try TestAdmin.query("""
+      INSERT INTO revisions (id, revisable_type, revisable_id, prompt_changes_json, status, requested_by_user_id, created_at)
+      VALUES ('\(id)', 'bibliographicMadrigal', '\(madrigalID)', '[]', 'pending', '\(user)', now())
+      """)
+    return id
+  }
+
   func stillPending() throws -> Bool {
     let overture = try TestAdmin.query(
       "SELECT committed_at IS NULL FROM bibliographic_overtures WHERE id = '\(pendingOvertureID)'")
@@ -104,6 +118,7 @@ struct ScratchCommit {
     _ = try? TestAdmin.query(
       """
       BEGIN;
+      DELETE FROM revisions WHERE revisable_id IN ('\(madrigalID)', '\(pendingOvertureID)');
       DELETE FROM bibliographic_epilogues WHERE bibliographic_madrigal_id = '\(madrigalID)';
       DELETE FROM bibliographic_madrigals WHERE id = '\(madrigalID)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
