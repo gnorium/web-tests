@@ -118,7 +118,7 @@ struct QuatrainTests {
             ("4", "queued", "roster-status-pending", "dotted-ring-view"),
           ])
         // The sessions: the first page's, its tool call in the transcript.
-        try await expect(page.locator(".computorium-session-view").getByText("measure_page").first).toBeAttached()
+        try await expect(page.locator(".computorium-session-view").getByText("measure_image").first).toBeAttached()
         // A quatrain not failed offers no Continue, even to an admin.
         try await expect(page.getByRole(.button, name: "Continue")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()

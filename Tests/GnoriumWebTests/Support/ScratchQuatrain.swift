@@ -55,8 +55,8 @@ struct ScratchQuatrain {
     let measured: [[String: String]] = [
       ["type": "thinking", "content": "Measuring the first page."],
       [
-        "type": "tool", "name": "measure_page", "arguments": "{}",
-        "result": #"{"ok": true, "tool": "measure_page", "em": 20.5}"#, "status": "ok", "call_id": "call_1",
+        "type": "tool", "name": "measure_image", "arguments": "{}",
+        "result": #"{"ok": true, "tool": "measure_image", "em": 20.5}"#, "status": "ok", "call_id": "call_1",
       ],
       ["type": "text", "content": "The first page is measured."],
     ]
