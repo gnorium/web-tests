@@ -14,7 +14,7 @@ struct GlossPhraseTests {
   static let idiomService = "https://example.org/iiif/webtests-phrase"
   static let idiomTEI = """
     <TEI><text><body><pb n="1" facs="\(idiomService)/full/1300,/0/default.jpg"/>\
-    <p><s><w lemma="he" class="pronoun">He</w> <phr class="idiom" lemma="kick the bucket">\
+    <p><s><w lemma="he" class="pronoun">He</w> <phr xml:id="webtests-phrase" class="idiom" lemma="kick the bucket">\
     <w lemma="kick" class="verb" msd="Tense=Past">kicked</w> <w lemma="the" class="article">the</w> \
     <w lemma="bucket" class="noun">bucket</w></phr><pc>.</pc></s></p></body></text></TEI>
     """
@@ -29,10 +29,9 @@ struct GlossPhraseTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     var testament: ScratchTestament?
     var idiom: ScratchWord?
+    var assignment: ScratchAssignment?
     func clean() async throws {
-      if let testament {
-        _ = try? TestAdmin.query("DELETE FROM word_lemma_refs WHERE version_id = '\(testament.versionID)';")
-      }
+      assignment?.remove()
       idiom?.remove()
       testament?.remove()
       try await admin.remove()
@@ -42,14 +41,10 @@ struct GlossPhraseTests {
       testament = scratch
       let word = try ScratchWord(owner: admin)
       idiom = word
-      _ = try TestAdmin.query(
-        """
-        INSERT INTO word_lemma_refs (id, biblio_record_id, version_id, image_id, page, start_line, start_word,
-            start_surface, end_line, end_word, end_surface, surface, lexico_record_id, sentiment_id, antedates, created_at)
-          VALUES (gen_random_uuid(), '\(scratch.reading.work.recordID.lowercased())', '\(scratch.versionID)',
-            '\(Self.idiomService)', 1, 1, 2, 'kicked', 1, 4, 'bucket', 'kicked the bucket',
-            '\(word.recordID.lowercased())', '\(word.leaf)', false, now());
-        """)
+      // The phrase's sentiment, assigned by its xml:id.
+      assignment = try ScratchAssignment(
+        owner: admin, testament: scratch, word: word, image: Self.idiomService, wordID: "webtests-phrase",
+        surface: "kicked the bucket", lemma: "kick the bucket", wordClass: "idiom")
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(scratch.reading.work.path)
         _ = try await page.evaluate(
@@ -77,13 +72,14 @@ struct GlossPhraseTests {
         try await expect(rows.locator(".accordion-summary")).toHaveTexts(["kicked", "the", "bucket"])
         try await expect(rows.nth(1).locator(".gloss-word")).toBeVisible()
         try await expect(rows.nth(0).locator(".gloss-word")).toBeHidden()
-        // The phrase's attributes read in name order (`TEIEncoding`): class, then lemma.
+        // The phrase's attributes read in name order (`TEIEncoding`): class, then lemma, then
+        // its xml:id, what its assignment names it by.
         try await expect(rows.nth(1).locator(".datum-label")).toHaveTexts([
           "Language", "Lemma", "Class", "Morphology", "Phrase", "Phrase class", "Phrase lemma",
-          "Lexico-record",
+          "Phrase identifier", "Lexico-record",
         ])
         try await expect(rows.nth(1).locator(".datum-value")).toHaveTexts([
-          "English", "the", "Article", "—", "kicked the bucket", "Idiom", "kick the bucket", "—",
+          "English", "the", "Article", "—", "kicked the bucket", "Idiom", "kick the bucket", "webtests-phrase", "—",
         ])
         try await page.expectNoHorizontalOverflow()
         try await page.keyboard.press("Escape")

@@ -26,7 +26,7 @@ struct GlossTests {
   static let tei = """
     <TEI><text><body><pb n="1" facs="\(service)/full/1300,/0/default.jpg"/>\
     <p><s><w lemma="the" class="article" msd="Definite=Def|PronType=Art">The</w> \
-    <w lemma="scratchword" class="noun" msd="Number=Plur">scratchwords</w> \
+    <w xml:id="webtests-scratchwords" lemma="scratchword" class="noun" msd="Number=Plur">scratchwords</w> \
     <w lemma="stand" class="verb" msd="Tense=Past">stood</w><pc>.</pc></s></p><fw type="pageNum">12</fw>\
     </body></text></TEI>
     """
@@ -38,10 +38,9 @@ struct GlossTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     var testament: ScratchTestament?
     var words: [ScratchWord] = []
+    var assignment: ScratchAssignment?
     func clean() async throws {
-      if let testament {
-        _ = try? TestAdmin.query("DELETE FROM word_lemma_refs WHERE version_id = '\(testament.versionID)';")
-      }
+      assignment?.remove()
       for word in words { word.remove() }
       testament?.remove()
       try await admin.remove()
@@ -64,13 +63,12 @@ struct GlossTests {
         UPDATE lexico_record_versions SET record_json = jsonb_set(record_json::jsonb, '{senses,1,equivalents}',
             '[{"form":"\(german.title)","languageCode":"deu","recordPath":"\(german.path)#record-row-\(german.leaf)","equivalence":"broader"}]')::text
           WHERE id = '\(english.versionID.lowercased())';
-        INSERT INTO word_lemma_refs (id, biblio_record_id, version_id, image_id, page, start_line, start_word,
-            start_surface, end_line, end_word, end_surface, surface, lexico_record_id, sentiment_id, antedates, created_at)
-          VALUES (gen_random_uuid(), '\(scratch.reading.work.recordID.lowercased())', '\(scratch.versionID)',
-            '\(Self.service)', 1, 1, 2, 'scratchwords', 1, 2, 'scratchwords', 'scratchwords',
-            '\(english.recordID.lowercased())', '\(english.leaf)', false, now());
         COMMIT;
         """)
+      // The word's sentiment, assigned by its xml:id.
+      assignment = try ScratchAssignment(
+        owner: admin, testament: scratch, word: english, image: Self.service, wordID: "webtests-scratchwords",
+        surface: "scratchwords", lemma: "scratchword", wordClass: "noun")
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         // The testament reader, fetched into its row.
         try await page.openHydrated(scratch.reading.work.path)
@@ -117,11 +115,12 @@ struct GlossTests {
         // The Term, full width, one datum a row, its values linked.
         let term = details.locator(".metadata-group-view").first
         try await expect(term.locator(".metadata-group-title")).toHaveText("Term")
+        // Its xml:id last: what its sentiment's assignment names it by.
         try await expect(term.locator(".datum-label")).toHaveTexts([
-          "Language", "Lemma", "Class", "Number",
+          "Language", "Lemma", "Class", "Number", "Identifier",
         ])
         try await expect(term.locator(".datum-value")).toHaveTexts([
-          "English", "scratchword", "Noun", "Plural",
+          "English", "scratchword", "Noun", "Plural", "webtests-scratchwords",
         ])
         // Only the lemma links, to the record; class and language are plain.
         try await expect(term.locator(".datum-value a")).toHaveCount(1)
