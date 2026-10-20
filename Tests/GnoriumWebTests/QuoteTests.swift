@@ -4,11 +4,10 @@ import WebTests
 import WebTestsTesting
 
 /// A quote is shown in its testament (user, 2026-09-27): a sentiment's
-/// quote is the transcript
-/// of its page and the pages either side, one after another in one bounded
-/// box, each opened by its label, fetched only once it comes into view and
-/// opened with its sentence (split across a page break here) in the middle,
-/// the sentence and, more strongly, the word marked; no images. It is
+/// quote is read in its testament's reader (SENSES-DESIGN 8.4), fetched
+/// only once it comes into view, opened at its page with the page either
+/// side drawn and its sentence (split across a page break here) in view,
+/// the sentence and, more strongly, the word marked; its image off. It is
 /// headed by its testament's Chicago note (user, 2026-10-18), its title a
 /// link to the testament's row on its record's page at the quote's
 /// page; no breadcrumb, no header box. Anywhere in
@@ -74,7 +73,7 @@ struct QuoteTests {
 
         try await page.locator("#record-row-\(scratchWord.leaf) > .accordion-summary").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
-        let quote = attestation.locator(".quote-view")
+        let quote = attestation.locator(".testament-view")
         try await expect(quote).toHaveCount(1)
         // Headed by its testament's Chicago note, above the reader, nothing
         // else: no breadcrumb, no header box.
@@ -83,7 +82,7 @@ struct QuoteTests {
         let work = scratch.reading.work
         try await expect(heading).toHaveText("\(work.author), \(work.title) (1958), 3.")
         let headingAbove = try await attestation.evaluate(
-          "(view) => { const h = view.querySelector('.chicago-citation-view').getBoundingClientRect(); const q = view.querySelector('.quote-view').getBoundingClientRect(); return h.bottom <= q.top }")
+          "(view) => { const h = view.querySelector('.chicago-citation-view').getBoundingClientRect(); const q = view.querySelector('.testament-view').getBoundingClientRect(); return h.bottom <= q.top }")
         #expect(headingAbove == .bool(true), "the citation is not above the quote")
         try await expect(attestation.locator(".breadcrumb-view")).toHaveCount(0)
         try await expect(attestation.locator(".header-view")).toHaveCount(0)
@@ -95,16 +94,18 @@ struct QuoteTests {
           "SELECT shape_json::jsonb -> ('manifest-' || upper(f.id::text)) ->> 'uuid' FROM biblio_record_versions v, bibliographic_fountains f WHERE v.id = '\(scratch.versionID)' AND f.id = (SELECT bibliographic_fountain_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())');"
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         try await expect(headingLink).toHaveAttribute("href", "\(work.path)?image=2#record-row-\(leafUUID)")
-        // The page and the pages either side, each opened by its label.
-        try await expect(quote.locator(".tei-page")).toHaveCount(3)
-        try await expect(quote.locator(".tei-line-mark")).toHaveTexts(["2", "3", "4"])
+        // The page and the page either side drawn; the rest wait to be
+        // turned to.
+        try await expect(quote.locator(".artifact-markup .tei-page")).toHaveCount(3)
         try await expect(quote).not.toContainText("Page 1,")
         try await expect(quote).not.toContainText("Page 5,")
         // The sentence on both sides of the page break; the word more strongly.
-        try await expect(quote.locator("mark[data-highlight='sentence']")).toHaveTexts([
-          "Here the", "begins", "and ended on the next page.",
-        ])
-        let title = quote.locator("mark[data-highlight='title']")
+        let third = quote.locator(".tei-page[data-service-id='https://example.org/iiif/webtests-p3']")
+        try await expect(third.locator("mark[data-highlight='sentence']")).toHaveTexts(["Here the", "begins"])
+        try await expect(
+          quote.locator(".tei-page[data-service-id='https://example.org/iiif/webtests-p4'] mark[data-highlight='sentence']")
+        ).toHaveCount(1)
+        let title = third.locator("mark[data-highlight='title']")
         try await expect(title).toHaveText("scratchword")
         // Stronger by color alone: its weight is the text's own.
         let weights = try await quote.evaluate(
@@ -113,25 +114,15 @@ struct QuoteTests {
         // The word boxed as the OED boxes it; the sentence unboxed.
         try await expect(title).toHaveCSS("border-top-style", "solid")
         try await expect(quote.locator("mark[data-highlight='sentence']").first).toHaveCSS("border-top-style", "none")
-        // No images.
-        try await expect(quote.locator("img")).toHaveCount(0)
-        try await expect(attestation.locator(".artifact-view")).toHaveCount(0)
+        // One reader, its image off at first.
+        try await expect(attestation.locator(".artifact-view")).toHaveCount(1)
+        try await expect(attestation.locator(".artifact-canvas-toggle button")).toHaveAttribute("aria-pressed", "false")
 
-        // A bounded box, opened with the sentence in view.
-        let box = try #require(try await quote.boundingBox())
+        // Opened with the sentence in view in the markup pane.
+        let pane = try #require(try await quote.locator(".artifact-markup").first.boundingBox())
         let mark = try #require(try await title.boundingBox())
-        // Fourteen lines of 26px, its padding and border.
-        let tallest: Double = 14 * 26 + 2 * 16 + 2 + 1
-        #expect(box.height <= tallest)
-        let markBottom = mark.y + mark.height
-        let boxBottom = box.y + box.height
-        #expect(box.y <= mark.y)
-        #expect(markBottom <= boxBottom)
-        // Scrolled to the sentence only where the passage overflows its box:
-        // reflowed at every width (user, 2026-10-07), a short one fits.
-        let scrolled = try await quote.evaluate(
-          "box => box.scrollHeight > box.clientHeight + 1 ? box.scrollTop : -1")
-        if case .number(let top) = scrolled { #expect(top != 0) } else { Issue.record("No scrollTop") }
+        #expect(pane.y <= mark.y)
+        #expect(mark.y + mark.height <= pane.y + pane.height)
 
         // A word inside the quote opens the quote's gloss: its
         // Chicago note—the voice, the title italic (a report is
@@ -176,7 +167,7 @@ struct QuoteTests {
               if (!d.open) d.querySelector(':scope > .accordion-summary').click();
             slot.scrollIntoView({ block: 'center' }); return true })()
           """)
-        let objectQuote = page.locator(".attestation-view .quote-view").first
+        let objectQuote = page.locator(".attestation-view .testament-view").first
         try await expect(objectQuote).toHaveCount(1)
         let objectAddress = try await objectQuote.evaluate(
           "(box) => box.closest('[data-quote-gloss]').getAttribute('data-quote-gloss')")

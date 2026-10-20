@@ -40,8 +40,9 @@ struct FirstPassPermitTests {
         #expect(try TestAdmin.query(
           "SELECT lexico_record_id IS NOT NULL FROM sentiments WHERE uuid = '\(pass.sentimentID)';") == "t")
       }
-      // The record's level in its sidebar, as text at a phone's width too:
-      // postulated, nothing done yet: the dotted ring beside the word.
+      // The record's sentiments counted per level in its sidebar, as text
+      // at a phone's width too: postulated, nothing done yet: the dotted
+      // ring beside the count.
       for viewport in [Viewport.desktop, .phone] {
         try await withPage(engine, gnorium, viewport: viewport) { tab in
           try await tab.openHydrated("/lexico-records/eng/\(pass.title)/noun")
@@ -49,11 +50,13 @@ struct FirstPassPermitTests {
           if viewport.width < 768 {
             try await tab.locator("[aria-label='Open menu']").filter(visible: true).first.click()
           }
-          let level = tab.locator(".record-level-view").filter(visible: true).first
+          let level = tab.locator(".record-level-counts-view").filter(visible: true).first
           try await expect(level).toBeVisible()
-          try await expect(level.locator(".record-level-level")).toHaveText("Postulated")
-          try await expect(level.locator(".record-level-level .icon-view .dotted-ring-view")).toHaveCount(1)
-          try await expect(level.locator(".record-level-partial")).toHaveCount(0)
+          try await expect(level.locator(".record-level-counts-level")).toHaveCount(1)
+          let postulated = level.locator(".record-level-counts-level[data-level='postulated']")
+          try await expect(postulated).toContainText(" postulated")
+          try await expect(postulated.locator(".icon-view .dotted-ring-view")).toHaveCount(1)
+          try await expect(level.locator(".record-level-counts-stale")).toHaveCount(0)
           try await expect(tab.locator(".record-sidebar-status")).toHaveCount(0)
           try await tab.expectNoHorizontalOverflow()
         }

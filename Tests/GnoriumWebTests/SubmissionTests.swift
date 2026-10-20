@@ -418,10 +418,8 @@ struct SubmissionTests {
 
   // MARK: - From a record's page
 
-  /// A record's page offers its one road in—Submit Amendment on a
-  /// work's, which opens the record's amendment; Submit Sentiment on a
-  /// word's, which opens the form with the record chosen: its fields frozen,
-  /// its tree drawn. Signed out, the button is there all the same and says
+  /// A record's page offers its one road in—Submit Amendment, on a work's
+  /// and a word's alike, which opens the record's amendment. Signed out, the button is there all the same and says
   /// so in an alert, as the form's Submit does; no page explains it in prose.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func aRecordsPageOpensItsSubmissionWithItChosen(engine: BrowserEngine, layout: Layout) async throws {
@@ -431,7 +429,7 @@ struct SubmissionTests {
     let word = try ScratchWord(owner: admin)
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        for (path, label) in [(work.path, "Submit Amendment"), (word.path, "Submit Sentiment")] {
+        for (path, label) in [(work.path, "Submit Amendment"), (word.path, "Submit Amendment")] {
           try await page.openHydrated(path)
           // Its one action: on a phone full width, wider content-width
           // (user, 2026-09-30).
@@ -453,15 +451,10 @@ struct SubmissionTests {
           }
           try await page.locator(".record-actions a").filter(hasText: label).click()
         }
-        // The word's form, the record chosen, its tree drawn.
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the form, the record chosen") {
-          $0.query?.contains("record=\(word.recordID)") == true
+        // The word's amendment.
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the word's amendment") {
+          $0.path == "\(word.path)/amendments/new"
         }
-        let chosen = page.locator(".submit-sentiment-form .record-choice-field-view input[name='lexico-record']")
-        try await expect(chosen).toHaveValue(word.recordID)
-        try await expect(page.locator(".submit-sentiment-form .record-choice-apparatus"), timeout: .seconds(15))
-          .toHaveCount(1)
-        try await expect(page.locator(".submit-sentiment-tree .outliner-item[data-outliner-id='new']")).toHaveCount(1)
         // The work's amendment.
         try await page.openHydrated(work.path)
         try await page.locator(".record-actions a").filter(hasText: "Submit Amendment").click()

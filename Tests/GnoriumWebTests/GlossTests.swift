@@ -210,7 +210,7 @@ struct GlossTests {
         // word clicked expanded with its own gloss's rows and its record.
         try await page.openHydrated(english.path)
         try await page.locator("#record-row-\(english.leaf) > .accordion-summary").click()
-        let quote = page.locator("#record-row-\(english.leaf) .quote-view")
+        let quote = page.locator("#record-row-\(english.leaf) .attestation-quote .testament-view")
         let word = quote.locator(".tei-word").filter(hasText: "scratchwords")
         try await expect(word).toHaveCount(1)
         try await word.click()

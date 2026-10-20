@@ -110,8 +110,11 @@ struct LexicographicTranslationDefinitionTests {
         try await expect(box.locator("[data-definition-layer='native']")).toBeVisible()
         try await expect(row.locator(".record-row-title").first).toHaveText(Self.german)
         try await expect(row.locator(".record-row-title").first).toHaveAttribute("lang", "de")
-        // Its level is its lowest sentiment's: the branch is not translated.
-        try await expect(page.locator(".record-level-level").first).toHaveText("Explicated")
+        // No single level (user, 2026-10-20): its sentiments counted per
+        // level, the branch explicated, the leaf translated.
+        let counts = page.locator(".record-level-counts-view").first
+        try await expect(counts.locator("[data-level='explicated']")).toHaveText("1 explicated")
+        try await expect(counts.locator("[data-level='translated']")).toHaveText("1 translated")
         // Usage is schema: the same in every language.
         try await expect(row.locator(".sentiment-metadata-view").first).toContainText("in seafaring use")
         try await expect(row.locator(".sentiment-metadata-view").getByText("in der Seefahrt")).toHaveCount(0)
