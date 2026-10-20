@@ -33,7 +33,7 @@ struct ContextBarTests {
     """
 
   /// Opened by a click: the popover shows, its rows a grid whose numbers
-  /// end on one edge; the bar a 40px box after Raw, before the ⓘ.
+  /// end on one edge; the bar a 40px box after Raw and the ⓘ.
   static let opened = """
     (async () => { const b = document.querySelector('.session-context-bar-view');
       b.querySelector('.session-context-bar-meter').click();
@@ -106,7 +106,7 @@ struct ContextBarTests {
         #expect(
           try await page.evaluate(Self.bar, as: String.self)
             == "window | false | block | 6% used · 67.1k of 1M tokens | 6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 40 | 0 | 67,063 hidden 845 512")
-        #expect(try await page.evaluate(Self.opened, as: String.self) == "visible | grid | aligned | 40 | raw bar info")
+        #expect(try await page.evaluate(Self.opened, as: String.self) == "visible | grid | aligned | 40 | raw info bar")
         #expect(
           try await page.evaluate(
             "document.querySelector('.computorium-session-byline-words').textContent.includes('context')",
