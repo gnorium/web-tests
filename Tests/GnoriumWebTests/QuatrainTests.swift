@@ -9,9 +9,9 @@ import WebTestsTesting
 /// the sessions. A scratch quatrain built by SQL (dev has no model).
 @Suite("Quatrains", .serialized)
 struct QuatrainTests {
-  /// The roster's rows in order, each in its state's level-one mark: the
-  /// plain ring passed, the red disc failed, the dotted ring sector running,
-  /// the dotted ring waiting.
+  /// The roster's rows in order, each in its state's calibration mark: the
+  /// plain ring passed, the red ring failed, the ring sector running, the
+  /// dotted ring waiting.
   static func expectRoster(_ page: Page, _ expected: [(String, String, String, String)]) async throws {
     let roster = page.locator(".computorium-core-sessions-slot").first
     try await expect(roster.locator(".roster-row")).toHaveCount(expected.count)
@@ -92,11 +92,12 @@ struct QuatrainTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(scratch.path)
-        // Calibrating: the level-one process mark (the dotted ring sector
-        // turning), in the header's own words.
+        // Calibrating: calibration's running mark (the ring sector turning:
+        // its target level, calibrated), in the header's own words.
         let chip = page.locator(".computorium-core-header-status-chip").first
         try await expect(chip).toContainText("Calibrating")
-        try await expect(chip.locator(".rotating-dotted-ring-sector-view")).toHaveCount(1)
+        try await expect(chip.locator(".rotating-ring-sector-view")).toHaveCount(1)
+        try await expect(chip.locator(".rotating-dotted-ring-sector-view")).toHaveCount(0)
         try await expect(page.locator(".process-container")).toHaveAttribute("data-active-process", "calibration")
         // As an antiphon's page (user, 2026-10-21): no progress line, no
         // scale tables—only the session with the sidebar.
@@ -113,7 +114,7 @@ struct QuatrainTests {
           [
             ("1", "succeeded", "roster-status-done", "ring-icon-view"),
             ("2", "queued", "roster-status-pending", "dotted-ring-view"),
-            ("3", "running", "roster-status-running", "rotating-dotted-ring-sector-view"),
+            ("3", "running", "roster-status-running", "rotating-ring-sector-view"),
             ("4", "queued", "roster-status-pending", "dotted-ring-view"),
           ])
         // The sessions: the first page's, its tool call in the transcript.
@@ -148,14 +149,14 @@ struct QuatrainTests {
         try await expect(page.locator(".computorium-core-header-status-chip").first).toContainText("Failed")
         try await expect(page.getByRole(.button, name: "Continue")).toHaveCount(0)
         try await expect(page.locator("div.computorium-core-view")).toContainText("Image 2 cannot be measured.")
-        // It opens on the page that failed it; the failed page's mark is the
-        // red disc, the roster's failed dot.
+        // It opens on the page that failed it; the failed page's mark is
+        // calibration's target mark in red: the red ring.
         try await Self.expectRoster(
           page,
           [
             ("1", "succeeded", "roster-status-done", "ring-icon-view"),
-            ("2", "failed", "roster-status-failed", "disc-icon-view"),
-            ("3", "running", "roster-status-running", "rotating-dotted-ring-sector-view"),
+            ("2", "failed", "roster-status-failed", "ring-icon-view"),
+            ("3", "running", "roster-status-running", "rotating-ring-sector-view"),
             ("4", "queued", "roster-status-pending", "dotted-ring-view"),
           ])
         try await page.openHydrated(scratch.path + "?image=1")

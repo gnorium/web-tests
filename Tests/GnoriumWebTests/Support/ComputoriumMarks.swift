@@ -14,6 +14,20 @@ enum ComputoriumMarks {
         const original = mark.dataset.status;
         row.classList.remove('roster-row-selected');
         const translation = '\(process)' === 'translation';
+        const calibration = '\(process)' === 'calibration';
+        // Each process's marks are the levels it goes from and to (user,
+        // 2026-10-21): pending its starting level, running the rotating
+        // sector of its target, done the target, failed the target in red;
+        // stale the starting level (explication's and calibration's
+        // orange, translation's a blue disc in an orange ring).
+        const shapes = calibration
+          ? { pending: '.dotted-ring-view', running: '.rotating-ring-sector-view', done: '.ring-icon-view',
+              stale: '.dotted-ring-view', failed: '.ring-icon-view' }
+          : translation
+          ? { pending: '.disc-icon-view', running: '.rotating-ring-sector-with-disc-view', done: '.ringed-disc-icon-view',
+              stale: '.ringed-disc-icon-view', failed: '.ringed-disc-icon-view' }
+          : { pending: '.ring-icon-view', running: '.rotating-sector-view', done: '.disc-icon-view',
+              stale: '.ring-icon-view', failed: '.disc-icon-view' };
         const failures = [];
         // The header chip keeps its own vocabulary (never the roster's):
         // submitted green, failed red, in flight or pending blue.
@@ -30,15 +44,9 @@ enum ComputoriumMarks {
         for (const status of ['queued', 'awaiting', 'failed', 'stale', 'running', 'succeeded', 'committed']) {
           mark.dataset.status = status;
           const state = status === 'running' ? 'running' : ['succeeded', 'committed'].includes(status) ? 'done'
-            : status === 'stale' ? 'stale' : 'pending';
-          // Stale has marks of its own: explication an orange ring,
-          // translation a blue disc in an orange ring.
-          const shape = state === 'running'
-            ? (translation ? '.rotating-ring-sector-with-disc-view' : '.rotating-sector-view')
-            : state === 'done' || state === 'stale' ? (translation ? '.ringed-disc-icon-view' : (state === 'done' ? '.disc-icon-view' : '.ring-icon-view'))
-            : (translation ? '.disc-icon-view' : '.ring-icon-view');
-          if (!visible('.roster-status-' + state + ' ' + shape)) failures.push(status + ': wrong shape');
-          const tone = state === 'stale' && !translation ? 'orange' : 'blue';
+            : status === 'stale' ? 'stale' : status === 'failed' ? 'failed' : 'pending';
+          if (!visible('.roster-status-' + state + ' ' + shapes[state])) failures.push(status + ': wrong shape');
+          const tone = state === 'failed' ? 'red' : state === 'stale' && !translation ? 'orange' : 'blue';
           const probe = document.createElement('span');
           probe.style.color = 'var(--color-' + tone + ')'; document.body.append(probe);
           if (getComputedStyle(mark).color !== getComputedStyle(probe).color) failures.push(status + ': not ' + tone);
@@ -68,15 +76,17 @@ enum ComputoriumMarks {
   }
 
   /// The in-progress mark of each process, one rule for every mark a running
-  /// process draws (`ProcessInFlight.mark`, user, 2026-10-17): explication
-  /// the turning disc sector, translation the turning ring sector round a
-  /// still disc, arbitration by the highest level its object has fully
+  /// process draws (`ProcessInFlight.mark`, user, 2026-10-21): the rotating
+  /// sector of the level it goes to—calibration the turning ring sector,
+  /// explication the turning disc sector, translation the turning ring
+  /// sector round a still disc, arbitration by the highest level its object has fully
   /// reached (user, 2026-10-21): postulated the dotted ring sector,
   /// calibrated the ring sector, explicated the disc sector, translated the
   /// ring sector round a still disc.
   static func inProgressShape(_ process: String, arbitrated: String = "postulated") -> String {
     switch process {
     case "translation": return ".rotating-ring-sector-with-disc-view"
+    case "calibration": return ".rotating-ring-sector-view"
     case "arbitration":
       switch arbitrated {
       case "calibrated": return ".rotating-ring-sector-view"
