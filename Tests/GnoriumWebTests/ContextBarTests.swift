@@ -57,7 +57,7 @@ struct ContextBarTests {
   /// the 67,063 read.
   static let kinds: [String: String] = [
     "window": "1048576", "used": "67063", "system_prompt": "1200", "task_prompt": "900", "tools": "3100",
-    "images": "2048", "thinking": "12000", "tool_inputs": "500", "tool_outputs": "41000", "output": "3000",
+    "images": "2048", "thinking": "12000", "tool_inputs": "500", "tool_outputs": "41000", "text": "3000",
     "autocompaction_summaries": "0", "chat_template": "3315",
   ]
 
@@ -156,7 +156,7 @@ struct ContextBarTests {
             // What it read, by kind: the Context segment gives way to them.
             window.__emit({ type: 'context', window: 1048576, used: 67063, system_prompt: 1200, tools: 3100,
               task_prompt: 900, images: 2048, thinking: 12000, tool_inputs: 500, tool_outputs: 41000,
-              output: 3000, autocompaction_summaries: 0, chat_template: 3315 })
+              text: 3000, autocompaction_summaries: 0, chat_template: 3315 })
             await window.__frames()
             lines.push(\(Self.bar))
             // A search: its tokens, the context as it was.
