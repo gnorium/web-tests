@@ -25,8 +25,8 @@ struct ContextBarTests {
       const sum = d.querySelector('.session-context-bar-summary');
       return [b.dataset.context, d.dataset.empty, getComputedStyle(d.parentElement).display,
         sum.hidden ? 'hidden' : sum.textContent, b.querySelector('.session-context-bar-percent').textContent,
-        b.querySelector('.session-context-bar-tokens').textContent, row('tools'), row('tool_results'), row('context'),
-        row('free'), seg('tool_results'), seg('context'),
+        b.querySelector('.session-context-bar-tokens').textContent, row('tools'), row('tool_outputs'), row('context'),
+        row('free'), seg('tool_outputs'), seg('context'),
         [...d.querySelectorAll('.session-context-bar-totals > .session-context-bar-row')]
           .map(r => r.hidden ? 'hidden' : r.querySelector('.session-context-bar-total').textContent).join(' ')
       ].join(' | ') })()
@@ -56,9 +56,9 @@ struct ContextBarTests {
   /// string; the kinds sum to 63,748, the chat template's 3,315 the rest of
   /// the 67,063 read.
   static let kinds: [String: String] = [
-    "window": "1048576", "used": "67063", "system_prompt": "1200", "tools": "3100", "task": "900",
-    "images": "2048", "tool_results": "41000", "model_output": "3500", "thinking": "12000",
-    "compaction_summaries": "0", "chat_template": "3315",
+    "window": "1048576", "used": "67063", "system_prompt": "1200", "task_prompt": "900", "tools": "3100",
+    "images": "2048", "thinking": "12000", "tool_inputs": "500", "tool_outputs": "41000", "output": "3000",
+    "autocompaction_summaries": "0", "chat_template": "3315",
   ]
 
   @Test(arguments: [BrowserEngine.chrome])
@@ -105,7 +105,7 @@ struct ContextBarTests {
         try await page.openHydrated(antiphon)
         #expect(
           try await page.evaluate(Self.bar, as: String.self)
-            == "window | false | block | 6% used · 67.1k of 1M tokens | 6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 40 | 0 | 67,063 hidden 845 512")
+            == "window | false | block | 6% used · 67.1k of 1M tokens | 6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 39 | 0 | 67,063 hidden 845 512")
         #expect(try await page.evaluate(Self.opened, as: String.self) == "visible | grid | aligned | 40 | raw info bar")
         #expect(
           try await page.evaluate(
@@ -155,8 +155,8 @@ struct ContextBarTests {
             lines.push(\(Self.bar))
             // What it read, by kind: the Context segment gives way to them.
             window.__emit({ type: 'context', window: 1048576, used: 67063, system_prompt: 1200, tools: 3100,
-              task: 900, images: 2048, tool_results: 41000, model_output: 3500, thinking: 12000,
-              compaction_summaries: 0, chat_template: 3315 })
+              task_prompt: 900, images: 2048, thinking: 12000, tool_inputs: 500, tool_outputs: 41000,
+              output: 3000, autocompaction_summaries: 0, chat_template: 3315 })
             await window.__frames()
             lines.push(\(Self.bar))
             // A search: its tokens, the context as it was.
@@ -170,13 +170,13 @@ struct ContextBarTests {
           "none | true | none | hidden | — used | — / — | hidden | hidden | hidden | hidden | 0 | 0 | hidden hidden hidden hidden",
           "window | false | block | 0% used · 1.2k of 1M tokens | 0% used | 1.2k / 1M | hidden | hidden | 1.2k 0.1% | 1M 99.9% | 0 | 1 | 1,200 hidden 300 120",
           "window | false | block | 6% used · 67.1k of 1M tokens | 6% used | 67.1k / 1M | hidden | hidden | 67.1k 6.4% | 981.5k 93.6% | 0 | 63 | 68,263 50,000 1,145 632",
-          "window | false | block | 6% used · 67.1k of 1M tokens | 6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 40 | 0 | 68,263 50,000 1,145 632",
-          "window | false | block | 6% used · 67.1k of 1M tokens | 6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 40 | 0 | 68,263 50,000 1,145 632",
+          "window | false | block | 6% used · 67.1k of 1M tokens | 6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 39 | 0 | 68,263 50,000 1,145 632",
+          "window | false | block | 6% used · 67.1k of 1M tokens | 6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 39 | 0 | 68,263 50,000 1,145 632",
         ], "\(lines)")
         #expect(
           try await page.evaluate(
             "document.querySelector('.computorium-session-view').dataset.contextUsage", as: String.self)
-            == "67063 1048576 68263 50000 1145 632 1200 3100 900 2048 41000 3500 12000 0 3315")
+            == "67063 1048576 68263 50000 1145 632 1200 900 3100 2048 12000 500 41000 3000 0 3315")
         try await page.expectNoErrors()
       }
     } catch {
