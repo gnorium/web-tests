@@ -145,7 +145,9 @@ struct ImageTests {
         try await expect(object).toBeHidden()
         let container = try #require(try await viewer.locator(".artifact-viewer-container").boundingBox())
         let transcript = try #require(try await viewer.locator(".artifact-markup").boundingBox())
-        #expect(abs(transcript.width - container.width) < 2, "the transcript takes the whole width")
+        // Less the markup box's 1px edge on each side, always there
+        // (artifact-core 17bbbe5, 2026-10-18: transparent until ringed).
+        #expect(abs(transcript.width - container.width) < 3, "the transcript takes the whole width")
         try await viewer.locator(".pagination-next").first.click()
         try await expect(viewer.locator(".artifact-markup .tei-page[data-active='true']"))
           .toHaveAttribute("data-service-id", services[1])

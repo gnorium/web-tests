@@ -118,7 +118,9 @@ struct BaselinesTests {
       try await expect(page.getByText("CER (95% CI)").first).toBeAttached()
       try await expect(page.locator("#item-p1 .diff-view")).toBeAttached()
       try await expect(page.locator("#item-p1").getByText("the reading of modern editions", exact: false)).toBeAttached()
-      try await expect(page.locator("#what-ran").getByText("deepseek-flash").first).toBeAttached()
+      // The model as the version that served its calls, never the alias
+      // (gnorium-server 815805b1, 2026-10-17: versions in every model column).
+      try await expect(page.locator("#what-ran").getByText("DeepSeek-V4.1-Flash", exact: false).first).toBeAttached()
       // A process without its kind: the page is the kind's.
       try await expect(page.locator("#what-ran").getByText("Explication", exact: true).first).toBeAttached()
       #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
@@ -144,13 +146,17 @@ struct BaselinesTests {
       let row = runs.locator(".filter-bar-row").last
       try await row.locator(".filter-bar-field-picker .dropdown-trigger").click()
       try await row.locator(".filter-bar-field-picker .dropdown-option[data-value='model']").click()
+      // The model by the version that served the run's call (gnorium-server
+      // 815805b1, 2026-10-17): the latest release of the alias before it.
+      let version = try TestAdmin.query(
+        "SELECT version FROM model_versions WHERE provider = 'deepseek' AND model = 'deepseek-flash' AND released_at <= now() ORDER BY released_at DESC LIMIT 1;")
       try await row.locator("input[data-combobox-input='true']").type("FLASH")
-      let suggestion = row.locator(".combobox-option[data-value='deepseek-flash']")
+      let suggestion = row.locator(".combobox-option[data-value='\(version)']")
       try await expect(suggestion).toBeVisible()
       try await suggestion.click()
       try await runs.locator(".filter-bar-apply").click()
-      try await expect(page).toHaveURL("model=deepseek-flash") { url in
-        url.query?.contains("model=deepseek-flash") == true
+      try await expect(page).toHaveURL("model=\(version)") { url in
+        url.query?.contains("model=\(version)") == true
       }
       try await expect(page.locator("#baselines a[href='/mission-control/baselines/\(runID)']")).toBeAttached()
       // A model no baseline has: none matches.

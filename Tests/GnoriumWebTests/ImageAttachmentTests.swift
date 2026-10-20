@@ -78,7 +78,7 @@ struct ImageAttachmentTests {
             constructor(url) { window.__imageMockURL=url; window.__imageMock='constructed'; this.handlers={}; setTimeout(()=>{
               window.__imageMock='emitted';
               this.emit('start','{}');
-              this.emit('chunk',JSON.stringify({type:'tool',image:'1',name:'view_canvas',arguments:'{"label":"1"}',result:JSON.stringify({ok:true,canvas:'1',source_width:3000,source_height:4000,sent_width:900,sent_height:1200}),status:'ok',call_id:'late-image'}));
+              this.emit('chunk',JSON.stringify({type:'tool',image:'1',name:'view_image',arguments:'{"label":"1"}',result:JSON.stringify({ok:true,canvas:'1',source_width:3000,source_height:4000,sent_width:900,sent_height:1200}),status:'ok',call_id:'late-image'}));
               this.emit('chunk',JSON.stringify({type:'image_sent',image:'1',url:'\(sent)'}));
               this.emit('chunk',JSON.stringify({type:'thinking',image:'1',text:'Reading the page live.'}));
             },500); }

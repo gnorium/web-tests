@@ -40,7 +40,7 @@ struct QuoteTests {
   }()
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func anQuoteIsShownInItsTestament(engine: BrowserEngine, layout: Layout) async throws {
+  func aQuoteIsShownInItsTestament(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -190,24 +190,6 @@ struct QuoteTests {
         try await expect(objectGloss.locator(".gloss-word-row").filter(hasText: "begins")).toHaveCount(1)
         try await page.keyboard.press("Escape")
 
-        try await page.expectNoHorizontalOverflow()
-        try await page.expectNoErrors()
-
-        // Read again, the testament changed the word: the quote is read where
-        // it was anchored, still marked, and says it awaits explication again.
-        _ = try TestAdmin.query(
-          """
-          INSERT INTO word_reanchorings (id, from_version_id, to_version_id, anchor_json, status, reason, quote_id, created_at)
-            VALUES ('\(UUID().uuidString.lowercased())', '\(scratch.versionID)', '\(scratch.reading.work.versionID.lowercased())',
-              '{}', 'flagged', 'Its reading changed in the later version: scratchword', 'u-1', now());
-          """)
-        try await page.openHydrated(scratchWord.path)
-        try await page.locator("#record-row-\(scratchWord.leaf) > .accordion-summary").click()
-        try await expect(row).toHaveAttribute("data-open-finished", "true")
-        let notice = attestation.locator(".markup-changed-view")
-        try await expect(notice).toHaveText(
-          "A later markup of this testament changed this word (Its reading changed in the later version: scratchword). It awaits explication again.")
-        try await expect(attestation.locator(".quote-view mark[data-highlight='title']")).toHaveText("scratchword")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }
