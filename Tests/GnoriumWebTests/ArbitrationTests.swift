@@ -1150,7 +1150,7 @@ struct ArbitrationTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome])
-  func arbitrationPromptsLeadBothProcessesAndAreRevisable(engine: BrowserEngine) async throws {
+  func arbitrationPromptsLeadBothProcessesAndAreNotRevisedOnObjects(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let fixture = try await FixtureServer.threePageManifest()
@@ -1206,20 +1206,11 @@ struct ArbitrationTests {
             try await expect(sections.nth(index).locator(".prompt-variables-view")).toHaveCount(filled ? 1 : 2)
             try await expect(sections.nth(index).getByText("Autocompaction", exact: true)).toHaveCount(1)
           }
+          // Its Revise page holds no prompt: a process's prompts are revised
+          // on a palinode of their vignette (user, 2026-10-20).
           try await page.openHydrated(path.split(separator: "?").first.map(String.init)! + "/revise")
-          let arbitration = page.locator(".prompt-revision-fields-process[data-process='\(slot)']")
-          try await expect(arbitration.locator("textarea[name='prompt-system-\(slot)']")).toHaveCount(1)
-          try await expect(arbitration.locator("textarea[name='prompt-task-\(slot)']")).toHaveCount(1)
-          // The process, its prompts, autocompaction's and the continuation
-          // prompt's (user, 2026-10-15).
-          try await expect(arbitration.locator(".accordion-details")).toHaveCount(7)
-          try await expect(arbitration.locator(".accordion-details[data-expanded='false']")).toHaveCount(7)
-          try await expect(arbitration.locator("textarea[name='prompt-task-\(slot)_continuation']")).toHaveCount(1)
-          try await expect(arbitration.locator("#prompt-revision-process-\(slot) .accordion-title").first).toHaveText("Arbitration")
-          let auto = arbitration.locator("#prompt-revision-autocompaction-\(slot)")
-          try await expect(auto.getByText("Autocompaction", exact: true)).toHaveCount(1)
-          try await expect(auto.locator("textarea[name='prompt-system-\(slot)_autocompaction']")).toHaveCount(1)
-          try await expect(auto.locator("textarea[name='prompt-task-\(slot)_autocompaction']")).toHaveCount(1)
+          try await expect(page.locator(".prompt-revision-fields-view")).toHaveCount(0)
+          try await expect(page.locator("textarea[name='prompt-system-\(slot)']")).toHaveCount(0)
           try await page.expectNoHorizontalOverflow()
         }
       }

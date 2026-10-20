@@ -626,19 +626,12 @@ struct ReviseEditorTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
-    let commit = try ScratchCommit(owner: contributor)
     let slot = "bibliographic_arbitration"
-    defer { _ = try? TestAdmin.query("DELETE FROM revisions WHERE requested_by_user_id = (SELECT id FROM users WHERE username = '\(contributor.username)')") }
+    // Its process's palinode (user, 2026-10-20).
+    let palinode = try ScratchPalinode(slot: slot, owner: contributor)
     do {
-      try Self.setUp(commit)
-      _ = try TestAdmin.query(
-        #"""
-        UPDATE bibliographic_madrigals SET
-          metadata_json = (metadata_json::jsonb || '{"title":"Web tests original title","provider":"folger_shakespeare_library"}'::jsonb)::text
-        WHERE id = '\#(commit.madrigalID)'
-        """#)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        try await page.openHydrated("\(commit.madrigalPath)/revise")
+        try await page.openHydrated("\(palinode.path)/revise")
         let prompts = page.locator(".prompt-revision-fields-view .prompt-revision-fields-process[data-process='\(slot)']")
         try await prompts.locator("#prompt-revision-process-\(slot) .accordion-summary").first.click()
         try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
@@ -697,10 +690,10 @@ struct ReviseEditorTests {
           """)
         try await submit.click()
         try await expect(page, timeout: .seconds(15))
-          .toHaveURL("the madrigal at its locution", where: RevisePagesTests.atLocution(commit.madrigalPath))
+          .toHaveURL("the palinode at its locution", where: RevisePagesTests.atLocution(palinode.path))
         let user = try contributor.column("id")
         let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'").uppercased()
-        try await page.openHydrated("\(commit.madrigalPath)/revisions/\(id)")
+        try await page.openHydrated("\(palinode.path)/revisions/\(id)")
         let filed = try await page.evaluate(
           """
           (() => {
@@ -720,10 +713,10 @@ struct ReviseEditorTests {
         }
         try await page.expectNoErrors()
       }
-      commit.remove()
+      palinode.remove()
       try await contributor.remove()
     } catch {
-      commit.remove()
+      palinode.remove()
       try await contributor.remove(after: error)
     }
   }

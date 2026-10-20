@@ -196,50 +196,41 @@ struct OvertureImagesTests {
     try await admin.remove()
   }
 
-  /// A prompt's legend links the accepted revision merged into it at the
-  /// prompt it is (user, 2026-10-09): the revision page's system or task
-  /// accordion. Opened by the task prompt's link, a system-prompt-only
-  /// revision's page opens the task's accordion—unchanged, so closed on
-  /// its own—and scrolls it into view; the system prompt's stands open on
-  /// its diff as before.
+  /// A prompt revision's page opened at one of its prompts (user,
+  /// 2026-10-09, 2026-10-20): suggested on a palinode and accepted in its
+  /// thread, the page opened at the task prompt opens the task's accordion—
+  /// unchanged, so closed on its own—and scrolls it into view; the system
+  /// prompt's stands open on its diff as before. The palinode's page draws
+  /// the accepted change against the prompt in force.
   @Test(arguments: [BrowserEngine.chrome])
-  func aPromptLegendLinkLandsOnItsPromptOfTheRevision(engine: BrowserEngine) async throws {
+  func aPromptRevisionsPageOpensAtItsPrompt(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
-    let fixture = try await FixtureServer.threePageManifest()
-    defer { fixture.stop() }
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let user = try contributor.column("id")
-    let scratch: ScratchCommit
-    do { scratch = try ScratchCommit(owner: admin, sourceURL: fixture.baseURL + "/manifest.json") }
-    catch { try await admin.remove(after: error) }
-    func remove() {
-      _ = try? TestAdmin.query("DELETE FROM revisions WHERE requested_by_user_id = '\(user)'")
-      scratch.remove()
+    let slot = "bibliographic_calibration"
+    let palinode: ScratchPalinode
+    do { palinode = try ScratchPalinode(slot: slot, owner: admin) }
+    catch {
+      try await contributor.remove()
+      try await admin.remove(after: error)
     }
+    func remove() { palinode.remove() }
     do {
-      // The form's required fields the fixture leaves empty—the carrier,
-      // the digitization's provider—set as the overture's own.
-      _ = try TestAdmin.query(
-        "UPDATE bibliographic_overtures SET carrier = 'printed', provider = 'folger_shakespeare_library' WHERE id = '\(scratch.overturePath.split(separator: "/").last ?? "")'")
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         // A contributor's suggestion of the system prompt alone.
-        try await page.openHydrated("\(scratch.overturePath)/revise")
-        // The form's required fields, filled so the browser lets it go.
-        try await page.locator("[data-revise-form] input[name='title']").first.fill("Web tests legend title")
-        let prompts = page.locator(".prompt-revision-fields-process[data-process='bibliographic_calibration']")
-        try await prompts.locator("#prompt-revision-process-bibliographic_calibration .accordion-summary").first.click()
-        try await prompts.locator("#prompt-revision-system-accordion-bibliographic_calibration .accordion-summary").first
-          .click()
-        try await expect(prompts.locator("#prompt-revision-system-accordion-bibliographic_calibration"))
+        try await page.openHydrated("\(palinode.path)/revise")
+        let prompts = page.locator(".prompt-revision-fields-process[data-process='\(slot)']")
+        try await prompts.locator("#prompt-revision-process-\(slot) .accordion-summary").first.click()
+        try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
+        try await expect(prompts.locator("#prompt-revision-system-accordion-\(slot)"))
           .toHaveAttribute("data-open-finished", "true")
-        try await prompts.locator("#prompt-revision-system-accordion-bibliographic_calibration .prompt-text-markdown-toggle button")
-          .first.click()
+        try await prompts.locator("#prompt-revision-system-accordion-\(slot) .prompt-text-markdown-toggle button").first.click()
         _ = try await page.evaluate(
           """
           (() => {
-            const area = document.querySelector("textarea[name='prompt-system-bibliographic_calibration']")
+            const area = document.querySelector("textarea[name='prompt-system-\(slot)']")
             area.value = area.value + '\\nWeb tests legend suggestion.'
             area.dispatchEvent(new Event('input', { bubbles: true }))
             return true
@@ -248,43 +239,31 @@ struct OvertureImagesTests {
         try await expect(prompts.locator(".field-diff-diff").first).toContainText("Web tests legend suggestion.")
         try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL(
-          "the overture at its locution",
-          where: { url in url.path.lowercased() == scratch.overturePath.lowercased() })
+          "the palinode at its locution", where: { url in url.path.lowercased() == palinode.path.lowercased() })
       }
       let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'").uppercased()
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         // Accepted from the thread.
-        try await page.openHydrated(scratch.overturePath)
-        try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
-          .toHaveAttribute("aria-busy", "false")
+        try await page.openHydrated(palinode.path)
         let accept = page.locator("#revision-\(id) form[action$='/accept'] button")
         try await expect(accept).toBeVisible()
         try await accept.click()
         try await expect(page, timeout: .seconds(15)).toHaveURL(
-          "the overture at its locution",
-          where: { url in url.path.lowercased() == scratch.overturePath.lowercased() && (url.fragment ?? "").hasPrefix("revision-") })
+          "the palinode at its locution",
+          where: { url in url.path.lowercased() == palinode.path.lowercased() && (url.fragment ?? "").hasPrefix("revision-") })
         try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("as accepted")
+        try await expect(page.locator("#prompt-palinode-body")).toContainText("Web tests legend suggestion.")
 
-        // Merged in, each prompt's legend links the revision's page at the
-        // prompt it is.
-        try await page.openHydrated(scratch.overturePath)
-        try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
-          .toHaveAttribute("aria-busy", "false")
-        try await expect(page.locator(".prompt-preview-system a[href$='/revisions/\(id)#prompt-change-bibliographic_calibration-system']"))
-          .toHaveCount(1)
-        try await expect(page.locator("[data-process='Calibration'] .prompt-preview-task a[href$='/revisions/\(id)#prompt-change-bibliographic_calibration-task']").first)
-          .toBeAttached()
-
-        // The task prompt's link: its accordion opened and in view, the
+        // Opened at the task prompt: its accordion opened and in view, the
         // system prompt's open on its diff as before.
-        try await page.openHydrated("\(scratch.overturePath)/revisions/\(id)#prompt-change-bibliographic_calibration-task")
-        try await expect(page.locator("#prompt-change-bibliographic_calibration-system")).toHaveAttribute("data-expanded", "true")
-        try await expect(page.locator("#prompt-change-bibliographic_calibration-task")).toHaveAttribute("data-expanded", "true")
-        try await expect(page.locator("#prompt-change-bibliographic_calibration-task")).toHaveAttribute("data-open-finished", "true")
+        try await page.openHydrated("\(palinode.path)/revisions/\(id)#prompt-change-\(slot)-task")
+        try await expect(page.locator("#prompt-change-\(slot)-system")).toHaveAttribute("data-expanded", "true")
+        try await expect(page.locator("#prompt-change-\(slot)-task")).toHaveAttribute("data-expanded", "true")
+        try await expect(page.locator("#prompt-change-\(slot)-task")).toHaveAttribute("data-open-finished", "true")
         let inView = try await page.evaluate(
           """
           (() => {
-            const box = document.getElementById('prompt-change-bibliographic_calibration-task').getBoundingClientRect()
+            const box = document.getElementById('prompt-change-\(slot)-task').getBoundingClientRect()
             return box.top >= 0 && box.top < window.innerHeight
           })()
           """, as: Bool.self)

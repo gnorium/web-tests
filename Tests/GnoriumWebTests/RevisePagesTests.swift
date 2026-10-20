@@ -101,7 +101,7 @@ struct RevisePagesTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome])
-  func oneSuggestFilesFieldsMarkupsAndPromptsAsOneRevision(engine: BrowserEngine) async throws {
+  func oneSuggestFilesFieldsAndMarkupsAsOneRevision(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
@@ -112,12 +112,10 @@ struct RevisePagesTests {
     let fixture = try await FixtureServer.threePageManifest()
     defer { fixture.stop() }
     let commit = try ScratchCommit(owner: contributor, sourceURL: fixture.baseURL + "/manifest.json")
-    let slot = "bibliographic_explication"
     func remove() {
       _ = try? TestAdmin.query("DELETE FROM revisions WHERE requested_by_user_id = '\(user)'")
       commit.remove()
     }
-    let inForce = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
     do {
       // Two images; the digitization's required provider.
       _ = try TestAdmin.query(
@@ -137,13 +135,14 @@ struct RevisePagesTests {
         try await page.openHydrated("\(commit.madrigalPath)/revise")
         try await expect(page.locator(".testament-tree-diff-view")).toHaveCount(1)
         try await expect(page.locator(".tei-page-edit textarea")).toHaveCount(3)
-        // One Suggest, at the end: none per page, none for the prompts, no
-        // Diff toggle and no scope.
+        // One Suggest, at the end: none per page, no Diff toggle, no scope,
+        // and no prompt: a process's prompts are revised on a palinode of
+        // their vignette (user, 2026-10-20).
         try await expect(page.locator("button[type='submit']").filter(hasText: "Suggest")).toHaveCount(1)
         try await expect(page.locator(".testament-suggest")).toHaveCount(0)
         try await expect(page.locator(".prompt-revision-fields-diff-toggle")).toHaveCount(0)
         try await expect(page.locator("input[name='scope']")).toHaveCount(0)
-        try await expect(page.locator(".prompt-revision-fields-view .process-toggle-view")).toHaveCount(0)
+        try await expect(page.locator(".prompt-revision-fields-view")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
 
         // Opening the formatted editor alone files no diff or revision.
@@ -153,8 +152,7 @@ struct RevisePagesTests {
         #expect(untouched.trimmingCharacters(in: .whitespacesAndNewlines) == "0")
         try await page.openHydrated("\(commit.madrigalPath)/revise")
 
-        // The fields, a markup and the system prompt, each diff drawn
-        // as it is made.
+        // The fields and a markup, each diff drawn as it is made.
         try await page.locator("[data-revise-form] input[name='title']").first.fill("Web tests title")
         // The editor opens on the stored text as it is (a document is
         // stored formatted; this one was written before, on one line),
@@ -188,41 +186,6 @@ struct RevisePagesTests {
             as: Int.self)
           try await page.screenshot(to: URL(fileURLWithPath: directory).appendingPathComponent("code-diff.png"))
         }
-        // Its own process's block: the Arbitration pair stands first.
-        let prompts = page.locator(".prompt-revision-fields-view .prompt-revision-fields-process[data-process='\(slot)']")
-        // The process in its accordion, each prompt in its own inside,
-        // closed as on the object's page.
-        try await expect(prompts.locator("#prompt-revision-process-\(slot)")).toHaveAttribute("data-expanded", "false")
-        try await prompts.locator("#prompt-revision-process-\(slot) .accordion-summary").first.click()
-        try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
-        try await expect(prompts.locator("#prompt-revision-system-accordion-\(slot)"))
-          .toHaveAttribute("data-open-finished", "true")
-        // Shown as on the object's page (user, 2026-10-11): rendered, Raw
-        // and the vignette linked; edited in raw mode only.
-        let system = prompts.locator("#prompt-revision-system-accordion-\(slot) .prompt-text-view")
-        try await expect(system).toHaveAttribute("data-raw", "false")
-        try await expect(system.locator(".prompt-text-rendered")).toBeVisible()
-        try await expect(system.locator("textarea")).toBeHidden()
-        try await expect(system.locator(".prompt-text-vignette")).toHaveCount(1)
-        try await system.locator(".prompt-text-markdown-toggle button").click()
-        try await expect(system.locator("textarea")).toBeVisible()
-        // Appended where it is typed: the prompt runs past 60KB, which
-        // Chrome's insertText (what `fill` sends) takes over 30s to type.
-        _ = try await page.evaluate(
-          """
-          (() => {
-            const area = document.querySelector("textarea[name='prompt-system-\(slot)']")
-            area.value = area.value + '\\nWeb tests suggestion.'
-            area.dispatchEvent(new Event('input', { bubbles: true }))
-            return true
-          })()
-          """, as: Bool.self)
-        let line = prompts.locator(".field-diff-diff").first
-        try await expect(line).toBeVisible()
-        try await expect(line).toContainText("Web tests suggestion.")
-        // Back to the rendering: it reads what the box now holds.
-        try await system.locator(".prompt-text-markdown-toggle button").click()
-        try await expect(system.locator(".prompt-text-rendered")).toContainText("Web tests suggestion.")
         try await page.locator(".revision-form button[type='submit']").click()
         // Back on the madrigal, at the suggestion's locution.
         try await expect(page, timeout: .seconds(15))
@@ -230,10 +193,10 @@ struct RevisePagesTests {
         let stored = try TestAdmin.query(
           """
           SELECT count(*) || ' ' || bool_and(content_json IS NOT NULL)::text || ' '
-            || max(json_array_length(pages_json::json)) || ' ' || max(prompt_changes_json::json -> 0 ->> 'slot')
+            || max(json_array_length(pages_json::json)) || ' ' || bool_and(prompt_changes_json IS NULL)::text
           FROM revisions WHERE requested_by_user_id = '\(user)'
           """)
-        #expect(stored == "1 true 1 \(slot)", "One row holding all three: \(stored)")
+        #expect(stored == "1 true 1 true", "One row holding both, no prompt: \(stored)")
       }
       let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'").uppercased()
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
@@ -258,7 +221,7 @@ struct RevisePagesTests {
         try await Self.expectChangedLinksLand(page, revision: id, on: "\(commit.madrigalPath)/revisions/\(id)")
 
         // Its page draws each diff where it is made: the record's tree,
-        // the markup under its image, the prompts.
+        // the markup under its image; no prompts.
         try await page.openHydrated("\(commit.madrigalPath)/revisions/\(id)")
         try await expect(page.locator(".testament-tree-diff-view")).toHaveCount(1)
         // Under no heading of its own: the source diff, both sides laid out.
@@ -396,15 +359,7 @@ struct RevisePagesTests {
           try await page.locator(".artifact-canvas-toggle button").first.click()
         }
         try await expect(page.locator(".artifact-view")).toHaveAttribute("data-canvas-shown", "false")
-        // The prompts as an object's read, the one changed open in Raw, its
-        // diff under the box as a field's is; the other processes closed.
-        let changedPrompt = page.locator(".prompt-change-view .prompt-text-comparison:has(.prompt-text-diff)").first
-        try await expect(changedPrompt.locator(".prompt-text-view")).toHaveAttribute("data-raw", "true")
-        try await expect(changedPrompt.locator(".prompt-text-diff .diff-view")).toBeVisible()
-        try await expect(page.locator("#prompt-change-process-\(slot)")).toHaveAttribute("data-expanded", "true")
-        try await expect(page.locator("#prompt-change-process-bibliographic_arbitration")).toHaveAttribute("data-expanded", "false")
-        try await expect(page.locator("#prompt-change-autocompaction-\(slot)")).toHaveAttribute("data-expanded", "false")
-        try await expect(page.getByText("Web tests suggestion.").first).toBeAttached()
+        try await expect(page.locator(".prompt-change-view")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
         // Its verdicts here too, posting to the thread's routes. No
         // Locution row in its Pedigree: a locution is an event in a thread,
@@ -438,11 +393,8 @@ struct RevisePagesTests {
       let title = try TestAdmin.query(
         "SELECT metadata_json::json ->> 'title' FROM bibliographic_madrigals WHERE id = '\(commit.madrigalID)'")
       #expect(title == "Web tests title", "and its fields: \(title)")
-      let status = try TestAdmin.query(
-        "SELECT status || ' ' || (prompt_changes_json::json -> 0 ->> 'vignetteID' IS NULL)::text FROM revisions WHERE id = '\(id)'")
-      #expect(status == "accepted true", "Accepted whole, its prompts not yet in force: \(status)")
-      let still = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
-      #expect(still == inForce, "Accepting puts no prompt in force")
+      let status = try TestAdmin.query("SELECT status FROM revisions WHERE id = '\(id)'")
+      #expect(status == "accepted", "Accepted whole: \(status)")
     } catch {
       remove()
       try await admin.remove()
@@ -454,29 +406,23 @@ struct RevisePagesTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome])
-  func autocompactionPairIsNestedRevisableAndMergedOnTheObject(engine: BrowserEngine) async throws {
+  func autocompactionPairIsNestedRevisableAndMergedOnItsPalinode(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let user = try contributor.column("id")
-    let work = try ScratchCommit(owner: contributor)
     let parent = "bibliographic_arbitration"
     let slot = parent + "_autocompaction"
+    let palinode = try ScratchPalinode(slot: parent, owner: admin)
     // One vignette holds the process's every prompt (user, 2026-10-17).
     let active = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(parent)'")
     func remove() {
-      _ = try? TestAdmin.query("DELETE FROM revisions WHERE requested_by_user_id = '\(user)'")
-      work.remove()
+      palinode.remove()
     }
     do {
-      _ = try TestAdmin.query("""
-        UPDATE bibliographic_madrigals SET metadata_json =
-          (metadata_json::jsonb || '{"title":"Web tests autocompaction","provider":"folger_shakespeare_library"}'::jsonb)::text
-        WHERE id = '\(work.madrigalID)'
-        """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        try await page.openHydrated("\(work.madrigalPath)/revise")
+        try await page.openHydrated("\(palinode.path)/revise")
         let auto = page.locator("#prompt-revision-autocompaction-\(parent)")
         try await expect(auto).toHaveAttribute("data-expanded", "false")
         try await expect(auto.locator(".accordion-details[data-expanded='false']")).toHaveCount(2)
@@ -497,7 +443,7 @@ struct RevisePagesTests {
             """, as: Bool.self)
         }
         try await page.locator(".revision-form button[type='submit']").click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the object at its revision", where: Self.atLocution(work.madrigalPath))
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the palinode at its revision", where: Self.atLocution(palinode.path))
         let changed = page.locator(".locution-thread-event-changed")
         // Each part by its path, its steps apart by the breadcrumb's chevron,
         // the list joined as English joins it (user, 2026-10-14).
@@ -516,29 +462,30 @@ struct RevisePagesTests {
       }
       let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'").uppercased()
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
-        try await page.openHydrated("\(work.madrigalPath)/revisions/\(id)")
-        // Its page's Prompts as an object's: every process, its pairs
-        // nested; the changed autocompaction pair open on its diffs, its
-        // process with it, the rest closed (user, 2026-10-10).
+        try await page.openHydrated("\(palinode.path)/revisions/\(id)")
+        // Its page's Prompts: its process alone, its pairs nested; the
+        // changed autocompaction pair open on its diffs, its process with
+        // it, the rest closed (user, 2026-10-10).
         try await expect(page.locator(".prompt-change-heading")).toHaveText("Prompts")
         try await expect(page.locator("#prompt-change-process-\(parent)")).toHaveAttribute("data-expanded", "true")
         try await expect(page.locator("#prompt-change-autocompaction-\(parent)")).toHaveAttribute("data-expanded", "true")
         try await expect(page.locator("#prompt-change-\(parent)_autocompaction-system")).toHaveAttribute("data-expanded", "true")
         try await expect(page.locator("#prompt-change-\(parent)-system")).toHaveAttribute("data-expanded", "false")
-        try await expect(page.locator("#prompt-change-process-bibliographic_explication")).toHaveAttribute("data-expanded", "false")
+        try await expect(page.locator("#prompt-change-process-bibliographic_explication")).toHaveCount(0)
         try await expect(page.locator(".prompt-change-view .diff-view")).toHaveCount(2)
         try await page.locator("button[form='revision-accept']").click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the object at its revision", where: Self.atLocution(work.madrigalPath))
-        let auto = page.locator("#prompt-preview-autocompaction-arbitration")
-        try await expect(auto, timeout: .seconds(20)).toHaveCount(1)
-        try await expect(auto.locator(".prompt-text-source").nth(0)).toContainText("Web tests summarizer system.")
-        try await expect(auto.locator(".prompt-text-source").nth(1)).toContainText("Web tests summarizer task.")
-        try await page.openHydrated("\(work.madrigalPath)/revise")
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the palinode at its revision", where: Self.atLocution(palinode.path))
+        // Accepted, the palinode's body draws it against the prompts in force.
+        let body = page.locator("#prompt-palinode-body")
+        try await expect(body.locator("#prompt-change-autocompaction-\(parent)")).toHaveCount(1)
+        try await expect(body).toContainText("Web tests summarizer system.")
+        try await expect(body).toContainText("Web tests summarizer task.")
+        try await page.openHydrated("\(palinode.path)/revise")
         try await expect(page.locator("textarea[name='prompt-system-\(slot)']")).toContainText("Web tests summarizer system.")
         try await expect(page.locator("textarea[name='prompt-task-\(slot)']")).toContainText("Web tests summarizer task.")
       }
       let still = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(parent)'")
-      #expect(still == active, "Acceptance merges the working copy; activation waits for Commit")
+      #expect(still == active, "Acceptance merges the working copy; activation waits for the Permit")
     } catch {
       remove()
       try await admin.remove()
@@ -552,17 +499,21 @@ struct RevisePagesTests {
   /// Each process's Prompts list its continuation prompt third (user,
   /// 2026-10-15): the system prompt, the task prompt template, the
   /// continuation prompt—one text, no system prompt—then the
-  /// autocompaction.
+  /// autocompaction. Read on each process's palinode's Revise page.
   @Test(arguments: [BrowserEngine.chrome])
   func eachProcessListsItsContinuationPromptThird(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
-    let work = try ScratchCommit(owner: contributor)
+    var palinodes: [ScratchPalinode] = []
     do {
+      for slot in ["bibliographic_arbitration", "bibliographic_explication"] {
+        palinodes.append(try ScratchPalinode(slot: slot, owner: contributor))
+      }
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        try await page.openHydrated("\(work.madrigalPath)/revise")
-        for slot in ["bibliographic_arbitration", "bibliographic_explication"] {
+        for palinode in palinodes {
+          let slot = palinode.slot
+          try await page.openHydrated("\(palinode.path)/revise")
           let order = try await page.evaluate(
             """
             (() => {
@@ -576,14 +527,16 @@ struct RevisePagesTests {
           let continuation = "\(slot)_continuation"
           try await expect(page.locator("textarea[name='prompt-task-\(continuation)']")).toHaveCount(1)
           try await expect(page.locator("textarea[name='prompt-system-\(continuation)']")).toHaveCount(0)
+          // Its own process alone.
+          try await expect(page.locator(".prompt-revision-fields-process")).toHaveCount(1)
+          try await page.expectNoErrors()
         }
-        try await page.expectNoErrors()
       }
     } catch {
-      work.remove()
+      palinodes.forEach { $0.remove() }
       try await contributor.remove(after: error)
     }
-    work.remove()
+    palinodes.forEach { $0.remove() }
     try await contributor.remove()
   }
 
@@ -599,6 +552,7 @@ struct RevisePagesTests {
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let commit = try ScratchCommit(owner: contributor)
     let slot = "bibliographic_explication"
+    let palinode = try ScratchPalinode(slot: slot, owner: contributor)
     do {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(commit.madrigalPath)/revise")
@@ -606,7 +560,9 @@ struct RevisePagesTests {
         try await expect(page.locator(".apparatus-rule-view .verbose-toggle-button-view, .apparatus-rule-view button").first)
           .toBeVisible()
 
-        // Its own process's block: the Arbitration pair stands first.
+        // A prompt's diff, on its process's palinode's Revise page (user,
+        // 2026-10-20).
+        try await page.openHydrated("\(palinode.path)/revise")
         let prompts = page.locator(".prompt-revision-fields-view .prompt-revision-fields-process[data-process='\(slot)']")
         try await prompts.locator("#prompt-revision-process-\(slot) .accordion-summary").first.click()
         try await prompts.locator("#prompt-revision-system-accordion-\(slot) .accordion-summary").first.click()
@@ -669,9 +625,11 @@ struct RevisePagesTests {
         #expect(link.contains("rel=stylesheet"), "Link: \(link)")
       }
     } catch {
+      palinode.remove()
       commit.remove()
       try await contributor.remove(after: error)
     }
+    palinode.remove()
     commit.remove()
     try await contributor.remove()
   }
@@ -896,35 +854,28 @@ struct RevisePagesTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let work = try ScratchCommit(owner: admin)
-    let madrigalPath = work.madrigalPath
+    let slot = "bibliographic_explication"
+    let palinode = try ScratchPalinode(slot: slot, owner: admin)
+    let palinodePath = palinode.path
     let user = try admin.column("id")
     let a = UUID().uuidString.uppercased()
     let b = UUID().uuidString.uppercased()
     let refused = "A later accepted revision changed the same lines, so revert that one first."
     func remove() {
-      _ = try? TestAdmin.query("DELETE FROM revisions WHERE id IN ('\(a)', '\(b)')")
-      work.remove()
+      palinode.remove()
     }
     do {
-      let slot = "bibliographic_explication"
-      func sql(_ text: String) -> String { text.replacingOccurrences(of: "'", with: "''") }
-      let system = try TestAdmin.query(
-        "SELECT system_prompt FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)')")
-      let task = try TestAdmin.query(
-        "SELECT task_prompt FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)')")
+      let system = try ScratchPalinode.inForce(slot, "system_prompt")
+      let task = try ScratchPalinode.inForce(slot, "task_prompt")
       let afterA = system + "\nWeb tests A."
       let afterB = system + "\nWeb tests A, then B."
       for (id, previous, proposed, offset) in [(a, system, afterA, 2), (b, afterA, afterB, 1)] {
-        _ = try TestAdmin.query("""
-          INSERT INTO revisions (id, revisable_type, revisable_id, prompt_changes_json, status, requested_by_user_id, created_at)
-          VALUES ('\(id)', 'bibliographicMadrigal', '\(work.madrigalID)', json_build_array(json_build_object('slot', '\(slot)', 'prompt', 'main', 'previous', json_build_object('system', '\(sql(previous))', 'task', '\(sql(task))'),
-              'proposed', json_build_object('system', '\(sql(proposed))', 'task', '\(sql(task))')))::text, 'pending', '\(user)', now() - interval '\(offset) minute')
-          """)
+        try palinode.insertRevision(
+          id: id, user: user, previousSystem: previous, proposedSystem: proposed, task: task, minutes: offset)
       }
       let revert = "#revision-\(a)-verdict-1 form[action$='/revert']"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
-        try await page.openHydrated(madrigalPath)
+        try await page.openHydrated(palinodePath)
         for id in [a, b] {
           try await page.locator("#revision-\(id) form[action$='/accept'] button").click()
           // Accepted, the server answers with the page at the revision
@@ -948,7 +899,7 @@ struct RevisePagesTests {
         #expect(status.trimmingCharacters(in: .whitespacesAndNewlines) == "accepted")
         // Its own page: the header's Revert enabled, the same warning when
         // pressed.
-        try await page.openHydrated("\(madrigalPath)/revisions/\(a)")
+        try await page.openHydrated("\(palinodePath)/revisions/\(a)")
         try await expect(page.locator("button[form='revision-revert']")).toBeEnabled()
         try await page.locator("button[form='revision-revert']").click()
         try await expect(page.locator(".action-gate-alert").filter(hasText: refused)).toBeVisible()
@@ -957,7 +908,7 @@ struct RevisePagesTests {
       // Without the client (the form sent as a browser sends it, no
       // script in the way): the server answers with the page at the warning.
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
-        try await page.openHydrated(madrigalPath)
+        try await page.openHydrated(palinodePath)
         _ = try await page.evaluate("(() => { HTMLFormElement.prototype.submit.call(document.querySelector(\"\(revert)\")); return 1 })()", as: Int.self)
         let alert = page.locator("#revision-\(a)-verdict-1 .action-gate-alert")
         try await expect(alert, timeout: .seconds(15)).toBeVisible()
@@ -973,81 +924,49 @@ struct RevisePagesTests {
     try await admin.remove()
   }
 
-  /// A shared prompt revision (user, 2026-10-11, design-notes/
-  /// shared-revisions.md): filed on another open object, it is in that
-  /// object's thread as gnorium's forwarding of it, and its page says where
-  /// it was suggested and forwarded. One that clashes with a change accepted since it was suggested
-  /// shows the clash before acceptance—its Old diff and New diff—and its
-  /// Accept, pressed, says why. The list compares one revision with the
-  /// object as created, or two with each other.
+  /// A prompt revision that clashes with a change accepted on its palinode
+  /// since it was suggested shows the clash before acceptance—its Old diff
+  /// and New diff—and its Accept, pressed, says why (user, 2026-10-11,
+  /// 2026-10-20). Nothing is forwarded to another object. The list compares
+  /// one revision with the palinode as opened, or two with each other. A
+  /// part's anchor on the Revise page opens the accordions on its way.
   @Test(arguments: [BrowserEngine.chrome])
-  func aSharedRevisionIsFiledAndAClashShowsBeforeAcceptance(engine: BrowserEngine) async throws {
+  func aClashShowsBeforeAcceptanceAndRevisionsCompare(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let work = try ScratchCommit(owner: admin)
-    let madrigalPath = work.madrigalPath
-    let overtureID = String(work.overturePath.split(separator: "/").last ?? "")
+    let slot = "bibliographic_explication"
+    let palinode = try ScratchPalinode(slot: slot, owner: admin)
+    let path = palinode.path
     let user = try admin.column("id")
     let a = UUID().uuidString.uppercased()
     let b = UUID().uuidString.uppercased()
     let c = UUID().uuidString.uppercased()
     let refused =
-      "This change clashes with one accepted or committed since it was suggested: see its Old diff and New diff, and suggest it again."
-    func remove() {
-      _ = try? TestAdmin.query("DELETE FROM revisions WHERE id IN ('\(a)', '\(b)', '\(c)')")
-      work.remove()
-    }
+      "This change clashes with one accepted or put in force since it was suggested: see its Old diff and New diff, and suggest it again."
+    func remove() { palinode.remove() }
     do {
-      let slot = "bibliographic_explication"
-      func sql(_ text: String) -> String { text.replacingOccurrences(of: "'", with: "''") }
-      let system = try TestAdmin.query(
-        "SELECT system_prompt FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)')")
-      let task = try TestAdmin.query(
-        "SELECT task_prompt FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)')")
-      let arbitration = "bibliographic_arbitration"
-      let arbitrationSystem = try TestAdmin.query(
-        "SELECT system_prompt FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(arbitration)')")
-      let arbitrationTask = try TestAdmin.query(
-        "SELECT task_prompt FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(arbitration)')")
-      // A, accepted, adds a line to Explication's system prompt; C, pending
-      // and suggested before A was accepted, adds another at the same place:
-      // they clash. B changes Arbitration's.
-      for (id, slot, system, task, proposed, offset, status) in [
-        (a, slot, system, task, system + "\nWeb tests A.", 2, "accepted"),
-        (b, arbitration, arbitrationSystem, arbitrationTask, arbitrationSystem + "\nWeb tests B.", 1, "pending"),
-        (c, slot, system, task, system + "\nWeb tests C.", 3, "pending"),
-      ] {
-        let evaluated = status == "accepted" ? "'\(user)', now()" : "NULL, NULL"
-        _ = try TestAdmin.query("""
-          INSERT INTO revisions (id, revisable_type, revisable_id, prompt_changes_json, status, requested_by_user_id, evaluated_by_user_id, evaluated_at, created_at)
-          VALUES ('\(id)', 'bibliographicMadrigal', '\(work.madrigalID)', json_build_array(json_build_object('slot', '\(slot)', 'prompt', 'main', 'previous', json_build_object('system', '\(sql(system))', 'task', '\(sql(task))'),
-              'proposed', json_build_object('system', '\(sql(proposed))', 'task', '\(sql(task))')))::text, '\(status)', '\(user)', \(evaluated), now() - interval '\(offset) minute')
-          """)
-      }
-      // C filed on the overture as well, as suggesting it files it.
-      _ = try TestAdmin.query("""
-        INSERT INTO revision_filings (revision_id, revisable_type, revisable_id)
-        VALUES ('\(c)', 'bibliographicOverture', '\(overtureID)')
-        """)
+      let system = try ScratchPalinode.inForce(slot, "system_prompt")
+      let task = try ScratchPalinode.inForce(slot, "task_prompt")
+      // A, accepted, adds a line to the system prompt; C, pending and
+      // suggested before A was accepted, adds another at the same place:
+      // they clash. B adds a line elsewhere, after A.
+      try palinode.insertRevision(
+        id: a, user: user, previousSystem: system, proposedSystem: system + "\nWeb tests A.", task: task,
+        status: "accepted", minutes: 2)
+      try palinode.insertRevision(
+        id: b, user: user, previousSystem: system + "\nWeb tests A.", proposedSystem: "Web tests B.\n" + system + "\nWeb tests A.",
+        task: task, minutes: 1)
+      try palinode.insertRevision(
+        id: c, user: user, previousSystem: system, proposedSystem: system + "\nWeb tests C.", task: task, minutes: 3)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
-        // In the overture's thread: gnorium forwarded it from the madrigal.
-        try await page.openHydrated(work.overturePath)
-        let filed = page.locator("#revision-\(c)")
-        try await expect(filed).toContainText("gnorium forwarded revision")
-        try await expect(filed).toContainText("from madrigal")
-        try await expect(filed.locator("a[href$='\(work.madrigalID)' i]").first).toBeAttached()
-        // In the madrigal's thread, after its suggestion: forwarded to the
-        // overture.
-        try await page.openHydrated(madrigalPath)
-        let forwarded = page.locator("#revision-\(c)-forwarded")
-        try await expect(forwarded).toContainText("gnorium forwarded revision")
-        try await expect(forwarded).toContainText("to overture")
-        try await expect(forwarded.locator("a[href$='\(overtureID)' i]").first).toBeAttached()
-        // Its page: where it is filed, the clash, and Accept refused.
-        try await page.openHydrated("\(madrigalPath)/revisions/\(c)")
-        try await expect(page.locator(".revision-filing-view")).toContainText("Suggested on madrigal")
-        try await expect(page.locator(".revision-filing-view")).toContainText("forwarded by gnorium to overture")
+        // Its thread: suggested, never forwarded.
+        try await page.openHydrated(path)
+        try await expect(page.locator("#revision-\(c)")).toContainText("suggested revision")
+        try await expect(page.getByText("forwarded")).toHaveCount(0)
+        // Its page: the clash, and Accept refused.
+        try await page.openHydrated("\(path)/revisions/\(c)")
+        try await expect(page.locator(".revision-filing-view")).toHaveCount(0)
         let clash = page.locator(".prompt-clash-view")
         try await expect(clash.locator(".prompt-clash-label").filter(hasText: "Old diff")).toHaveCount(1)
         try await expect(clash.locator(".prompt-clash-label").filter(hasText: "New diff")).toHaveCount(1)
@@ -1059,8 +978,8 @@ struct RevisePagesTests {
         let status = try TestAdmin.query("SELECT status FROM revisions WHERE id = '\(c)'")
         #expect(status.trimmingCharacters(in: .whitespacesAndNewlines) == "pending")
 
-        try await page.openHydrated("\(madrigalPath)/revisions")
-        // One ticked: compared with the object as created.
+        try await page.openHydrated("\(path)/revisions")
+        // One ticked: compared with the palinode as opened.
         let compare = page.locator(".revisions-compare button")
         try await expect(compare).toBeDisabled()
         try await page.locator("input[name='row-selection'][value='\(a)']").check()
@@ -1071,31 +990,29 @@ struct RevisePagesTests {
         try await expect(page.locator(".pedigree-view")).toContainText("As created")
         try await expect(page.locator("button[form='revision-revert'], button[form='revision-accept']")).toHaveCount(0)
         // Two ticked: compared with each other, the older first.
-        try await page.openHydrated("\(madrigalPath)/revisions")
+        try await page.openHydrated("\(path)/revisions")
         try await page.locator("input[name='row-selection'][value='\(a)']").check()
         try await page.locator("input[name='row-selection'][value='\(b)']").check()
         try await page.locator(".revisions-compare button").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the compare page", where: { $0.absoluteString.contains("/revisions/compare?from=") })
         try await expect(page.locator(".pedigree-view")).toContainText(a)
         try await expect(page.locator(".pedigree-view")).toContainText(b)
-        // Every process either touched, each with its diff under its box.
         let compared = page.locator(".prompt-change-view .prompt-text-comparison:has(.prompt-text-diff)")
-        try await expect(compared).toHaveCount(2)
+        try await expect(compared).toHaveCount(1)
         try await expect(compared.nth(0)).toContainText("Web tests")
         // A part's anchor, arrived at from elsewhere: the accordions on the
         // way open and it is scrolled to; and on a change of fragment.
         let target = "prompt-revision-system-accordion-\(slot)"
-        try await page.openHydrated("\(madrigalPath)/revise#\(target)")
+        try await page.openHydrated("\(path)/revise#\(target)")
         try await expect(page.locator("#\(target)"), timeout: .seconds(10)).toHaveAttribute("data-expanded", "true")
         try await expect(page.locator("#prompt-revision-process-\(slot)")).toHaveAttribute("data-expanded", "true")
         let shown = try await page.evaluate(
           "(() => { const r = document.getElementById('\(target)').getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; })()",
           as: Bool.self)
         #expect(shown, "Scrolled to the part")
-        let task = "prompt-revision-task-accordion-\(arbitration)"
-        _ = try await page.evaluate("(() => { location.hash = '\(task)'; return 1 })()", as: Int.self)
-        try await expect(page.locator("#\(task)"), timeout: .seconds(10)).toHaveAttribute("data-expanded", "true")
-        try await expect(page.locator("#prompt-revision-process-\(arbitration)")).toHaveAttribute("data-expanded", "true")
+        let taskPart = "prompt-revision-task-accordion-\(slot)"
+        _ = try await page.evaluate("(() => { location.hash = '\(taskPart)'; return 1 })()", as: Int.self)
+        try await expect(page.locator("#\(taskPart)"), timeout: .seconds(10)).toHaveAttribute("data-expanded", "true")
         try await page.expectNoErrors()
       }
     } catch {
@@ -1140,38 +1057,26 @@ struct RevisePagesTests {
     }
   }
 
-  /// One Suggest changes the prompts of several processes at once (user,
-  /// 2026-10-14): Explication's system prompt and Arbitration's task
-  /// template in one revision. Refused first—an autocompaction template
-  /// that drops its variable—the page comes back (422) with every value as
-  /// it was typed, byte for byte, why right above Suggest, and the field
-  /// marked; corrected, the one revision holds both slots.
+  /// One Suggest on a palinode changes several prompts of its process at
+  /// once (user, 2026-10-14, 2026-10-20): Arbitration's system prompt, its
+  /// task template and its continuation in one revision. Refused first—an
+  /// autocompaction template that drops its variable—the page comes back
+  /// (422) with every value as it was typed, byte for byte, why right above
+  /// Suggest, and the field marked; corrected, the one revision holds each.
   @Test(arguments: [BrowserEngine.chrome])
-  func oneSuggestChangesSeveralProcessesPromptsAndARefusalKeepsEveryValue(engine: BrowserEngine) async throws {
+  func oneSuggestChangesSeveralPromptsAndARefusalKeepsEveryValue(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let user = try contributor.column("id")
-    let fixture = try await FixtureServer.threePageManifest()
-    defer { fixture.stop() }
-    let work = try ScratchCommit(owner: contributor, sourceURL: fixture.baseURL + "/manifest.json")
-    let explication = "bibliographic_explication"
     let arbitration = "bibliographic_arbitration"
     let auto = arbitration + "_autocompaction"
-    func remove() {
-      _ = try? TestAdmin.query("DELETE FROM revisions WHERE requested_by_user_id = '\(user)'")
-      work.remove()
-    }
+    let continuation = arbitration + "_continuation"
+    let palinode = try ScratchPalinode(slot: arbitration, owner: contributor)
+    func remove() { palinode.remove() }
     do {
-      _ = try TestAdmin.query(
-        #"""
-        UPDATE bibliographic_madrigals SET
-          metadata_json = (metadata_json::jsonb || '{"title":"Web tests many prompts","provider":"folger_shakespeare_library"}'::jsonb)::text,
-          proposed_content_json = '{"teiXml":"<TEI><teiHeader><date>1910</date></teiHeader><text><body><pb n=\"1\" facs=\"\#(fixture.baseURL)/page-1/full/1300,/0/default.jpg\"/><div><p>Old line</p></div><pb n=\"2\" facs=\"\#(fixture.baseURL)/page-2/full/1300,/0/default.jpg\"/><p>Kept line</p><pb n=\"3\" facs=\"\#(fixture.baseURL)/page-3/full/1300,/0/default.jpg\"/></body></text></TEI>"}'
-        WHERE id = '\#(work.madrigalID)'
-        """#)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        try await page.openHydrated("\(work.madrigalPath)/revise")
+        try await page.openHydrated("\(palinode.path)/revise")
         // Each edit as a person makes it: the value set, its input sent.
         // The values carry what a round trip could lose: CRLF, a leading
         // line break, markup, quotes, and a 90 KB prompt.
@@ -1185,14 +1090,13 @@ struct RevisePagesTests {
               return area.value
             }
             const long = 'A line of a long prompt, with <tags> & "quotes".\\n'.repeat(1900)
-            const system = document.querySelector("textarea[name='prompt-system-\(explication)']").value
+            const system = document.querySelector("textarea[name='prompt-system-\(arbitration)']").value
             const task = document.querySelector("textarea[name='prompt-task-\(arbitration)']").value
             return JSON.stringify({
-              explication: set("textarea[name='prompt-system-\(explication)']", '\\n' + system + '\\n' + long),
-              arbitration: set("textarea[name='prompt-task-\(arbitration)']", task + '\\r\\nCite the canvas, "always".'),
+              system: set("textarea[name='prompt-system-\(arbitration)']", '\\n' + system + '\\n' + long),
+              task: set("textarea[name='prompt-task-\(arbitration)']", task + '\\r\\nCite the image, "always".'),
+              continuation: set("textarea[name='prompt-task-\(continuation)']", 'Carry on, <never> & "again".'),
               auto: set("textarea[name='prompt-task-\(auto)']", 'Summarize the turns.'),
-              title: set("[data-revise-form] input[name='title']", '  Web tests <title> & more  '),
-              markup: set('.tei-page-edit textarea', '<div><p>New line &amp; more</p></div>'),
             })
           })()
           """, as: String.self)
@@ -1204,17 +1108,6 @@ struct RevisePagesTests {
         let alert = form.locator(".alert-view").filter(hasText: "Keep the required task variable {transcript}.")
         try await expect(alert, timeout: .seconds(15)).toBeVisible()
         try await expect(page).toHaveURL("the Revise page, not a redirect") { $0.path.hasSuffix("/revise") && $0.query == nil }
-        let order = try await page.evaluate(
-          """
-          (() => {
-            const view = document.querySelector('.revision-form-view')
-            const alert = [...view.querySelectorAll('.alert-view')].find(a => a.textContent.includes('{transcript}'))
-            const button = view.querySelector("button[type='submit']")
-            return Boolean(alert.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING)
-              && !document.querySelector('.pedigree-view ~ .alert-view')
-          })()
-          """, as: Bool.self)
-        #expect(order, "The reason stands before Suggest, not under the Pedigree")
         // The field it is of, marked where it stands.
         try await expect(page.locator("#prompt-revision-task-accordion-\(auto) .field-validation-message-view"))
           .toContainText("{transcript}")
@@ -1222,11 +1115,10 @@ struct RevisePagesTests {
         let restored = try await page.evaluate(
           """
           (() => new Promise(done => setTimeout(() => done(JSON.stringify({
-            explication: document.querySelector("textarea[name='prompt-system-\(explication)']").value,
-            arbitration: document.querySelector("textarea[name='prompt-task-\(arbitration)']").value,
+            system: document.querySelector("textarea[name='prompt-system-\(arbitration)']").value,
+            task: document.querySelector("textarea[name='prompt-task-\(arbitration)']").value,
+            continuation: document.querySelector("textarea[name='prompt-task-\(continuation)']").value,
             auto: document.querySelector("textarea[name='prompt-task-\(auto)']").value,
-            title: document.querySelector("[data-revise-form] input[name='title']").value,
-            markup: document.querySelector('.tei-page-edit textarea').value,
           })), 500)))()
           """, as: String.self)
         #expect(restored == edited, "Every value kept byte for byte")
@@ -1244,20 +1136,20 @@ struct RevisePagesTests {
           })()
           """, as: Bool.self)
         try await page.locator(".revision-form button[type='submit']").click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the madrigal at its locution", where: Self.atLocution(work.madrigalPath))
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the palinode at its locution", where: Self.atLocution(palinode.path))
         let stored = try TestAdmin.query(
           """
-          SELECT count(*) || ' ' || string_agg(c ->> 'slot', ',' ORDER BY c ->> 'slot')
+          SELECT count(*) || ' ' || string_agg(c ->> 'prompt', ',' ORDER BY c ->> 'prompt')
           FROM revisions, json_array_elements(prompt_changes_json::json) AS c
           WHERE requested_by_user_id = '\(user)'
           """)
-        #expect(stored == "2 \(arbitration),\(explication)", "One revision, both slots: \(stored)")
+        #expect(stored == "2 continuation,main", "One revision, both prompts: \(stored)")
         let rows = try TestAdmin.query("SELECT count(*) FROM revisions WHERE requested_by_user_id = '\(user)'")
         #expect(rows.trimmingCharacters(in: .whitespacesAndNewlines) == "1")
-        // Its "Changed" line names both.
+        // Its "Changed" line names each part.
         let changed = page.locator(".locution-thread-event-changed").last
-        try await expect(changed).toContainText("Explication")
-        try await expect(changed).toContainText("Arbitration")
+        try await expect(changed).toContainText("Continuation Prompt")
+        try await expect(changed).toContainText("Task Prompt")
       }
     } catch {
       remove()

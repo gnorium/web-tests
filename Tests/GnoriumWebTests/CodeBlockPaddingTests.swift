@@ -57,18 +57,18 @@ struct CodeBlockPaddingTests {
     }
   }
 
-  /// A madrigal's Revise page, Explication's Task Prompt rendered
+  /// A prompt palinode's Revise page, Explication's Task Prompt rendered
   /// in its capped column.
   @Test(arguments: [BrowserEngine.chrome])
   func revisePage(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
-    let commit = try ScratchCommit(owner: contributor)
     let slot = "bibliographic_explication"
+    let palinode = try ScratchPalinode(slot: slot, owner: contributor)
     do {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        try await page.openHydrated("\(commit.madrigalPath)/revise")
+        try await page.openHydrated("\(palinode.path)/revise")
         let prompts = page.locator(".prompt-revision-fields-view .prompt-revision-fields-process[data-process='\(slot)']")
         try await prompts.locator("#prompt-revision-process-\(slot) .accordion-summary").first.click()
         try await prompts.locator("#prompt-revision-task-accordion-\(slot) .accordion-summary").first.click()
@@ -84,10 +84,10 @@ struct CodeBlockPaddingTests {
         try await Self.expectEqualPadding(page, "the Revise page")
       }
     } catch {
-      commit.remove()
+      palinode.remove()
       try await contributor.remove(after: error)
     }
-    commit.remove()
+    palinode.remove()
     try await contributor.remove()
   }
 }
