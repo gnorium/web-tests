@@ -80,7 +80,7 @@ struct ToolCardFieldsTests {
       ["type": "tool", "name": "web_search", "arguments": #"{"query": "x"}"#, "result": #"{"ok": false, "error": "timed out"}"#, "status": "error", "call_id": "\(prefix)fx"],
       ["type": "draft", "content": #"{"bookkeeping": "never shown"}"#],
       [
-        "type": "compaction", "mode": "micro", "micro": "1", "chars_before": "100", "chars_after": "60",
+        "type": "compaction", "mode": "micro", "micro": "1", "tokens_before": "100", "tokens_after": "60",
         "stubbed": "\(prefix)rc\tread_conventions\t{}\t40\t\(stub.utf8.count)\t\(stub)",
       ],
       // Recorded before each model call (user, 2026-10-10).
@@ -194,7 +194,7 @@ struct ToolCardFieldsTests {
         // model received it (stream order is time order).
         #expect(signature.hasSuffix("0|content=Rule one.\nRule two."), "the call keeps only its original result: \(signature)")
         #expect(!signature.contains("compacted"), "the stub's keys are not repeated under the call: \(signature)")
-        try await expect(conventions.locator(".computorium-session-tool-stub .link-view")).toHaveText("stubbed by microcompaction · 40 → 91 chars")
+        try await expect(conventions.locator(".computorium-session-tool-stub .link-view")).toHaveText("stubbed by microcompaction · 40 → 91 tokens")
         try await expect(conventions.locator(".computorium-session-tool-stub .datum-view")).toHaveCount(0)
         try await expect(page.locator(".computorium-session-compaction-stubs li > .tool-result-box-view")).toHaveCount(1)
         try await expect(page.locator(".computorium-session-compaction-stubs li .link-view")).toHaveAttribute("href", "#computorium-session-tool-rc")

@@ -3,17 +3,16 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A compaction's figures are the model's context in tokens, as the loop
-/// counts it now (`tokens_before`, `tokens_after`); a run recorded before
-/// that keeps its characters, labeled so (prod is live history). The card's
-/// range, its stubs' sizes and the stub's line under its call all say the
-/// unit. Chrome headless.
+/// A compaction's figures are the model's context in tokens
+/// (`tokens_before`, `tokens_after`), the only unit there is (prod was
+/// reset; no run counts characters). The card's range, its stubs' sizes and
+/// the stub's line under its call all say tokens. Chrome headless.
 @Suite("Compaction units", .serialized)
 struct CompactionUnitsTests {
   static let stub = #"{"ok": true, "tool": "read_conventions", "compacted": true}"#
 
   @Test(arguments: [BrowserEngine.chrome])
-  func aCompactionCountsTokensAndAnOlderOneCharacters(engine: BrowserEngine) async throws {
+  func everyCompactionCountsTokens(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -36,7 +35,7 @@ struct CompactionUnitsTests {
           "type": "compaction", "mode": "micro", "micro": "1", "tokens_before": "1200", "tokens_after": "300",
           "stubbed": "rc\tread_conventions\t{}\t40\t12\t\(Self.stub)",
         ],
-        ["type": "compaction", "mode": "auto", "micro": "0", "chars_before": "100", "chars_after": "60",
+        ["type": "compaction", "mode": "auto", "micro": "0", "tokens_before": "100", "tokens_after": "60",
          "prompt": "Summarize.", "summary": "Summary."],
         ["type": "text", "content": "Done."],
       ]
@@ -56,7 +55,7 @@ struct CompactionUnitsTests {
         let ranges = page.locator(".computorium-session-compaction-range")
         try await expect(ranges).toHaveCount(2)
         try await expect(ranges.nth(0)).toHaveText("1,200 → 300 tokens")
-        try await expect(ranges.nth(1)).toHaveText("100 → 60 chars")
+        try await expect(ranges.nth(1)).toHaveText("100 → 60 tokens")
         try await expect(page.locator(".computorium-session-compaction-meta").first).toContainText("context 75% smaller")
         // A card's body is drawn when it is first opened.
         try await page.locator("#computorium-session-tool-rc").locator(".accordion-summary").first.click()

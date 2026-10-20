@@ -6,8 +6,8 @@ import WebTestsTesting
 /// A first pass's sentiment reaches a record only by an admin's Permit of
 /// the overture gnorium submitted (user, 2026-10-20). Its overture page
 /// offers the admin Permit beside Commit, a person's overture none; the
-/// Permit makes the record, postulated, whose sidebar says so as plain
-/// text, the same on a phone. The fountain's Pedigree names the antiphon
+/// Permit makes the record, postulated, whose sidebar says so with the
+/// dotted ring and the word, the same on a phone. The fountain's Pedigree names the antiphon
 /// and the page session that submitted it, linked, its submission
 /// gnorium's. Chrome headless.
 @Suite("First-pass permit", .serialized)
@@ -41,7 +41,7 @@ struct FirstPassPermitTests {
           "SELECT lexico_record_id IS NOT NULL FROM sentiments WHERE uuid = '\(pass.sentimentID)';") == "t")
       }
       // The record's level in its sidebar, as text at a phone's width too:
-      // postulated, nothing done yet, so the word alone with no mark.
+      // postulated, nothing done yet: the dotted ring beside the word.
       for viewport in [Viewport.desktop, .phone] {
         try await withPage(engine, gnorium, viewport: viewport) { tab in
           try await tab.openHydrated("/lexico-records/eng/\(pass.title)/noun")
@@ -52,7 +52,7 @@ struct FirstPassPermitTests {
           let level = tab.locator(".record-level-view").filter(visible: true).first
           try await expect(level).toBeVisible()
           try await expect(level.locator(".record-level-level")).toHaveText("Postulated")
-          try await expect(level.locator(".record-level-level .icon-view")).toHaveCount(0)
+          try await expect(level.locator(".record-level-level .icon-view .dotted-ring-view")).toHaveCount(1)
           try await expect(level.locator(".record-level-partial")).toHaveCount(0)
           try await expect(tab.locator(".record-sidebar-status")).toHaveCount(0)
           try await tab.expectNoHorizontalOverflow()

@@ -88,7 +88,7 @@ struct DisputoriumVerboseTests {
       let blocks: [[String: String]] = [
         ["type": "thinking", "content": "Reading the page."],
         [
-          "type": "compaction", "mode": "auto", "micro": "0", "chars_before": "100", "chars_after": "60",
+          "type": "compaction", "mode": "auto", "micro": "0", "tokens_before": "100", "tokens_after": "60",
           "prompt": "Summarize.", "summary": "Kept the page.",
         ],
         ["type": "text", "content": "The page saved."],

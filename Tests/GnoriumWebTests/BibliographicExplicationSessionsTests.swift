@@ -34,7 +34,7 @@ struct BibliographicExplicationSessionsTests {
         ["type": "canvas_xml", "label": "1", "content": Self.page],
         ["type": "canvas_xml", "label": "2", "content": Self.page],
         [
-          "type": "compaction", "mode": "auto", "micro": "0", "chars_before": "100", "chars_after": "60",
+          "type": "compaction", "mode": "auto", "micro": "0", "tokens_before": "100", "tokens_after": "60",
           "template_id": autoID, "system_prompt": "Summarize this session.",
           "prompt": "Summarize.", "summary": "Kept **both** pages and `save_page`.",
         ],
@@ -310,7 +310,7 @@ struct BibliographicExplicationSessionsTests {
         ["type": "tool", "name": "save_page", "arguments": #"{"page":"1"}"#,
           "result": #"{"ok":true,"saved":"1"}"#, "status": "ok", "call_id": "replay_save"],
         ["type": "thinking", "content": "Checking the saved passage before finishing the session."],
-        ["type": "compaction", "mode": "micro", "micro": "1", "chars_before": "100", "chars_after": "60",
+        ["type": "compaction", "mode": "micro", "micro": "1", "tokens_before": "100", "tokens_after": "60",
           "summary": "Kept the saved passage."],
         ["type": "text", "content": "Replay finished with **every** recorded block."],
       ]
