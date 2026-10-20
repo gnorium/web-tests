@@ -8,7 +8,10 @@ import WebTestsTesting
 /// of its page and the pages either side, one after another in one bounded
 /// box, each opened by its label, fetched only once it comes into view and
 /// opened with its sentence (split across a page break here) in the middle,
-/// the sentence and, more strongly, the word marked; no images. Anywhere in
+/// the sentence and, more strongly, the word marked; no images. It is
+/// headed by its testament's Chicago note (user, 2026-10-18), its title a
+/// link to the testament's row on its record's page at the quotation's
+/// page; no breadcrumb, no header box. Anywhere in
 /// its highlight opens its gloss (user, 2026-10-09): its testament's Chicago
 /// note, its title linked to the testament at its page, then its words. A throwaway
 /// admin owns a scratch work with a permitted testament and a scratch word
@@ -73,8 +76,25 @@ struct QuotationTests {
         try await expect(row).toHaveAttribute("data-open-finished", "true")
         let quotation = attestation.locator(".quotation-view")
         try await expect(quotation).toHaveCount(1)
-        // No caption under the reader: the source is in the quotation's gloss.
-        try await expect(attestation.locator(".chicago-citation-view")).toHaveCount(0)
+        // Headed by its testament's Chicago note, above the reader, nothing
+        // else: no breadcrumb, no header box.
+        let heading = attestation.locator(".attestation-quotation > .chicago-citation-view")
+        try await expect(heading).toHaveCount(1)
+        let work = scratch.reading.work
+        try await expect(heading).toHaveText("\(work.author), \(work.title) (1958), 3.")
+        let headingAbove = try await attestation.evaluate(
+          "(view) => { const h = view.querySelector('.chicago-citation-view').getBoundingClientRect(); const q = view.querySelector('.quotation-view').getBoundingClientRect(); return h.bottom <= q.top }")
+        #expect(headingAbove == .bool(true), "the citation is not above the quotation")
+        try await expect(attestation.locator(".breadcrumb-view")).toHaveCount(0)
+        try await expect(attestation.locator(".header-view")).toHaveCount(0)
+        // Its title links to the testament's leaf row on the record's page,
+        // its reader on the quotation's page.
+        let headingLink = heading.locator("cite a")
+        try await expect(headingLink).toHaveCount(1)
+        let leafUUID = try TestAdmin.query(
+          "SELECT shape_json::jsonb -> ('manifest-' || upper(f.id::text)) ->> 'uuid' FROM biblio_record_versions v, bibliographic_fountains f WHERE v.id = '\(scratch.versionID)' AND f.id = (SELECT bibliographic_fountain_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())');"
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+        try await expect(headingLink).toHaveAttribute("href", "\(work.path)?resemblance=2#record-row-\(leafUUID)")
         // The page and the pages either side, each opened by its label.
         try await expect(quotation.locator(".tei-page")).toHaveCount(3)
         try await expect(quotation.locator(".tei-line-mark")).toHaveTexts(["2", "3", "4"])
@@ -126,7 +146,6 @@ struct QuotationTests {
         let address = try await quotation.evaluate(
           "(box) => box.closest('[data-quotation-gloss]').getAttribute('data-quotation-gloss')")
         #expect(address.string?.contains("/quotations/") == true && address.string?.hasPrefix("/lexico-records/") == true, "the gloss is at \(address), the record at \(scratchWord.path)")
-        let work = scratch.reading.work
         let citation = gloss.locator(".chicago-citation-view")
         try await expect(citation).toHaveText("\(work.author), \(work.title) (1958), 3.")
         try await expect(citation.locator("cite.chicago-citation-title")).toHaveCSS("font-style", "italic")
@@ -139,7 +158,7 @@ struct QuotationTests {
         // Its title opens the testament's page at the quotation's page.
         let landed = try await page.evaluate(
           """
-          fetch(document.querySelector('#record-row-\(scratchWord.leaf) .chicago-citation-view a').href)
+          fetch(document.querySelector('#record-row-\(scratchWord.leaf) .gloss-sheet .chicago-citation-view a').href)
             .then(r => (r.ok ? '' : 'HTTP ' + r.status + ' ') + new URL(r.url).pathname + new URL(r.url).search)
           """)
         #expect(landed == .string("\(scratch.reading.work.path)/vignettes/\(scratch.versionID)?resemblance=2"))

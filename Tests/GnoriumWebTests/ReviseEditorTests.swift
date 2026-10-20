@@ -261,25 +261,31 @@ struct ReviseEditorTests {
         for index in 0..<10 {
           if index > 0 { try await page.locator(".artifact-page-nav button[aria-label='Next page']").first.click() }
           let now = try await Self.expectColoredPage(page, index)
+          // The paste-ready page less its header: the document's header is
+          // drawn over the editor, read-only, never in it (user, 2026-10-20).
           let ready = try String(contentsOfFile: "\(folder)/canvas-\(index + 1).xml", encoding: .utf8)
+            .replacingOccurrences(of: #"<teiHeader>[\s\S]*?</teiHeader>\n"#, with: "", options: .regularExpression)
           #expect(now.text == ready, "page \(index + 1): the paste-ready page is not what the editor shows")
+          // A page of ten lines and more (its header is not in the editor):
+          // the third.
+          guard index == 2 else { continue }
+          // Its line numbers (user, 2026-10-15): right-aligned, the widest
+          // inset from the pane's edge as far as from the code, never touching.
+          let insets = try await page.evaluate(
+            """
+            (() => { const code = document.querySelector(".artifact-markup .tei-page[data-active='true'] .tei-page-edit .code-code");
+              const view = code.closest('.code-view').getBoundingClientRect();
+              const line = code.querySelector('.code-line');
+              const text = line.getBoundingClientRect().left + parseFloat(getComputedStyle(line).paddingInlineStart);
+              const of = n => { const s = [...code.parentElement.querySelectorAll('.code-gutter-lines > span')].find(s => s.textContent === n);
+                const r = document.createRange(); r.selectNodeContents(s); const b = r.getBoundingClientRect();
+                return [Math.round(b.left - view.left), Math.round(text - b.right)]; };
+              return JSON.stringify({ one: of('1'), ten: of('10') }); })()
+            """, as: String.self)
+          #expect(insets == #"{"one":[18,8],"ten":[8,8]}"#, "the gutter's insets: \(insets)")
         }
         for _ in 0..<9 { try await page.locator(".artifact-page-nav button[aria-label='Previous page']").first.click() }
         let first = try await Self.expectColoredPage(page, 0)
-        // Its line numbers (user, 2026-10-15): right-aligned, the widest
-        // inset from the pane's edge as far as from the code, never touching.
-        let insets = try await page.evaluate(
-          """
-          (() => { const code = document.querySelector(".artifact-markup .tei-page[data-active='true'] .tei-page-edit .code-code");
-            const view = code.closest('.code-view').getBoundingClientRect();
-            const line = code.querySelector('.code-line');
-            const text = line.getBoundingClientRect().left + parseFloat(getComputedStyle(line).paddingInlineStart);
-            const of = n => { const s = [...code.parentElement.querySelectorAll('.code-gutter-lines > span')].find(s => s.textContent === n);
-              const r = document.createRange(); r.selectNodeContents(s); const b = r.getBoundingClientRect();
-              return [Math.round(b.left - view.left), Math.round(text - b.right)]; };
-            return JSON.stringify({ one: of('1'), ten: of('10') }); })()
-          """, as: String.self)
-        #expect(insets == #"{"one":[18,8],"ten":[8,8]}"#, "the gutter's insets: \(insets)")
 
         // Pasted as it stands, byte for byte: no ring, no diff.
         var now = try await Self.paste(page, first.text)
@@ -407,8 +413,11 @@ struct ReviseEditorTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(commit.madrigalPath)/revise")
         try await Self.xmlOn(page)
-        let first = try await Self.expectColoredPage(page, 0)
-        let now = try await Self.paste(page, first.text.replacingOccurrences(of: #"reason="blank""#, with: #"reason="illegible""#))
+        // The third page, its diff long enough to scroll (the first's is
+        // short since the header is no page's code, user 2026-10-20).
+        for _ in 0..<2 { try await page.locator(".artifact-page-nav button[aria-label='Next page']").first.click() }
+        let third = try await Self.expectColoredPage(page, 2)
+        let now = try await Self.paste(page, third.text.replacingOccurrences(of: ">ETYMOLOGICAL<", with: ">ETYMOLOGIC<"))
         #expect(now.ring == "changed" && now.diff, "the changed page: ring '\(now.ring)', diff \(now.diff)")
         struct Parts: Decodable {
           let pane: [Double]
