@@ -175,8 +175,8 @@ struct ArbitrationTests {
         let attachments = call.locator(".list-sentence-view.locution-attachments")
         try await expect(attachments).toHaveCount(1)
         let words = try await attachments.evaluate(
-          "e => [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|') + '|' + e.querySelector('.locution-attachments-item a').textContent").string
-        #expect(words == "Attached |.|Image 1", Comment(rawValue: words ?? "—"))
+          "e => e.querySelector('.list-sentence-lead').textContent + '|' + [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|') + '|' + e.querySelector('.locution-attachments-item a').textContent").string
+        #expect(words == "Attached| |.|Image 1", Comment(rawValue: words ?? "—"))
         try await expect(attachments).toHaveCSS("border-top-style", "solid")
         let attached = attachments.locator(".locution-attachment")
         try await expect(attached).toHaveCount(1)
@@ -1046,8 +1046,8 @@ struct ArbitrationTests {
               .map(c => c.textContent.trim()).join(' › ') : item.querySelector('a').textContent.trim() }).join(' | ')
           """).string
         let joined = try await attachments.evaluate(
-          "e => [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|')").string
-        #expect(joined == "Attached |, |, and |.", Comment(rawValue: joined ?? "—"))
+          "e => e.querySelector('.list-sentence-lead').textContent + '|' + [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|')").string
+        #expect(joined == "Attached| |, |, and |.", Comment(rawValue: joined ?? "—"))
         // Metadata by its node's heading, as its accordion names it.
         #expect(crumbs?.hasPrefix("Metadata › ") == true && crumbs?.hasSuffix(" | Image 2 | Locution \(firstID)") == true
           && crumbs?.components(separatedBy: " | ").count == 3, Comment(rawValue: crumbs ?? "—"))

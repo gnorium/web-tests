@@ -453,8 +453,8 @@ struct RevisePagesTests {
           paths.string == "Arbitration › Autocompaction › System Prompt | Arbitration › Autocompaction › Task Prompt",
           "\(paths)")
         let joined = try await changed.evaluate(
-          "e => [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|')")
-        #expect(joined.string == "Changed | and |.", "\(joined)")
+          "e => e.querySelector('.list-sentence-lead').textContent + '|' + [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|')")
+        #expect(joined.string == "Changed| | and |.", "\(joined)")
         // In a white box of its own, as a call's Attached line is (user,
         // 2026-10-17): said of the revision, not words of the thread.
         try await expect(page.locator(".list-sentence-view.locution-thread-event-changed")).toHaveCount(1)
