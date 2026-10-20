@@ -59,8 +59,14 @@ extension Page {
     return try await length("calc(2 * var(\(inset)) + var(--line-height-small-22) + 2 * var(--border-width-base))")
   }
 
+  /// A control's icon size: its 22px line at every size (user, 2026-10-21),
+  /// so the icon fills the line and never grows the control.
+  func controlIconSize() async throws -> String {
+    try await length("var(--line-height-small-22)")
+  }
+
   /// A control's type size here for its `size`, at the size it is drawn
-  /// (`controlSize`): its own icon's size too.
+  /// (`controlSize`).
   func controlFontSize(_ size: String) async throws -> String {
     let token = [
       "mini": "--font-size-x-small-12", "small": "--font-size-small-14", "medium": "--font-size-medium-16",

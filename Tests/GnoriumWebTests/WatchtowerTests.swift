@@ -116,7 +116,7 @@ struct WatchtowerTests {
 
   /// A status mark sits in its permit row's line (user, 2026-10-10): the
   /// words of the row's first line—mono verb, sans arrow, status word and
-  /// names—share one baseline, and the 16px mark centers on the capitals
+  /// names—share one baseline, and the 26px mark centers on the capitals
   /// of the word beside it, by the font's cap height, within half a pixel.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func statusMarksCenterOnTheirRowsCapitals(engine: BrowserEngine, layout: Layout) async throws {

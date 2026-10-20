@@ -148,8 +148,8 @@ struct RecordChoiceTests {
       #expect(row["display"].string == "inline")
       #expect(row["sameLine"].bool == true, "the chevron left the language's line")
       #expect(row["after"].bool == true)
-      #expect(row["size"].double == 16, "the chevron's long edge, its height, is the 16px text's size")
-      if let trail = row["trail"].double { #expect(row["size"].double == trail) }
+      #expect(row["size"].double == 22, "the chevron's long edge, its height, is the option's 22px line")
+      if let trail = row["trail"].double { #expect(trail == 26, "the page trail's chevron is its 26px line") }
 
       // Afresh: found by typing, picked, and its amendment offered.
       try await page.openHydrated(Self.form)

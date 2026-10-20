@@ -110,16 +110,16 @@ struct ImageTests {
         try await expect(find).toHaveAccessibleName("Search")
         try await expect(find).toHaveText("")
         // Find and the image switch are the pager's medium chevrons'
-        // size, 40, their icons' long edge the chevrons', 16 (icons are tight
-        // to their glyph, 2026-10-01; an icon-only control on par with the
-        // bars' 16px text takes its size, 2026-10-09): one row of medium
+        // size, 40, their icons' long edge the chevrons', 22 (icons are tight
+        // to their glyph, 2026-10-01; an icon-only control is as tall as the
+        // bars' 22px line, 2026-10-21): one row of medium
         // controls, 8 on every side of them, in a 56 bar (2026-10-10).
         let chevron = try #require(try await viewer.locator(".pagination-prev").first.boundingBox())
         let chevronIcon = try #require(try await viewer.locator(".pagination-prev svg").first.boundingBox())
         // On a phone every sized control is one step down (user,
-        // 2026-10-12): small, 32, its icons 14, in a 48 bar.
+        // 2026-10-12): small, 32, its icons still the 22px line, in a 48 bar.
         let control: Double = layout == .phone ? 32 : 40
-        let glyph: Double = layout == .phone ? 14 : 16
+        let glyph: Double = 22
         #expect(abs(chevron.height - control) < 1, "the pager's chevrons are \(control)")
         #expect(abs(max(chevronIcon.width, chevronIcon.height) - glyph) < 1, "the pager's chevrons are \(glyph)")
         #expect(abs(row.height - (control + 16)) < 1, "the header's row is \(control + 16)")

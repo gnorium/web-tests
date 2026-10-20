@@ -81,7 +81,7 @@ struct AlertLayoutTests {
   }
 
   static let icon =
-    #"<span class="alert-icon" aria-hidden="true" data-color="orange"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="currentColor"/></svg></span>"#
+    #"<span class="alert-icon" aria-hidden="true" data-color="orange"><svg width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="10" fill="currentColor"/></svg></span>"#
 
   /// `SourceChangeNoticeView`'s markup for an image changed: an inline
   /// alert, its thumbnail in the sentence (its size inline, as the

@@ -309,11 +309,12 @@ struct EntriesAndCitationsTests {
         // The header is 56 and a 1px border, its controls medium, 40, 8
         // above and under them (user, 2026-10-10); the find bar's box
         // medium too, its text 16px; its buttons 40, their icons alone in
-        // their boxes so at the row's 16, as every icon-only control.
+        // their boxes as tall as the 22px line, as every icon-only control.
         // Medium, a step down under the phone step on a phone, the find
         // field with them.
         let control = try await page.controlHeight("medium")
         let type = try await page.controlFontSize("medium")
+        let icon = try await page.controlIconSize()
         let row = try await page.length("calc(\(control) + 2 * var(--spacing-8))")
         let px = { (length: String) in Int(Double(length.replacingOccurrences(of: "px", with: "")) ?? -1) }
         let small = try await viewer.evaluate(
@@ -330,9 +331,9 @@ struct EntriesAndCitationsTests {
               && el.closest('.search-input-view').dataset.size === 'medium'
               && h(el) === \(px(control)) && css.fontSize === '\(type)'
               && buttons.length === 2 && buttons.every(b => h(b) === \(px(control)))
-              && buttons.every(b => h(b.querySelector('svg')) === \(px(type))); }
+              && buttons.every(b => h(b.querySelector('svg')) === \(px(icon))); }
           """).bool == true
-        #expect(small, "The header and its find bar are rows of medium controls, their text and icons 16px")
+        #expect(small, "The header and its find bar are rows of medium controls, their text 16px, their icons 22px")
         try await bar.locator("input").fill("scratchfind")
         let count = bar.locator(".testament-find-count")
         // The word broken over two lines is found whole.

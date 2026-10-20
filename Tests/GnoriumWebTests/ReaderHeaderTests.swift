@@ -137,7 +137,7 @@ struct ReaderHeaderTests {
         try await page.openHydrated(scratch.reading.path)
         let px = { (length: String) in Double(length.replacingOccurrences(of: "px", with: "")) ?? 0 }
         let control = px(try await page.controlHeight("medium"))
-        let icon = px(try await page.controlFontSize("medium"))
+        let icon = px(try await page.controlIconSize())
         let served = try await page.evaluate(
           """
           (async () => {
