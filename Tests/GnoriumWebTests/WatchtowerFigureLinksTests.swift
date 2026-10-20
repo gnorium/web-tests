@@ -129,9 +129,10 @@ struct WatchtowerFigureLinksTests {
   func theTwoSidesStandSideBySide(engine: BrowserEngine, layout: Layout) async throws {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/")
-      // Six chain objects, the entry, two palinodes and three nested cards.
+      // Six chain objects, the entry, three palinodes (one before each
+      // pair) and three nested cards.
       let views = page.locator(".watchtower-object-figures-view")
-      try await expect(views).toHaveCount(12)
+      try await expect(views).toHaveCount(13)
       let rows = try await page.evaluate(
         """
         [...document.querySelectorAll('.watchtower-object-figures-view')].map(view => {
@@ -211,8 +212,9 @@ struct WatchtowerFigureLinksTests {
     }
   }
 
-  /// The case that was broken: the sentiments' committed overtures.
-  static let committedSentimentOvertures = "/mission-control/overtures/lexicographic?status=committed&createdOn=-7d.."
+  /// The sentiments' overtures waiting on a Commit, counted in the
+  /// testaments' words (user, 2026-10-20): pending, or calibrating.
+  static let pendingSentimentOvertures = "/mission-control/overtures/lexicographic?status=pending&status=calibrating"
   /// The testaments' pending overtures, whose list must be filtered on the
   /// first render, not only after Apply.
   static let pendingTestamentOvertures = "/mission-control/overtures/bibliographic?status=pending&status=calibrating"
@@ -261,7 +263,7 @@ struct WatchtowerFigureLinksTests {
   func aFigureOpensItsFilteredList(engine: BrowserEngine, layout: Layout) async throws {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       for (href, status, tab) in [
-        (Self.committedSentimentOvertures, "Committed", "lexicographic"),
+        (Self.pendingSentimentOvertures, "Pending", "lexicographic"),
         (Self.pendingTestamentOvertures, "Pending", "bibliographic"),
       ] {
         try await page.openHydrated("/")
@@ -309,8 +311,8 @@ struct WatchtowerFigureLinksTests {
             """, as: [String].self)
           // A page holds 100 rows (PaginationView.perPage).
           #expect(statuses.count == min(total, 100), "\(href): \(statuses.count) overtures shown for \(total)")
-          // A bibliographic overture waits on a Commit: pending, or calibrating once sealed.
-          let allowed = tab == "bibliographic" ? [status, "Calibrating"] : [status]
+          // An overture waits on a Commit: pending, or calibrating once sealed.
+          let allowed = [status, "Calibrating"]
           #expect(statuses.allSatisfy { allowed.contains($0) }, "\(href): the rows' statuses are \(statuses)")
         }
       }
