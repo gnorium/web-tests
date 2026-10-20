@@ -54,7 +54,7 @@ struct UntreatedRecordsTests {
         #expect(robots == "noindex, follow")
         // What it has undergone: nothing, "—"; then what made it.
         let sidebar = page.locator(".record-sidebar-view").first
-        try await expect(sidebar.locator(".record-sidebar-status")).toHaveText("—")
+        try await expect(sidebar.locator(".record-level-view")).toHaveText("—")
         let provenance = sidebar.locator(".record-provenance-view")
         try await expect(provenance).toHaveText(
           "Created by gnorium from the citation “Web tests Journ.” in \(citing.title), page 2.")
@@ -71,7 +71,12 @@ struct UntreatedRecordsTests {
         try await page.openHydrated(citing.path)
         let treated = try await page.locator("meta[name='robots']").getAttribute("content")
         #expect(treated == "index, follow")
-        try await expect(page.locator(".record-sidebar-view").first.locator(".record-sidebar-status")).toHaveText("Explicated.")
+        // Its level, its mark and its word, with no label; no partial
+        // line, its one testament as far as the record.
+        let level = page.locator(".record-sidebar-view").first.locator(".record-level-view")
+        try await expect(level.locator(".record-level-level")).toHaveText("Explicated")
+        try await expect(level.locator(".record-level-level .icon-view")).toHaveCount(1)
+        try await expect(level.locator(".record-level-partial")).toHaveCount(0)
         try await expect(page.locator(".record-sidebar-view").first.locator(".record-provenance-view")).toHaveCount(0)
       }
     } catch {

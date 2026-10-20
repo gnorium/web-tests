@@ -110,7 +110,8 @@ struct LexicographicTranslationDefinitionTests {
         try await expect(box.locator("[data-definition-layer='native']")).toBeVisible()
         try await expect(row.locator(".record-row-title").first).toHaveText(Self.german)
         try await expect(row.locator(".record-row-title").first).toHaveAttribute("lang", "de")
-        try await expect(page.locator(".record-sidebar-status").first).toContainText("translated")
+        // Its level is its lowest sentiment's: the branch is not translated.
+        try await expect(page.locator(".record-level-level").first).toHaveText("Explicated")
         // Usage is schema: the same in every language.
         try await expect(row.locator(".sentiment-metadata-view").first).toContainText("in seafaring use")
         try await expect(row.locator(".sentiment-metadata-view").getByText("in der Seefahrt")).toHaveCount(0)

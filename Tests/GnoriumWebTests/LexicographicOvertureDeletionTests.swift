@@ -50,7 +50,7 @@ struct LexicographicOvertureDeletionTests {
         try await expect(tab.locator("button[form='overture-restore']")).toHaveCount(0)
 
         // The thread: its opening, and the box that posts to the overture.
-        try await expect(tab.locator("#creation-\(overture)")).toHaveCount(1)
+        try await expect(tab.locator("[id='creation-\(overture)' i]")).toHaveCount(1)
         try await tab.locator("#locution-thread-locution-body").fill("The class is a verb here.")
         try await tab.locator(".locution-thread-submit").click()
         try await expect(tab.locator(".locution-thread")).toContainText("The class is a verb here.")
