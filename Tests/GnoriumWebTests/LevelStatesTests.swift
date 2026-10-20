@@ -46,7 +46,7 @@ struct LevelStatesTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(scratch.path)
-        try await expect(Self.chip(page)).toHaveText("Uncalibrated")
+        try await expect(Self.chip(page)).toHaveText("Postulated")
         try await expect(page.locator(".level-progress-line-view")).toHaveText("Calibrated: 1 of 4 pages")
         // Its first Commit seals nothing (user, 2026-10-20): it is revised
         // until its promotion, and only Delete is gone.
@@ -109,7 +109,7 @@ struct LevelStatesTests {
     do {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(scratch.path)
-        try await expect(Self.chip(page)).toHaveText("Uncalibrated")
+        try await expect(Self.chip(page)).toHaveText("Postulated")
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Commit", "Delete"])
         // Every page is owed: all ticked.
@@ -185,7 +185,7 @@ struct LevelStatesTests {
         try await expect(page.locator(".pedigree-rows")).toContainText("for explication")
         // The madrigal it made is unexplicated, with the header frozen.
         try await page.openHydrated(scratch.madrigalPath)
-        try await expect(Self.chip(page)).toHaveText("Unexplicated")
+        try await expect(Self.chip(page)).toHaveText("Calibrated")
         try await expect(page.locator(".level-progress-line-view")).toHaveText("Explicated: 0 of 4 pages")
       }
     } catch {
@@ -218,7 +218,7 @@ struct LevelStatesTests {
             metadata_json = (metadata_json::jsonb || '{"language":"ita"}'::jsonb)::text WHERE id = '\(scratch.madrigalID)'
           """)
         try await page.openHydrated(scratch.madrigalPath)
-        try await expect(Self.chip(page)).toHaveText("Partly explicated")
+        try await expect(Self.chip(page)).toHaveText("Calibrated")
         try await expect(page.locator(".level-progress-line-view")).toHaveText("Explicated: 2 of 3 pages")
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_explication")
         let rows = page.locator("#madrigal-images").first.locator(".roster-row")
@@ -285,7 +285,7 @@ struct LevelStatesTests {
       try scratch.addEpilogue(base: fixture.baseURL, translated: [])
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(try scratch.epiloguePath())
-        try await expect(Self.chip(page)).toHaveText("Untranslated")
+        try await expect(Self.chip(page)).toHaveText("Explicated")
         try await expect(page.locator(".level-progress-line-view")).toHaveText("Translated: 0 of 3 pages")
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_translation")
         let rows = page.locator("#epilogue-images").first.locator(".roster-row")
@@ -300,7 +300,7 @@ struct LevelStatesTests {
         _ = try TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE bibliographic_madrigal_id = '\(scratch.madrigalID)'")
         try scratch.addEpilogue(base: fixture.baseURL, translated: [1, 2], stale: [2])
         try await page.openHydrated(try scratch.epiloguePath())
-        try await expect(Self.chip(page)).toHaveText("Partly translated")
+        try await expect(Self.chip(page)).toHaveText("Explicated")
         try await expect(page.locator(".level-progress-line-view")).toHaveText("Translated: 1 of 3 pages, 1 stale")
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(1)).toHaveAttribute("data-locked", "false")
