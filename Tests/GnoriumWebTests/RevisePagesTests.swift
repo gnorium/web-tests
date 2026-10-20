@@ -454,7 +454,7 @@ struct RevisePagesTests {
           "\(paths)")
         let joined = try await changed.evaluate(
           "e => e.querySelector('.list-sentence-lead').textContent + '|' + [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|')")
-        #expect(joined.string == "Changed| | and |.", "\(joined)")
+        #expect(joined.string == "Modified| | and |.", "\(joined)")
         // In a white box of its own, as a call's Attached line is (user,
         // 2026-10-17): said of the revision, not words of the thread.
         try await expect(page.locator(".list-sentence-view.locution-thread-event-changed")).toHaveCount(1)
@@ -739,7 +739,7 @@ struct RevisePagesTests {
         // Its definition and its one usage field, each its own item by
         // its form's label, each linked to its place on the page.
         let changed = event.locator(".locution-thread-event-changed")
-        try await expect(changed).toHaveText("Changed Sentiment 1.1 Definition and Sentiment 1.1 Register.")
+        try await expect(changed).toHaveText("Modified Sentiment 1.1 Definition and Sentiment 1.1 Register.")
         try await expect(changed.locator("a")).toHaveCount(2)
         // Each on the revision's own page, at its field there (user, 2026-10-09).
         try await expect(changed.locator("a[href='\(revisionPath)?source=code#sentiment-1-definition']"))
@@ -799,7 +799,7 @@ struct RevisePagesTests {
         try await page.openHydrated(epiloguePath)
         let event = page.locator("#revision-\(epilogueRevision)")
         try await expect(event.locator(".locution-thread-event-changed"))
-          .toHaveText("Changed Sentiment 1.1 Definition.")
+          .toHaveText("Modified Sentiment 1.1 Definition.")
         // Its revision's page, named as the server names it (ids upper case).
         let epilogueRevisionPath =
           "/mission-control/epilogues/lexicographic/\(epilogue.uppercased())/revisions/\(epilogueRevision)"
@@ -1023,7 +1023,7 @@ struct RevisePagesTests {
     try await admin.remove()
   }
 
-  /// Every step of every item of a revision's "Changed" line (on the page
+  /// Every step of every item of a revision's "Modified" line (on the page
   /// open now) links to its revision's own page in source mode, where an
   /// element holds its anchor—an image's node its row; an image's
   /// turns the reader there instead, and XML opens the reader with XML on
@@ -1033,7 +1033,7 @@ struct RevisePagesTests {
       "JSON.stringify([...document.querySelectorAll('#revision-\(id) .locution-thread-event-changed a')].map(a => a.getAttribute('href')))"
     ).string ?? "[]"
     let links = try JSONDecoder().decode([String].self, from: Data(hrefs.utf8))
-    #expect(!links.isEmpty, "a Changed line")
+    #expect(!links.isEmpty, "a Modified line")
     for link in links {
       let parts = link.split(separator: "#", maxSplits: 1).map(String.init)
       #expect(
@@ -1146,7 +1146,7 @@ struct RevisePagesTests {
         #expect(stored == "2 continuation,main", "One revision, both prompts: \(stored)")
         let rows = try TestAdmin.query("SELECT count(*) FROM revisions WHERE requested_by_user_id = '\(user)'")
         #expect(rows.trimmingCharacters(in: .whitespacesAndNewlines) == "1")
-        // Its "Changed" line names each part.
+        // Its "Modified" line names each part.
         let changed = page.locator(".locution-thread-event-changed").last
         try await expect(changed).toContainText("Continuation Prompt")
         try await expect(changed).toContainText("Task Prompt")

@@ -166,7 +166,7 @@ struct ArbitrationTests {
         try await expect(call.locator(".locution-header")).toContainText("submitted locution \(callID.uppercased()) on Image 3")
         try await expect(call.locator("a:has(.locution-call-page)")).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID.uppercased())?image=2")
         // Its body stays as typed; what it ticked is one sentence in a box
-        // after it, as a revision's Changed line is: "Attached Image
+        // after it, as a revision's Modified line is: "Attached Image
         // 1.", the page's image a line-high chip opening the lightbox (user,
         // 2026-10-17). No picture above the words; nothing full size, which
         // only a session transcript shows.
