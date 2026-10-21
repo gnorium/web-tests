@@ -279,12 +279,11 @@ struct WatchtowerTests {
         // The data-color stays the status color; only the painted color goes quiet.
         #expect(figure.color == color, "\(figure.owner) \(figure.text): \(figure.color), not \(color)")
         // At zero the mark is gray, as quiet as its label, and a turning
-        // mark stands still (animation-name none); above zero it wears its
-        // color and a turning mark's animation-name is its spin
-        // (user, 2026-10-21).
+        // mark still turns (animation-name is its spin); above zero it wears
+        // its color (user, 2026-10-21).
         #expect(figure.gray == (count == 0), "\(figure.owner) \(figure.text): gray \(figure.gray) at \(count)")
-        #expect(figure.animated == (turns && count > 0), "\(figure.owner) \(figure.text) (\(count)): animated \(figure.animated)")
-        #expect((figure.animation == "none") == !(turns && count > 0), "\(figure.owner) \(figure.text): animation-name \(figure.animation)")
+        #expect(figure.animated == turns, "\(figure.owner) \(figure.text) (\(count)): animated \(figure.animated)")
+        #expect((figure.animation == "none") == !turns, "\(figure.owner) \(figure.text): animation-name \(figure.animation)")
       }
       // Three processes and three machines, four statuses on both sides.
       #expect(processes == 24 && machines == 24, "\(processes) process figures, \(machines) object figures")
