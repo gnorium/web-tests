@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// A process's prompts are revised on an overture of their vignette, in
 /// Mission Control alone (user, 2026-10-21): the Prompts list links each
-/// process's vignette in force; its page offers an admin Amend, which
+/// process's vignette in force; its page offers an Amend, any reader's, which
 /// submits a palinode, frozen, opening the overture; the overture's page is
 /// never indexed, its Pedigree the line palinode › overture, its thread
 /// opening with the palinode's submitting naming the vignette amended, and
@@ -63,7 +63,7 @@ struct PromptOvertureTests {
         // The Prompts list links each process's vignette in force.
         try await page.openHydrated("/mission-control/prompts/bibliographic")
         try await expect(page.locator("a[href='/mission-control/prompts/vignettes/\(vignette)' i]").first).toBeVisible()
-        // Its page offers an admin Amend.
+        // Its page offers an Amend.
         try await page.openHydrated("/mission-control/prompts/vignettes/\(vignette)")
         let amend = page.locator(".prompt-details-amend button[type='submit']")
         try await expect(amend).toHaveText("Submit Amendment")
@@ -190,5 +190,51 @@ struct PromptOvertureTests {
     }
     remove()
     try await admin.remove()
+  }
+
+  /// Amending is open to every reader (user, 2026-10-22): a signed-in
+  /// non-admin sees Submit Amendment and reaches the Amend form; a reader
+  /// signed out sees it and, pressed, is told to sign in. Nothing is filed.
+  @Test(arguments: [BrowserEngine.chrome])
+  func anyReaderMayAmendAPromptVignette(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let slot = "bibliographic_translation"
+    let open = try TestAdmin.query(
+      """
+      SELECT count(*) FROM vignette_overtures
+      WHERE slot = '\(slot)' AND vignette_kind = 'prompt' AND permitted_at IS NULL AND discarded_at IS NULL
+      """)
+    guard open.trimmingCharacters(in: .whitespacesAndNewlines) == "0" else {
+      try Test.cancel(Comment(rawValue: "\(slot) has an open overture that is not a web test's"))
+      return
+    }
+    let vignette = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let reader = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    do {
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [reader.cookie]) { page in
+        try await page.openHydrated("/mission-control/prompts/vignettes/\(vignette)")
+        let amend = page.locator(".prompt-details-amend button[type='submit']")
+        try await expect(amend).toHaveText("Submit Amendment")
+        try await amend.click()
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the Amend form") {
+          $0.path.lowercased() == "/mission-control/prompts/vignettes/\(vignette)/amend"
+        }
+        try await expect(page.locator("#amend-vignette-form button[type='submit']")).toHaveText("Submit")
+        try await page.expectNoErrors()
+      }
+      try await withPage(engine, gnorium, viewport: .desktop) { page in
+        try await page.openHydrated("/mission-control/prompts/vignettes/\(vignette)")
+        let amend = page.locator(".prompt-details-amend button[type='submit']")
+        try await expect(amend).toHaveText("Submit Amendment")
+        try await amend.click()
+        try await expect(page.locator(".prompt-details-amend .alert-content")).toHaveText("Sign in to submit an amendment.")
+        #expect(URL(string: try await page.url())?.path.lowercased() == "/mission-control/prompts/vignettes/\(vignette)")
+      }
+    } catch {
+      try await reader.remove(after: error)
+    }
+    try await reader.remove()
   }
 }

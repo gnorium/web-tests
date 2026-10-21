@@ -5,8 +5,8 @@ import WebTestsTesting
 
 /// A process's tools are revised on an overture of their vignette, in
 /// Mission Control alone (user, 2026-10-21), as its prompts are: a tool
-/// vignette is a pinned commit of the tools code; its page offers an admin
-/// Amend, which submits a palinode, frozen, opening the overture; the
+/// vignette is a pinned commit of the tools code; its page offers an
+/// Amend (any reader's), which submits a palinode, frozen, opening the overture; the
 /// overture's page is never indexed and holds Revise and Permit—no header
 /// Commit (user, 2026-10-21): a review is a call to gnorium in its thread—
 /// Permit's refusal said when pressed. The vignette here is a scratch one, of
@@ -82,7 +82,7 @@ struct ToolOvertureTests {
         // The tools list links the process's vignette in force.
         try await page.openHydrated("/mission-control/tools/bibliographic")
         try await expect(page.locator("a[href='/mission-control/tools/vignettes/\(vignette)' i]").first).toBeVisible()
-        // Its page names its commits and offers an admin Amend.
+        // Its page names its commits and offers an Amend.
         try await page.openHydrated("/mission-control/tools/vignettes/\(vignette)")
         try await expect(page.locator(".tool-details-title")).toHaveText("Bibliographic Translation Tools Vignette")
         try await expect(page.locator(".pedigree-view").filter(hasText: commit).first).toBeVisible()
@@ -168,5 +168,75 @@ struct ToolOvertureTests {
     }
     remove()
     try await admin.remove()
+  }
+
+  /// Amending is open to every reader (user, 2026-10-22): a signed-in
+  /// non-admin sees Submit Amendment and reaches the Amend form; a reader
+  /// signed out sees it and, pressed, is told to sign in. Nothing is filed.
+  @Test(arguments: [BrowserEngine.chrome])
+  func anyReaderMayAmendAToolVignette(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let slot = "bibliographic_translation"
+    func count(_ sql: String) throws -> String {
+      try TestAdmin.query(sql).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    guard try count("SELECT count(*) FROM active_tool_vignettes WHERE slot = '\(slot)'") == "0",
+      try count(
+        """
+        SELECT count(*) FROM vignette_overtures
+        WHERE slot = '\(slot)' AND vignette_kind = 'tool' AND permitted_at IS NULL AND discarded_at IS NULL
+        """) == "0"
+    else {
+      try Test.cancel(Comment(rawValue: "\(slot) has tool vignettes that are not a web test's"))
+      return
+    }
+    let reader = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let vignette = UUID().uuidString.lowercased()
+    let commit = String(repeating: "0", count: 40)
+    _ = try TestAdmin.query(
+      """
+      BEGIN;
+      INSERT INTO tool_vignettes (id, slot, gnorium_python_commit, philology_tools_commit, created_at)
+      VALUES ('\(vignette)', '\(slot)', '\(commit)', '\(commit)', now());
+      INSERT INTO active_tool_vignettes (slot, vignette_id, activated_by, activated_at)
+      VALUES ('\(slot)', '\(vignette)', NULL, now());
+      COMMIT;
+      """)
+    func remove() {
+      _ = try? TestAdmin.query(
+        """
+        BEGIN;
+        DELETE FROM active_tool_vignettes WHERE slot = '\(slot)' AND vignette_id = '\(vignette)';
+        DELETE FROM tool_vignettes WHERE id = '\(vignette)';
+        COMMIT;
+        """)
+    }
+    do {
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [reader.cookie]) { page in
+        try await page.openHydrated("/mission-control/tools/vignettes/\(vignette)")
+        let amend = page.locator(".tool-details-amend button[type='submit']")
+        try await expect(amend).toHaveText("Submit Amendment")
+        try await amend.click()
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the Amend form") {
+          $0.path.lowercased() == "/mission-control/tools/vignettes/\(vignette)/amend"
+        }
+        try await expect(page.locator("#amend-vignette-form button[type='submit']")).toHaveText("Submit")
+        try await page.expectNoErrors()
+      }
+      try await withPage(engine, gnorium, viewport: .desktop) { page in
+        try await page.openHydrated("/mission-control/tools/vignettes/\(vignette)")
+        let amend = page.locator(".tool-details-amend button[type='submit']")
+        try await expect(amend).toHaveText("Submit Amendment")
+        try await amend.click()
+        try await expect(page.locator(".tool-details-amend .alert-content")).toHaveText("Sign in to submit an amendment.")
+        #expect(URL(string: try await page.url())?.path.lowercased() == "/mission-control/tools/vignettes/\(vignette)")
+      }
+    } catch {
+      remove()
+      try await reader.remove(after: error)
+    }
+    remove()
+    try await reader.remove()
   }
 }
