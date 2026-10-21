@@ -90,7 +90,7 @@ struct ToolOvertureTests {
           "document.querySelector(\"meta[name='robots']\")?.content ?? ''", as: String.self)
         #expect(robots.contains("noindex"), "Never indexed: \(robots)")
         let amend = page.locator(".tool-details-amend button[type='submit']")
-        try await expect(amend).toHaveText("Amend")
+        try await expect(amend).toHaveText("Submit Amendment")
         try await amend.click()
         // Its Amend form: the vignette in edit mode, its tool files and a
         // note. Its commits are no repository's, so its files cannot be

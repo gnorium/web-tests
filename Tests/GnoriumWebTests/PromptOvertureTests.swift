@@ -66,7 +66,7 @@ struct PromptOvertureTests {
         // Its page offers an admin Amend.
         try await page.openHydrated("/mission-control/prompts/vignettes/\(vignette)")
         let amend = page.locator(".prompt-details-amend button[type='submit']")
-        try await expect(amend).toHaveText("Amend")
+        try await expect(amend).toHaveText("Submit Amendment")
         try await amend.click()
         // Its Amend form: the vignette in edit mode, every prompt and a note.
         try await expect(page, timeout: .seconds(15)).toHaveURL("the Amend form") {
