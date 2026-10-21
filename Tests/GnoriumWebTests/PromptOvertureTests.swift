@@ -131,13 +131,22 @@ struct PromptOvertureTests {
         try await expect(
           page.locator(".action-gate-alert").filter(hasText: "Accept or reject its open revision first: \(revision)")
         ).toBeVisible()
-        // A call to gnorium needs nothing ticked here: posted pending, its
-        // Commit attaches the diffs. It is never committed here.
+        // A call to gnorium ticks the diffs it reads (user, 2026-10-21):
+        // while it is written each changed part offers its box, none
+        // ticked; posted pending, it holds the one ticked. It is never
+        // committed here.
         try await page.locator("#locution-thread-locution-body").fill("@gnorium Is this change sound?")
+        let ticks = page.locator(".prompt-change-view .call-tick-view")
+        try await expect(ticks.first).toBeVisible()
+        try await expect(ticks.first.locator("input")).toBeChecked(false)
+        let part = try #require(try await ticks.first.locator("input").getAttribute("value"))
+        #expect(part.hasPrefix("prompt-diff-"), "A diff's review id: \(part)")
+        try await ticks.first.locator("input").click()
         try await page.locator(".locution-thread-submit").click()
-        try await expect(page.locator(".field-validation-message-view").filter(
-          hasText: "Tick evidence, metadata, a prompt or a locution for this call.")).toHaveCount(0)
         try await expect(page.getByText("Is this change sound?").first, timeout: .seconds(15)).toBeVisible()
+        let ticked = try TestAdmin.query(
+          "SELECT prompt_ids FROM locutions WHERE locutable_id = '\(id)' AND kind = 'call'")
+        #expect(ticked.trimmingCharacters(in: .whitespacesAndNewlines) == "[\"\(part)\"]", "Only the ticked diff: \(ticked)")
         let calls = try TestAdmin.query(
           "SELECT count(*) FROM locutions WHERE locutable_id = '\(id)' AND kind = 'call' AND call_status = 'pending'")
         #expect(calls.trimmingCharacters(in: .whitespacesAndNewlines) == "1", "The call was posted, pending")
