@@ -142,17 +142,18 @@ struct WatchtowerTests {
   /// - a machine's OBJECT figures (a quatrain, an antiphon, a serenade as a
   ///   whole) its header chip's marks: pending its pending ring (a
   ///   quatrain's dotted, an antiphon's plain, a serenade's disc), in
-  ///   flight its turning mark, submitted the green check, failed the red
+  ///   flight its turning mark, submitted the blue check, failed the red
   ///   cross (a failure the machine retries counts as pending: failed
   ///   always needs a person). A call's too, at its object's level: pending
   ///   that level still, running it turning, submitted the check, failed
   ///   the red cross.
   /// - a Disputorium object's figures its chip's: pending its level's
   ///   pending mark (an overture's and a halftone's the dotted ring, a
-  ///   madrigal's the ring, an epilogue's the disc), committed and
-  ///   permitted the green check (a lexicographic epilogue's committed, on
-  ///   its verdict, the disc); a fountain's and a palinode's submitted the
-  ///   check; a stale count the orange alert icon. Hidden is no figure.
+  ///   madrigal's the ring, an epilogue's the disc), committed the blue
+  ///   arrow right (a lexicographic epilogue's committed, on its verdict,
+  ///   the disc), permitted the green stamp—the only green; a fountain's
+  ///   and a palinode's submitted the blue check; Arbitration's box's
+  ///   passed the blue check, its work done; a stale count the orange alert icon. Hidden is no figure.
   /// A turning mark always turns, at zero too (its computed animation is
   /// never none, outside reduced motion); a still one never does.
   @Test(arguments: gnorium.engines)
@@ -172,7 +173,8 @@ struct WatchtowerTests {
         (() => {
           const kinds = ['rotating-dotted-ring-sector-view', 'rotating-ring-sector-with-disc-view',
             'rotating-ring-sector-view', 'rotating-sector-view', 'ringed-disc-icon-view', 'dotted-ring-view',
-            'ring-icon-view', 'disc-icon-view', 'check-icon-view', 'x-icon-view', 'octagon-alert-icon-view']
+            'ring-icon-view', 'disc-icon-view', 'check-icon-view', 'x-icon-view', 'octagon-alert-icon-view',
+            'arrow-right-icon-view', 'stamp-icon-view']
           const owner = figure => {
             const box = figure.closest('.watchtower-processes-view')
             const region = figure.closest('.live-region-view')?.id ?? ''
@@ -233,15 +235,15 @@ struct WatchtowerTests {
           processes += 1
         } else if let level = arbitrations.first(where: { figure.owner.contains("arbitration-\($0.key)") })?.value {
           if figure.owner.lowercased().hasPrefix("arbitration:") {
-            // Its process box's level marks.
-            wanted = word == "running" ? level.running : level.still
+            // Its process box's level marks; passed the blue check.
+            wanted = word == "running" ? level.running : word == "passed" ? "check-icon-view" : level.still
             if word == "failed" { color = "red" }
           } else {
             // Its call's chip marks.
             switch word {
             case "pending": wanted = level.still
             case "running": wanted = level.running
-            case "submitted": wanted = "check-icon-view"; color = "green"
+            case "submitted": wanted = "check-icon-view"
             default: wanted = "x-icon-view"; color = "red"
             }
             calls += 1
@@ -250,7 +252,7 @@ struct WatchtowerTests {
           switch word {
           case "pending": wanted = object.pending
           case object.word: wanted = object.inFlight
-          case "submitted": wanted = "check-icon-view"; color = "green"
+          case "submitted": wanted = "check-icon-view"
           default: wanted = "x-icon-view"; color = "red"
           }
           machines += 1
@@ -260,16 +262,13 @@ struct WatchtowerTests {
           // Stale work owed again: the orange alert icon (user, 2026-10-21).
           case "stale": wanted = "octagon-alert-icon-view"; color = "orange"; people -= 1
           case "pending": wanted = entry.value.pending
-          case "committed":
-            wanted = entry.value.committed[tab] ?? "check-icon-view"
-            if wanted == "check-icon-view" { color = "green" }
-          default: wanted = "check-icon-view"; color = "green"
+          case "committed": wanted = entry.value.committed[tab] ?? "arrow-right-icon-view"
+          default: wanted = "stamp-icon-view"; color = "green"
           }
           people += 1
         } else {
-          // A register's row (a fountain, a palinode): submitted, the check.
+          // A register's row (a fountain, a palinode): submitted, the blue check.
           wanted = "check-icon-view"
-          color = "green"
           people += 1
         }
         #expect(figure.leads, "\(figure.owner) \(figure.text): its mark leads its words")
