@@ -13,7 +13,7 @@ import WebTestsTesting
 @Suite("Locution nullification", .serialized)
 struct LocutionNullifyTests {
   static let sentence =
-    "Nullifying deletes this locution's content and every earlier instance of it, which can't be undone."
+    "This erases the locution's words and every earlier instance of them for everyone, and can't be undone."
   static let words = ["The catchword is misread.", "The catchword is misread on this page."]
 
   @Test(arguments: [BrowserEngine.chrome])

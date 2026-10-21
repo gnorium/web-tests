@@ -169,12 +169,13 @@ struct LocutionThreadScopeTests {
         _ = try TestAdmin.query("UPDATE locutions SET content = 'The first page is right.' WHERE id = '\(quotedID)'")
         try await page.openHydrated(scratch.madrigalPath)
         try await expect(card.locator(".locution-quote-text")).toHaveText("The first page is misread.")
-        // Hidden: the reader, not shown the original, is not shown its quote.
-        _ = try TestAdmin.query("UPDATE locutions SET hidden_at = now() WHERE id = '\(quotedID)'")
+        // Discarded: the reader, not shown the original's words, is not
+        // shown its quote's either (user, 2026-10-21).
+        _ = try TestAdmin.query("UPDATE locutions SET discarded_at = now(), discarded_by = 'admin' WHERE id = '\(quotedID)'")
         try await page.openHydrated(scratch.madrigalPath)
-        try await expect(reply.locator(".locution-quote-view")).toHaveCount(0)
+        try await expect(card.locator(".locution-quote-text")).toHaveText("[discarded]")
         // Nullified: "[nullified]".
-        _ = try TestAdmin.query("UPDATE locutions SET hidden_at = NULL, nullified_at = now(), content = '' WHERE id = '\(quotedID)'")
+        _ = try TestAdmin.query("UPDATE locutions SET discarded_at = NULL, discarded_by = NULL, nullified_at = now(), content = '' WHERE id = '\(quotedID)'")
         try await page.openHydrated(scratch.madrigalPath)
         try await expect(card.locator(".locution-quote-text")).toHaveText("[nullified]")
         try await page.expectNoErrors()
