@@ -153,7 +153,7 @@ struct WatchtowerTests {
   ///   arrow right (a lexicographic epilogue's committed, on its verdict,
   ///   the disc), permitted the green stamp—the only green; a fountain's
   ///   and a palinode's submitted the blue check; Arbitration's box's
-  ///   passed the blue check, its work done; a stale count the orange alert icon. Hidden is no figure.
+  ///   passed the blue check, its work done. Neither stale nor hidden is a figure.
   /// A turning mark always turns, at zero too (its computed animation is
   /// never none, outside reduced motion); a still one never does.
   @Test(arguments: gnorium.engines)
@@ -259,8 +259,6 @@ struct WatchtowerTests {
         } else if let entry = disputorium.first(where: { figure.owner.hasSuffix("watchtower-\($0.key)-figures") }) {
           let tab = figure.column
           switch word {
-          // Stale work owed again: the orange alert icon (user, 2026-10-21).
-          case "stale": wanted = "triangle-alert-icon-view"; color = "orange"; people -= 1
           case "pending": wanted = entry.value.pending
           case "committed": wanted = entry.value.committed[tab] ?? "arrow-right-icon-view"
           default: wanted = "stamp-icon-view"; color = "green"
