@@ -54,7 +54,7 @@ struct LevelStatesTests {
         // Its one Commit is for calibration; every page is owed: all ticked.
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_calibration")
         try await expect(page.locator(".commit-ticked")).toHaveAttribute("value", "0-3")
-        try await expect(page.locator(".level-progress-line-view")).toHaveText("Calibrated: 0 of 4 pages")
+        try await expect(page.locator(".level-progress-line-view")).toHaveText("Calibrated: 0 of 4 images")
         #expect(try await page.evaluate(CommitTests.interceptScript, as: Bool.self))
         try await page.locator(".commit-trigger").click()
         let sent = try #require(try await CommitTests.posted(page))
@@ -109,7 +109,7 @@ struct LevelStatesTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(scratch.halftonePath)
         try await expect(Self.chip(page)).toHaveText("Pending")
-        try await expect(page.locator(".level-progress-line-view")).toHaveText("Calibrated: 1 of 4 pages")
+        try await expect(page.locator(".level-progress-line-view")).toHaveText("Calibrated: 1 of 4 images")
         // The machine's: revised, committed and permitted, never deleted.
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Commit", "Permit"])
@@ -131,8 +131,7 @@ struct LevelStatesTests {
             ("1", "succeeded", "roster-status-done"), ("2", "queued", "roster-status-pending"),
             ("3", "queued", "roster-status-pending"), ("4", "queued", "roster-status-pending"),
           ])
-        // The scale so far stands beside it; nothing is frozen yet.
-        try await expect(page.locator(".calibration-scale-view")).toBeVisible()
+        // Nothing is frozen yet.
         try await expect(page.locator(".overture-explication-note")).toHaveCount(0)
         // Commit posts calibration over those pages; with none ticked it is
         // refused under the roster.
@@ -171,11 +170,10 @@ struct LevelStatesTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(scratch.halftonePath)
         try await expect(Self.chip(page)).toHaveText("Pending")
-        try await expect(page.locator(".level-progress-line-view")).toHaveText("Calibrated: 4 of 4 pages")
+        try await expect(page.locator(".level-progress-line-view")).toHaveText("Calibrated: 4 of 4 images")
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_explication")
-        // The header will be frozen: the scale so far and a sentence saying so.
-        try await expect(page.locator(".overture-explication-note")).toContainText("freezes the scale below as its header")
-        try await expect(page.locator(".calibration-scale-view")).toBeVisible()
+        // The header will be frozen: a sentence says so.
+        try await expect(page.locator(".overture-explication-note")).toContainText("freezes the scale as its header")
         try await expect(page.locator(".overture-images").first.locator(".roster-row")).toHaveCount(4)
         try await page.expectNoHorizontalOverflow()
       }
@@ -202,7 +200,6 @@ struct LevelStatesTests {
         try await expect(page.locator(".overture-committed")).toContainText("Committed to antiphon")
         try await expect(page.locator(".overture-committed a[href='\(scratch.antiphonPath)' i]")).toHaveCount(1)
         try await expect(page.locator(".commit-trigger")).toHaveCount(0)
-        try await expect(page.locator(".calibration-scale-view")).toHaveCount(0)
         try await expect(page.locator(".locution-thread-settled-note")).toContainText("has been committed to a")
         // Its Pedigree names its Commit, for explication.
         try await page.locator(".pedigree-accordion .accordion-summary").first.click()
@@ -239,7 +236,7 @@ struct LevelStatesTests {
           """)
         try await page.openHydrated(scratch.madrigalPath)
         try await expect(Self.chip(page)).toHaveText("Pending")
-        try await expect(page.locator(".level-progress-line-view")).toHaveText("Explicated: 2 of 3 pages")
+        try await expect(page.locator(".level-progress-line-view")).toHaveText("Explicated: 2 of 3 images")
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_explication")
         let rows = page.locator("#madrigal-images").first.locator(".roster-row")
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
@@ -252,7 +249,7 @@ struct LevelStatesTests {
             VALUES ('\(source)', '\(fixture.baseURL)/canvas/1', 'image', 'a', 'b', '\(fixture.baseURL)/page-1')
           """)
         try await page.openHydrated(scratch.madrigalPath)
-        try await expect(page.locator(".level-progress-line-view")).toHaveText("Explicated: 1 of 3 pages, 1 stale")
+        try await expect(page.locator(".level-progress-line-view")).toHaveText("Explicated: 1 of 3 images, 1 stale")
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "false")
         try await expect(rows.nth(1)).toHaveAttribute("data-locked", "true")
         _ = try TestAdmin.query("DELETE FROM testament_page_changes WHERE source_url = '\(source)'")
@@ -306,7 +303,7 @@ struct LevelStatesTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(try scratch.epiloguePath())
         try await expect(Self.chip(page)).toHaveText("Pending")
-        try await expect(page.locator(".level-progress-line-view")).toHaveText("Translated: 0 of 3 pages")
+        try await expect(page.locator(".level-progress-line-view")).toHaveText("Translated: 0 of 3 images")
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_translation")
         let rows = page.locator("#epilogue-images").first.locator(".roster-row")
         try await expect(rows).toHaveCount(3)
@@ -321,7 +318,7 @@ struct LevelStatesTests {
         try scratch.addEpilogue(base: fixture.baseURL, translated: [1, 2], stale: [2])
         try await page.openHydrated(try scratch.epiloguePath())
         try await expect(Self.chip(page)).toHaveText("Pending")
-        try await expect(page.locator(".level-progress-line-view")).toHaveText("Translated: 1 of 3 pages, 1 stale")
+        try await expect(page.locator(".level-progress-line-view")).toHaveText("Translated: 1 of 3 images, 1 stale")
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(1)).toHaveAttribute("data-locked", "false")
         try await expect(rows.nth(2)).toHaveAttribute("data-locked", "false")
