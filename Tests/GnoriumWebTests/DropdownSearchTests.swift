@@ -63,6 +63,13 @@ struct DropdownSearchTests {
       // Open, a letter typed lands in the box and narrows the options.
       try await picker.locator(".dropdown-trigger").click()
       try await expect(picker.locator(".dropdown-menu")).toHaveAttribute("data-open", "true")
+      // An option row is as tall as a large control: 48, and 40 on a phone
+      // (`controlHeight`), the step every sized control takes.
+      let rowHeight = try await page.evaluate(
+        "Math.round(document.querySelector('.filter-bar-row .filter-bar-field-picker .dropdown-option[data-hidden=\"false\"]').getBoundingClientRect().height) + 'px'",
+        as: String.self)
+      let largeHeight = try await page.controlHeight("large")
+      #expect(rowHeight == largeHeight, "An option row is a large control's height: \(rowHeight)")
       let all = try await visible.count()
       try await page.keyboard.press("a")
       try await expect(input).toBeFocused()

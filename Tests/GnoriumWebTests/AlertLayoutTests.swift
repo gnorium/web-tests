@@ -295,14 +295,14 @@ struct AlertLayoutTests {
     }
   }
 
-  /// With a close button its 40px target is the first row: the mark and
+  /// With a close button its large button (48) is the first row: the mark and
   /// the line stand level with its center.
   @Test(arguments: ["ltr", "rtl"])
   func aCloseButtonIsOnTheSameCenterAsTheMarkAndTheLine(dir: String) async throws {
     try await Self.render(width: 1000, dir: dir, Self.dismissible) { page in
       let s = try await page.evaluate("window.measure.single('dismissible')", as: Single.self)
       let center = try #require(s.dismissCenter)
-      #expect(abs((s.dismissHeight ?? 0) - 40) <= 0.5, "a 40px target")
+      #expect(abs((s.dismissHeight ?? 0) - 48) <= 0.5, "a large button, 48")
       #expect(abs(s.iconCenter - center) <= 1, "the mark: \(s.iconCenter) vs \(center)")
       #expect(abs(s.textCenter - center) <= 1, "the line: \(s.textCenter) vs \(center)")
       #expect((s.dismissStart ?? 0) > s.textEnd, "the button is last")
