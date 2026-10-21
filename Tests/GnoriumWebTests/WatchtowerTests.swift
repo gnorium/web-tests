@@ -100,7 +100,7 @@ struct WatchtowerTests {
       }
       // A call's every status, in order (user, 2026-10-21): pending
       // (awaiting Commit or queued: one figure), running, submitted (1w),
-      // failed (1w), nullified; hidden an admin's alone.
+      // failed (1w), nullified; hidden is no figure (the Locutions filter).
       let calls = try await page.evaluate("""
         [...document.querySelectorAll('[id^="live-region-watchtower-arbitration-"][id$="-figures"] .watchtower-figure-columns-column')]
           .map(column => [column.querySelector('.watchtower-figure-columns-tab').textContent.trim(),
@@ -152,7 +152,7 @@ struct WatchtowerTests {
   ///   madrigal's the ring, an epilogue's the disc), committed and
   ///   permitted the green check (a lexicographic epilogue's committed, on
   ///   its verdict, the disc); a fountain's and a palinode's submitted the
-  ///   check. The stale count alone wears none.
+  ///   check; a stale count the orange alert icon. Hidden is no figure.
   /// A turning mark always turns, at zero too (its computed animation is
   /// never none, outside reduced motion); a still one never does.
   @Test(arguments: gnorium.engines)
@@ -172,7 +172,7 @@ struct WatchtowerTests {
         (() => {
           const kinds = ['rotating-dotted-ring-sector-view', 'rotating-ring-sector-with-disc-view',
             'rotating-ring-sector-view', 'rotating-sector-view', 'ringed-disc-icon-view', 'dotted-ring-view',
-            'ring-icon-view', 'disc-icon-view', 'check-icon-view', 'cross-icon-view']
+            'ring-icon-view', 'disc-icon-view', 'check-icon-view', 'cross-icon-view', 'alert-icon-view']
           const owner = figure => {
             const box = figure.closest('.watchtower-processes-view')
             const region = figure.closest('.live-region-view')?.id ?? ''
@@ -242,7 +242,6 @@ struct WatchtowerTests {
             case "pending": wanted = level.still
             case "running": wanted = level.running
             case "submitted": wanted = "check-icon-view"; color = "green"
-            case "hidden": wanted = "cross-icon-view"
             default: wanted = "cross-icon-view"; color = "red"
             }
             calls += 1
@@ -257,11 +256,9 @@ struct WatchtowerTests {
           machines += 1
         } else if let entry = disputorium.first(where: { figure.owner.hasSuffix("watchtower-\($0.key)-figures") }) {
           let tab = figure.column
-          if word == "stale" {
-            #expect(figure.mark.isEmpty, "\(figure.owner) \(figure.text) wears \(figure.mark)")
-            continue
-          }
           switch word {
+          // Stale work owed again: the orange alert icon (user, 2026-10-21).
+          case "stale": wanted = "alert-icon-view"; color = "orange"; people -= 1
           case "pending": wanted = entry.value.pending
           case "committed":
             wanted = entry.value.committed[tab] ?? "check-icon-view"

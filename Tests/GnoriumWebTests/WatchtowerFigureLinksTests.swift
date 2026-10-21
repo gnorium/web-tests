@@ -186,7 +186,7 @@ struct WatchtowerFigureLinksTests {
         $0.href.hasPrefix("/mission-control/locutions/")
       }.count
       try #require(cards > 0 && arbitrationLinks == cards * 18, "the nested Arbitration cards' locution links: \(arbitrationLinks) on \(cards) cards")
-      #expect(!figures.contains { $0.text.hasSuffix(" hidden") }, "hidden is an admin's alone")
+      #expect(!figures.contains { $0.text.hasSuffix(" hidden") }, "hidden is no figure")
       // An object's figure opens its own list, never the lifetimes.
       let lifetimes = figures.filter { $0.href.contains("/lifetimes/") }.map(\.href)
       #expect(lifetimes.isEmpty, "object figures open the lifetimes: \(lifetimes)")
