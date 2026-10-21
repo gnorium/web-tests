@@ -129,10 +129,10 @@ struct WatchtowerTests {
     }
   }
 
-  /// The Watchtower reads alive (user, 2026-10-21): every Computorium
-  /// figure, on both sides, always shown with its count (0 included),
-  /// wears its status's mark, in two vocabularies (as headers and rosters
-  /// keep theirs):
+  /// The Watchtower reads alive (user, 2026-10-21): every figure, on both
+  /// sides, always shown with its count (0 included), wears its status's
+  /// mark BEFORE its words ("◌ 0 pending"), in two vocabularies (as headers
+  /// and rosters keep theirs):
   /// - a PROCESS box's figures (its evidence items' sessions) the level
   ///   marks: pending, the level its process starts from; running, the
   ///   rotating sector of the level it goes to; passed, the level it goes
@@ -142,14 +142,19 @@ struct WatchtowerTests {
   /// - a machine's OBJECT figures (a quatrain, an antiphon, a serenade as a
   ///   whole) its header chip's marks: pending its pending ring (a
   ///   quatrain's dotted, an antiphon's plain, a serenade's disc), in
-  ///   flight its turning mark, submitted the green check, failed the
-  ///   cross—red when it needs a person (a quatrain's and a serenade's
-  ///   always), else blue. A call's too, at its object's level: pending
+  ///   flight its turning mark, submitted the green check, failed the red
+  ///   cross (a failure the machine retries counts as pending: failed
+  ///   always needs a person). A call's too, at its object's level: pending
   ///   that level still, running it turning, submitted the check, failed
-  ///   the cross (red when it needs a person, else blue), nullified the red
-  ///   cross.
-  /// A turning mark turns only while its count is non-zero, and stands
-  /// still, still shown, at zero. A Disputorium object's figures wear none.
+  ///   and nullified the red cross.
+  /// - a Disputorium object's figures its chip's: pending its level's
+  ///   pending mark (an overture's and a halftone's the dotted ring, a
+  ///   madrigal's the ring, an epilogue's the disc), committed and
+  ///   permitted the green check (a lexicographic epilogue's committed, on
+  ///   its verdict, the disc); a fountain's and a palinode's submitted the
+  ///   check. The stale count alone wears none.
+  /// A turning mark always turns, at zero too (its computed animation is
+  /// never none, outside reduced motion); a still one never does.
   @Test(arguments: gnorium.engines)
   func computoriumFiguresWearTheirStatusMarks(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium) { page in
@@ -159,7 +164,8 @@ struct WatchtowerTests {
         let text: String
         let mark: String
         let color: String
-        let turning: Bool
+        let column: String
+        let leads: Bool
         let animated: Bool
       }
       let figures = try await page.evaluate("""
@@ -180,7 +186,8 @@ struct WatchtowerTests {
             const animated = !!mark && [...mark.querySelectorAll('*')].some(e => getComputedStyle(e).animationName !== 'none')
             return { owner: owner(body), text: body.querySelector('.live-figure-text').textContent.trim(),
               mark: kind, color: mark?.getAttribute('data-color') ?? '',
-              turning: mark?.getAttribute('data-turning') === 'true', animated }
+              column: body.closest('.watchtower-figure-columns-column')?.getAttribute('data-tab') ?? '',
+              leads: !!mark && body.firstElementChild === mark, animated }
           })
         })()
         """, as: [Marked].self)
@@ -203,9 +210,17 @@ struct WatchtowerTests {
         "antiphon": ("ring-icon-view", "rotating-sector-view", "explicating"),
         "serenade": ("disc-icon-view", "rotating-ring-sector-with-disc-view", "translating"),
       ]
+      // A Disputorium object's chip marks: pending, then committed.
+      let disputorium: [String: (pending: String, committed: [String: String])] = [
+        "overture": ("dotted-ring-view", [:]),
+        "halftone": ("dotted-ring-view", [:]),
+        "madrigal": ("ring-icon-view", [:]),
+        "epilogue": ("disc-icon-view", ["lexicographic": "disc-icon-view"]),
+      ]
       var processes = 0
       var machines = 0
       var calls = 0
+      var people = 0
       for figure in figures {
         let word = figure.text.split(separator: " ").dropFirst().first.map(String.init) ?? ""
         let count = Int(figure.text.prefix { $0.isNumber }) ?? 0
@@ -227,45 +242,51 @@ struct WatchtowerTests {
             case "pending": wanted = level.still
             case "running": wanted = level.running
             case "submitted": wanted = "check-icon-view"; color = "green"
-            case "nullified": wanted = "cross-icon-view"; color = "red"
-            default:
-              wanted = "cross-icon-view"
-              #expect(["red", "blue"].contains(figure.color), "\(figure.owner) \(figure.text): \(figure.color)")
-              color = figure.color
+            case "hidden": wanted = "cross-icon-view"
+            default: wanted = "cross-icon-view"; color = "red"
             }
             calls += 1
           }
-        } else if let entry = objects.first(where: { figure.owner.hasSuffix("watchtower-\($0.key)-figures") }) {
-          let (name, object) = (entry.key, entry.value)
+        } else if let object = objects.first(where: { figure.owner.hasSuffix("watchtower-\($0.key)-figures") })?.value {
           switch word {
           case "pending": wanted = object.pending
           case object.word: wanted = object.inFlight
           case "submitted": wanted = "check-icon-view"; color = "green"
-          default:
-            wanted = "cross-icon-view"
-            // A quatrain's and a serenade's failure always needs a person.
-            if name != "antiphon" { color = "red" }
+          default: wanted = "cross-icon-view"; color = "red"
           }
           machines += 1
-          if word == "failed" && name == "antiphon" {
-            #expect(["red", "blue"].contains(figure.color), "\(figure.owner) \(figure.text): \(figure.color)")
-            color = figure.color
+        } else if let entry = disputorium.first(where: { figure.owner.hasSuffix("watchtower-\($0.key)-figures") }) {
+          let tab = figure.column
+          if word == "stale" {
+            #expect(figure.mark.isEmpty, "\(figure.owner) \(figure.text) wears \(figure.mark)")
+            continue
           }
+          switch word {
+          case "pending": wanted = entry.value.pending
+          case "committed":
+            wanted = entry.value.committed[tab] ?? "check-icon-view"
+            if wanted == "check-icon-view" { color = "green" }
+          default: wanted = "check-icon-view"; color = "green"
+          }
+          people += 1
         } else {
-          #expect(figure.mark.isEmpty, "\(figure.owner) \(figure.text) wears \(figure.mark)")
-          continue
+          // A register's row (a fountain, a palinode): submitted, the check.
+          wanted = "check-icon-view"
+          color = "green"
+          people += 1
         }
+        #expect(figure.leads, "\(figure.owner) \(figure.text): its mark leads its words")
         #expect(figure.mark == wanted, "\(figure.owner) \(figure.text): \(figure.mark), not \(wanted)")
         #expect(figure.color == color, "\(figure.owner) \(figure.text): \(figure.color), not \(color)")
-        if turns {
-          #expect(figure.turning == (count > 0), "\(figure.owner) \(figure.text): turning \(figure.turning)")
-          if count == 0 { #expect(!figure.animated, "\(figure.owner) \(figure.text): the mark turns at zero") }
-        } else {
-          #expect(!figure.animated, "\(figure.owner) \(figure.text): a still mark turns")
-        }
+        // A running mark always turns: its computed animation is never
+        // none, at zero too (user, 2026-10-21).
+        #expect(figure.animated == turns, "\(figure.owner) \(figure.text) (\(count)): animated \(figure.animated)")
       }
       // Three processes and three machines, four statuses on both sides.
       #expect(processes == 24 && machines == 24, "\(processes) process figures, \(machines) object figures")
+      // Four Disputorium objects of three figures and the fountain's and
+      // four palinodes' one, both sides.
+      #expect(people == 4 * 3 * 2 + 5 * 2, "\(people) Disputorium and register figures")
       // Each nested Locution card's call: five statuses on both sides.
       #expect(calls > 0 && calls % 10 == 0, "\(calls) call figures")
     }
