@@ -41,6 +41,12 @@ struct DropdownSearchTests {
       // step down like every sized control (`controlSize`): 32 tall, its
       // text 14px, 4 inside.
       try await picker.locator(".dropdown-trigger").click()
+      // Opened, it takes the focus: typing goes to its search, not to the
+      // field that had it before (user, 2026-10-21).
+      let focused = try await page.evaluate(
+        "document.activeElement?.classList.contains('search-input') && document.activeElement.closest('.filter-bar-field-picker') !== null",
+        as: Bool.self)
+      #expect(focused, "Opening a dropdown focuses its search box")
       let (height, font, padding) = try await page.controlSize("medium") == "small"
         ? (32, "14px", "4px") : (40, "16px", "8px")
       let sized = try await page.evaluate(
