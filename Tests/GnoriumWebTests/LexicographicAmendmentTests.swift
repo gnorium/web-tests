@@ -8,11 +8,14 @@ import WebTestsTesting
 /// row's handle, its fields, and at its foot Merge into, a split's parts
 /// and its "− Sentiment", which a dialog confirms and "+ Sentiment"
 /// undoes, as a testament's), a new sentiment under the tree founded on a
-/// quote—and Submit files a lexicographic palinode, whose page says what
-/// it removes, offers Revise, and for an admin Permit. A refused Submit
+/// quote—and Submit files a lexicographic palinode, frozen (submitted: no
+/// Revise, no Permit, no thread), and creates its overture (user,
+/// 2026-10-22), whose page says what it removes, offers Revise, and for an
+/// admin Permit. A refused Submit
 /// draws the form again with everything posted and why, never the error
 /// page. Phone and desktop, nothing scrolling sideways. A throwaway admin
-/// owns a scratch word, removed after with the palinode it filed. Chrome
+/// owns a scratch word, removed after with the overture it created (its
+/// palinode, frozen, stays). Chrome
 /// headless.
 @Suite("Lexicographic amendment", .serialized)
 struct LexicographicAmendmentTests {
@@ -27,7 +30,8 @@ struct LexicographicAmendmentTests {
         """
         BEGIN;
         DELETE FROM locutions WHERE locutable_id IN
-          (SELECT id FROM lexicographic_palinodes WHERE lexico_record_id = '\(word.recordID.lowercased())');
+          (SELECT id FROM lexicographic_record_overtures WHERE lexico_record_id = '\(word.recordID.lowercased())');
+        DELETE FROM lexicographic_record_overtures WHERE lexico_record_id = '\(word.recordID.lowercased())';
         DELETE FROM lexicographic_palinodes WHERE lexico_record_id = '\(word.recordID.lowercased())';
         COMMIT;
         """)
@@ -88,21 +92,33 @@ struct LexicographicAmendmentTests {
         try await expect(leaf.locator("input[name$='-remove']")).toHaveValue("")
         try await expect(remove).toBeVisible()
 
-        // The leaf removed, Submit: its palinode's page.
+        // The leaf removed, Submit: its overture's page.
         try await remove.click()
         try await dialog.locator(".dialog-primary-button button").click()
         try await expect(item).toHaveAttribute("data-outline-state", "removed")
         try await form.locator(".record-actions button[type='submit']").click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the palinode's page") {
-          $0.path.hasPrefix("/mission-control/palinodes/lexicographic/")
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the overture's page") {
+          $0.path.hasPrefix("/mission-control/overtures/lexicographic/amendments/")
         }
-        try await expect(page.locator("h1").first).toContainText("Lexicographic Palinode")
-        try await expect(page.locator(".lexicographic-palinode-work")).toContainText("Removed")
+        try await expect(page.locator("h1").first).toContainText("Lexicographic Overture")
+        try await expect(page.locator(".lexicographic-record-overture-work")).toContainText("Removed")
         // Anyone signed in revises it; an admin permits it.
         try await expect(page.locator("a").filter(hasText: "Revise").first).toBeVisible()
         try await expect(page.locator("button").filter(hasText: "Permit").first).toBeVisible()
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
+
+        // The palinode its Pedigree names is frozen: submitted, with no
+        // Revise, no Permit and no thread.
+        try await page.locator("a[href^='/mission-control/palinodes/lexicographic/']").first.click()
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the palinode's page") {
+          $0.path.hasPrefix("/mission-control/palinodes/lexicographic/")
+        }
+        try await expect(page.locator("h1").first).toContainText("Lexicographic Palinode")
+        try await expect(page.locator(".palinode-submitted")).toContainText("This palinode has been submitted.")
+        try await expect(page.locator("a").filter(hasText: "Revise")).toHaveCount(0)
+        try await expect(page.locator("button").filter(hasText: "Permit")).toHaveCount(0)
+        try await page.expectNoErrors()
       }
     } catch {
       try await clean()
@@ -129,7 +145,8 @@ struct LexicographicAmendmentTests {
         """
         BEGIN;
         DELETE FROM locutions WHERE locutable_id IN
-          (SELECT id FROM lexicographic_palinodes WHERE lexico_record_id = '\(record)');
+          (SELECT id FROM lexicographic_record_overtures WHERE lexico_record_id = '\(record)');
+        DELETE FROM lexicographic_record_overtures WHERE lexico_record_id = '\(record)';
         DELETE FROM lexicographic_palinodes WHERE lexico_record_id = '\(record)';
         COMMIT;
         """)
@@ -190,10 +207,10 @@ struct LexicographicAmendmentTests {
         try await definition.fill("")
         try await quote.fill("")
         try await page.locator("form.submit-lexicographic-amendment-form .record-actions button[type='submit']").click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the palinode's page") {
-          $0.path.hasPrefix("/mission-control/palinodes/lexicographic/")
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the overture's page") {
+          $0.path.hasPrefix("/mission-control/overtures/lexicographic/amendments/")
         }
-        try await expect(page.locator(".lexicographic-palinode-work")).toContainText("Removed")
+        try await expect(page.locator(".lexicographic-record-overture-work")).toContainText("Removed")
       }
     } catch {
       try await clean()
