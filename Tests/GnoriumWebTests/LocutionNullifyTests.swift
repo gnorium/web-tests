@@ -62,6 +62,8 @@ struct LocutionNullifyTests {
         let confirm = dialog.locator(".dialog-primary-button button")
         try await expect(dialog.locator(".dialog-footer-actions button")).toHaveCount(2)
         try await expect(cancel).toHaveText("Cancel")
+        // Cancel wears the x before its label (user, 2026-10-21).
+        try await expect(cancel.locator(".x-icon-view")).toHaveCount(1)
         try await expect(confirm).toHaveText("Nullify")
         try await expect(confirm).toHaveAttribute("data-color", "red")
         try await expect(confirm).toHaveAttribute("data-weight", "solid")
