@@ -54,7 +54,7 @@ struct LevelStatesTests {
         // Its one Commit is for calibration; every page is owed: all ticked.
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_calibration")
         try await expect(page.locator(".commit-ticked")).toHaveAttribute("value", "0-3")
-        try await expect(page.locator(".level-progress-line-view")).toHaveText("Calibrated: 0 of 4 images")
+        try await expect(page.locator(".bibliographic-overture-view .level-progress-line-view")).toHaveCount(0)
         #expect(try await page.evaluate(CommitTests.interceptScript, as: Bool.self))
         try await page.locator(".commit-trigger").click()
         let sent = try #require(try await CommitTests.posted(page))
@@ -83,11 +83,11 @@ struct LevelStatesTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(scratch.path)
         try await expect(Self.chip(page)).toHaveText("Committed")
-        try await expect(page.locator(".overture-committed")).toContainText("Committed to quatrain")
-        try await expect(page.locator(".overture-committed a[href='\(scratch.quatrainPath)' i]")).toHaveCount(1)
+        try await expect(page.locator(".overture-committed")).toHaveCount(0)
+        try await expect(page.locator(".locution-thread-settled-note a[href='\(scratch.quatrainPath)' i]")).toHaveText("bibliographic quatrain")
         try await expect(page.locator(".commit-trigger")).toHaveCount(0)
         try await expect(page.locator(".mission-control-object-header-action-buttons")).toHaveCount(0)
-        try await expect(page.locator(".locution-thread-settled-note")).toContainText("has been committed to a")
+        try await expect(page.locator(".locution-thread-settled-note")).toContainText("has been committed and its")
       }
     } catch {
       scratch.remove()
@@ -197,10 +197,10 @@ struct LevelStatesTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(scratch.halftonePath)
         try await expect(Self.chip(page)).toHaveText("Committed")
-        try await expect(page.locator(".overture-committed")).toContainText("Committed to antiphon")
-        try await expect(page.locator(".overture-committed a[href='\(scratch.antiphonPath)' i]")).toHaveCount(1)
+        try await expect(page.locator(".overture-committed")).toHaveCount(0)
+        try await expect(page.locator(".locution-thread-settled-note a[href='\(scratch.antiphonPath)' i]")).toHaveText("bibliographic antiphon")
         try await expect(page.locator(".commit-trigger")).toHaveCount(0)
-        try await expect(page.locator(".locution-thread-settled-note")).toContainText("has been committed to a")
+        try await expect(page.locator(".locution-thread-settled-note")).toContainText("has been committed and its")
         // Its Pedigree names its Commit, for explication.
         try await page.locator(".pedigree-accordion .accordion-summary").first.click()
         try await expect(page.locator(".pedigree-rows")).toContainText("for explication")
