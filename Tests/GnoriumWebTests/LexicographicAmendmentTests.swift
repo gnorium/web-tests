@@ -5,9 +5,9 @@ import WebTestsTesting
 
 /// A lexico-record's amendment (user, 2026-10-21): `<record path>/amendments/new`
 /// is the record's page in edit mode—its sentiments in the outline (each
-/// row's handle, its fields, and at its foot Merge into, a split's parts
-/// and its "− Sentiment", which a dialog confirms and "+ Sentiment"
-/// undoes, as a testament's), a new sentiment under the tree founded on a
+/// row's handle, its fields, and at its foot its "− Sentiment", which a
+/// dialog confirms and "+ Sentiment" undoes, as a testament's; no merge and
+/// no split, user, 2026-10-22), a new sentiment under the tree founded on a
 /// quote—and Submit files a lexicographic palinode, frozen (submitted: no
 /// Revise, no Permit, no thread), and creates its overture (user,
 /// 2026-10-22), whose page says what it removes, offers Revise, and for an
@@ -94,7 +94,7 @@ struct LexicographicAmendmentTests {
         let shape = try await outline.locator("input[name='sentiment-shape']").inputValue()
         #expect(!shape.contains("\"s-1-1\""), "\(shape)")
         // The removed sentiment is the amendment's one: it is chosen, the
-        // others freeze (their fields, merge, split, removal and handle
+        // others freeze (their fields, removal and handle
         // stop, the new sentiment's fields too) and the hint says why.
         try await expect(item).toHaveAttribute("data-sentiment-chosen", "true")
         try await expect(outline.locator("input[name='sentiment-chosen']")).toHaveValue("s-1-1")
