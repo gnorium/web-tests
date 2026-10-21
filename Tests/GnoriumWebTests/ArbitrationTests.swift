@@ -473,6 +473,10 @@ struct ArbitrationTests {
         // Replay's seek bar (user, 2026-10-21): a moment sought shows exactly
         // the frames recorded by then, and plays on from there at the speed.
         try await expectReplaySeek(page, path: reading.path, replyID: replyID)
+        // A long session's seek (user, 2026-10-21): its thousands of
+        // deltas folded and drawn once, the handle dragged smoothly, the bar
+        // there before the frames are.
+        try await expectReplayScrub(page, path: reading.path, replyID: replyID)
         // The page image in the task prompt as the model received it (user,
         // 2026-10-17): one stage at the message's whole width, zoomed in
         // place—no chip, thumbnail, name or lightbox, no loose lines under
@@ -1036,6 +1040,141 @@ struct ArbitrationTests {
     // 1× again for what follows, and the page as freshly loaded.
     _ = try await seek.locator(".replay-speed-view [data-value='1']").evaluate("el => el.click()")
     #expect(try await page.evaluate("localStorage.getItem('gnorium:replay-speed')", as: String.self) == "1")
+    try await page.openHydrated(path)
+  }
+
+  /// A long replay's seek bar (user, 2026-10-21) on the reply's replay, its
+  /// stream the test's stand-in (at `#scrub-test`): a text block "w0 "
+  /// grown by 9,999 `append` deltas ("w1 " … "w9999 "), one every 10
+  /// recorded ms, sent 1.5s after Replay is pressed. The bar shows at once
+  /// as Replay is pressed, before any frame; End pressed then waits busy
+  /// (`aria-busy`) and lands at the end as the frames come—the whole text,
+  /// exactly the deltas joined, drawn once. Home and End again (back, then
+  /// forward over all 10,000 frames) each land within a second. Played
+  /// from 10s, a drag along the track moves the handle at every step
+  /// (`aria-valuenow` rising through each), the replay held under the
+  /// hand, and the transcript lands at the time let go, playing on.
+  func expectReplayScrub(_ page: Page, path: String, replyID: String) async throws {
+    let reply = "#locution-\(replyID.uppercased())"
+    try await page.addInitScript("""
+      if (location.hash === '#scrub-test') {
+        const Real = window.EventSource
+        window.EventSource = class {
+          constructor(url, options) {
+            if (!String(url).includes('replay=1')) return new Real(url, options)
+            this.handlers = {}
+            setTimeout(() => {
+              const image = document.querySelector('\(reply) .computorium-session-view').dataset.computoriumSessionImage ?? ''
+              const frame = (at, fields) => this.emit('chunk', JSON.stringify({ replay_at: String(at), image, image_index: -1, ...fields }))
+              this.emit('start', '{"replay":true,"process":"arbitration"}')
+              frame(0, { type: 'reset', text: '', reset: '1' })
+              frame(0, { type: 'chat_template_input', text: '', continues: 'false', reset: '1' })
+              frame(0, { type: 'text', text: 'w0 ' })
+              for (let i = 1; i < 10000; i++) frame(i * 10, { type: 'text', text: 'w' + i + ' ', append: '1' })
+              frame(99990, { type: 'status', text: 'succeeded', message: '' })
+              this.emit('done', '{"status":"passed","error":"","message":"","replayed":"true"}')
+            }, 1500)
+          }
+          addEventListener(name, fn) { (this.handlers[name] ??= []).push(fn) }
+          emit(name, data) { for (const fn of this.handlers[name] ?? []) fn({ data }) }
+          close() {}
+        }
+      }
+      """)
+    try await page.openHydrated(path + "?scrub=1#scrub-test")
+    let session = page.locator("\(reply) .computorium-session-view")
+    let seek = page.locator(".layout-main > .replay-seek-view")
+    let slider = seek.locator(".replay-seek-slider")
+    let toggle = seek.locator(".replay-seek-toggle")
+    let time = seek.locator(".replay-seek-time")
+    let expected = (0..<10000).map { "w\($0) " }.joined()
+    let rendered = """
+      [...document.querySelectorAll('\(reply) .computorium-session-output-rendered')].map(e => e.textContent).join('').trim()
+      """
+    // The bar at once, before any frame, its length the session's recorded
+    // one where the page knows it.
+    _ = try await page.evaluate("(() => { window.__pressedAt = performance.now(); return true })()", as: Bool.self)
+    _ = try await page.locator("\(reply) .replay-btn").evaluate("el => el.click()")
+    try await expect(seek, timeout: .milliseconds(1000)).toBeVisible()
+    let before = try await page.evaluate("""
+      (() => { const bar = document.querySelector('.layout-main > .replay-seek-view')
+        return [performance.now() - window.__pressedAt, bar.dataset.replayDurationMs ?? '',
+          bar.querySelector('.replay-seek-slider').getAttribute('aria-valuemax')] })()
+      """)
+    #expect((before[0].double ?? 9999) < 1500, "The bar shows before the frames come: \(before[0].double ?? -1)ms")
+    if let hint = before[1].string, !hint.isEmpty {
+      #expect(before[2].string == hint, "Its length the session's recorded one: \(hint)")
+    }
+    // End before the frames (where the page knows the length): busy, the
+    // handle there; it lands at the end as they come.
+    try await slider.focus()
+    if (Int(before[1].string ?? "") ?? 0) > 0 {
+      try await page.keyboard.press("End")
+      try await expect(seek).toHaveAttribute("aria-busy", "true")
+      try await expect(slider).toHaveAttribute("aria-valuenow", before[1].string ?? "")
+    } else {
+      try await expect(slider, timeout: .seconds(5)).toHaveAttribute("aria-valuemax", "99990")
+      try await page.keyboard.press("End")
+    }
+    try await expect(session, timeout: .seconds(10)).toHaveAttribute("data-computorium-session-status", "succeeded")
+    try await expect(seek).not.toHaveAttribute("aria-busy", "true")
+    try await expect(time).toHaveText("1:39 / 1:39")
+    #expect(try await page.evaluate(rendered, as: String.self) == expected.trimmingCharacters(in: .whitespaces),
+      "The transcript is the deltas joined, exactly")
+    // Back to the start, over all 10,000 frames again, and back 30s from a
+    // checkpoint: each lands within a second.
+    var landed = ""
+    for key in ["Home", "End", "PageDown"] {
+      let result = try await page.evaluate("""
+        (async () => { const slider = document.querySelector('.layout-main > .replay-seek-view .replay-seek-slider')
+          slider.focus()
+          const start = performance.now()
+          slider.dispatchEvent(new KeyboardEvent('keydown', { key: '\(key)', bubbles: true }))
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+          const took = performance.now() - start
+          return [took, \(rendered)] })()
+        """)
+      let took = result[0].double ?? 9999
+      #expect(took < 1000, "\(key) lands within a second over 10,000 frames: \(took)ms")
+      landed = result[1].string ?? ""
+    }
+    // 30s back from the end: 69,990ms, every word by then and none after.
+    let prefix = (0..<7000).map { "w\($0) " }.joined()
+    #expect(landed.hasPrefix(prefix.trimmingCharacters(in: .whitespaces)), "Drawn again from a checkpoint, the same text")
+    #expect(!landed.contains("w7100 "), "Nothing from after the time sought")
+    // Played from 10s, then dragged along the track: the handle at every
+    // step, the replay held under the hand, landing where it is let go.
+    try await slider.focus()
+    try await page.keyboard.press("Home")
+    for _ in 0..<2 { try await page.keyboard.press("ArrowRight") }
+    try await expect(toggle).toHaveAttribute("aria-label", "Pause")
+    let track = try await slider.evaluate("""
+      el => { el.scrollIntoView({ block: 'center' }); const r = el.querySelector('.slider-track').getBoundingClientRect()
+        return [r.left, r.width, r.top + r.height / 2] }
+      """)
+    let left = track[0].double ?? 0, width = track[1].double ?? 0, y = track[2].double ?? 0
+    try await page.mouse.down(x: left + width * 0.2, y: y)
+    var values: [Int] = []
+    for step in 1...8 {
+      try await page.mouse.move(x: left + width * (0.2 + 0.05 * Double(step)), y: y)
+      _ = try await page.evaluate("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))", as: Bool.self)
+      values.append(Int(try await slider.getAttribute("aria-valuenow") ?? "") ?? -1)
+    }
+    #expect(zip(values, values.dropFirst()).allSatisfy { $0 < $1 }, "The handle moves at every step: \(values)")
+    #expect(try await slider.getAttribute("data-dragging") == "true", "Held under the hand")
+    let held = try await page.evaluate(rendered, as: String.self)
+    try await Task.sleep(for: .milliseconds(300))
+    #expect(try await page.evaluate(rendered, as: String.self) == held, "The transcript waits while dragged")
+    try await page.mouse.up(x: left + width * 0.6, y: y)
+    let dropped = Int(try await slider.getAttribute("aria-valuenow") ?? "") ?? 0
+    #expect((55000...65000).contains(dropped), "Let go at the track's 3/5: \(dropped)")
+    // There: every word by then, none from 5s later; playing on.
+    let word = dropped / 10
+    try await expect(session).toContainText("w\(word) ")
+    #expect(try await page.evaluate(rendered, as: String.self).contains("w\(word + 500) ") == false,
+      "Nothing from after the time let go")
+    try await expect(toggle).toHaveAttribute("aria-label", "Pause")
+    try await expect(session, timeout: .seconds(3)).toContainText("w\(word + 50) ")
     try await page.openHydrated(path)
   }
 
