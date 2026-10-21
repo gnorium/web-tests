@@ -104,7 +104,7 @@ struct PromptOvertureTests {
         let robots = try await page.evaluate(
           "document.querySelector(\"meta[name='robots']\")?.content ?? ''", as: String.self)
         #expect(robots.contains("noindex"), "Never indexed: \(robots)")
-        try await expect(page.locator(".disputorium-core-title")).toHaveText("Bibliographic Prompt Overture")
+        try await expect(page.locator(".disputorium-core-title")).toHaveText("Bibliographic Overture")
         try await expect(page.locator(".pedigree-view a[href='\(palinodePath)' i]")).toHaveCount(1)
         // Its thread opens with its palinode's submitting, naming the
         // vignette amended.
@@ -179,7 +179,7 @@ struct PromptOvertureTests {
       let id = try opened()
       try await withPage(engine, gnorium, viewport: .desktop) { page in
         try await page.openHydrated("/mission-control/prompts/overtures/bibliographic/\(id)")
-        try await expect(page.locator(".disputorium-core-title")).toHaveText("Bibliographic Prompt Overture")
+        try await expect(page.locator(".disputorium-core-title")).toHaveText("Bibliographic Overture")
         try await expect(page.locator("button[form='prompt-overture-commit'], button[form='prompt-overture-permit']"))
           .toHaveCount(0)
         try await page.expectNoHorizontalOverflow()

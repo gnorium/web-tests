@@ -118,7 +118,7 @@ struct ToolOvertureTests {
         try await page.openHydrated("/mission-control/tools/overtures/bibliographic/\(id)")
         #expect(!id.isEmpty, "Amend opened a tool overture")
         let palinode = try opened("p.id")
-        try await expect(page.locator(".disputorium-core-title")).toHaveText("Bibliographic Tool Overture")
+        try await expect(page.locator(".disputorium-core-title")).toHaveText("Bibliographic Overture")
         // Its Pedigree: its palinode, submitted; the vignette amended is
         // named in its thread.
         try await expect(
@@ -157,7 +157,7 @@ struct ToolOvertureTests {
       let id = try opened()
       try await withPage(engine, gnorium, viewport: .desktop) { page in
         try await page.openHydrated("/mission-control/tools/overtures/bibliographic/\(id)")
-        try await expect(page.locator(".disputorium-core-title")).toHaveText("Bibliographic Tool Overture")
+        try await expect(page.locator(".disputorium-core-title")).toHaveText("Bibliographic Overture")
         try await expect(page.locator("button[form='tool-overture-commit'], button[form='tool-overture-permit']"))
           .toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
