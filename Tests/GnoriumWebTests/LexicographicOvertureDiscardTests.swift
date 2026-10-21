@@ -56,7 +56,11 @@ struct LexicographicOvertureDiscardTests {
         try await expect(tab.locator(".locution-thread")).toContainText("The class is a verb here.")
 
         // Discard: to the register, the overture Discarded, the row kept.
+        // It asks first, saying what goes with it; only the dialog's Discard posts.
         try await tab.locator("button[form='overture-discard']").click()
+        let confirm = tab.locator(".mission-control-object-header-confirm")
+        try await expect(confirm).toContainText("This also discards the submission it came from.")
+        try await confirm.locator(".dialog-primary-button").click()
         try await expect(tab, timeout: .seconds(15)).toHaveURL("/mission-control/overtures/lexicographic")
         try await tab.openHydrated(page)
         try await expect(status).toContainText("Discarded")
@@ -64,12 +68,16 @@ struct LexicographicOvertureDiscardTests {
         try await expect(tab.locator("button[form='overture-discard']")).toHaveCount(0)
         #expect(try TestAdmin.query("SELECT discarded_by FROM lexicographic_overtures WHERE id = '\(overture)';")
           == admin.username)
+        #expect(try TestAdmin.query("SELECT discarded_by FROM lexicographic_figurants WHERE id = '\(figurant)';")
+          == admin.username, "the submission it came from goes with it")
 
         try await tab.locator("button[form='overture-restore']").click()
         try await expect(status).toContainText("Pending")
         try await expect(tab.locator("button[form='overture-discard']")).toHaveCount(1)
         #expect(try TestAdmin.query("SELECT coalesce(discarded_by, '') FROM lexicographic_overtures WHERE id = '\(overture)';")
           == "")
+        #expect(try TestAdmin.query("SELECT coalesce(discarded_by, '') FROM lexicographic_figurants WHERE id = '\(figurant)';")
+          == "", "and comes back with it")
       }
     } catch {
       remove()

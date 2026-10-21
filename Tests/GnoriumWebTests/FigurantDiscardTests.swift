@@ -3,15 +3,15 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// An admin discards a pending figurant and restores it (user, 2026-10-07):
-/// Discard on its page discards its overture with it and marks it Discarded,
-/// the figurants register drops it unless the State filter asks for the
-/// discarded, and Restore brings both back. A scratch lexicographic figurant
+/// A figurant is a frozen form with no Discard of its own (user,
+/// 2026-10-21): an admin's Discard of its overture takes it along and marks
+/// it Discarded, the figurants register drops it unless the State filter asks
+/// for the discarded, and Restore of the overture brings both back. A scratch lexicographic figurant
 /// and overture of a throwaway admin, removed after.
 @Suite("Figurant discard")
 struct FigurantDiscardTests {
   @Test(arguments: gnorium.engines)
-  func anAdminDiscardsAndRestoresAPendingFigurant(engine: BrowserEngine) async throws {
+  func anOverturesDiscardAndRestoreCarryItsFigurant(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let submission = UUID().uuidString.lowercased()
@@ -50,8 +50,17 @@ struct FigurantDiscardTests {
         try await tab.openHydrated(page)
         try await expect(status).toContainText("Submitted")
         try await expect(tab.locator("button[form='object-restore']")).toHaveCount(0)
-        try await tab.locator("button[form='object-discard']").click()
+        try await expect(tab.locator("button[form='object-discard']")).toHaveCount(0)
+        // The overture's page: Discard asks first, saying what goes with it.
+        try await tab.openHydrated("/mission-control/overtures/lexicographic/\(overture)")
+        try await tab.locator("button[form='overture-discard']").click()
+        let confirm = tab.locator(".mission-control-object-header-confirm")
+        try await expect(confirm).toContainText("This also discards the submission it came from.")
+        try await confirm.locator(".dialog-primary-button").click()
+        try await expect(tab, timeout: .seconds(15)).toHaveURL("/mission-control/overtures/lexicographic")
+        try await tab.openHydrated(page)
         try await expect(status).toContainText("Discarded")
+        try await expect(tab.locator("button[form='object-restore']")).toHaveCount(0)
         try await expect(tab.locator(".pedigree-view")).toContainText("Discarded")
         #expect(try TestAdmin.query("SELECT discarded_by FROM lexicographic_overtures WHERE id = '\(overture)';")
           == admin.username)
@@ -63,10 +72,10 @@ struct FigurantDiscardTests {
         try await tab.openHydrated(register + "?status=discarded")
         try await expect(tab.locator("a[href='\(page)' i]").first).toBeVisible()
 
+        try await tab.openHydrated("/mission-control/overtures/lexicographic/\(overture)")
+        try await tab.locator("button[form='overture-restore']").click()
         try await tab.openHydrated(page)
-        try await tab.locator("button[form='object-restore']").click()
         try await expect(status).toContainText("Submitted")
-        try await expect(tab.locator("button[form='object-discard']")).toHaveCount(1)
         #expect(try TestAdmin.query("SELECT coalesce(discarded_by, '') FROM lexicographic_overtures WHERE id = '\(overture)';")
           == "")
       }
