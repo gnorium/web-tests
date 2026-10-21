@@ -144,6 +144,10 @@ struct BibliographicExplicationSessionsTests {
         let legend = page.locator(".tooltip-view[data-portal='true'] .tooltip-content a[href='/mission-control/prompts/bibliographic/explication']")
         try await expect(legend).toHaveCount(1)
         try await expect(legend).toHaveText(autoID)
+        // Only the UUID, linked and whole (user, 2026-10-21): no words
+        // around it.
+        try await expect(page.locator(".tooltip-view[data-portal='true'] .tooltip-content:has(a[href='/mission-control/prompts/bibliographic/explication'])"))
+          .toHaveText(autoID)
         // The autocompaction card is white; the prompt the summarizer was
         // given and the summary the main model is given from then on are
         // gray cards on it, each under its legend (user, 2026-10-10).

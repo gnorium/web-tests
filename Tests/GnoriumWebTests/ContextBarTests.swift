@@ -33,7 +33,9 @@ struct ContextBarTests {
     """
 
   /// Opened by a click: the popover shows, its rows a grid whose numbers
-  /// end on one edge; the bar a 40px box after Raw and the ⓘ.
+  /// end on one edge; the bar a 40px box after Raw and the ⓘ, exactly as
+  /// wide as the popover, its right edge at the popover's (user,
+  /// 2026-10-21).
   static let opened = """
     (async () => { const b = document.querySelector('.session-context-bar-view');
       b.querySelector('.session-context-bar-meter').click();
@@ -46,10 +48,14 @@ struct ContextBarTests {
       const order = [...row.children].map(e => e.classList.contains('session-context-bar-view') ? 'bar'
         : e.querySelector('.computorium-session-markdown-toggle') || e.classList.contains('computorium-session-markdown-toggle') ? 'raw'
         : e.querySelector('.computorium-session-byline-words') ? 'info' : 'other');
+      const meter = b.querySelector('.session-context-bar-meter').getBoundingClientRect();
+      const box = d.parentElement.getBoundingClientRect();
+      const fitted = Math.abs(meter.width - box.width) <= 1 && Math.abs(meter.right - box.right) <= 1
+        ? 'fitted' : `unfit ${meter.left}–${meter.right} / ${box.left}–${box.right}`;
       return [bubble.visibility, getComputedStyle(d.querySelector('.session-context-bar-breakdown')).display,
         new Set(ends).size === 1 ? 'aligned' : 'ragged',
-        Math.round(b.querySelector('.session-context-bar-meter').getBoundingClientRect().height),
-        order.join(' ')].join(' | ') })()
+        Math.round(meter.height),
+        order.join(' '), fitted].join(' | ') })()
     """
 
   /// A call's context block as `session_context` writes it: every value a
@@ -106,7 +112,7 @@ struct ContextBarTests {
         #expect(
           try await page.evaluate(Self.bar, as: String.self)
             == "window | false | block | 6% used · 67.1k of 1M tokens | 6% used | 67.1k / 1M | 3.1k 0.3% | 41k 3.9% | hidden | 981.5k 93.6% | 39 | 0 | 67,063 hidden 845 512")
-        #expect(try await page.evaluate(Self.opened, as: String.self) == "visible | grid | aligned | 40 | raw info bar")
+        #expect(try await page.evaluate(Self.opened, as: String.self) == "visible | grid | aligned | 40 | raw info bar | fitted")
         #expect(
           try await page.evaluate(
             "document.querySelector('.computorium-session-byline-words').textContent.includes('context')",

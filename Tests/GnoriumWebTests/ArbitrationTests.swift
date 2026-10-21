@@ -431,7 +431,10 @@ struct ArbitrationTests {
           (() => { const content = document.querySelector('#locution-\(replyID.uppercased()) .computorium-session-output-content'), tail = content.lastElementChild
             const r = tail.getBoundingClientRect(), s = getComputedStyle(content.parentElement)
             const line = parseFloat(s.lineHeight) || parseFloat(s.fontSize) * 1.2
-            return r.bottom >= 0 && r.bottom - innerHeight <= line })()
+            // Above the playback bar, which sticks over the viewport's foot.
+            const bar = document.querySelector('.replay-seek-view:not([hidden])')
+            const foot = bar ? Math.min(innerHeight, bar.getBoundingClientRect().top) : innerHeight
+            return r.bottom >= 0 && r.bottom - foot <= line })()
           """
         let away = try await page.evaluate("""
           (() => { const content = document.querySelector('#locution-\(replyID.uppercased()) .computorium-session-output-content'), tail = content.lastElementChild
@@ -806,7 +809,7 @@ struct ArbitrationTests {
     try await page.openHydrated(path + "?pace=1#pace-test")
     // Drawn hidden in the reply's bar; the bar moves to the foot of the
     // page's content column once Replay is pressed.
-    let group = page.locator("\(reply) .replay-seek-view .replay-speed-view, .layout-main > .replay-seek-view .replay-speed-view")
+    let group = page.locator("\(reply) .replay-seek-view .replay-speed-view, .layout-content-area > .replay-seek-view .replay-speed-view")
     try await expect(group).toHaveCount(1)
     try await expect(group).toBeHidden()
     try await expect(group).toHaveAttribute("role", "group")
@@ -825,7 +828,7 @@ struct ArbitrationTests {
             if (text.includes('Pace ' + word + '.') && !window.__paced[word]) {
               window.__paced[word] = performance.now()
               const speed = { one: '2', two: '4' }[word]
-              if (speed) document.querySelector('.layout-main > .replay-seek-view .replay-speed-view [data-value="' + speed + '"]').click()
+              if (speed) document.querySelector('.layout-content-area > .replay-seek-view .replay-speed-view [data-value="' + speed + '"]').click()
             }
         }).observe(content, { childList: true, subtree: true, characterData: true })
         return true })()
@@ -860,7 +863,7 @@ struct ArbitrationTests {
   /// the test's stand-in (at `#seek-test`): frames recorded 0, 60 and 120
   /// seconds in, a model call starting at 0 and at 60. Drawn hidden in the
   /// reply until Replay is pressed; then a bar at the end of the page's
-  /// content column (`.layout-main`), sticky at the foot of the viewport
+  /// content area (`.layout-content-area`), sticky at the foot of the viewport
   /// over the page's content, holding Pause, the track, the clock, the
   /// speed and a close ×: "0:0x / 2:00", a slider "Replay position" to
   /// 120000 with one tick (the second call), and Pause. Escape leaves it
@@ -912,7 +915,7 @@ struct ArbitrationTests {
     try await expect(page.locator("\(reply) .replay-seek-view")).toHaveCount(1)
     try await expect(page.locator("\(reply) .replay-seek-view")).toBeHidden()
     try await expect(page.locator(".replay-seek-view:not([hidden])")).toHaveCount(0)
-    let seek = page.locator(".layout-main > .replay-seek-view")
+    let seek = page.locator(".layout-content-area > .replay-seek-view")
     let slider = seek.locator(".replay-seek-slider")
     let toggle = seek.locator(".replay-seek-toggle")
     let time = seek.locator(".replay-seek-time")
@@ -943,6 +946,22 @@ struct ArbitrationTests {
           && r.left >= column.left - 1 && r.right <= column.right + 1 }
       """).bool
     #expect(placed == true, "The bar sticks to the viewport's foot within the content column")
+    // At rest at the page's end, one space above it and below it, to the
+    // footer's rule (user, 2026-10-21).
+    let spaces = try await seek.evaluate("""
+      el => { const section = document.querySelector('.page-section')
+        section.style.minHeight = (2 * innerHeight) + 'px'
+        window.scrollTo(0, document.documentElement.scrollHeight)
+        let above = el.previousElementSibling
+        while (above && above.getBoundingClientRect().height === 0) above = above.previousElementSibling
+        const bar = el.getBoundingClientRect(), footer = document.querySelector('.layout-footer').getBoundingClientRect()
+        const result = [bar.top - above.getBoundingClientRect().bottom, footer.top - bar.bottom]
+        section.style.minHeight = ''
+        window.scrollTo(0, 0)
+        return result }
+      """)
+    let above = spaces[0].double ?? -1, below = spaces[1].double ?? -2
+    #expect(above > 0 && abs(above - below) <= 1, "Equal space above and below the bar: \(above) / \(below)")
     // Escape never stops it: only × closes.
     try await toggle.focus()
     try await page.keyboard.press("Escape")
@@ -982,6 +1001,12 @@ struct ArbitrationTests {
     let held = try await slider.getAttribute("aria-valuenow") ?? ""
     try await Task.sleep(for: .milliseconds(800))
     #expect(try await slider.getAttribute("aria-valuenow") == held, "Paused, the position holds")
+    // Its rotating marks stand still with it (user, 2026-10-21).
+    try await expect(session).toHaveAttribute("data-replay-paused", "true")
+    #expect(try await session.evaluate("""
+      el => [...el.querySelectorAll('.rotating-sector-shape, .rotating-ring-sector-shape, .rotating-ring-sector-with-disc-ring, .rotating-dotted-ring-sector-shape')]
+        .every(shape => getComputedStyle(shape).animationPlayState === 'paused')
+      """).bool == true, "Paused, the replayed session's marks are held")
     // A click on the track's 3/4: 90s, still paused.
     let point = try await slider.evaluate("""
       el => { el.scrollIntoView({ block: 'center' }); const track = el.querySelector('.slider-track').getBoundingClientRect()
@@ -1008,6 +1033,8 @@ struct ArbitrationTests {
         return true })()
       """, as: Bool.self)
     try await toggle.click()
+    // Played again: its marks turn again.
+    try await expect(session).not.toHaveAttribute("data-replay-paused", "true")
     try await expect(toggle).toHaveAttribute("aria-label", "Pause")
     try await expect(session, timeout: .seconds(10)).toContainText("Seek three.")
     let waited = try await page.evaluate("Math.round(window.__soughtShown - window.__soughtFrom)", as: Int.self)
@@ -1083,7 +1110,7 @@ struct ArbitrationTests {
       """)
     try await page.openHydrated(path + "?scrub=1#scrub-test")
     let session = page.locator("\(reply) .computorium-session-view")
-    let seek = page.locator(".layout-main > .replay-seek-view")
+    let seek = page.locator(".layout-content-area > .replay-seek-view")
     let slider = seek.locator(".replay-seek-slider")
     let toggle = seek.locator(".replay-seek-toggle")
     let time = seek.locator(".replay-seek-time")
@@ -1097,7 +1124,7 @@ struct ArbitrationTests {
     _ = try await page.locator("\(reply) .replay-btn").evaluate("el => el.click()")
     try await expect(seek, timeout: .milliseconds(1000)).toBeVisible()
     let before = try await page.evaluate("""
-      (() => { const bar = document.querySelector('.layout-main > .replay-seek-view')
+      (() => { const bar = document.querySelector('.layout-content-area > .replay-seek-view')
         return [performance.now() - window.__pressedAt, bar.dataset.replayDurationMs ?? '',
           bar.querySelector('.replay-seek-slider').getAttribute('aria-valuemax')] })()
       """)
@@ -1126,7 +1153,7 @@ struct ArbitrationTests {
     var landed = ""
     for key in ["Home", "End", "PageDown"] {
       let result = try await page.evaluate("""
-        (async () => { const slider = document.querySelector('.layout-main > .replay-seek-view .replay-seek-slider')
+        (async () => { const slider = document.querySelector('.layout-content-area > .replay-seek-view .replay-seek-slider')
           slider.focus()
           const start = performance.now()
           slider.dispatchEvent(new KeyboardEvent('keydown', { key: '\(key)', bubbles: true }))
@@ -1143,7 +1170,9 @@ struct ArbitrationTests {
     #expect(landed.hasPrefix(prefix.trimmingCharacters(in: .whitespaces)), "Drawn again from a checkpoint, the same text")
     #expect(!landed.contains("w7100 "), "Nothing from after the time sought")
     // Played from 10s, then dragged along the track: the handle at every
-    // step, the replay held under the hand, landing where it is let go.
+    // step and the transcript with it, as a video's frame follows its
+    // scrubber (user, 2026-10-21); the clock held under the hand, landing
+    // where it is let go.
     try await slider.focus()
     try await page.keyboard.press("Home")
     for _ in 0..<2 { try await page.keyboard.press("ArrowRight") }
@@ -1155,16 +1184,27 @@ struct ArbitrationTests {
     let left = track[0].double ?? 0, width = track[1].double ?? 0, y = track[2].double ?? 0
     try await page.mouse.down(x: left + width * 0.2, y: y)
     var values: [Int] = []
+    var lastWords: [String] = []
     for step in 1...8 {
-      try await page.mouse.move(x: left + width * (0.2 + 0.05 * Double(step)), y: y)
-      _ = try await page.evaluate("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))", as: Bool.self)
+      // Back over the middle steps too: drawn again from a checkpoint.
+      let fraction = step == 5 ? 0.32 : 0.2 + 0.05 * Double(step)
+      try await page.mouse.move(x: left + width * fraction, y: y)
+      _ = try await page.evaluate(
+        "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => r(true)))))",
+        as: Bool.self)
       values.append(Int(try await slider.getAttribute("aria-valuenow") ?? "") ?? -1)
+      lastWords.append(try await page.evaluate("(\(rendered)).split(' ').pop()", as: String.self))
     }
-    #expect(zip(values, values.dropFirst()).allSatisfy { $0 < $1 }, "The handle moves at every step: \(values)")
+    #expect(values.allSatisfy { $0 >= 0 } && Set(values).count == values.count, "The handle moves at every step: \(values)")
+    // The transcript at the handle's time at every step, the handle not let
+    // go: the last word the last recorded by then (one every 10ms).
+    #expect(lastWords == values.map { "w\($0 / 10)" }, "The transcript follows the handle: \(values) → \(lastWords)")
     #expect(try await slider.getAttribute("data-dragging") == "true", "Held under the hand")
+    // Held: its marks stand still with it.
+    #expect(try await session.getAttribute("data-replay-paused") == "true", "The session's marks held while dragged")
     let held = try await page.evaluate(rendered, as: String.self)
     try await Task.sleep(for: .milliseconds(300))
-    #expect(try await page.evaluate(rendered, as: String.self) == held, "The transcript waits while dragged")
+    #expect(try await page.evaluate(rendered, as: String.self) == held, "The clock waits while dragged")
     try await page.mouse.up(x: left + width * 0.6, y: y)
     let dropped = Int(try await slider.getAttribute("aria-valuenow") ?? "") ?? 0
     #expect((55000...65000).contains(dropped), "Let go at the track's 3/5: \(dropped)")
@@ -1174,6 +1214,7 @@ struct ArbitrationTests {
     #expect(try await page.evaluate(rendered, as: String.self).contains("w\(word + 500) ") == false,
       "Nothing from after the time let go")
     try await expect(toggle).toHaveAttribute("aria-label", "Pause")
+    try await expect(session).not.toHaveAttribute("data-replay-paused", "true")
     try await expect(session, timeout: .seconds(3)).toContainText("w\(word + 50) ")
     try await page.openHydrated(path)
   }
