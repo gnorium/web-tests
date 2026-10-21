@@ -100,7 +100,7 @@ struct WatchtowerTests {
       }
       // A call's every status, in order (user, 2026-10-21): pending
       // (awaiting Commit or queued: one figure), running, submitted (1w),
-      // failed (1w), nullified; hidden is no figure (the Locutions filter).
+      // failed (1w); neither nullified nor hidden is a figure.
       let calls = try await page.evaluate("""
         [...document.querySelectorAll('[id^="live-region-watchtower-arbitration-"][id$="-figures"] .watchtower-figure-columns-column')]
           .map(column => [column.querySelector('.watchtower-figure-columns-tab').textContent.trim(),
@@ -109,7 +109,7 @@ struct WatchtowerTests {
         """, as: [String].self)
       #expect(!calls.isEmpty)
       for column in calls {
-        #expect(column.hasSuffix("|pending|running|submitted (1w)|failed (1w)|nullified"), "\(column)")
+        #expect(column.hasSuffix("|pending|running|submitted (1w)|failed (1w)"), "\(column)")
       }
       // A machine's object: every status its enum has, in order—pending,
       // its process's in-flight status, submitted (1w), failed (1w).
@@ -146,7 +146,7 @@ struct WatchtowerTests {
   ///   cross (a failure the machine retries counts as pending: failed
   ///   always needs a person). A call's too, at its object's level: pending
   ///   that level still, running it turning, submitted the check, failed
-  ///   and nullified the red cross.
+  ///   the red cross.
   /// - a Disputorium object's figures its chip's: pending its level's
   ///   pending mark (an overture's and a halftone's the dotted ring, a
   ///   madrigal's the ring, an epilogue's the disc), committed and
@@ -284,8 +284,8 @@ struct WatchtowerTests {
       // Four Disputorium objects of three figures and the fountain's and
       // four palinodes' one, both sides.
       #expect(people == 4 * 3 * 2 + 5 * 2, "\(people) Disputorium and register figures")
-      // Each nested Locution card's call: five statuses on both sides.
-      #expect(calls > 0 && calls % 10 == 0, "\(calls) call figures")
+      // Each nested Locution card's call: four statuses on both sides.
+      #expect(calls > 0 && calls % 8 == 0, "\(calls) call figures")
     }
   }
 

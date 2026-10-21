@@ -161,8 +161,8 @@ struct WatchtowerFigureLinksTests {
       let figures = try await Self.figures(page)
       // Objects: four Disputorium objects of three figures, three machines
       // of four (pending first), the fountain and four palinodes of one, on
-      // both sides: 58; processes and arbitrations below: 60.
-      try #require(figures.count >= 112, "the Watchtower shows \(figures.count) figure links")
+      // both sides: 58; processes and arbitrations below: 52 (no nullified).
+      try #require(figures.count >= 104, "the Watchtower shows \(figures.count) figure links")
       // Calibration, explication and translation have three nocturne links
       // on each kind (18), and a pending link to their object's list, its
       // objects waiting for a worker (6).
@@ -176,17 +176,18 @@ struct WatchtowerFigureLinksTests {
       // Arbitration's open the Locutions list (an arbitration session is no
       // nocturne): its calls by Status, gnorium's replies by Created by.
       // Each nested Locution card: its process box four a kind (pending,
-      // running, passed, failed) and its call's figures five a kind
-      // (pending, running, submitted, failed, nullified; hidden is an
-      // admin's alone): 18 a card (user, 2026-10-21).
+      // running, passed, failed) and its call's figures four a kind
+      // (pending, running, submitted, failed; neither nullified nor
+      // hidden is a figure): 16 a card (user, 2026-10-21).
       let cards = try await page.evaluate(
         "[...document.querySelectorAll('.watchtower-object-name-link')].filter(e => e.textContent.trim() === 'Locution').length",
         as: Int.self)
       let arbitrationLinks = figures.filter {
         $0.href.hasPrefix("/mission-control/locutions/")
       }.count
-      try #require(cards > 0 && arbitrationLinks == cards * 18, "the nested Arbitration cards' locution links: \(arbitrationLinks) on \(cards) cards")
-      #expect(!figures.contains { $0.text.hasSuffix(" hidden") }, "hidden is no figure")
+      try #require(cards > 0 && arbitrationLinks == cards * 16, "the nested Arbitration cards' locution links: \(arbitrationLinks) on \(cards) cards")
+      #expect(!figures.contains { $0.text.hasSuffix(" hidden") || $0.text.hasSuffix(" nullified") },
+        "neither hidden nor nullified is a figure")
       // An object's figure opens its own list, never the lifetimes.
       let lifetimes = figures.filter { $0.href.contains("/lifetimes/") }.map(\.href)
       #expect(lifetimes.isEmpty, "object figures open the lifetimes: \(lifetimes)")
