@@ -56,7 +56,7 @@ struct FieldValidationTests {
       let identityMessage = page.locator("#email-or-username-validation-message")
       try await expect(identityMessage).toBeVisible()
       try await expect(identityMessage).toHaveText("Enter your email or username.")
-      try await expect(identityMessage.locator("svg.error-icon-view")).toHaveCount(1)
+      try await expect(identityMessage.locator("svg.circle-x-icon-view")).toHaveCount(1)
       try await expect(identity).toHaveAttribute("aria-invalid", "true")
       try await expect(identity).toHaveAttribute("aria-describedby", "email-or-username-validation-message")
       try await expect(identity).toBeFocused()
