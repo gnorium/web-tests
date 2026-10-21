@@ -68,29 +68,27 @@ struct PromptOvertureTests {
         let amend = page.locator(".prompt-details-amend button[type='submit']")
         try await expect(amend).toHaveText("Submit Amendment")
         try await amend.click()
-        // Its Amend form: the vignette in edit mode, every prompt and a note.
+        // Its Amend form: the vignette in edit mode, every prompt, no note.
         try await expect(page, timeout: .seconds(15)).toHaveURL("the Amend form") {
           $0.path.lowercased() == "/mission-control/prompts/vignettes/\(vignette)/amend"
         }
         try await expect(page.locator(".form-header-view h1, .form-header-title").first)
-          .toContainText("Amend Bibliographic Translation Prompt Vignette")
+          .toContainText("Submit Amendment to Bibliographic Translation Prompt")
         // Submit with nothing changed: refused, said, nothing filed.
         let submit = page.locator("#amend-vignette-form button[type='submit']")
         try await expect(submit).toHaveText("Submit")
         try await submit.click()
         try await expect(page.getByText("Nothing differs from the vignette in force.")).toBeVisible()
         #expect(try opened().isEmpty, "Nothing was filed")
-        // A changed system prompt and a note: the palinode, frozen, holding
-        // them, opening the overture whose proposal it is.
+        try await expect(page.locator("textarea[name='note']")).toHaveCount(0)
+        // A changed system prompt: the palinode, frozen, holding it,
+        // opening the overture whose proposal it is.
         _ = try await page.evaluate(
           """
           (() => {
             const area = document.querySelector("textarea[name='prompt-system-\(slot)']")
             area.value += '\\nWeb tests overture line.'
             area.dispatchEvent(new Event('input', { bubbles: true }))
-            const note = document.querySelector("textarea[name='note']")
-            note.value = 'Web tests note.'
-            note.dispatchEvent(new Event('input', { bubbles: true }))
             return true
           })()
           """, as: Bool.self)
@@ -160,7 +158,6 @@ struct PromptOvertureTests {
         try await expect(page.locator(".palinode-submission a[href='/mission-control/prompts/vignettes/\(vignette)' i]"))
           .toHaveCount(1)
         try await expect(page.locator("button[form='prompt-overture-commit']")).toHaveCount(0)
-        try await expect(page.getByText("Web tests note.")).toBeVisible()
         try await expect(page.locator(".vignette-palinode-content")).toContainText("Web tests overture line.")
 
         // The vignette's page now leads to the open overture, no Amend.

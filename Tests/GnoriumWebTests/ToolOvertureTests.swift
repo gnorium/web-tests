@@ -92,16 +92,16 @@ struct ToolOvertureTests {
         let amend = page.locator(".tool-details-amend button[type='submit']")
         try await expect(amend).toHaveText("Submit Amendment")
         try await amend.click()
-        // Its Amend form: the vignette in edit mode, its tool files and a
+        // Its Amend form: the vignette in edit mode, its tool files, no
         // note. Its commits are no repository's, so its files cannot be
         // read: said, and nothing to change.
         try await expect(page, timeout: .seconds(15)).toHaveURL("the Amend form") {
           $0.path.lowercased() == "/mission-control/tools/vignettes/\(vignette)/amend"
         }
         try await expect(page.locator(".form-header-title").first)
-          .toContainText("Amend Bibliographic Translation Tool Vignette")
+          .toContainText("Submit Amendment to Bibliographic Translation Tool")
         try await expect(page.locator("#amend-vignette-form button[type='submit']")).toHaveText("Submit")
-        try await expect(page.locator("textarea[name='note']")).toHaveCount(1)
+        try await expect(page.locator("textarea[name='note']")).toHaveCount(0)
         // The overture a palinode proposing nothing opens (as a migrated
         // one may), filed here as its Submit would file it.
         let palinodeRow = UUID().uuidString.lowercased()
