@@ -171,14 +171,15 @@ struct ToolCardFieldsTests {
           toolsLabels == "name description parameters type properties section type description additionalProperties strict",
           "A tool's schema, every key in the JSON's own order: \(toolsLabels)")
         // The transcript's order: Tools, thinking, the calls, the
-        // compaction, Tools, thinking, the write, Tools, the text.
+        // compaction, thinking, the write, the text. The microcompaction
+        // keeps the conversation, so no second Tools card follows it.
         let orderJS = """
           [...document.querySelector('.computorium-session-output-content').querySelectorAll(
             '.computorium-session-tools, .computorium-session-output-thinking, .computorium-session-tool-call, .computorium-session-compaction, .computorium-session-output-rendered')]
             .map(e => e.className.replace('computorium-session-', '').split(' ')[0]).join(' ')
           """
         let order = try await page.evaluate(orderJS, as: String.self)
-        #expect(order == "tools output-thinking tool-call tool-call tool-call tool-call compaction tools output-thinking tool-call tools output-rendered", "Stream order: \(order)")
+        #expect(order == "tools output-thinking tool-call tool-call tool-call tool-call compaction output-thinking tool-call output-rendered", "Stream order: \(order)")
         try await expect(session.locator(".computorium-session-tool-call-definition")).toHaveCount(0)
         // read_conventions: its content—the conventions—under `content`,
         // and every envelope key beside it, as the JSON wrote them.
@@ -243,7 +244,7 @@ struct ToolCardFieldsTests {
         #expect(grounds.thinking, "The thinking card is white: \(grounds)")
         #expect(grounds.argument, "An argument datum is white: \(grounds)")
         #expect(grounds.box && grounds.result, "A result box and its datums are gray: \(grounds)")
-        #expect(grounds.cardCount >= 11 && grounds.cardsOff.isEmpty, "No card alternates: every card white: \(grounds)")
+        #expect(grounds.cardCount >= 9 && grounds.cardsOff.isEmpty, "No card alternates: every card white: \(grounds)")
         #expect(grounds.boxCount >= 5 && grounds.boxesOff.isEmpty, "Every seen box gray: \(grounds)")
         #expect(grounds.surfaces == 0, "The transcript takes no depth tint: \(grounds)")
         // A card header's dot is its own vocabulary (never the roster's
@@ -405,9 +406,9 @@ struct ToolCardFieldsTests {
             const cards = [...document.querySelectorAll('.computorium-session-output-thinking-rendered, .computorium-session-tool-call-rendered, .computorium-session-tools-rendered, .computorium-session-compaction-rendered')]
             const argument = document.querySelector('#computorium-session-tool-live_ws .computorium-session-tool-call-args .datum-view > .datum-value')
             const box = document.querySelector('#computorium-session-tool-live_ws .computorium-session-tool-call-result-box')
-            return [cards.length >= 11, cards.every(c => bg(c) === white), bg(argument) === white, bg(box) === seen].join(' ')
+            return [cards.length >= 9, cards.every(c => bg(c) === white), bg(argument) === white, bg(box) === seen].join(' ')
           })()
-          """, as: String.self) == "true true true true", "Live cards (11+) white, live argument white, live result box gray")
+          """, as: String.self) == "true true true true", "Live cards (9+) white, live argument white, live result box gray")
         try await expect(page.locator(".computorium-session-output-content")).not.toContainText("input_tokens")
         try await expect(page.locator(".computorium-session-output-content")).not.toContainText("bookkeeping")
         try await page.expectNoErrors()

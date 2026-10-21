@@ -322,7 +322,7 @@ struct ArbitrationTests {
         // again, "Arbitrating".
         try await expect(chip.locator(".info-chip-text")).toHaveText("Pending")
         try await expect(chip.locator(".ring-icon-view")).toHaveCount(1)
-        try await expect(chip.locator(".rotating-sector-view")).toHaveCount(0)
+        try await expect(chip.locator(".rotating-ring-sector-view")).toHaveCount(0)
         try await expect(slot.locator(".computorium-session-output-thinking-running")).toHaveCount(0)
         try await expect(slot).not.toContainText("failed without a recorded reason")
         // A provider-side stop pauses it too, in prose (user, 2026-10-17):
@@ -352,7 +352,7 @@ struct ArbitrationTests {
         #expect(try await slot.evaluate("el => el === window.__slot").bool == true, "The same element")
         // Done, the chip says the madrigal's status again.
         try await expect(chip.locator(".info-chip-text")).toHaveText("Pending")
-        try await expect(chip.locator(".rotating-sector-view")).toHaveCount(0)
+        try await expect(chip.locator(".rotating-ring-sector-view")).toHaveCount(0)
         try await expect(page.locator(".locution-view .computorium-session-view")).toHaveCount(1)
 
         try await page.openHydrated(reading.path)
@@ -469,7 +469,7 @@ struct ArbitrationTests {
         #expect(try await page.evaluate("window.__chipTexts.includes('Arbitrating')", as: Bool.self),
           "The chip said Arbitrating during the replay")
         try await expect(chip.locator(".info-chip-text"), timeout: .seconds(15)).toHaveText("Pending")
-        try await expect(chip.locator(".rotating-sector-view")).toHaveCount(0)
+        try await expect(chip.locator(".rotating-ring-sector-view")).toHaveCount(0)
         // Replay's speed (user, 2026-10-21): the recorded waits divided by
         // it, changed mid-replay at once, the viewer's choice kept.
         try await expectReplaySpeed(page, path: reading.path, replyID: replyID)
@@ -712,11 +712,12 @@ struct ArbitrationTests {
 
   /// The madrigal page, its arbitration session running, with an
   /// EventSource the test drives in place of the reply's watch stream: a
-  /// "renew" end reattaches the watch and leaves the chip on "Arbitrating";
-  /// the new stream's "succeeded" brings the madrigal's status back. The
-  /// stand-in is installed before the page's own scripts (`addInitScript`),
-  /// only on a document opened at `#renew-test`, so every later load is the
-  /// real page. Nothing is written to disk.
+  /// "renew" end reattaches the watch and leaves the chip on "Arbitrating"
+  /// (the turning ring sector: one page of three explicated, the madrigal
+  /// is calibrated); the new stream's "succeeded" brings the madrigal's
+  /// status back. The stand-in is installed before the page's own scripts
+  /// (`addInitScript`), only on a document opened at `#renew-test`, so
+  /// every later load is the real page. Nothing is written to disk.
   func expectRenewKeepsArbitrating(_ page: Page, path: String, replyID: String) async throws {
     try await page.addInitScript("""
       if (location.hash === '#renew-test') {
@@ -755,7 +756,7 @@ struct ArbitrationTests {
         return window.__streams.length === 2 && window.__stream === window.__streams[1] })()
       """, as: Bool.self), "Renew attaches the watch again")
     try await expect(chip).toHaveText("Arbitrating")
-    try await expect(page.locator(".disputorium-core-header-status-chip .rotating-sector-view")).toHaveCount(1)
+    try await expect(page.locator(".disputorium-core-header-status-chip .rotating-ring-sector-view")).toHaveCount(1)
     try await expect(session).not.toHaveAttribute("data-computorium-session-status", "succeeded")
     // The new stream's status, the session's own: still running, then done.
     _ = try await page.evaluate("(() => { window.__status('running'); return true })()", as: Bool.self)
@@ -765,7 +766,7 @@ struct ArbitrationTests {
       """, as: Bool.self)
     // The madrigal's own state again: Pending, its verdict to come.
     try await expect(chip).toHaveText("Pending")
-    try await expect(page.locator(".disputorium-core-header-status-chip .rotating-sector-view")).toHaveCount(0)
+    try await expect(page.locator(".disputorium-core-header-status-chip .rotating-ring-sector-view")).toHaveCount(0)
   }
 
   /// Replay's speed (user, 2026-10-21) on the reply's replay, its stream

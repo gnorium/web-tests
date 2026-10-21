@@ -17,7 +17,7 @@ struct ScratchChain {
   func insert(overture: String, user: String, metadata: String = "{}") -> String {
     """
     INSERT INTO bibliographic_quatrains (id, bibliographic_overture_id, requested_by_user_id, image_service_ids_json, processing_status, created_at, updated_at, completed_at)
-      VALUES ('\(quatrainID)', '\(overture)', '\(user)', '[]', 'submitted', now() - interval '3 minutes', now(), now());
+      VALUES ('\(quatrainID)', '\(overture)', '\(user)', '["https://iiif.example.test/image-1"]', 'submitted', now() - interval '3 minutes', now(), now());
     INSERT INTO bibliographic_halftones (id, bibliographic_overture_id, bibliographic_quatrain_id, metadata_json, committed_by_user_id, committed_at, created_at, updated_at)
       VALUES ('\(halftoneID)', '\(overture)', '\(quatrainID)', '\(metadata)', '\(user)', now() - interval '1 minute', now() - interval '2 minutes', now());
     INSERT INTO bibliographic_antiphons (id, bibliographic_halftone_id, document_json, header_json, metadata_json, requested_by_user_id, image_service_ids_json, processing_status, created_at, updated_at)

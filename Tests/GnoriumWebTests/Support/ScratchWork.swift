@@ -26,6 +26,19 @@ struct ScratchWork {
   private let chain = ScratchChain()
   private let owner: String
 
+  /// The corpus every permitted work joins, made as the server makes it on
+  /// the first permit (`BiblioRecord.findOrCreateDefaultCorpus`): a fresh
+  /// dev database has none, and a record without one fails to load. Kept,
+  /// as the server keeps it.
+  static let corpus = """
+    INSERT INTO corpora (id, name, slug, description, language_period, work_count, word_count, created_at, updated_at)
+      VALUES (gen_random_uuid(), 'Uncategorized Sources', 'uncategorized-sources',
+        'Works permitted from evidence not yet assigned to a curated corpus', 'contemporary', 0, 0, now(), now())
+      ON CONFLICT (slug) DO NOTHING;
+    """
+  /// Its id, for a record's `corpus_id`.
+  static let corpusID = "(SELECT id FROM corpora WHERE slug = 'uncategorized-sources')"
+
   /// `sourceURL` is its Fountain's and overture's source URL, fixed at
   /// submission (a submitted Fountain can't be changed).
   init(owner: TestAdmin, sourceURL: String = "https://example.org/web-tests") throws {
@@ -76,8 +89,9 @@ struct ScratchWork {
         VALUES ('\(ids["fountain"]!)', '\(ids["submission"]!)', '\(sourceURL)', 'eng', 'pending', '\(title)', 'report', 'First edition', 1958, now());
       INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_fountain_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
         VALUES ('\(ids["overture"]!)', '\(ids["submission"]!)', '\(ids["fountain"]!)', '\(sourceURL)', 'eng', 'pending', '\(user)', now(), now());
+      \(Self.corpus)
       INSERT INTO biblio_records (id, corpus_id, title, title_slug, type, language, genres, year, date_display, created_at, updated_at)
-        VALUES ('\(ids["record"]!)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)',
+        VALUES ('\(ids["record"]!)', \(Self.corpusID), '\(title)', '\(slug)',
           'report', 'eng', '[]', 1958, 'AD 1958', now(), now());
       \(voice)
       \(chain.insert(overture: ids["overture"]!, user: user))

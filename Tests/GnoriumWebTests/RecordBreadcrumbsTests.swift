@@ -232,8 +232,9 @@ struct ScratchRecord {
     _ = try TestAdmin.query(
       """
       BEGIN;
+      \(ScratchWork.corpus)
       INSERT INTO biblio_records (id, corpus_id, title, title_slug, type, voice_names_segment, homograph, language, genres, year, date_display)
-        VALUES ('\(recordID)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)', '\(slug)',
+        VALUES ('\(recordID)', \(ScratchWork.corpusID), '\(title)', '\(slug)',
           'report', \(voiceNames), \(homograph.map(String.init) ?? "NULL"), 'eng', '[]', 1958, 'AD 1958');
       INSERT INTO biblio_record_voices (id, biblio_record_id, name, role, position)
         VALUES ('\(authorshipID)', '\(recordID)', '\(author)', 'author', 0);

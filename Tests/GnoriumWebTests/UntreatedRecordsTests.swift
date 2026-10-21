@@ -38,8 +38,9 @@ struct UntreatedRecordsTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
+        \(ScratchWork.corpus)
         INSERT INTO biblio_records (id, corpus_id, title, title_slug, type, language, genres, date_display)
-          VALUES ('\(made)', (SELECT id FROM corpora ORDER BY created_at LIMIT 1), '\(title)',
+          VALUES ('\(made)', \(ScratchWork.corpusID), '\(title)',
             'web-tests-untreated-\(suffix)', 'journal', 'eng', '[]', '');
         INSERT INTO record_provenances (id, biblio_record_id, source, work_record_id, biblio_record_version_id, page, printed, created_at)
           VALUES (gen_random_uuid(), '\(made)', 'citation', '\(citing.recordID.lowercased())',
