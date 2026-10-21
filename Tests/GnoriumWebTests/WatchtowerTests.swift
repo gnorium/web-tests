@@ -94,20 +94,22 @@ struct WatchtowerTests {
       #expect(columns.count == 6, "calibration, explication, translation and three arbitrations: \(columns.count)")
       for box in columns {
         // Arbitration's calls awaiting Commit are its object figures' pending.
+        // Every status a nocturne can be in, as its lifecycle runs.
         let figures = box.first == "Arbitration"
-          ? "running|finished (1w)|failed (1w)" : "pending|running|finished (1w)|failed (1w)"
+          ? "running|finished (1w)|failed (1w)" : "pending|running|passed (1w)|failed (1w)"
         #expect(Array(box.dropFirst()) == ["Bibliographic|\(figures)", "Lexicographic|\(figures)"], "\(box)")
       }
-      // A machine's object: pending, running, submitted (1w), failed (1w).
-      for object in ["quatrain", "antiphon", "serenade"] {
+      // A machine's object: every status its enum has, in order—pending,
+      // its process's in-flight status, submitted (1w), failed (1w).
+      for (object, inFlight) in [("quatrain", "calibrating"), ("antiphon", "explicating"), ("serenade", "translating")] {
         let figures = try await page.evaluate("""
           [...document.querySelectorAll('#live-region-watchtower-\(object)-figures .watchtower-figure-columns-column')]
             .map(column => [column.querySelector('.watchtower-figure-columns-tab').textContent.trim(),
               ...[...column.querySelectorAll('.live-figure-text')].map(f => f.textContent.trim().replace(/^\\S+ /, ''))]
               .join('|'))
           """, as: [String].self)
-        #expect(figures == ["Bibliographic|pending|running|submitted (1w)|failed (1w)",
-          "Lexicographic|pending|running|submitted (1w)|failed (1w)"], "\(object): \(figures)")
+        #expect(figures == ["Bibliographic|pending|\(inFlight)|submitted (1w)|failed (1w)",
+          "Lexicographic|pending|\(inFlight)|submitted (1w)|failed (1w)"], "\(object): \(figures)")
       }
       let promoted = try await page.evaluate(
         "document.querySelector('.watchtower-view').textContent.toLowerCase().includes('promot')", as: Bool.self)
@@ -116,14 +118,23 @@ struct WatchtowerTests {
   }
 
   /// The Watchtower reads alive (user, 2026-10-21): every Computorium
-  /// figure—a process box's, a quatrain's, an antiphon's, a serenade's and
-  /// a nested locution card's, on both sides—wears its status's mark in the
-  /// process mark system: pending, the level its process starts from;
-  /// running, the rotating sector of the level it goes to, turning only
-  /// while its count is non-zero; finished or submitted, the level it goes
-  /// to; failed, that mark in red. Arbitration's level is its object's: an
-  /// overture postulated, a halftone calibrated, a madrigal explicated, an
-  /// epilogue translated. A Disputorium object's figures wear none.
+  /// figure, on both sides, always shown with its count (0 included),
+  /// wears its status's mark, in two vocabularies (as headers and rosters
+  /// keep theirs):
+  /// - a PROCESS box's figures (its evidence items' sessions) the level
+  ///   marks: pending, the level its process starts from; running, the
+  ///   rotating sector of the level it goes to; passed, the level it goes
+  ///   to; failed, that mark in red. Arbitration's at its object's level:
+  ///   an overture postulated, a halftone calibrated, a madrigal
+  ///   explicated, an epilogue translated.
+  /// - a machine's OBJECT figures (a quatrain, an antiphon, a serenade as a
+  ///   whole) its header chip's marks: pending its pending ring (a
+  ///   quatrain's dotted, an antiphon's plain, a serenade's disc), in
+  ///   flight its turning mark, submitted the green check, failed the
+  ///   cross—red when it needs a person (a quatrain's and a serenade's
+  ///   always), else blue.
+  /// A turning mark turns only while its count is non-zero, and stands
+  /// still, still shown, at zero. A Disputorium object's figures wear none.
   @Test(arguments: gnorium.engines)
   func computoriumFiguresWearTheirStatusMarks(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium) { page in
@@ -132,24 +143,20 @@ struct WatchtowerTests {
         let owner: String
         let text: String
         let mark: String
+        let color: String
         let turning: Bool
         let animated: Bool
-        let color: String
       }
-      // Each figure: whose it is (a process box's process, or an object's
-      // live region), its words, its mark's component, whether it turns.
       let figures = try await page.evaluate("""
         (() => {
           const kinds = ['rotating-dotted-ring-sector-view', 'rotating-ring-sector-with-disc-view',
             'rotating-ring-sector-view', 'rotating-sector-view', 'ringed-disc-icon-view', 'dotted-ring-view',
-            'ring-icon-view', 'disc-icon-view']
+            'ring-icon-view', 'disc-icon-view', 'check-icon-view', 'cross-icon-view']
           const owner = figure => {
             const box = figure.closest('.watchtower-processes-view')
-            if (box) {
-              const region = figure.closest('.live-region-view')?.id ?? ''
-              return box.getAttribute('data-process') + (region.includes('arbitration') ? ':' + region : '')
-            }
-            return figure.closest('.live-region-view')?.id ?? ''
+            const region = figure.closest('.live-region-view')?.id ?? ''
+            if (box) return box.getAttribute('data-process') + (region.includes('arbitration') ? ':' + region : '')
+            return region
           }
           return [...document.querySelectorAll('.watchtower-view .live-figure-body')].map(body => {
             const mark = body.querySelector('.live-figure-mark')
@@ -157,64 +164,76 @@ struct WatchtowerTests {
             const kind = shape ? (kinds.find(k => shape.classList.contains(k)) ?? shape.getAttribute('class')) : ''
             const animated = !!mark && [...mark.querySelectorAll('*')].some(e => getComputedStyle(e).animationName !== 'none')
             return { owner: owner(body), text: body.querySelector('.live-figure-text').textContent.trim(),
-              mark: kind, turning: mark?.getAttribute('data-turning') === 'true', animated,
-              color: mark ? getComputedStyle(mark).color : '' }
+              mark: kind, color: mark?.getAttribute('data-color') ?? '',
+              turning: mark?.getAttribute('data-turning') === 'true', animated }
           })
         })()
         """, as: [Marked].self)
-      // Each process's marks, starting level → rotating sector → target level.
-      let marks: [String: (pending: String, running: String, done: String)] = [
+      // A process's level marks: starting level, rotating sector, target level.
+      let levels: [String: (pending: String, running: String, done: String)] = [
         "calibration": ("dotted-ring-view", "rotating-ring-sector-view", "ring-icon-view"),
         "explication": ("ring-icon-view", "rotating-sector-view", "disc-icon-view"),
         "translation": ("disc-icon-view", "rotating-ring-sector-with-disc-view", "ringed-disc-icon-view"),
       ]
       // Arbitration's, at its object's level.
-      let levels: [String: (still: String, running: String)] = [
+      let arbitrations: [String: (still: String, running: String)] = [
         "overture": ("dotted-ring-view", "rotating-dotted-ring-sector-view"),
         "halftone": ("ring-icon-view", "rotating-ring-sector-view"),
         "madrigal": ("disc-icon-view", "rotating-sector-view"),
         "epilogue": ("ringed-disc-icon-view", "rotating-ring-sector-with-disc-view"),
       ]
-      let objects = ["quatrain": "calibration", "antiphon": "explication", "serenade": "translation"]
-      var checked = 0
-      var red = Set<String>()
-      var blue = Set<String>()
+      // A machine's object's chip marks: its pending ring, its turning mark.
+      let objects: [String: (pending: String, inFlight: String, word: String)] = [
+        "quatrain": ("dotted-ring-view", "rotating-ring-sector-view", "calibrating"),
+        "antiphon": ("ring-icon-view", "rotating-sector-view", "explicating"),
+        "serenade": ("disc-icon-view", "rotating-ring-sector-with-disc-view", "translating"),
+      ]
+      var processes = 0
+      var machines = 0
       for figure in figures {
         let word = figure.text.split(separator: " ").dropFirst().first.map(String.init) ?? ""
         let count = Int(figure.text.prefix { $0.isNumber }) ?? 0
-        var expected: (pending: String, running: String, done: String)?
-        if let process = marks[figure.owner.lowercased()] {
-          expected = process
-        } else if let object = objects.first(where: { figure.owner.hasSuffix("watchtower-\($0.key)-figures") }) {
-          expected = marks[object.value]
-        } else if let level = levels.first(where: { figure.owner.contains("arbitration-\($0.key)") }) {
-          expected = (level.value.still, level.value.running, level.value.still)
-        }
-        guard let expected else {
-          // A person's object, a fountain, a palinode: no mark.
+        let turns = ["running", "calibrating", "explicating", "translating"].contains(word)
+        let wanted: String
+        var color = "blue"
+        if let process = levels[figure.owner.lowercased()] {
+          wanted = word == "pending" ? process.pending : word == "running" ? process.running : process.done
+          if word == "failed" { color = "red" }
+          processes += 1
+        } else if let level = arbitrations.first(where: { figure.owner.contains("arbitration-\($0.key)") })?.value {
+          wanted = word == "running" ? level.running : level.still
+          if word == "failed" { color = "red" }
+        } else if let entry = objects.first(where: { figure.owner.hasSuffix("watchtower-\($0.key)-figures") }) {
+          let (name, object) = (entry.key, entry.value)
+          switch word {
+          case "pending": wanted = object.pending
+          case object.word: wanted = object.inFlight
+          case "submitted": wanted = "check-icon-view"; color = "green"
+          default:
+            wanted = "cross-icon-view"
+            // A quatrain's and a serenade's failure always needs a person.
+            if name != "antiphon" { color = "red" }
+          }
+          machines += 1
+          if word == "failed" && name == "antiphon" {
+            #expect(["red", "blue"].contains(figure.color), "\(figure.owner) \(figure.text): \(figure.color)")
+            color = figure.color
+          }
+        } else {
           #expect(figure.mark.isEmpty, "\(figure.owner) \(figure.text) wears \(figure.mark)")
           continue
         }
-        let wanted: String
-        switch word {
-        case "pending": wanted = expected.pending
-        case "running": wanted = expected.running
-        default: wanted = expected.done
-        }
         #expect(figure.mark == wanted, "\(figure.owner) \(figure.text): \(figure.mark), not \(wanted)")
-        if word == "running" {
+        #expect(figure.color == color, "\(figure.owner) \(figure.text): \(figure.color), not \(color)")
+        if turns {
           #expect(figure.turning == (count > 0), "\(figure.owner) \(figure.text): turning \(figure.turning)")
-          if count == 0 { #expect(!figure.animated, "\(figure.owner) \(figure.text): the sector turns at zero") }
+          if count == 0 { #expect(!figure.animated, "\(figure.owner) \(figure.text): the mark turns at zero") }
         } else {
           #expect(!figure.animated, "\(figure.owner) \(figure.text): a still mark turns")
         }
-        if word == "failed" { red.insert(figure.color) } else if word != "running" { blue.insert(figure.color) }
-        checked += 1
       }
-      // Calibration, explication and translation of four figures and three
-      // machines of four, on both sides: 48; the arbitrations' beside them.
-      #expect(checked >= 48, "\(checked) Computorium figures checked")
-      #expect(red.count == 1 && blue.count == 1 && red != blue, "failed \(red), others \(blue): a failure in red")
+      // Three processes and three machines, four statuses on both sides.
+      #expect(processes == 24 && machines == 24, "\(processes) process figures, \(machines) object figures")
     }
   }
 
