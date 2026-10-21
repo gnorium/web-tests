@@ -173,7 +173,7 @@ struct WatchtowerTests {
         (() => {
           const kinds = ['rotating-dotted-ring-sector-view', 'rotating-ring-sector-with-disc-view',
             'rotating-ring-sector-view', 'rotating-sector-view', 'ringed-disc-icon-view', 'dotted-ring-view',
-            'ring-icon-view', 'disc-icon-view', 'check-icon-view', 'x-icon-view', 'octagon-alert-icon-view',
+            'ring-icon-view', 'disc-icon-view', 'check-icon-view', 'octagon-alert-icon-view', 'triangle-alert-icon-view',
             'arrow-right-icon-view', 'stamp-icon-view']
           const owner = figure => {
             const box = figure.closest('.watchtower-processes-view')
@@ -244,7 +244,7 @@ struct WatchtowerTests {
             case "pending": wanted = level.still
             case "running": wanted = level.running
             case "submitted": wanted = "check-icon-view"
-            default: wanted = "x-icon-view"; color = "red"
+            default: wanted = "octagon-alert-icon-view"; color = "red"
             }
             calls += 1
           }
@@ -253,14 +253,14 @@ struct WatchtowerTests {
           case "pending": wanted = object.pending
           case object.word: wanted = object.inFlight
           case "submitted": wanted = "check-icon-view"
-          default: wanted = "x-icon-view"; color = "red"
+          default: wanted = "octagon-alert-icon-view"; color = "red"
           }
           machines += 1
         } else if let entry = disputorium.first(where: { figure.owner.hasSuffix("watchtower-\($0.key)-figures") }) {
           let tab = figure.column
           switch word {
           // Stale work owed again: the orange alert icon (user, 2026-10-21).
-          case "stale": wanted = "octagon-alert-icon-view"; color = "orange"; people -= 1
+          case "stale": wanted = "triangle-alert-icon-view"; color = "orange"; people -= 1
           case "pending": wanted = entry.value.pending
           case "committed": wanted = entry.value.committed[tab] ?? "arrow-right-icon-view"
           default: wanted = "stamp-icon-view"; color = "green"
