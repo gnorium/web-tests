@@ -6,8 +6,8 @@ import Foundation
 /// for explication, `ScratchChain`, whose antiphon submitted it) holding
 /// one page not read yet, so its one process is explication (user,
 /// 2026-10-10). Every row by its own id, removed in the order the foreign keys
-/// allow—except its submission and Fountain, which are submitted input and
-/// frozen: the Fountain is soft-deleted, as the site deletes one. Nothing here is ever committed: a test only opens and cancels.
+/// allow—except its submission and Figurant, which are submitted input and
+/// frozen: the Figurant is soft-deleted, as the site deletes one. Nothing here is ever committed: a test only opens and cancels.
 /// The madrigal's metadata holds what the witness's fields require (its
 /// page decodes them): the language, the source URL and its kind.
 struct ScratchCommit {
@@ -17,7 +17,7 @@ struct ScratchCommit {
   static let sourceURL = "https://web-tests.invalid/manifest.json"
 
   private let submissionID: String
-  private let fountainID: String
+  private let figurantID: String
   private let pendingOvertureID: String
   private let committedOvertureID: String
   let madrigalID: String
@@ -27,18 +27,18 @@ struct ScratchCommit {
   private let serenadeID = UUID().uuidString.lowercased()
 
   /// The work's title, which its objects' rows are titled by.
-  var title: String { "Web tests commit \(fountainID.prefix(8))" }
+  var title: String { "Web tests commit \(figurantID.prefix(8))" }
   var overturePath: String { "/mission-control/overtures/bibliographic/\(pendingOvertureID)" }
   var madrigalPath: String { "/mission-control/madrigals/bibliographic/\(madrigalID)" }
 
-  /// The committed overture is the Fountain's first, so its chain (down to
-  /// the madrigal) is the Fountain's lifetime.
+  /// The committed overture is the Figurant's first, so its chain (down to
+  /// the madrigal) is the Figurant's lifetime.
   init(owner: TestAdmin, sourceURL: String = ScratchCommit.sourceURL) throws {
     let user = try owner.column("id")
     self.owner = owner.username
     func id() -> String { UUID().uuidString.lowercased() }
     submissionID = id()
-    fountainID = id()
+    figurantID = id()
     pendingOvertureID = id()
     committedOvertureID = id()
     madrigalID = id()
@@ -46,12 +46,12 @@ struct ScratchCommit {
       """
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(submissionID)', '\(user)');
-      INSERT INTO bibliographic_fountains (id, batch_id, source_url, language, processing_status, title, type, created_at)
-        VALUES ('\(fountainID)', '\(submissionID)', '\(sourceURL)', 'eng', 'pending', 'Web tests commit \(fountainID.prefix(8))', 'report', now());
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_fountain_id, source_url, language, processing_status, created_at)
-        VALUES ('\(pendingOvertureID)', '\(submissionID)', '\(fountainID)', '\(sourceURL)', 'eng', 'pending', now());
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_fountain_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
-        VALUES ('\(committedOvertureID)', '\(submissionID)', '\(fountainID)', '\(sourceURL)', 'eng', 'pending', '\(user)', now(), now() - interval '1 minute');
+      INSERT INTO bibliographic_figurants (id, batch_id, source_url, language, processing_status, title, type, created_at)
+        VALUES ('\(figurantID)', '\(submissionID)', '\(sourceURL)', 'eng', 'pending', 'Web tests commit \(figurantID.prefix(8))', 'report', now());
+      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_figurant_id, source_url, language, processing_status, created_at)
+        VALUES ('\(pendingOvertureID)', '\(submissionID)', '\(figurantID)', '\(sourceURL)', 'eng', 'pending', now());
+      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_figurant_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
+        VALUES ('\(committedOvertureID)', '\(submissionID)', '\(figurantID)', '\(sourceURL)', 'eng', 'pending', '\(user)', now(), now() - interval '1 minute');
       \(chain.insert(overture: committedOvertureID, user: user))
       INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, proposed_content_json, metadata_json, processing_status, created_at, updated_at)
         VALUES ('\(madrigalID)', '\(madrigalID)', '\(chain.antiphonID)', '{"teiXml":"<TEI><text><body><pb n=\\"1\\" facs=\\"\(sourceURL.replacingOccurrences(of: "/manifest.json", with: ""))/page-1/full/max/0/default.jpg\\"/></body></text></TEI>"}', '{"language":"eng","sourceUrl":"\(sourceURL)","sourceKind":"iiif-manifest"}', 'pending', now(), now());
@@ -134,7 +134,7 @@ struct ScratchCommit {
       DELETE FROM bibliographic_madrigals WHERE id = '\(madrigalID)';
       \(chain.delete)
       DELETE FROM bibliographic_overtures WHERE id IN ('\(pendingOvertureID)', '\(committedOvertureID)');
-      UPDATE bibliographic_fountains SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(fountainID)';
+      UPDATE bibliographic_figurants SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(figurantID)';
       COMMIT;
       """)
   }

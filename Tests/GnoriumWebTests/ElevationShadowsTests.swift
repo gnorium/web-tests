@@ -23,7 +23,7 @@ struct ElevationShadowsTests {
   func onlyFloatingLayersCastShadows(engine: BrowserEngine) async throws {
     guard gnorium.engines.contains(engine) else { return }
     try await withPage(engine, gnorium, viewport: .desktop) { page in
-      for path in ["/", "/lexico-records", "/biblio-records", "/auth/sign-in", "/mission-control/overtures/bibliographic", "/mission-control/fountains/bibliographic"] {
+      for path in ["/", "/lexico-records", "/biblio-records", "/auth/sign-in", "/mission-control/overtures/bibliographic", "/mission-control/figurants/bibliographic"] {
         try await page.openHydrated(path)
         let floating = Self.floating.map { "'\($0)'" }.joined(separator: ",")
         let grounded = try await page.evaluate(

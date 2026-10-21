@@ -199,13 +199,13 @@ struct ReviewNavigationTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome])
-  func pedigreeFountainLinksOpenBothRecordKinds(engine: BrowserEngine) async throws {
+  func pedigreeFigurantLinksOpenBothRecordKinds(engine: BrowserEngine) async throws {
     guard gnorium.engines.contains(engine) else { return }
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let line = try ScratchLine(owner: admin, links: 1)
     let word = try ScratchWord(owner: admin)
-    let overtureID = try TestAdmin.query("SELECT id FROM bibliographic_overtures WHERE bibliographic_fountain_id = '\(line.fountainID)';")
+    let overtureID = try TestAdmin.query("SELECT id FROM bibliographic_overtures WHERE bibliographic_figurant_id = '\(line.figurantID)';")
     do {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         for (kind, path) in [
@@ -214,12 +214,12 @@ struct ReviewNavigationTests {
         ] {
           try await page.openHydrated(path)
           try await page.locator("#pedigree-rows > .accordion-summary").click()
-          let fountain = page.locator("#pedigree-rows a[href*='/fountains/\(kind)/']").first
-          try await expect(fountain).toBeVisible()
+          let figurant = page.locator("#pedigree-rows a[href*='/figurants/\(kind)/']").first
+          try await expect(figurant).toBeVisible()
           try await expect(page.locator("#pedigree-rows a[href*='/instances/']")).toHaveCount(0)
-          try await fountain.press("Enter")
-          try await expect(page).toHaveURL("Fountain page") { $0.path.contains("/fountains/\(kind)/") }
-          try await expect(page.locator(".mission-control-object-header-title")).toContainText("Fountain")
+          try await figurant.press("Enter")
+          try await expect(page).toHaveURL("Figurant page") { $0.path.contains("/figurants/\(kind)/") }
+          try await expect(page.locator(".mission-control-object-header-title")).toContainText("Figurant")
           try await page.expectNoErrors()
         }
       }

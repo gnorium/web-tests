@@ -5,7 +5,7 @@ import Foundation
 /// page it filed), the second failed, the third running, the fourth not
 /// begun. Its status is `calibrating` or `failed`. Every row by its own id,
 /// removed in the order the foreign keys allow—except its submission and
-/// Fountain, which are submitted input and frozen: the Fountain is
+/// Figurant, which are submitted input and frozen: the Figurant is
 /// soft-deleted, as the site deletes one.
 ///
 /// Its source is a PDF with a stored page list, so nothing is ever fetched.
@@ -17,7 +17,7 @@ struct ScratchQuatrain {
   let overtureID: String
   let title: String
   private let submissionID: String
-  private let fountainID: String
+  private let figurantID: String
   private let layoutID: String
   private let nocturneIDs: [String]
   private let owner: String
@@ -36,19 +36,19 @@ struct ScratchQuatrain {
     let user = try owner.column("id")
     func id() -> String { UUID().uuidString.lowercased() }
     submissionID = id()
-    fountainID = id()
+    figurantID = id()
     overtureID = id()
     quatrainID = id()
     layoutID = id()
     nocturneIDs = (0..<3).map { _ in id() }
-    title = "Web tests quatrain \(fountainID.prefix(8))"
-    let base = "https://web-tests.invalid/iiif/\(fountainID)"
+    title = "Web tests quatrain \(figurantID.prefix(8))"
+    let base = "https://web-tests.invalid/iiif/\(figurantID)"
     images = (1...4).map { "\(base)/p\($0)/full/1300,/0/default.jpg" }
     let pages = Self.labels.enumerated().map { index, label in
       "{\"label\":\"\(label)\",\"imageURL\":\"\(images[index])\"}"
     }.joined(separator: ",")
     let pagesJSON = "[\(pages)]"
-    let source = "https://web-tests.invalid/\(fountainID).pdf"
+    let source = "https://web-tests.invalid/\(figurantID).pdf"
     let scope = "[" + images.map { "\"\($0.components(separatedBy: "/full/")[0])\"" }.joined(separator: ",") + "]"
     let error = status == "failed" ? "'Image 2 cannot be measured.'" : "NULL"
     let services = images.map { $0.components(separatedBy: "/full/")[0] }
@@ -69,10 +69,10 @@ struct ScratchQuatrain {
       """
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(submissionID)', '\(user)');
-      INSERT INTO bibliographic_fountains (id, batch_id, source_url, source_kind, source_pages_json, language, processing_status, title, type, created_at)
-        VALUES ('\(fountainID)', '\(submissionID)', '\(source)', 'pdf', '\(pagesJSON)', 'eng', 'pending', '\(title)', 'report', now());
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_fountain_id, source_url, source_kind, source_pages_json, language, processing_status, title, committed_by_user_id, committed_at, created_at)
-        VALUES ('\(overtureID)', '\(submissionID)', '\(fountainID)', '\(source)', 'pdf', '\(pagesJSON)', 'eng', 'pending', '\(title)', '\(user)', now(), now());
+      INSERT INTO bibliographic_figurants (id, batch_id, source_url, source_kind, source_pages_json, language, processing_status, title, type, created_at)
+        VALUES ('\(figurantID)', '\(submissionID)', '\(source)', 'pdf', '\(pagesJSON)', 'eng', 'pending', '\(title)', 'report', now());
+      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_figurant_id, source_url, source_kind, source_pages_json, language, processing_status, title, committed_by_user_id, committed_at, created_at)
+        VALUES ('\(overtureID)', '\(submissionID)', '\(figurantID)', '\(source)', 'pdf', '\(pagesJSON)', 'eng', 'pending', '\(title)', '\(user)', now(), now());
       INSERT INTO bibliographic_quatrains (id, bibliographic_overture_id, requested_by_user_id, image_service_ids_json, processing_status, processing_error, created_at, updated_at)
         VALUES ('\(quatrainID)', '\(overtureID)', '\(user)', '\(scope)', '\(status)', \(error), now(), now());
       INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, image, instance, provider, model, result, error_message, duration_ms, created_at, finished_at)
@@ -114,9 +114,9 @@ struct ScratchQuatrain {
       DELETE FROM \(table) WHERE bibliographic_quatrain_id = '\(quatrainID)';
       DELETE FROM scan_layouts WHERE id = '\(layoutID)';
       DELETE FROM bibliographic_quatrains WHERE id = '\(quatrainID)';
-      DELETE FROM survey_images WHERE witness_id = '\(fountainID)';
+      DELETE FROM survey_images WHERE witness_id = '\(figurantID)';
       DELETE FROM bibliographic_overtures WHERE id = '\(overtureID)';
-      UPDATE bibliographic_fountains SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(fountainID)';
+      UPDATE bibliographic_figurants SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(figurantID)';
       COMMIT;
       """)
   }

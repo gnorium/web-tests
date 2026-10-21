@@ -1,18 +1,18 @@
 import Foundation
 
-/// A long bibliographic line, owned by the test's account: a fountain and
+/// A long bibliographic line, owned by the test's account: a figurant and
 /// its committed overture, its quatrain, halftone and the antiphon that
 /// halftone's Commit made (`ScratchChain`), then `links` madrigals: the first
 /// that antiphon's, each after it explicated by an antiphon from the one
 /// before it and each committed to the next; the last one permitted. Its Pedigree lists every
 /// one of them, so it runs far past one screen. Every row by its own id,
 /// removed in the order the foreign keys allow—except its submission and
-/// Fountain, which are submitted input and frozen: the Fountain is
+/// Figurant, which are submitted input and frozen: the Figurant is
 /// soft-deleted, as the site deletes one.
 struct ScratchLine {
-  let fountainID: String
-  /// The fountain's page, whose Pedigree walks the whole line.
-  var path: String { "/mission-control/fountains/bibliographic/\(fountainID)" }
+  let figurantID: String
+  /// The figurant's page, whose Pedigree walks the whole line.
+  var path: String { "/mission-control/figurants/bibliographic/\(figurantID)" }
   private let submissionID: String
   private let overtureID: String
   private let chain = ScratchChain()
@@ -25,17 +25,17 @@ struct ScratchLine {
     self.owner = owner.username
     func id() -> String { UUID().uuidString.lowercased() }
     submissionID = id()
-    fountainID = id()
+    figurantID = id()
     overtureID = id()
     antiphonIDs = (0..<links).map { _ in id() }
     madrigalIDs = (0..<links).map { _ in id() }
     var sql = """
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(submissionID)', '\(user)');
-      INSERT INTO bibliographic_fountains (id, batch_id, source_url, language, processing_status, title, type, created_at)
-        VALUES ('\(fountainID)', '\(submissionID)', 'https://example.org/web-tests', 'eng', 'pending', 'Web tests pedigree \(fountainID.prefix(8))', 'report', now());
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_fountain_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
-        VALUES ('\(overtureID)', '\(submissionID)', '\(fountainID)', 'https://example.org/web-tests', 'eng', 'pending', '\(user)', now(), now());
+      INSERT INTO bibliographic_figurants (id, batch_id, source_url, language, processing_status, title, type, created_at)
+        VALUES ('\(figurantID)', '\(submissionID)', 'https://example.org/web-tests', 'eng', 'pending', 'Web tests pedigree \(figurantID.prefix(8))', 'report', now());
+      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_figurant_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
+        VALUES ('\(overtureID)', '\(submissionID)', '\(figurantID)', 'https://example.org/web-tests', 'eng', 'pending', '\(user)', now(), now());
 
       """ + chain.insert(overture: overtureID, user: user)
     for index in 0..<links {
@@ -74,7 +74,7 @@ struct ScratchLine {
     }
     sql += chain.delete + """
       DELETE FROM bibliographic_overtures WHERE id = '\(overtureID)';
-      UPDATE bibliographic_fountains SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(fountainID)';
+      UPDATE bibliographic_figurants SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(figurantID)';
       COMMIT;
       """
     _ = try? TestAdmin.query(sql)

@@ -7,8 +7,8 @@ import Foundation
 /// `explicationCommitted` (every page calibrated), that halftone committed
 /// and the antiphon its Commit made, holding the frozen header. Every row by
 /// its own id, removed in the order the foreign keys allow—except its
-/// submission and Fountain, which are submitted input and frozen: the
-/// Fountain is soft-deleted, as the site deletes one.
+/// submission and Figurant, which are submitted input and frozen: the
+/// Figurant is soft-deleted, as the site deletes one.
 ///
 /// Its source is a PDF with a stored page list, so nothing is ever fetched.
 struct ScratchOverture {
@@ -21,7 +21,7 @@ struct ScratchOverture {
   let antiphonID: String
   let title: String
   private let submissionID: String
-  private let fountainID: String
+  private let figurantID: String
   private let layoutID: String
   private let nocturneIDs: [String]
   private let owner: String
@@ -40,21 +40,21 @@ struct ScratchOverture {
     let user = try owner.column("id")
     func id() -> String { UUID().uuidString.lowercased() }
     submissionID = id()
-    fountainID = id()
+    figurantID = id()
     overtureID = id()
     quatrainID = id()
     halftoneID = id()
     antiphonID = id()
     layoutID = id()
     nocturneIDs = (0..<4).map { _ in id() }
-    title = "Web tests overture \(fountainID.prefix(8))"
-    let base = "https://web-tests.invalid/iiif/\(fountainID)"
+    title = "Web tests overture \(figurantID.prefix(8))"
+    let base = "https://web-tests.invalid/iiif/\(figurantID)"
     images = (1...4).map { "\(base)/p\($0)/full/1300,/0/default.jpg" }
     let pages = Self.labels.enumerated().map { index, label in
       "{\"label\":\"\(label)\",\"imageURL\":\"\(images[index])\"}"
     }.joined(separator: ",")
     let pagesJSON = "[\(pages)]"
-    let source = "https://web-tests.invalid/\(fountainID).pdf"
+    let source = "https://web-tests.invalid/\(figurantID).pdf"
     let services = images.map { $0.components(separatedBy: "/full/")[0] }
     let scope = "[" + services.map { "\"\($0)\"" }.joined(separator: ",") + "]"
     let committed = sealed || calibrated > 0 ? "'\(user)', now()" : "NULL, NULL"
@@ -62,10 +62,10 @@ struct ScratchOverture {
     var statements = """
       BEGIN;
       INSERT INTO submissions (id, user_id) VALUES ('\(submissionID)', '\(user)');
-      INSERT INTO bibliographic_fountains (id, batch_id, source_url, source_kind, source_pages_json, language, processing_status, title, type, created_at)
-        VALUES ('\(fountainID)', '\(submissionID)', '\(source)', 'pdf', '\(pagesJSON)', 'eng', 'pending', '\(title)', 'report', now());
-      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_fountain_id, source_url, source_kind, source_pages_json, language, processing_status, title, committed_by_user_id, committed_at, created_at)
-        VALUES ('\(overtureID)', '\(submissionID)', '\(fountainID)', '\(source)', 'pdf', '\(pagesJSON)', 'eng', 'pending', '\(title)', \(committed), now());
+      INSERT INTO bibliographic_figurants (id, batch_id, source_url, source_kind, source_pages_json, language, processing_status, title, type, created_at)
+        VALUES ('\(figurantID)', '\(submissionID)', '\(source)', 'pdf', '\(pagesJSON)', 'eng', 'pending', '\(title)', 'report', now());
+      INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_figurant_id, source_url, source_kind, source_pages_json, language, processing_status, title, committed_by_user_id, committed_at, created_at)
+        VALUES ('\(overtureID)', '\(submissionID)', '\(figurantID)', '\(source)', 'pdf', '\(pagesJSON)', 'eng', 'pending', '\(title)', \(committed), now());
       """
     if calibrated > 0 {
       // The overture's Commit made one quatrain over every page; it filed
@@ -123,9 +123,9 @@ struct ScratchOverture {
       DELETE FROM \(table) WHERE bibliographic_quatrain_id = '\(quatrainID)';
       DELETE FROM scan_layouts WHERE id = '\(layoutID)';
       DELETE FROM bibliographic_quatrains WHERE id = '\(quatrainID)';
-      DELETE FROM survey_images WHERE witness_id = '\(fountainID)';
+      DELETE FROM survey_images WHERE witness_id = '\(figurantID)';
       DELETE FROM bibliographic_overtures WHERE id = '\(overtureID)';
-      UPDATE bibliographic_fountains SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(fountainID)';
+      UPDATE bibliographic_figurants SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(figurantID)';
       COMMIT;
       """)
   }

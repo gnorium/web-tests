@@ -7,7 +7,7 @@ import WebTestsTesting
 /// has: an admin's Delete on a working copy, marking it Deleted, with
 /// Restore to bring it back; and its locutions thread, whose box
 /// posts a locution that the page then shows. A scratch lexicographic
-/// fountain and overture of a throwaway admin, removed after.
+/// figurant and overture of a throwaway admin, removed after.
 @Suite("Lexicographic overture deletion and thread")
 struct LexicographicOvertureDeletionTests {
   @Test(arguments: gnorium.engines)
@@ -15,7 +15,7 @@ struct LexicographicOvertureDeletionTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let submission = UUID().uuidString.lowercased()
-    let fountain = UUID().uuidString.lowercased()
+    let figurant = UUID().uuidString.lowercased()
     let overture = UUID().uuidString.lowercased()
     func remove() {
       _ = try? TestAdmin.query(
@@ -23,8 +23,8 @@ struct LexicographicOvertureDeletionTests {
         BEGIN;
         DELETE FROM locutions WHERE locutable_type = 'lexicographic_overture' AND locutable_id = '\(overture)';
         DELETE FROM lexicographic_overtures WHERE id = '\(overture)';
-        UPDATE lexicographic_fountains SET deleted_at = now(), deleted_by = '\(admin.username)'
-          WHERE id = '\(fountain)' AND deleted_at IS NULL;
+        UPDATE lexicographic_figurants SET deleted_at = now(), deleted_by = '\(admin.username)'
+          WHERE id = '\(figurant)' AND deleted_at IS NULL;
         COMMIT;
         """)
     }
@@ -35,11 +35,11 @@ struct LexicographicOvertureDeletionTests {
         """
         BEGIN;
         INSERT INTO submissions (id, user_id) VALUES ('\(submission)', '\(user)');
-        INSERT INTO lexicographic_fountains (id, batch_id, language, order_in_batch, processing_status,
+        INSERT INTO lexicographic_figurants (id, batch_id, language, order_in_batch, processing_status,
           title_form_json, anchors_json, created_at)
-          VALUES ('\(fountain)', '\(submission)', 'eng', 0, 'pending', '\(form)', '[]', now());
-        INSERT INTO lexicographic_overtures (id, lexicographic_fountain_id, title_form_json, anchors_json, created_at)
-          VALUES ('\(overture)', '\(fountain)', '\(form)', '[]', now());
+          VALUES ('\(figurant)', '\(submission)', 'eng', 0, 'pending', '\(form)', '[]', now());
+        INSERT INTO lexicographic_overtures (id, lexicographic_figurant_id, title_form_json, anchors_json, created_at)
+          VALUES ('\(overture)', '\(figurant)', '\(form)', '[]', now());
         COMMIT;
         """)
       let page = "/mission-control/overtures/lexicographic/\(overture)"

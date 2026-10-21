@@ -3,16 +3,16 @@ import Foundation
 /// A first pass's new sentiment as gnorium submits it (server 0174
 /// `SentimentsArePending`, user 2026-10-20): a bibliographic antiphon of a
 /// scratch work and its page session (page "1"), and from that session a
-/// lexicographic fountain and its pending overture holding one sentiment
+/// lexicographic figurant and its pending overture holding one sentiment
 /// of its own, no record yet. Owned by the test's account; every row by its
 /// own id, removed in the order the foreign keys allow—what a Permit of
 /// the overture made (the record, its lemma, its postulated version)
-/// included. The fountain is soft-deleted, as the site deletes one.
+/// included. The figurant is soft-deleted, as the site deletes one.
 struct ScratchFirstPass {
   let work: ScratchWork
   let antiphonID: String
   let nocturneID: String
-  let fountainID: String
+  let figurantID: String
   let overtureID: String
   let sentimentID: String
   /// The word: a unique English noun.
@@ -25,7 +25,7 @@ struct ScratchFirstPass {
     work = try ScratchWork(owner: owner)
     antiphonID = UUID().uuidString.lowercased()
     nocturneID = UUID().uuidString.lowercased()
-    fountainID = UUID().uuidString.lowercased()
+    figurantID = UUID().uuidString.lowercased()
     overtureID = UUID().uuidString.lowercased()
     sentimentID = UUID().uuidString.lowercased()
     let submission = UUID().uuidString.lowercased()
@@ -40,11 +40,11 @@ struct ScratchFirstPass {
         VALUES ('\(nocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
           'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 1200, now());
       INSERT INTO submissions (id, user_id) VALUES ('\(submission)', '\(user)');
-      INSERT INTO lexicographic_fountains (id, batch_id, language, order_in_batch, processing_status,
+      INSERT INTO lexicographic_figurants (id, batch_id, language, order_in_batch, processing_status,
         title_form_json, anchors_json, bibliographic_explication_nocturne_id, created_at)
-        VALUES ('\(fountainID)', '\(submission)', 'eng', 0, 'pending', '\(form)', '[]', '\(nocturneID)', now());
-      INSERT INTO lexicographic_overtures (id, lexicographic_fountain_id, title_form_json, anchors_json, created_at)
-        VALUES ('\(overtureID)', '\(fountainID)', '\(form)', '[]', now());
+        VALUES ('\(figurantID)', '\(submission)', 'eng', 0, 'pending', '\(form)', '[]', '\(nocturneID)', now());
+      INSERT INTO lexicographic_overtures (id, lexicographic_figurant_id, title_form_json, anchors_json, created_at)
+        VALUES ('\(overtureID)', '\(figurantID)', '\(form)', '[]', now());
       INSERT INTO sentiment_inventories (language_code, lemma, class, version) VALUES ('eng', '\(title)', 'noun', 1);
       INSERT INTO sentiments (uuid, lexicographic_overture_id, language_code, lemma, class, inventory_version,
         definition_text, definition_key, provisional)
@@ -75,8 +75,8 @@ struct ScratchFirstPass {
       DELETE FROM lemmas WHERE citation_form = '\(title)';
       DELETE FROM locutions WHERE locutable_type = 'lexicographic_overture' AND locutable_id = '\(overtureID)';
       DELETE FROM lexicographic_overtures WHERE id = '\(overtureID)';
-      UPDATE lexicographic_fountains SET deleted_at = now(), deleted_by = '\(owner)'
-        WHERE id = '\(fountainID)' AND deleted_at IS NULL;
+      UPDATE lexicographic_figurants SET deleted_at = now(), deleted_by = '\(owner)'
+        WHERE id = '\(figurantID)' AND deleted_at IS NULL;
       \(SessionTrace.delete(table: "bibliographic_explication_nocturnes", where: "id='\(nocturneID)'"))
       DELETE FROM bibliographic_explication_nocturnes WHERE id = '\(nocturneID)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';

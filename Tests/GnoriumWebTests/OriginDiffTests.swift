@@ -9,7 +9,7 @@ import WebTestsTesting
 /// with its "Diff: 4 → 1", one it removes framed red where it stood, one it
 /// adds in its plain frame with its fields green, one it edits open on the
 /// form's own fields, each changed one framed orange with its "Diff:" line
-/// under it, and no card tinted; its thread's "Origin" links to that diff. A scratch lexicographic fountain,
+/// under it, and no card tinted; its thread's "Origin" links to that diff. A scratch lexicographic figurant,
 /// overture and revision of a throwaway admin, removed after. Headless
 /// Chrome only (user: web-tests never in Safari).
 ///
@@ -23,7 +23,7 @@ struct OriginDiffTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let submission = UUID().uuidString.lowercased()
-    let fountain = UUID().uuidString.lowercased()
+    let figurant = UUID().uuidString.lowercased()
     let overture = UUID().uuidString.lowercased()
     let revision = UUID().uuidString.lowercased()
     func remove() {
@@ -33,8 +33,8 @@ struct OriginDiffTests {
         DELETE FROM locutions WHERE locutable_type = 'lexicographic_overture' AND locutable_id = '\(overture)';
         DELETE FROM revisions WHERE revisable_id = '\(overture)';
         DELETE FROM lexicographic_overtures WHERE id = '\(overture)';
-        UPDATE lexicographic_fountains SET deleted_at = now(), deleted_by = '\(admin.username)'
-          WHERE id = '\(fountain)' AND deleted_at IS NULL;
+        UPDATE lexicographic_figurants SET deleted_at = now(), deleted_by = '\(admin.username)'
+          WHERE id = '\(figurant)' AND deleted_at IS NULL;
         COMMIT;
         """)
     }
@@ -63,12 +63,12 @@ struct OriginDiffTests {
         """
         BEGIN;
         INSERT INTO submissions (id, user_id) VALUES ('\(submission)', '\(user)');
-        INSERT INTO lexicographic_fountains (id, batch_id, language, order_in_batch, processing_status,
+        INSERT INTO lexicographic_figurants (id, batch_id, language, order_in_batch, processing_status,
           title_form_json, anchors_json, created_at)
-          VALUES ('\(fountain)', '\(submission)', 'eng', 0, 'pending', '\(form)', '[]', now());
-        INSERT INTO lexicographic_overtures (id, lexicographic_fountain_id, title_form_json, anchors_json, origins_json,
+          VALUES ('\(figurant)', '\(submission)', 'eng', 0, 'pending', '\(form)', '[]', now());
+        INSERT INTO lexicographic_overtures (id, lexicographic_figurant_id, title_form_json, anchors_json, origins_json,
           created_at)
-          VALUES ('\(overture)', '\(fountain)', '\(form)', '[]', '\(found)', now());
+          VALUES ('\(overture)', '\(figurant)', '\(form)', '[]', '\(found)', now());
         INSERT INTO revisions (id, revisable_type, revisable_id, previous_content_json, content_json, status,
           requested_by_user_id, created_at)
           VALUES ('\(revision)', 'lexicographicOverture', '\(overture)',

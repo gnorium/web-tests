@@ -18,7 +18,7 @@ struct LexicographicQuatrainTests {
     let overtureID: String
     let sentimentID: String
     let title: String
-    private let fountainID: String
+    private let figurantID: String
     private let owner: String
 
     var path: String { "/mission-control/quatrains/lexicographic/\(quatrainID)" }
@@ -28,7 +28,7 @@ struct LexicographicQuatrainTests {
       let user = try owner.column("id")
       func id() -> String { UUID().uuidString.lowercased() }
       let submission = id()
-      fountainID = id()
+      figurantID = id()
       overtureID = id()
       quatrainID = id()
       sentimentID = id()
@@ -71,12 +71,12 @@ struct LexicographicQuatrainTests {
         """
         BEGIN;
         INSERT INTO submissions (id, user_id) VALUES ('\(submission)', '\(user)');
-        INSERT INTO lexicographic_fountains (id, batch_id, language, order_in_batch, processing_status,
+        INSERT INTO lexicographic_figurants (id, batch_id, language, order_in_batch, processing_status,
           title_form_json, anchors_json, created_at)
-          VALUES ('\(fountainID)', '\(submission)', 'eng', 0, 'pending', '\(form)', '[]', now());
-        INSERT INTO lexicographic_overtures (id, lexicographic_fountain_id, title_form_json, anchors_json,
+          VALUES ('\(figurantID)', '\(submission)', 'eng', 0, 'pending', '\(form)', '[]', now());
+        INSERT INTO lexicographic_overtures (id, lexicographic_figurant_id, title_form_json, anchors_json,
           committed_by_user_id, committed_at, created_at)
-          VALUES ('\(overtureID)', '\(fountainID)', '\(form)', '[]', '\(user)', now(), now());
+          VALUES ('\(overtureID)', '\(figurantID)', '\(form)', '[]', '\(user)', now(), now());
         INSERT INTO sentiment_inventories (language_code, lemma, class, version) VALUES ('eng', '\(title)', 'noun', 1);
         INSERT INTO sentiments (uuid, lexicographic_overture_id, language_code, lemma, class, inventory_version,
           definition_text, definition_key, provisional)
@@ -112,8 +112,8 @@ struct LexicographicQuatrainTests {
         DELETE FROM sentiment_inventories WHERE language_code = 'eng' AND lemma = '\(title)' AND class = 'noun';
         DELETE FROM locutions WHERE locutable_type = 'lexicographic_overture' AND locutable_id = '\(overtureID)';
         DELETE FROM lexicographic_overtures WHERE id = '\(overtureID)';
-        UPDATE lexicographic_fountains SET deleted_at = now(), deleted_by = '\(owner)'
-          WHERE id = '\(fountainID)' AND deleted_at IS NULL;
+        UPDATE lexicographic_figurants SET deleted_at = now(), deleted_by = '\(owner)'
+          WHERE id = '\(figurantID)' AND deleted_at IS NULL;
         COMMIT;
         """)
     }

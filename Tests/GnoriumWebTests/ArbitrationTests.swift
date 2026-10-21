@@ -86,8 +86,8 @@ struct ArbitrationTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         // Image 2 is laid in blank: pending explication, it has no box
         // to tick, and the page on screen is never read unticked (user,
-        // 2026-10-15). The box refuses the call under the field; nothing is
-        // posted.
+        // 2026-10-15). A call may tick nothing (user, 2026-10-21): it posts,
+        // reading no page.
         try await page.openHydrated(reading.path + "?image=1")
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
@@ -96,13 +96,17 @@ struct ArbitrationTests {
         try await expect(page.locator("#locution-thread-process")).toHaveValue("explication")
         try await expect(page.locator(".locution-thread-form input[type='checkbox']")).toHaveCount(0)
         try await expect(page.locator(".locution-thread-submit")).toHaveText("Submit")
-        try await page.locator("#locution-thread-locution-body").fill("@gnorium What does the selected evidence support?")
-        try await page.locator(".locution-thread-submit").click()
         try await expect(page.locator("#madrigal-images .roster-row").nth(1).locator(".checkbox-input")).toBeDisabled()
-        try await expect(page.locator(".field-validation-message-view"))
-          .toContainText("Tick evidence, metadata, a prompt or a locution for this call.")
+        try await page.locator("#locution-thread-locution-body").fill("@gnorium Hi")
+        try await page.locator(".locution-thread-submit").click()
+        try await expect(page.locator(".locution-view"), timeout: .seconds(15)).toHaveCount(1)
         try await expect(page.locator(".locution-call-page")).toHaveCount(0)
-        #expect(try TestAdmin.query("SELECT count(*) FROM locutions WHERE locutable_id = '\(objectID)'") == "0")
+        #expect(try TestAdmin.query("""
+          SELECT count(*) FROM locutions WHERE locutable_id = '\(objectID)' AND kind = 'call' AND query = 'Hi'
+            AND evidence_id IS NULL AND metadata_ids IS NULL AND prompt_ids IS NULL AND locution_ids IS NULL
+          """) == "1")
+        // Gone again: the rest reads the thread's one ticked call.
+        _ = try TestAdmin.query("DELETE FROM locutions WHERE locutable_id = '\(objectID)' AND query = 'Hi'")
         // Image 1 has markup: explicated, queryable—and locked against a
         // commit: its row keeps its mark and loses its checkbox. Ticked
         // from page 3, the page on screen (user, 2026-10-17).
@@ -1307,8 +1311,8 @@ struct ArbitrationTests {
   /// the pending items alone. Attach, while the locution box has focus or
   /// holds "@gnorium": boxes on the processed items alone, none ticked
   /// (user, 2026-10-15), at most two, neighbors; a tick apart or a third
-  /// is refused under the box. A call that ticks nothing is refused under
-  /// the box. Submit attaches the ticked items in order, and the call names
+  /// is refused under the box. A call may tick nothing (user, 2026-10-21):
+  /// no refusal. Submit attaches the ticked items in order, and the call names
   /// each, linked. The box left empty, the roster is back in commit mode.
   @Test(arguments: [BrowserEngine.chrome])
   func attachModeTicksTwoConsecutiveProcessedItems(engine: BrowserEngine) async throws {
@@ -1369,11 +1373,6 @@ struct ArbitrationTests {
         try await body.fill("@gnorium Compare these two pages.")
         try await expect(roster).toHaveAttribute("data-mode", "attach")
         try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked(false)
-        // Nothing ticked, nothing to read: refused under the box, unsent.
-        try await page.locator(".locution-thread-submit").click()
-        try await expect(page.locator(".field-validation-message-view"))
-          .toContainText("Tick evidence, metadata, a prompt or a locution for this call.")
-        #expect(try TestAdmin.query("SELECT count(*) FROM locutions WHERE locutable_id = '\(objectID)'") == "0")
         try await rows.nth(0).locator("input").click()
         try await rows.nth(1).locator("input").click()
         try await page.locator(".locution-thread-submit").click()

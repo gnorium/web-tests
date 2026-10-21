@@ -190,7 +190,7 @@ struct TestamentLevelsTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let submission = UUID().uuidString.lowercased()
-    let fountain = UUID().uuidString.lowercased()
+    let figurant = UUID().uuidString.lowercased()
     let overture = UUID().uuidString.lowercased()
     func remove() {
       _ = try? TestAdmin.query(
@@ -198,7 +198,7 @@ struct TestamentLevelsTests {
         BEGIN;
         DELETE FROM revisions WHERE revisable_id = '\(overture)';
         DELETE FROM bibliographic_overtures WHERE id = '\(overture)';
-        UPDATE bibliographic_fountains SET deleted_at = now(), deleted_by = '\(admin.username)' WHERE id = '\(fountain)';
+        UPDATE bibliographic_figurants SET deleted_at = now(), deleted_by = '\(admin.username)' WHERE id = '\(figurant)';
         COMMIT;
         """)
     }
@@ -211,12 +211,12 @@ struct TestamentLevelsTests {
         """
         BEGIN;
         INSERT INTO submissions (id, user_id) VALUES ('\(submission)', '\(user)');
-        INSERT INTO bibliographic_fountains (id, batch_id, source_url, language, processing_status, title, type, year)
-          VALUES ('\(fountain)', '\(submission)', 'https://example.org/web-tests/levels', 'eng', 'pending',
+        INSERT INTO bibliographic_figurants (id, batch_id, source_url, language, processing_status, title, type, year)
+          VALUES ('\(figurant)', '\(submission)', 'https://example.org/web-tests/levels', 'eng', 'pending',
             'Web tests levels \(overture.prefix(8))', 'manuscript', 1623);
-        INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_fountain_id, source_url, language, processing_status, title, type,
+        INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_figurant_id, source_url, language, processing_status, title, type,
           year_qualifier, era, year, provider, holding_institution, copy_label, call_number_json, activity_statements_json, carrier)
-          VALUES ('\(overture)', '\(submission)', '\(fountain)', 'https://example.org/web-tests/levels', 'eng', 'pending',
+          VALUES ('\(overture)', '\(submission)', '\(figurant)', 'https://example.org/web-tests/levels', 'eng', 'pending',
             'Web tests levels \(overture.prefix(8))', 'manuscript', 'exact', 'anno_domini', 1623, 'folger_shakespeare_library',
             'folger_shakespeare_library', 'Web tests copy 9', '{"scheme":"stc","identifier":"22273"}', '\(statements)', 'manuscript');
         COMMIT;

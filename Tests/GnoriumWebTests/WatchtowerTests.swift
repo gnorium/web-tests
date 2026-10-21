@@ -73,7 +73,7 @@ struct WatchtowerTests {
   func theHalftoneStandsInTheChainAndProcessesSplitByKind(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium) { page in
       try await page.openHydrated("/")
-      let chain = ["Fountain", "Overture", "Quatrain", "Halftone", "Antiphon", "Madrigal", "Serenade", "Epilogue"]
+      let chain = ["Figurant", "Overture", "Quatrain", "Halftone", "Antiphon", "Madrigal", "Serenade", "Epilogue"]
       let names = try await page.locator(".watchtower-ladder .watchtower-object-name-link").allTextContents()
       #expect(names.filter { chain.contains($0) } == chain, "the chain reads \(names)")
       let description = try await page.evaluate("""
@@ -151,7 +151,7 @@ struct WatchtowerTests {
   ///   pending mark (an overture's and a halftone's the dotted ring, a
   ///   madrigal's the ring, an epilogue's the disc), committed the blue
   ///   arrow right (a lexicographic epilogue's committed, on its verdict,
-  ///   the disc), permitted the green stamp—the only green; a fountain's
+  ///   the disc), permitted the green stamp—the only green; a figurant's
   ///   and a palinode's submitted the blue check; Arbitration's box's
   ///   passed the blue check, its work done. Neither stale nor hidden is a figure.
   /// A turning mark always turns, at zero too (its computed animation is
@@ -265,7 +265,7 @@ struct WatchtowerTests {
           }
           people += 1
         } else {
-          // A register's row (a fountain, a palinode): submitted, the blue check.
+          // A register's row (a figurant, a palinode): submitted, the blue check.
           wanted = "check-icon-view"
           people += 1
         }
@@ -278,7 +278,7 @@ struct WatchtowerTests {
       }
       // Three processes and three machines, four statuses on both sides.
       #expect(processes == 24 && machines == 24, "\(processes) process figures, \(machines) object figures")
-      // Four Disputorium objects of three figures and the fountain's and
+      // Four Disputorium objects of three figures and the figurant's and
       // four palinodes' one, both sides.
       #expect(people == 4 * 3 * 2 + 5 * 2, "\(people) Disputorium and register figures")
       // Each nested Locution card's call: four statuses on both sides.

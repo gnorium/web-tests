@@ -40,7 +40,7 @@ struct AmendmentInsertionTests {
       // for it, and its copy hangs from its edition.
       let stood = try TestAdmin.query(
         "SELECT shape_json FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())';")
-      let fountain = try #require(
+      let figurant = try #require(
         stood.firstMatch(of: /"edition-([0-9A-Fa-f-]+)"/).map { String($0.1) }, "\(stood)")
       _ = try TestAdmin.query(
         """
@@ -49,9 +49,9 @@ struct AmendmentInsertionTests {
             -- A copy node of its own UUID over the manifest; every node
             -- it had keeps its own.
             shape_json = jsonb_set(
-              shape_json::jsonb || jsonb_build_object('copy-\(fountain)', jsonb_build_object(
-                'parent', 'edition-\(fountain)', 'position', 0, 'uuid', '\(UUID().uuidString)')),
-              '{manifest-\(fountain),parent}', '"copy-\(fountain)"')::text
+              shape_json::jsonb || jsonb_build_object('copy-\(figurant)', jsonb_build_object(
+                'parent', 'edition-\(figurant)', 'position', 0, 'uuid', '\(UUID().uuidString)')),
+              '{manifest-\(figurant),parent}', '"copy-\(figurant)"')::text
           WHERE id = '\(work.versionID.lowercased())';
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in

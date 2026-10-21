@@ -11,7 +11,7 @@ import WebTestsTesting
 @Suite("Watchtower figure links")
 struct WatchtowerFigureLinksTests {
   /// Every figure: an object's, opening its object's own list (user,
-  /// 2026-10-10)—Fountains, Overtures, Quatrains, Halftones, Antiphons,
+  /// 2026-10-10)—Figurants, Overtures, Quatrains, Halftones, Antiphons,
   /// Madrigals, Serenades, Epilogues, Palinodes—and a process's, opening the
   /// nocturnes it counts on its kind (arbitration's, the calls' locutions by
   /// their Status).
@@ -160,7 +160,7 @@ struct WatchtowerFigureLinksTests {
       try await page.openHydrated("/")
       let figures = try await Self.figures(page)
       // Objects: four Disputorium objects of three figures, three machines
-      // of four (pending first), the fountain and four palinodes of one, on
+      // of four (pending first), the figurant and four palinodes of one, on
       // both sides: 58; processes and arbitrations below: 52 (no nullified).
       try #require(figures.count >= 104, "the Watchtower shows \(figures.count) figure links")
       // Calibration, explication and translation have three nocturne links

@@ -46,7 +46,7 @@ struct PedigreeTests {
             }
           })()
           """, as: Box.self)
-        // Fountain, overture, its quatrain, halftone and antiphon, the first
+        // Figurant, overture, its quatrain, halftone and antiphon, the first
         // madrigal, and an antiphon and a madrigal per link after it.
         #expect(box.groups == 124)
         #expect(box.maxHeight == "256px")

@@ -7,7 +7,7 @@ import WebTestsTesting
 /// the overture gnorium submitted (user, 2026-10-20). Its overture page
 /// offers the admin Permit beside Commit, a person's overture none; the
 /// Permit makes the record, postulated, whose sidebar says so with the
-/// dotted ring and the word, the same on a phone. The fountain's Pedigree names the antiphon
+/// dotted ring and the word, the same on a phone. The figurant's Pedigree names the antiphon
 /// and the page session that submitted it, linked, its submission
 /// gnorium's. Chrome headless.
 @Suite("First-pass permit", .serialized)
@@ -84,18 +84,18 @@ struct FirstPassPermitTests {
         // A person's Submit Sentiment, a working copy.
         let user = try admin.column("id")
         let submission = UUID().uuidString.lowercased()
-        let fountain = UUID().uuidString.lowercased()
+        let figurant = UUID().uuidString.lowercased()
         let overture = UUID().uuidString.lowercased()
         let form = #"{"title":"webtestsperson\#(overture.prefix(8))","languageCode":"eng","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
         _ = try TestAdmin.query(
           """
           BEGIN;
           INSERT INTO submissions (id, user_id) VALUES ('\(submission)', '\(user)');
-          INSERT INTO lexicographic_fountains (id, batch_id, language, order_in_batch, processing_status,
+          INSERT INTO lexicographic_figurants (id, batch_id, language, order_in_batch, processing_status,
             title_form_json, anchors_json, created_at)
-            VALUES ('\(fountain)', '\(submission)', 'eng', 0, 'pending', '\(form)', '[]', now());
-          INSERT INTO lexicographic_overtures (id, lexicographic_fountain_id, title_form_json, anchors_json, created_at)
-            VALUES ('\(overture)', '\(fountain)', '\(form)', '[]', now());
+            VALUES ('\(figurant)', '\(submission)', 'eng', 0, 'pending', '\(form)', '[]', now());
+          INSERT INTO lexicographic_overtures (id, lexicographic_figurant_id, title_form_json, anchors_json, created_at)
+            VALUES ('\(overture)', '\(figurant)', '\(form)', '[]', now());
           COMMIT;
           """)
         defer {
@@ -103,8 +103,8 @@ struct FirstPassPermitTests {
             """
             BEGIN;
             DELETE FROM lexicographic_overtures WHERE id = '\(overture)';
-            UPDATE lexicographic_fountains SET deleted_at = now(), deleted_by = '\(admin.username)'
-              WHERE id = '\(fountain)' AND deleted_at IS NULL;
+            UPDATE lexicographic_figurants SET deleted_at = now(), deleted_by = '\(admin.username)'
+              WHERE id = '\(figurant)' AND deleted_at IS NULL;
             COMMIT;
             """)
         }
@@ -121,13 +121,13 @@ struct FirstPassPermitTests {
     try await cleanUp()
   }
 
-  /// The fountain's Pedigree: the antiphon (linked), its page (linked to
-  /// the antiphon open on it) and its session, under the fountain, whose
+  /// The figurant's Pedigree: the antiphon (linked), its page (linked to
+  /// the antiphon open on it) and its session, under the figurant, whose
   /// submission is gnorium's.
   @Test(
-    .disabled("gnorium-server does not yet pass LexicographicFountainView(firstPass:): the antiphon, page and nocturne"),
+    .disabled("gnorium-server does not yet pass LexicographicFigurantView(firstPass:): the antiphon, page and nocturne"),
     arguments: [BrowserEngine.chrome])
-  func theFountainsPedigreeNamesTheAntiphonAndItsPage(engine: BrowserEngine) async throws {
+  func theFigurantsPedigreeNamesTheAntiphonAndItsPage(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -138,7 +138,7 @@ struct FirstPassPermitTests {
     }
     do {
       try await withPage(engine, gnorium, viewport: .phone, cookies: [admin.cookie]) { tab in
-        try await tab.openHydrated("/mission-control/fountains/lexicographic/\(pass.fountainID)")
+        try await tab.openHydrated("/mission-control/figurants/lexicographic/\(pass.figurantID)")
         let pedigree = tab.locator(".pedigree-view")
         try await pedigree.locator(".accordion-summary").first.click()
         let antiphon = "/mission-control/antiphons/bibliographic/\(pass.antiphonID)"
@@ -148,7 +148,7 @@ struct FirstPassPermitTests {
         let groups = try await tab.evaluate(
           "[...document.querySelectorAll('.pedigree-group')].map(g => g.querySelector('.datum-label').textContent.trim()).join(' ')",
           as: String.self)
-        #expect(groups == "Fountain ID Antiphon ID", "Newest first: \(groups)")
+        #expect(groups == "Figurant ID Antiphon ID", "Newest first: \(groups)")
         try await expect(pedigree.locator(".pedigree-group").first).toContainText("By gnorium")
         try await tab.expectNoHorizontalOverflow()
       }

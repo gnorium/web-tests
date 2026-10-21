@@ -91,7 +91,7 @@ struct QuoteTests {
         let headingLink = heading.locator("cite a")
         try await expect(headingLink).toHaveCount(1)
         let leafUUID = try TestAdmin.query(
-          "SELECT shape_json::jsonb -> ('manifest-' || upper(f.id::text)) ->> 'uuid' FROM biblio_record_versions v, bibliographic_fountains f WHERE v.id = '\(scratch.versionID)' AND f.id = (SELECT bibliographic_fountain_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())');"
+          "SELECT shape_json::jsonb -> ('manifest-' || upper(f.id::text)) ->> 'uuid' FROM biblio_record_versions v, bibliographic_figurants f WHERE v.id = '\(scratch.versionID)' AND f.id = (SELECT bibliographic_figurant_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())');"
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         try await expect(headingLink).toHaveAttribute("href", "\(work.path)?image=2#record-row-\(leafUUID)")
         // The page and the page either side drawn; the rest wait to be

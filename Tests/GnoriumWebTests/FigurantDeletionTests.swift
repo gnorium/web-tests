@@ -3,48 +3,48 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// An admin deletes a pending fountain and restores it (user, 2026-10-07):
+/// An admin deletes a pending figurant and restores it (user, 2026-10-07):
 /// Delete on its page discards its overture with it and marks it Deleted,
-/// the fountains register drops it unless the State filter asks for the
-/// deleted, and Restore brings both back. A scratch lexicographic fountain
+/// the figurants register drops it unless the State filter asks for the
+/// deleted, and Restore brings both back. A scratch lexicographic figurant
 /// and overture of a throwaway admin, removed after.
-@Suite("Fountain deletion")
-struct FountainDeletionTests {
+@Suite("Figurant deletion")
+struct FigurantDeletionTests {
   @Test(arguments: gnorium.engines)
-  func anAdminDeletesAndRestoresAPendingFountain(engine: BrowserEngine) async throws {
+  func anAdminDeletesAndRestoresAPendingFigurant(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let submission = UUID().uuidString.lowercased()
-    let fountain = UUID().uuidString.lowercased()
+    let figurant = UUID().uuidString.lowercased()
     let overture = UUID().uuidString.lowercased()
     func remove() {
       _ = try? TestAdmin.query(
         """
         BEGIN;
         DELETE FROM lexicographic_overtures WHERE id = '\(overture)';
-        UPDATE lexicographic_fountains SET deleted_at = now(), deleted_by = '\(admin.username)'
-          WHERE id = '\(fountain)' AND deleted_at IS NULL;
+        UPDATE lexicographic_figurants SET deleted_at = now(), deleted_by = '\(admin.username)'
+          WHERE id = '\(figurant)' AND deleted_at IS NULL;
         COMMIT;
         """)
     }
     do {
       let user = try admin.column("id")
       // A whole title form, as Submit Sentiment writes one (ScratchWord):
-      // the fountain page reads it.
+      // the figurant page reads it.
       let form = #"{"title":"webtestsdeletion","languageCode":"eng","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
       _ = try TestAdmin.query(
         """
         BEGIN;
         INSERT INTO submissions (id, user_id) VALUES ('\(submission)', '\(user)');
-        INSERT INTO lexicographic_fountains (id, batch_id, language, order_in_batch, processing_status,
+        INSERT INTO lexicographic_figurants (id, batch_id, language, order_in_batch, processing_status,
           title_form_json, anchors_json, created_at)
-          VALUES ('\(fountain)', '\(submission)', 'eng', 0, 'pending', '\(form)', '[]', now());
-        INSERT INTO lexicographic_overtures (id, lexicographic_fountain_id, title_form_json, anchors_json, created_at)
-          VALUES ('\(overture)', '\(fountain)', '\(form)', '[]', now());
+          VALUES ('\(figurant)', '\(submission)', 'eng', 0, 'pending', '\(form)', '[]', now());
+        INSERT INTO lexicographic_overtures (id, lexicographic_figurant_id, title_form_json, anchors_json, created_at)
+          VALUES ('\(overture)', '\(figurant)', '\(form)', '[]', now());
         COMMIT;
         """)
-      let page = "/mission-control/fountains/lexicographic/\(fountain)"
-      let register = "/mission-control/fountains/lexicographic"
+      let page = "/mission-control/figurants/lexicographic/\(figurant)"
+      let register = "/mission-control/figurants/lexicographic"
       try await withPage(engine, gnorium, cookies: [admin.cookie]) { tab in
         let status = tab.locator(".mission-control-object-header-status-chip")
         try await tab.openHydrated(page)
