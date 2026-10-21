@@ -115,7 +115,7 @@ struct LexicographicAmendmentTests {
           $0.path.hasPrefix("/mission-control/palinodes/lexicographic/")
         }
         try await expect(page.locator("h1").first).toContainText("Lexicographic Palinode")
-        try await expect(page.locator(".palinode-submitted")).toContainText("This palinode has been submitted.")
+        try await expect(page.locator(".submitted-notice")).toContainText("This palinode has been submitted creating overture")
         try await expect(page.locator("a").filter(hasText: "Revise")).toHaveCount(0)
         try await expect(page.locator("button").filter(hasText: "Permit")).toHaveCount(0)
         try await page.expectNoErrors()
