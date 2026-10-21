@@ -68,7 +68,7 @@ struct WatchtowerTests {
   /// overture and the madrigal; and every process box splits its figures
   /// into a Bibliographic and a Lexicographic column, one figure a row,
   /// pending first on calibration, explication and translation and on
-  /// their objects (user, 2026-10-21), plain text with no mark.
+  /// their objects (user, 2026-10-21).
   @Test(arguments: gnorium.engines)
   func theHalftoneStandsInTheChainAndProcessesSplitByKind(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium) { page in
@@ -109,16 +109,112 @@ struct WatchtowerTests {
         #expect(figures == ["Bibliographic|pending|running|submitted (1w)|failed (1w)",
           "Lexicographic|pending|running|submitted (1w)|failed (1w)"], "\(object): \(figures)")
       }
-      // Pending is plain text: no mark follows it.
-      let markedPending = try await page.evaluate("""
-        [...document.querySelectorAll('.live-figure-body')]
-          .filter(f => / pending$/.test(f.querySelector('.live-figure-text')?.textContent.trim() ?? '')
-            && f.children.length > 1).length
-        """, as: Int.self)
-      #expect(markedPending == 0, "\(markedPending) pending figures wear a mark")
       let promoted = try await page.evaluate(
         "document.querySelector('.watchtower-view').textContent.toLowerCase().includes('promot')", as: Bool.self)
       #expect(!promoted, "nothing on the Watchtower is promoted")
+    }
+  }
+
+  /// The Watchtower reads alive (user, 2026-10-21): every Computorium
+  /// figure—a process box's, a quatrain's, an antiphon's, a serenade's and
+  /// a nested locution card's, on both sides—wears its status's mark in the
+  /// process mark system: pending, the level its process starts from;
+  /// running, the rotating sector of the level it goes to, turning only
+  /// while its count is non-zero; finished or submitted, the level it goes
+  /// to; failed, that mark in red. Arbitration's level is its object's: an
+  /// overture postulated, a halftone calibrated, a madrigal explicated, an
+  /// epilogue translated. A Disputorium object's figures wear none.
+  @Test(arguments: gnorium.engines)
+  func computoriumFiguresWearTheirStatusMarks(engine: BrowserEngine) async throws {
+    try await withPage(engine, gnorium) { page in
+      try await page.openHydrated("/")
+      struct Marked: Decodable {
+        let owner: String
+        let text: String
+        let mark: String
+        let turning: Bool
+        let animated: Bool
+        let color: String
+      }
+      // Each figure: whose it is (a process box's process, or an object's
+      // live region), its words, its mark's component, whether it turns.
+      let figures = try await page.evaluate("""
+        (() => {
+          const kinds = ['rotating-dotted-ring-sector-view', 'rotating-ring-sector-with-disc-view',
+            'rotating-ring-sector-view', 'rotating-sector-view', 'ringed-disc-icon-view', 'dotted-ring-view',
+            'ring-icon-view', 'disc-icon-view']
+          const owner = figure => {
+            const box = figure.closest('.watchtower-processes-view')
+            if (box) {
+              const region = figure.closest('.live-region-view')?.id ?? ''
+              return box.getAttribute('data-process') + (region.includes('arbitration') ? ':' + region : '')
+            }
+            return figure.closest('.live-region-view')?.id ?? ''
+          }
+          return [...document.querySelectorAll('.watchtower-view .live-figure-body')].map(body => {
+            const mark = body.querySelector('.live-figure-mark')
+            const shape = mark && mark.firstElementChild
+            const kind = shape ? (kinds.find(k => shape.classList.contains(k)) ?? shape.getAttribute('class')) : ''
+            const animated = !!mark && [...mark.querySelectorAll('*')].some(e => getComputedStyle(e).animationName !== 'none')
+            return { owner: owner(body), text: body.querySelector('.live-figure-text').textContent.trim(),
+              mark: kind, turning: mark?.getAttribute('data-turning') === 'true', animated,
+              color: mark ? getComputedStyle(mark).color : '' }
+          })
+        })()
+        """, as: [Marked].self)
+      // Each process's marks, starting level → rotating sector → target level.
+      let marks: [String: (pending: String, running: String, done: String)] = [
+        "calibration": ("dotted-ring-view", "rotating-ring-sector-view", "ring-icon-view"),
+        "explication": ("ring-icon-view", "rotating-sector-view", "disc-icon-view"),
+        "translation": ("disc-icon-view", "rotating-ring-sector-with-disc-view", "ringed-disc-icon-view"),
+      ]
+      // Arbitration's, at its object's level.
+      let levels: [String: (still: String, running: String)] = [
+        "overture": ("dotted-ring-view", "rotating-dotted-ring-sector-view"),
+        "halftone": ("ring-icon-view", "rotating-ring-sector-view"),
+        "madrigal": ("disc-icon-view", "rotating-sector-view"),
+        "epilogue": ("ringed-disc-icon-view", "rotating-ring-sector-with-disc-view"),
+      ]
+      let objects = ["quatrain": "calibration", "antiphon": "explication", "serenade": "translation"]
+      var checked = 0
+      var red = Set<String>()
+      var blue = Set<String>()
+      for figure in figures {
+        let word = figure.text.split(separator: " ").dropFirst().first.map(String.init) ?? ""
+        let count = Int(figure.text.prefix { $0.isNumber }) ?? 0
+        var expected: (pending: String, running: String, done: String)?
+        if let process = marks[figure.owner.lowercased()] {
+          expected = process
+        } else if let object = objects.first(where: { figure.owner.hasSuffix("watchtower-\($0.key)-figures") }) {
+          expected = marks[object.value]
+        } else if let level = levels.first(where: { figure.owner.contains("arbitration-\($0.key)") }) {
+          expected = (level.value.still, level.value.running, level.value.still)
+        }
+        guard let expected else {
+          // A person's object, a fountain, a palinode: no mark.
+          #expect(figure.mark.isEmpty, "\(figure.owner) \(figure.text) wears \(figure.mark)")
+          continue
+        }
+        let wanted: String
+        switch word {
+        case "pending": wanted = expected.pending
+        case "running": wanted = expected.running
+        default: wanted = expected.done
+        }
+        #expect(figure.mark == wanted, "\(figure.owner) \(figure.text): \(figure.mark), not \(wanted)")
+        if word == "running" {
+          #expect(figure.turning == (count > 0), "\(figure.owner) \(figure.text): turning \(figure.turning)")
+          if count == 0 { #expect(!figure.animated, "\(figure.owner) \(figure.text): the sector turns at zero") }
+        } else {
+          #expect(!figure.animated, "\(figure.owner) \(figure.text): a still mark turns")
+        }
+        if word == "failed" { red.insert(figure.color) } else if word != "running" { blue.insert(figure.color) }
+        checked += 1
+      }
+      // Calibration, explication and translation of four figures and three
+      // machines of four, on both sides: 48; the arbitrations' beside them.
+      #expect(checked >= 48, "\(checked) Computorium figures checked")
+      #expect(red.count == 1 && blue.count == 1 && red != blue, "failed \(red), others \(blue): a failure in red")
     }
   }
 
