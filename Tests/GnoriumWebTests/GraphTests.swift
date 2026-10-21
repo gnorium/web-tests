@@ -366,8 +366,8 @@ struct GraphTests {
 
   /// The listed column's header, and the other end's (nil: no such column).
   private func expectHeaders(_ page: Page, listed: String, last: String?) async throws {
-    try await expect(page.locator(".graph-table th#col-listed .table-header-label")).toHaveText(listed)
-    let lastHeader = page.locator(".graph-table th#col-last .table-header-label")
+    try await expect(page.locator(".graph-table th[data-table-column-id="listed"] .table-header-label")).toHaveText(listed)
+    let lastHeader = page.locator(".graph-table th[data-table-column-id="last"] .table-header-label")
     if let last {
       try await expect(lastHeader).toHaveText(last)
     } else {
