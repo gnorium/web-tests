@@ -8,7 +8,7 @@ import WebTestsTesting
 /// record's level reached), a line counting the
 /// pages, a roster that ticks the pages the next Commit sends, and a Commit
 /// that reads by state—an overture for calibration, once; a halftone for
-/// calibration while a page is owed, then for explication; a madrigal for
+/// calibration while a page is missing, then for explication; a madrigal for
 /// explication, then for translation; an epilogue for translation—with
 /// Permit beside it at every level. Scratch rows built by SQL (dev has no
 /// model); every submission is stopped before it leaves the page.
@@ -51,7 +51,7 @@ struct LevelStatesTests {
         try await expect(Self.chip(page)).toHaveText("Pending")
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Commit", "Permit", "Discard"])
-        // Its one Commit is for calibration; every page is owed: all ticked.
+        // Its one Commit is for calibration; every page is missing: all ticked.
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_calibration")
         try await expect(page.locator(".commit-ticked")).toHaveAttribute("value", "0-3")
         try await expect(page.locator(".bibliographic-overture-view .level-progress-line-view")).toHaveCount(0)
@@ -98,7 +98,7 @@ struct LevelStatesTests {
   }
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aPartlyCalibratedHalftoneTicksTheCalibrationItOwes(engine: BrowserEngine, layout: Layout) async throws {
+  func aPartlyCalibratedHalftoneTicksTheCalibrationItMisses(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -113,7 +113,7 @@ struct LevelStatesTests {
         // The machine's: revised, committed and permitted, never discarded.
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Commit", "Permit"])
-        // Its Commit is for calibration, over the pages it still owes,
+        // Its Commit is for calibration, over the pages it still misses,
         // ticked to begin with; the page calibrated is locked.
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_calibration")
         let roster = page.locator(".overture-images").first
@@ -125,7 +125,7 @@ struct LevelStatesTests {
           try await expect(rows.nth(index).locator("input")).toBeChecked()
         }
         try await expect(page.locator(".commit-ticked")).toHaveAttribute("value", "1-3")
-        // A page calibrated is a plain ring; the ones owed a dotted ring.
+        // A page calibrated is a plain ring; the ones missing a dotted ring.
         try await Self.expectMarks(
           roster, [
             ("1", "succeeded", "roster-status-done"), ("2", "queued", "roster-status-pending"),
@@ -229,7 +229,7 @@ struct LevelStatesTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         // Two of three pages read: partly explicated, Commit for explication,
-        // the explicated pages locked and the page owed open.
+        // the explicated pages locked and the page missing open.
         _ = try TestAdmin.query("""
           UPDATE bibliographic_madrigals SET proposed_content_json = '\(CommitTests.madrigalTEI(fixture.baseURL, thirdRead: false))',
             metadata_json = (metadata_json::jsonb || '{"language":"ita"}'::jsonb)::text WHERE id = '\(scratch.madrigalID)'
@@ -243,7 +243,7 @@ struct LevelStatesTests {
         try await expect(rows.nth(2)).toHaveAttribute("data-locked", "false")
 
         // The first page changed at its source since it was read: stale, so
-        // owed again and open to the next Commit.
+        // missing again and open to the next Commit.
         _ = try TestAdmin.query("""
           INSERT INTO testament_page_changes (source_url, canvas_id, change, before, after, service_id)
             VALUES ('\(source)', '\(fixture.baseURL)/canvas/1', 'image', 'a', 'b', '\(fixture.baseURL)/page-1')

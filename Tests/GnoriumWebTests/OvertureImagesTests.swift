@@ -7,7 +7,7 @@ import WebTestsTesting
 /// preview stay on one image (user, 2026-10-07): the pager moves the
 /// roster's current row, a row moves the reader, and the preview always
 /// shows the page on screen. An admin ticks the images its commit sends
-/// to calibration, every page it owes ticked to begin with; a tick never
+/// to calibration, every page it misses ticked to begin with; a tick never
 /// moves the reader. Every object has one
 /// process, decided by its state (user, 2026-10-10): no process toggle
 /// anywhere. The solid kind tabs carry the sliding pill.
@@ -57,7 +57,7 @@ struct OvertureImagesTests {
         try await expect(rows.nth(0)).toHaveAttribute("class", "roster-row roster-row-check roster-row-selected")
         // Each row is ticked for the commit, with the image service it names.
         try await expect(roster.locator("input[form='commit-form'][value='\(fixture.baseURL)/page-2']")).toHaveCount(1)
-        // Every page is owed calibration (user, 2026-10-18): each a dotted
+        // Every page is missing calibration (user, 2026-10-18): each a dotted
         // ring waiting, and ticked for the Commit.
         try await expect(roster.locator(".roster-status[data-process='calibration'][data-status='queued']"))
           .toHaveCount(3)

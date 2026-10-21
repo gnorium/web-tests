@@ -203,7 +203,7 @@ struct RevisePagesTests {
         // The thread says who suggested it, its size and what it changed,
         // each linked, and offers an admin its verdicts.
         // The suggester's avatar on their event (the key alone: the
-        // src is what the page owes it).
+        // src is what the page needs of it).
         _ = try TestAdmin.query("UPDATE users SET avatar_key = 'avatars/\(user)/webtest.webp' WHERE id = '\(user)'")
         try await page.openHydrated(commit.madrigalPath)
         _ = try TestAdmin.query("UPDATE users SET avatar_key = NULL WHERE id = '\(user)'")

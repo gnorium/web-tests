@@ -7,7 +7,7 @@ import WebTestsTesting
 /// an admin's, posts at once—no dialog, no menu—for the object's ONE
 /// process, decided by its state, never chosen on its page (user,
 /// 2026-10-10): no process toggle anywhere. An overture commits once, for
-/// calibration of the pages it owes (ticked to begin with); a madrigal for
+/// calibration of the pages it misses (ticked to begin with); a madrigal for
 /// explication while any page is unexplicated, then for translation (a
 /// serenade, which submits the first epilogue) where its witness is
 /// translatable, else only Permit remains; an epilogue commits for
@@ -66,7 +66,7 @@ struct CommitTests {
     catch { try await admin.remove(after: error) }
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        // An overture: calibration of the pages it owes, every one ticked to
+        // An overture: calibration of the pages it misses, every one ticked to
         // begin with; no toggle, no dialog.
         try await page.openHydrated(scratch.overturePath)
         try await expect(page.locator(".process-toggle-view")).toHaveCount(0)
