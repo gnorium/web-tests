@@ -210,8 +210,8 @@ struct OvertureImagesTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let user = try contributor.column("id")
     let slot = "bibliographic_calibration"
-    let palinode: ScratchPalinode
-    do { palinode = try ScratchPalinode(slot: slot, owner: admin) }
+    let palinode: ScratchPromptOverture
+    do { palinode = try ScratchPromptOverture(slot: slot, owner: admin) }
     catch {
       try await contributor.remove()
       try await admin.remove(after: error)
@@ -239,7 +239,7 @@ struct OvertureImagesTests {
         try await expect(prompts.locator(".field-diff-diff").first).toContainText("Web tests legend suggestion.")
         try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL(
-          "the palinode at its locution", where: { url in url.path.lowercased() == palinode.path.lowercased() })
+          "the overture at its locution", where: { url in url.path.lowercased() == palinode.path.lowercased() })
       }
       let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'").uppercased()
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
@@ -249,10 +249,10 @@ struct OvertureImagesTests {
         try await expect(accept).toBeVisible()
         try await accept.click()
         try await expect(page, timeout: .seconds(15)).toHaveURL(
-          "the palinode at its locution",
+          "the overture at its locution",
           where: { url in url.path.lowercased() == palinode.path.lowercased() && (url.fragment ?? "").hasPrefix("revision-") })
         try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("as accepted")
-        try await expect(page.locator("#prompt-palinode-body")).toContainText("Web tests legend suggestion.")
+        try await expect(page.locator("#prompt-overture-body")).toContainText("Web tests legend suggestion.")
 
         // Opened at the task prompt: its accordion opened and in view, the
         // system prompt's open on its diff as before.

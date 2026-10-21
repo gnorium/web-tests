@@ -628,7 +628,7 @@ struct ReviseEditorTests {
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let slot = "bibliographic_arbitration"
     // Its process's palinode (user, 2026-10-20).
-    let palinode = try ScratchPalinode(slot: slot, owner: contributor)
+    let palinode = try ScratchPromptOverture(slot: slot, owner: contributor)
     do {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(palinode.path)/revise")
@@ -690,7 +690,7 @@ struct ReviseEditorTests {
           """)
         try await submit.click()
         try await expect(page, timeout: .seconds(15))
-          .toHaveURL("the palinode at its locution", where: RevisePagesTests.atLocution(palinode.path))
+          .toHaveURL("the overture at its locution", where: RevisePagesTests.atLocution(palinode.path))
         let user = try contributor.column("id")
         let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'").uppercased()
         try await page.openHydrated("\(palinode.path)/revisions/\(id)")

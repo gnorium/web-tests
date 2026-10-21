@@ -65,7 +65,7 @@ struct CodeBlockPaddingTests {
     guard gnorium.engines.contains(engine) else { return }
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let slot = "bibliographic_explication"
-    let palinode = try ScratchPalinode(slot: slot, owner: contributor)
+    let palinode = try ScratchPromptOverture(slot: slot, owner: contributor)
     do {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(palinode.path)/revise")

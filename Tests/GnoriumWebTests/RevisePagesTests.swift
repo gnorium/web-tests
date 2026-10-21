@@ -414,7 +414,7 @@ struct RevisePagesTests {
     let user = try contributor.column("id")
     let parent = "bibliographic_arbitration"
     let slot = parent + "_autocompaction"
-    let palinode = try ScratchPalinode(slot: parent, owner: admin)
+    let palinode = try ScratchPromptOverture(slot: parent, owner: admin)
     // One vignette holds the process's every prompt (user, 2026-10-17).
     let active = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(parent)'")
     func remove() {
@@ -443,7 +443,7 @@ struct RevisePagesTests {
             """, as: Bool.self)
         }
         try await page.locator(".revision-form button[type='submit']").click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the palinode at its revision", where: Self.atLocution(palinode.path))
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the overture at its revision", where: Self.atLocution(palinode.path))
         let changed = page.locator(".locution-thread-event-changed")
         // Each part by its path, its steps apart by the breadcrumb's chevron,
         // the list joined as English joins it (user, 2026-10-14).
@@ -474,9 +474,9 @@ struct RevisePagesTests {
         try await expect(page.locator("#prompt-change-process-bibliographic_explication")).toHaveCount(0)
         try await expect(page.locator(".prompt-change-view .diff-view")).toHaveCount(2)
         try await page.locator("button[form='revision-accept']").click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the palinode at its revision", where: Self.atLocution(palinode.path))
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the overture at its revision", where: Self.atLocution(palinode.path))
         // Accepted, the palinode's body draws it against the prompts in force.
-        let body = page.locator("#prompt-palinode-body")
+        let body = page.locator("#prompt-overture-body")
         try await expect(body.locator("#prompt-change-autocompaction-\(parent)")).toHaveCount(1)
         try await expect(body).toContainText("Web tests summarizer system.")
         try await expect(body).toContainText("Web tests summarizer task.")
@@ -505,10 +505,10 @@ struct RevisePagesTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
-    var palinodes: [ScratchPalinode] = []
+    var palinodes: [ScratchPromptOverture] = []
     do {
       for slot in ["bibliographic_arbitration", "bibliographic_explication"] {
-        palinodes.append(try ScratchPalinode(slot: slot, owner: contributor))
+        palinodes.append(try ScratchPromptOverture(slot: slot, owner: contributor))
       }
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         for palinode in palinodes {
@@ -552,7 +552,7 @@ struct RevisePagesTests {
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let commit = try ScratchCommit(owner: contributor)
     let slot = "bibliographic_explication"
-    let palinode = try ScratchPalinode(slot: slot, owner: contributor)
+    let palinode = try ScratchPromptOverture(slot: slot, owner: contributor)
     do {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(commit.madrigalPath)/revise")
@@ -855,7 +855,7 @@ struct RevisePagesTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let slot = "bibliographic_explication"
-    let palinode = try ScratchPalinode(slot: slot, owner: admin)
+    let palinode = try ScratchPromptOverture(slot: slot, owner: admin)
     let palinodePath = palinode.path
     let user = try admin.column("id")
     let a = UUID().uuidString.uppercased()
@@ -865,8 +865,8 @@ struct RevisePagesTests {
       palinode.remove()
     }
     do {
-      let system = try ScratchPalinode.inForce(slot, "system_prompt")
-      let task = try ScratchPalinode.inForce(slot, "task_prompt")
+      let system = try ScratchPromptOverture.inForce(slot, "system_prompt")
+      let task = try ScratchPromptOverture.inForce(slot, "task_prompt")
       let afterA = system + "\nWeb tests A."
       let afterB = system + "\nWeb tests A, then B."
       for (id, previous, proposed, offset) in [(a, system, afterA, 2), (b, afterA, afterB, 1)] {
@@ -936,7 +936,7 @@ struct RevisePagesTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let slot = "bibliographic_explication"
-    let palinode = try ScratchPalinode(slot: slot, owner: admin)
+    let palinode = try ScratchPromptOverture(slot: slot, owner: admin)
     let path = palinode.path
     let user = try admin.column("id")
     let a = UUID().uuidString.uppercased()
@@ -946,8 +946,8 @@ struct RevisePagesTests {
       "This change clashes with one accepted or put in force since it was suggested: see its Old diff and New diff, and suggest it again."
     func remove() { palinode.remove() }
     do {
-      let system = try ScratchPalinode.inForce(slot, "system_prompt")
-      let task = try ScratchPalinode.inForce(slot, "task_prompt")
+      let system = try ScratchPromptOverture.inForce(slot, "system_prompt")
+      let task = try ScratchPromptOverture.inForce(slot, "task_prompt")
       // A, accepted, adds a line to the system prompt; C, pending and
       // suggested before A was accepted, adds another at the same place:
       // they clash. B adds a line elsewhere, after A.
@@ -1072,7 +1072,7 @@ struct RevisePagesTests {
     let arbitration = "bibliographic_arbitration"
     let auto = arbitration + "_autocompaction"
     let continuation = arbitration + "_continuation"
-    let palinode = try ScratchPalinode(slot: arbitration, owner: contributor)
+    let palinode = try ScratchPromptOverture(slot: arbitration, owner: contributor)
     func remove() { palinode.remove() }
     do {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
@@ -1136,7 +1136,7 @@ struct RevisePagesTests {
           })()
           """, as: Bool.self)
         try await page.locator(".revision-form button[type='submit']").click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the palinode at its locution", where: Self.atLocution(palinode.path))
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the overture at its locution", where: Self.atLocution(palinode.path))
         let stored = try TestAdmin.query(
           """
           SELECT count(*) || ' ' || string_agg(c ->> 'prompt', ',' ORDER BY c ->> 'prompt')
