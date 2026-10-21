@@ -3,21 +3,21 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A locution is retracted, never deleted (user, 2026-10-18). Its Retract
+/// A locution is nullified, never deleted (user, 2026-10-18). Its Nullify
 /// asks first in a dialog with no title: one sentence, Cancel and a red
-/// solid Retract. Cancelled, nothing changes; confirmed, its words and every
+/// solid Nullify. Cancelled, nothing changes; confirmed, its words and every
 /// earlier instance's are erased, its rows and numbers stay, it reads
-/// "[retracted]", and the thread says so—"‹user› retracted locution ‹id›"—
+/// "[nullified]", and the thread says so—"‹user› nullified locution ‹id›"—
 /// beside its Edit's act, "submitted locution ‹id› instance 1, creating
 /// instance 2".
-@Suite("Locution retraction", .serialized)
-struct LocutionRetractTests {
+@Suite("Locution nullification", .serialized)
+struct LocutionNullifyTests {
   static let sentence =
-    "Retracting deletes this locution's content and every earlier instance of it, which can't be undone."
+    "Nullifying deletes this locution's content and every earlier instance of it, which can't be undone."
   static let words = ["The catchword is misread.", "The catchword is misread on this page."]
 
   @Test(arguments: [BrowserEngine.chrome])
-  func retractAsksFirstThenErasesTheWordsAndKeepsTheActs(engine: BrowserEngine) async throws {
+  func nullifyAsksFirstThenErasesTheWordsAndKeepsTheActs(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let reader = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
@@ -48,13 +48,13 @@ struct LocutionRetractTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [reader.cookie]) { page in
         try await page.openHydrated(scratch.madrigalPath)
         let locution = page.locator("#locution-\(id)")
-        let retract = locution.locator(".locution-retract")
-        let dialog = locution.locator(".locution-retract-dialog")
-        try await expect(retract).toHaveText("Retract")
+        let nullify = locution.locator(".locution-nullify")
+        let dialog = locution.locator(".locution-nullify-dialog")
+        try await expect(nullify).toHaveText("Nullify")
         try await expect(dialog).toBeHidden()
 
-        // Asked: no title, the one sentence, Cancel and a red solid Retract.
-        try await retract.click()
+        // Asked: no title, the one sentence, Cancel and a red solid Nullify.
+        try await nullify.click()
         try await expect(dialog).toBeVisible()
         try await expect(dialog.locator(".dialog-header")).toHaveCount(0)
         try await expect(dialog.locator(".dialog-body")).toHaveText(Self.sentence)
@@ -62,33 +62,33 @@ struct LocutionRetractTests {
         let confirm = dialog.locator(".dialog-primary-button button")
         try await expect(dialog.locator(".dialog-footer-actions button")).toHaveCount(2)
         try await expect(cancel).toHaveText("Cancel")
-        try await expect(confirm).toHaveText("Retract")
+        try await expect(confirm).toHaveText("Nullify")
         try await expect(confirm).toHaveAttribute("data-color", "red")
         try await expect(confirm).toHaveAttribute("data-weight", "solid")
 
-        // Cancelled: nothing retracted.
+        // Cancelled: nothing nullified.
         try await cancel.click()
         try await expect(dialog).toBeHidden()
-        #expect(try TestAdmin.query("SELECT (retracted_at IS NULL)::text FROM locutions WHERE id = '\(locutionID)'") == "true")
+        #expect(try TestAdmin.query("SELECT (nullified_at IS NULL)::text FROM locutions WHERE id = '\(locutionID)'") == "true")
         try await expect(locution.locator(".locution-page:not([hidden]) .locution-body-rendered")).toHaveText(Self.words[1])
 
-        // Confirmed: retracted, as it now reads.
-        try await retract.click()
+        // Confirmed: nullified, as it now reads.
+        try await nullify.click()
         try await expect(dialog).toBeVisible()
         try await confirm.click()
         let body = page.locator("#locution-\(id) .locution-body")
-        try await expect(body, timeout: .seconds(15)).toHaveAttribute("data-retracted", "true")
-        try await expect(body.locator(".locution-body-rendered")).toHaveText("[retracted]")
-        try await expect(page.locator("#locution-\(id) .locution-retract")).toHaveCount(0)
+        try await expect(body, timeout: .seconds(15)).toHaveAttribute("data-nullified", "true")
+        try await expect(body.locator(".locution-body-rendered")).toHaveText("[nullified]")
+        try await expect(page.locator("#locution-\(id) .locution-nullify")).toHaveCount(0)
         try await expect(page.locator("#locution-\(id) .locution-pages-nav")).toHaveCount(0)
 
-        // The acts stay: its Edit's, a new instance, and its retraction.
+        // The acts stay: its Edit's, a new instance, and its nullification.
         let acts = page.locator(".locution-thread-event-line")
         try await expect(acts.filter(hasText: "submitted locution \(id) instance 1, creating instance 2"))
           .toHaveCount(1)
-        let retraction = acts.filter(hasText: "retracted locution \(id)")
-        try await expect(retraction).toHaveCount(1)
-        try await expect(retraction).toContainText("\(reader.username) retracted locution \(id)")
+        let nullification = acts.filter(hasText: "nullified locution \(id)")
+        try await expect(nullification).toHaveCount(1)
+        try await expect(nullification).toContainText("\(reader.username) nullified locution \(id)")
         try await page.expectNoErrors()
       }
 

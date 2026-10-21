@@ -174,14 +174,19 @@ struct WatchtowerFigureLinksTests {
       let nocturneLinks = figures.filter { $0.href.hasPrefix("/mission-control/nocturnes/") }.count
       try #require(nocturneLinks == 18, "the processes' nocturne links: \(nocturneLinks)")
       // Arbitration's open the Locutions list (an arbitration session is no
-      // nocturne): its calls by Status, gnorium's replies by Created by:
-      // three a kind on its process box nested in each of the three
-      // Disputorium objects' cards (18), whose object figures add three on
-      // each kind (18): 36. A halftone holds no locutions yet.
+      // nocturne): its calls by Status, gnorium's replies by Created by.
+      // Each nested Locution card: its process box four a kind (pending,
+      // running, passed, failed) and its call's figures five a kind
+      // (pending, running, submitted, failed, nullified; hidden is an
+      // admin's alone): 18 a card (user, 2026-10-21).
+      let cards = try await page.evaluate(
+        "[...document.querySelectorAll('.watchtower-object-name-link')].filter(e => e.textContent.trim() === 'Locution').length",
+        as: Int.self)
       let arbitrationLinks = figures.filter {
         $0.href.hasPrefix("/mission-control/locutions/")
       }.count
-      try #require(arbitrationLinks == 36, "the nested Arbitration cards' locution links: \(arbitrationLinks)")
+      try #require(cards > 0 && arbitrationLinks == cards * 18, "the nested Arbitration cards' locution links: \(arbitrationLinks) on \(cards) cards")
+      #expect(!figures.contains { $0.text.hasSuffix(" hidden") }, "hidden is an admin's alone")
       // An object's figure opens its own list, never the lifetimes.
       let lifetimes = figures.filter { $0.href.contains("/lifetimes/") }.map(\.href)
       #expect(lifetimes.isEmpty, "object figures open the lifetimes: \(lifetimes)")

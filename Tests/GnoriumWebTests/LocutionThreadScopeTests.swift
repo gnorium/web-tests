@@ -83,7 +83,7 @@ struct LocutionThreadScopeTests {
   /// locution sets the composer, which shows the quote; posted, the reply
   /// sits in time order with a quote card above its words, linked to the
   /// quoted locution. The card keeps the words as they were when quoted (an
-  /// edit leaves it); retracted, the original's quote reads "[retracted]";
+  /// edit leaves it); nullified, the original's quote reads "[nullified]";
   /// hidden, the card is left out for whoever is not shown the original.
   @Test(arguments: [BrowserEngine.chrome])
   func aReplyQuotesTheLocutionItAnswers(engine: BrowserEngine) async throws {
@@ -173,10 +173,10 @@ struct LocutionThreadScopeTests {
         _ = try TestAdmin.query("UPDATE locutions SET hidden_at = now() WHERE id = '\(quotedID)'")
         try await page.openHydrated(scratch.madrigalPath)
         try await expect(reply.locator(".locution-quote-view")).toHaveCount(0)
-        // Retracted: "[retracted]".
-        _ = try TestAdmin.query("UPDATE locutions SET hidden_at = NULL, retracted_at = now(), content = '' WHERE id = '\(quotedID)'")
+        // Nullified: "[nullified]".
+        _ = try TestAdmin.query("UPDATE locutions SET hidden_at = NULL, nullified_at = now(), content = '' WHERE id = '\(quotedID)'")
         try await page.openHydrated(scratch.madrigalPath)
-        try await expect(card.locator(".locution-quote-text")).toHaveText("[retracted]")
+        try await expect(card.locator(".locution-quote-text")).toHaveText("[nullified]")
         try await page.expectNoErrors()
       }
     } catch {

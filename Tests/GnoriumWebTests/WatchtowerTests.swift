@@ -93,11 +93,23 @@ struct WatchtowerTests {
         """, as: [[String]].self)
       #expect(columns.count == 6, "calibration, explication, translation and three arbitrations: \(columns.count)")
       for box in columns {
-        // Arbitration's calls awaiting Commit are its object figures' pending.
-        // Every status a nocturne can be in, as its lifecycle runs.
-        let figures = box.first == "Arbitration"
-          ? "running|finished (1w)|failed (1w)" : "pending|running|passed (1w)|failed (1w)"
+        // Every status a nocturne can be in, as its lifecycle runs;
+        // arbitration's sessions alike (user, 2026-10-21).
+        let figures = "pending|running|passed (1w)|failed (1w)"
         #expect(Array(box.dropFirst()) == ["Bibliographic|\(figures)", "Lexicographic|\(figures)"], "\(box)")
+      }
+      // A call's every status, in order (user, 2026-10-21): pending
+      // (awaiting Commit or queued: one figure), running, submitted (1w),
+      // failed (1w), nullified; hidden an admin's alone.
+      let calls = try await page.evaluate("""
+        [...document.querySelectorAll('[id^="live-region-watchtower-arbitration-"][id$="-figures"] .watchtower-figure-columns-column')]
+          .map(column => [column.querySelector('.watchtower-figure-columns-tab').textContent.trim(),
+            ...[...column.querySelectorAll('.live-figure-text')].map(f => f.textContent.trim().replace(/^\\S+ /, ''))]
+            .join('|'))
+        """, as: [String].self)
+      #expect(!calls.isEmpty)
+      for column in calls {
+        #expect(column.hasSuffix("|pending|running|submitted (1w)|failed (1w)|nullified"), "\(column)")
       }
       // A machine's object: every status its enum has, in order—pending,
       // its process's in-flight status, submitted (1w), failed (1w).
@@ -132,7 +144,10 @@ struct WatchtowerTests {
   ///   quatrain's dotted, an antiphon's plain, a serenade's disc), in
   ///   flight its turning mark, submitted the green check, failed the
   ///   cross—red when it needs a person (a quatrain's and a serenade's
-  ///   always), else blue.
+  ///   always), else blue. A call's too, at its object's level: pending
+  ///   that level still, running it turning, submitted the check, failed
+  ///   the cross (red when it needs a person, else blue), nullified the red
+  ///   cross.
   /// A turning mark turns only while its count is non-zero, and stands
   /// still, still shown, at zero. A Disputorium object's figures wear none.
   @Test(arguments: gnorium.engines)
@@ -190,6 +205,7 @@ struct WatchtowerTests {
       ]
       var processes = 0
       var machines = 0
+      var calls = 0
       for figure in figures {
         let word = figure.text.split(separator: " ").dropFirst().first.map(String.init) ?? ""
         let count = Int(figure.text.prefix { $0.isNumber }) ?? 0
@@ -201,8 +217,24 @@ struct WatchtowerTests {
           if word == "failed" { color = "red" }
           processes += 1
         } else if let level = arbitrations.first(where: { figure.owner.contains("arbitration-\($0.key)") })?.value {
-          wanted = word == "running" ? level.running : level.still
-          if word == "failed" { color = "red" }
+          if figure.owner.lowercased().hasPrefix("arbitration:") {
+            // Its process box's level marks.
+            wanted = word == "running" ? level.running : level.still
+            if word == "failed" { color = "red" }
+          } else {
+            // Its call's chip marks.
+            switch word {
+            case "pending": wanted = level.still
+            case "running": wanted = level.running
+            case "submitted": wanted = "check-icon-view"; color = "green"
+            case "nullified": wanted = "cross-icon-view"; color = "red"
+            default:
+              wanted = "cross-icon-view"
+              #expect(["red", "blue"].contains(figure.color), "\(figure.owner) \(figure.text): \(figure.color)")
+              color = figure.color
+            }
+            calls += 1
+          }
         } else if let entry = objects.first(where: { figure.owner.hasSuffix("watchtower-\($0.key)-figures") }) {
           let (name, object) = (entry.key, entry.value)
           switch word {
@@ -234,6 +266,8 @@ struct WatchtowerTests {
       }
       // Three processes and three machines, four statuses on both sides.
       #expect(processes == 24 && machines == 24, "\(processes) process figures, \(machines) object figures")
+      // Each nested Locution card's call: five statuses on both sides.
+      #expect(calls > 0 && calls % 10 == 0, "\(calls) call figures")
     }
   }
 
