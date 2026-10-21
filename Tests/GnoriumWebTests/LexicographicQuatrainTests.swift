@@ -112,8 +112,8 @@ struct LexicographicQuatrainTests {
         DELETE FROM sentiment_inventories WHERE language_code = 'eng' AND lemma = '\(title)' AND class = 'noun';
         DELETE FROM locutions WHERE locutable_type = 'lexicographic_overture' AND locutable_id = '\(overtureID)';
         DELETE FROM lexicographic_overtures WHERE id = '\(overtureID)';
-        UPDATE lexicographic_figurants SET deleted_at = now(), deleted_by = '\(owner)'
-          WHERE id = '\(figurantID)' AND deleted_at IS NULL;
+        UPDATE lexicographic_figurants SET discarded_at = now(), discarded_by = '\(owner)'
+          WHERE id = '\(figurantID)' AND discarded_at IS NULL;
         COMMIT;
         """)
     }

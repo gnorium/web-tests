@@ -14,7 +14,7 @@ import WebTestsTesting
 /// translation (user, 2026-10-20: no promotion).
 /// Every commit names its ticked evidence items: with none ticked it is
 /// refused under the roster before it is sent. The actions read Revise,
-/// Commit, Permit, Delete. Every submission is stopped before it leaves the
+/// Commit, Permit, Discard. Every submission is stopped before it leaves the
 /// page: a commit is costly and never run here. A throwaway admin owns the
 /// scratch objects (`ScratchCommit`).
 @Suite("Commit", .serialized)
@@ -72,7 +72,7 @@ struct CommitTests {
         try await expect(page.locator(".process-toggle-view")).toHaveCount(0)
         try await expect(page.locator(".commit-dialog, .commit-menu")).toHaveCount(0)
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
-          .toHaveTexts(["Revise", "Commit", "Permit", "Delete"])
+          .toHaveTexts(["Revise", "Commit", "Permit", "Discard"])
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_calibration")
         try await expect(page.locator(".commit-view input[name='scope']")).toHaveCount(0)
         let roster = page.locator(".overture-images").first

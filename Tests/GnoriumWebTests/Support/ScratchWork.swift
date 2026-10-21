@@ -6,7 +6,7 @@ import Foundation
 /// (`ScratchChain`), the antiphon's madrigal permitted. Every
 /// row by its own id, removed in the order the foreign keys allow—except
 /// its submission and Figurant, which are submitted input and frozen: the
-/// Figurant is soft-deleted, as the site deletes one, and both stay.
+/// Figurant is soft-discarded, as the site discards one, and both stay.
 ///
 /// Its author is a typed name, as every voice is.
 struct ScratchWork {
@@ -121,7 +121,7 @@ struct ScratchWork {
       DELETE FROM biblio_record_voices WHERE id = '\(ids["authorship"]!)' AND NOT \(amended);
       DELETE FROM biblio_records WHERE id = '\(ids["record"]!)' AND NOT \(amended);
       DELETE FROM bibliographic_overtures WHERE id = '\(ids["overture"]!)' AND NOT \(amended);
-      UPDATE bibliographic_figurants SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(ids["figurant"]!)';
+      UPDATE bibliographic_figurants SET discarded_at = now(), discarded_by = '\(owner)' WHERE id = '\(ids["figurant"]!)';
       COMMIT;
       """)
   }

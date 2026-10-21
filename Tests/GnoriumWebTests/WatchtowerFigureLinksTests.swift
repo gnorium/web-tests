@@ -178,7 +178,7 @@ struct WatchtowerFigureLinksTests {
       // Each nested Locution card: its process box four a kind (pending,
       // running, passed, failed) and its call's figures four a kind
       // (pending, running, submitted, failed; neither nullified nor
-      // hidden is a figure): 16 a card (user, 2026-10-21).
+      // nullified is a figure): 16 a card (user, 2026-10-21).
       let cards = try await page.evaluate(
         "[...document.querySelectorAll('.watchtower-object-name-link')].filter(e => e.textContent.trim() === 'Locution').length",
         as: Int.self)

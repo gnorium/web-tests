@@ -198,7 +198,7 @@ struct TestamentLevelsTests {
         BEGIN;
         DELETE FROM revisions WHERE revisable_id = '\(overture)';
         DELETE FROM bibliographic_overtures WHERE id = '\(overture)';
-        UPDATE bibliographic_figurants SET deleted_at = now(), deleted_by = '\(admin.username)' WHERE id = '\(figurant)';
+        UPDATE bibliographic_figurants SET discarded_at = now(), discarded_by = '\(admin.username)' WHERE id = '\(figurant)';
         COMMIT;
         """)
     }

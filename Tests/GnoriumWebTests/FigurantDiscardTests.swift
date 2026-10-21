@@ -3,15 +3,15 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// An admin deletes a pending figurant and restores it (user, 2026-10-07):
-/// Delete on its page discards its overture with it and marks it Deleted,
+/// An admin discards a pending figurant and restores it (user, 2026-10-07):
+/// Discard on its page discards its overture with it and marks it Discarded,
 /// the figurants register drops it unless the State filter asks for the
-/// deleted, and Restore brings both back. A scratch lexicographic figurant
+/// discarded, and Restore brings both back. A scratch lexicographic figurant
 /// and overture of a throwaway admin, removed after.
-@Suite("Figurant deletion")
-struct FigurantDeletionTests {
+@Suite("Figurant discard")
+struct FigurantDiscardTests {
   @Test(arguments: gnorium.engines)
-  func anAdminDeletesAndRestoresAPendingFigurant(engine: BrowserEngine) async throws {
+  func anAdminDiscardsAndRestoresAPendingFigurant(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let submission = UUID().uuidString.lowercased()
@@ -22,8 +22,8 @@ struct FigurantDeletionTests {
         """
         BEGIN;
         DELETE FROM lexicographic_overtures WHERE id = '\(overture)';
-        UPDATE lexicographic_figurants SET deleted_at = now(), deleted_by = '\(admin.username)'
-          WHERE id = '\(figurant)' AND deleted_at IS NULL;
+        UPDATE lexicographic_figurants SET discarded_at = now(), discarded_by = '\(admin.username)'
+          WHERE id = '\(figurant)' AND discarded_at IS NULL;
         COMMIT;
         """)
     }
@@ -31,7 +31,7 @@ struct FigurantDeletionTests {
       let user = try admin.column("id")
       // A whole title form, as Submit Sentiment writes one (ScratchWord):
       // the figurant page reads it.
-      let form = #"{"title":"webtestsdeletion","languageCode":"eng","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
+      let form = #"{"title":"webtestsdiscard","languageCode":"eng","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
       _ = try TestAdmin.query(
         """
         BEGIN;
@@ -49,25 +49,25 @@ struct FigurantDeletionTests {
         let status = tab.locator(".mission-control-object-header-status-chip")
         try await tab.openHydrated(page)
         try await expect(status).toContainText("Submitted")
-        try await expect(tab.locator("button[form='deletion-restore']")).toHaveCount(0)
-        try await tab.locator("button[form='deletion-delete']").click()
-        try await expect(status).toContainText("Deleted")
-        try await expect(tab.locator(".pedigree-view")).toContainText("Deleted")
-        #expect(try TestAdmin.query("SELECT deleted_by FROM lexicographic_overtures WHERE id = '\(overture)';")
+        try await expect(tab.locator("button[form='object-restore']")).toHaveCount(0)
+        try await tab.locator("button[form='object-discard']").click()
+        try await expect(status).toContainText("Discarded")
+        try await expect(tab.locator(".pedigree-view")).toContainText("Discarded")
+        #expect(try TestAdmin.query("SELECT discarded_by FROM lexicographic_overtures WHERE id = '\(overture)';")
           == admin.username)
 
         // Gone from the register; there with the State filter.
         try await tab.openHydrated(register)
         // The register spells ids in capitals; the match ignores case.
         try await expect(tab.locator("a[href='\(page)' i]")).toHaveCount(0)
-        try await tab.openHydrated(register + "?status=deleted")
+        try await tab.openHydrated(register + "?status=discarded")
         try await expect(tab.locator("a[href='\(page)' i]").first).toBeVisible()
 
         try await tab.openHydrated(page)
-        try await tab.locator("button[form='deletion-restore']").click()
+        try await tab.locator("button[form='object-restore']").click()
         try await expect(status).toContainText("Submitted")
-        try await expect(tab.locator("button[form='deletion-delete']")).toHaveCount(1)
-        #expect(try TestAdmin.query("SELECT coalesce(deleted_by, '') FROM lexicographic_overtures WHERE id = '\(overture)';")
+        try await expect(tab.locator("button[form='object-discard']")).toHaveCount(1)
+        #expect(try TestAdmin.query("SELECT coalesce(discarded_by, '') FROM lexicographic_overtures WHERE id = '\(overture)';")
           == "")
       }
     } catch {

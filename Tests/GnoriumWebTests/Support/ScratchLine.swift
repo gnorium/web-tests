@@ -8,7 +8,7 @@ import Foundation
 /// one of them, so it runs far past one screen. Every row by its own id,
 /// removed in the order the foreign keys allow—except its submission and
 /// Figurant, which are submitted input and frozen: the Figurant is
-/// soft-deleted, as the site deletes one.
+/// soft-discarded, as the site discards one.
 struct ScratchLine {
   let figurantID: String
   /// The figurant's page, whose Pedigree walks the whole line.
@@ -74,7 +74,7 @@ struct ScratchLine {
     }
     sql += chain.delete + """
       DELETE FROM bibliographic_overtures WHERE id = '\(overtureID)';
-      UPDATE bibliographic_figurants SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(figurantID)';
+      UPDATE bibliographic_figurants SET discarded_at = now(), discarded_by = '\(owner)' WHERE id = '\(figurantID)';
       COMMIT;
       """
     _ = try? TestAdmin.query(sql)

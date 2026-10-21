@@ -8,7 +8,7 @@ import Foundation
 /// and the antiphon its Commit made, holding the frozen header. Every row by
 /// its own id, removed in the order the foreign keys allow—except its
 /// submission and Figurant, which are submitted input and frozen: the
-/// Figurant is soft-deleted, as the site deletes one.
+/// Figurant is soft-discarded, as the site discards one.
 ///
 /// Its source is a PDF with a stored page list, so nothing is ever fetched.
 struct ScratchOverture {
@@ -125,7 +125,7 @@ struct ScratchOverture {
       DELETE FROM bibliographic_quatrains WHERE id = '\(quatrainID)';
       DELETE FROM survey_images WHERE witness_id = '\(figurantID)';
       DELETE FROM bibliographic_overtures WHERE id = '\(overtureID)';
-      UPDATE bibliographic_figurants SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(figurantID)';
+      UPDATE bibliographic_figurants SET discarded_at = now(), discarded_by = '\(owner)' WHERE id = '\(figurantID)';
       COMMIT;
       """)
   }

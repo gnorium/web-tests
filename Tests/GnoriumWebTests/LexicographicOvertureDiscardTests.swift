@@ -4,14 +4,14 @@ import WebTests
 import WebTestsTesting
 
 /// A lexicographic overture's page has what a bibliographic overture's
-/// has: an admin's Delete on a working copy, marking it Deleted, with
+/// has: an admin's Discard on a working copy, marking it Discarded, with
 /// Restore to bring it back; and its locutions thread, whose box
 /// posts a locution that the page then shows. A scratch lexicographic
 /// figurant and overture of a throwaway admin, removed after.
-@Suite("Lexicographic overture deletion and thread")
-struct LexicographicOvertureDeletionTests {
+@Suite("Lexicographic overture discard and thread")
+struct LexicographicOvertureDiscardTests {
   @Test(arguments: gnorium.engines)
-  func anAdminDeletesAndRestoresAnOvertureAndPostsALocutionOnIt(engine: BrowserEngine) async throws {
+  func anAdminDiscardsAndRestoresAnOvertureAndPostsALocutionOnIt(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let submission = UUID().uuidString.lowercased()
@@ -23,8 +23,8 @@ struct LexicographicOvertureDeletionTests {
         BEGIN;
         DELETE FROM locutions WHERE locutable_type = 'lexicographic_overture' AND locutable_id = '\(overture)';
         DELETE FROM lexicographic_overtures WHERE id = '\(overture)';
-        UPDATE lexicographic_figurants SET deleted_at = now(), deleted_by = '\(admin.username)'
-          WHERE id = '\(figurant)' AND deleted_at IS NULL;
+        UPDATE lexicographic_figurants SET discarded_at = now(), discarded_by = '\(admin.username)'
+          WHERE id = '\(figurant)' AND discarded_at IS NULL;
         COMMIT;
         """)
     }
@@ -55,20 +55,20 @@ struct LexicographicOvertureDeletionTests {
         try await tab.locator(".locution-thread-submit").click()
         try await expect(tab.locator(".locution-thread")).toContainText("The class is a verb here.")
 
-        // Delete: to the register, the overture Deleted, the row kept.
-        try await tab.locator("button[form='overture-delete']").click()
+        // Discard: to the register, the overture Discarded, the row kept.
+        try await tab.locator("button[form='overture-discard']").click()
         try await expect(tab, timeout: .seconds(15)).toHaveURL("/mission-control/overtures/lexicographic")
         try await tab.openHydrated(page)
-        try await expect(status).toContainText("Deleted")
-        try await expect(tab.locator(".pedigree-view")).toContainText("Deleted")
-        try await expect(tab.locator("button[form='overture-delete']")).toHaveCount(0)
-        #expect(try TestAdmin.query("SELECT deleted_by FROM lexicographic_overtures WHERE id = '\(overture)';")
+        try await expect(status).toContainText("Discarded")
+        try await expect(tab.locator(".pedigree-view")).toContainText("Discarded")
+        try await expect(tab.locator("button[form='overture-discard']")).toHaveCount(0)
+        #expect(try TestAdmin.query("SELECT discarded_by FROM lexicographic_overtures WHERE id = '\(overture)';")
           == admin.username)
 
         try await tab.locator("button[form='overture-restore']").click()
         try await expect(status).toContainText("Pending")
-        try await expect(tab.locator("button[form='overture-delete']")).toHaveCount(1)
-        #expect(try TestAdmin.query("SELECT coalesce(deleted_by, '') FROM lexicographic_overtures WHERE id = '\(overture)';")
+        try await expect(tab.locator("button[form='overture-discard']")).toHaveCount(1)
+        #expect(try TestAdmin.query("SELECT coalesce(discarded_by, '') FROM lexicographic_overtures WHERE id = '\(overture)';")
           == "")
       }
     } catch {

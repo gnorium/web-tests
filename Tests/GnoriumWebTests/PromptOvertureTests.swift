@@ -9,7 +9,7 @@ import WebTestsTesting
 /// submits a palinode, frozen, opening the overture; the overture's page is
 /// never indexed, its Pedigree the line palinode › overture, its thread
 /// opening with the palinode's submitting naming the vignette amended, and
-/// holds Revise, Permit and Delete—no header Commit (user, 2026-10-21):
+/// holds Revise, Permit and Discard—no header Commit (user, 2026-10-21):
 /// a review is a call to gnorium in its thread, which needs nothing
 /// ticked—Permit's refusal said when pressed; the palinode's page is the
 /// submission and its Pedigree alone. No call is ever committed here (no
@@ -26,7 +26,7 @@ struct PromptOvertureTests {
     let open = try TestAdmin.query(
       """
       SELECT count(*) FROM vignette_overtures
-      WHERE slot = '\(slot)' AND vignette_kind = 'prompt' AND permitted_at IS NULL AND deleted_at IS NULL
+      WHERE slot = '\(slot)' AND vignette_kind = 'prompt' AND permitted_at IS NULL AND discarded_at IS NULL
       """)
     guard open.trimmingCharacters(in: .whitespacesAndNewlines) == "0" else {
       try await admin.remove()
@@ -40,13 +40,13 @@ struct PromptOvertureTests {
       try TestAdmin.query(
         """
         SELECT \(column) FROM vignette_overtures o JOIN vignette_palinodes p ON p.id = o.vignette_palinode_id
-        WHERE o.slot = '\(slot)' AND o.vignette_kind = 'prompt' AND o.permitted_at IS NULL AND o.deleted_at IS NULL
+        WHERE o.slot = '\(slot)' AND o.vignette_kind = 'prompt' AND o.permitted_at IS NULL AND o.discarded_at IS NULL
           AND p.submitted_by_user_id = '\(user)'
         """
       ).trimmingCharacters(in: .whitespacesAndNewlines)
     }
-    // Its thread and revisions go; the overture is deleted as an admin
-    // deletes one; the palinode, a frozen submission, stays.
+    // Its thread and revisions go; the overture is discarded as an admin
+    // discards one; the palinode, a frozen submission, stays.
     func remove() {
       guard let id = try? opened(), !id.isEmpty else { return }
       _ = try? TestAdmin.query(
@@ -54,7 +54,7 @@ struct PromptOvertureTests {
         BEGIN;
         DELETE FROM locutions WHERE locutable_id = '\(id)';
         DELETE FROM revisions WHERE revisable_id = '\(id)';
-        UPDATE vignette_overtures SET deleted_at = now(), deleted_by = '\(admin.username)' WHERE id = '\(id)';
+        UPDATE vignette_overtures SET discarded_at = now(), discarded_by = '\(admin.username)' WHERE id = '\(id)';
         COMMIT;
         """)
     }

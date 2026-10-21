@@ -7,7 +7,7 @@ import Foundation
 /// one page not read yet, so its one process is explication (user,
 /// 2026-10-10). Every row by its own id, removed in the order the foreign keys
 /// allow—except its submission and Figurant, which are submitted input and
-/// frozen: the Figurant is soft-deleted, as the site deletes one. Nothing here is ever committed: a test only opens and cancels.
+/// frozen: the Figurant is soft-discarded, as the site discards one. Nothing here is ever committed: a test only opens and cancels.
 /// The madrigal's metadata holds what the witness's fields require (its
 /// page decodes them): the language, the source URL and its kind.
 struct ScratchCommit {
@@ -134,7 +134,7 @@ struct ScratchCommit {
       DELETE FROM bibliographic_madrigals WHERE id = '\(madrigalID)';
       \(chain.delete)
       DELETE FROM bibliographic_overtures WHERE id IN ('\(pendingOvertureID)', '\(committedOvertureID)');
-      UPDATE bibliographic_figurants SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(figurantID)';
+      UPDATE bibliographic_figurants SET discarded_at = now(), discarded_by = '\(owner)' WHERE id = '\(figurantID)';
       COMMIT;
       """)
   }

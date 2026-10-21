@@ -50,7 +50,7 @@ struct LevelStatesTests {
         try await page.openHydrated(scratch.path)
         try await expect(Self.chip(page)).toHaveText("Pending")
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
-          .toHaveTexts(["Revise", "Commit", "Permit", "Delete"])
+          .toHaveTexts(["Revise", "Commit", "Permit", "Discard"])
         // Its one Commit is for calibration; every page is owed: all ticked.
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_calibration")
         try await expect(page.locator(".commit-ticked")).toHaveAttribute("value", "0-3")
@@ -69,7 +69,7 @@ struct LevelStatesTests {
     try await admin.remove()
   }
 
-  /// Committed, the overture is closed: no Revise, Commit or Delete, a line
+  /// Committed, the overture is closed: no Revise, Commit or Discard, a line
   /// naming the quatrain its Commit made, its thread settled.
   @Test(arguments: [BrowserEngine.chrome])
   func aCommittedOvertureLinksItsQuatrain(engine: BrowserEngine) async throws {
@@ -110,7 +110,7 @@ struct LevelStatesTests {
         try await page.openHydrated(scratch.halftonePath)
         try await expect(Self.chip(page)).toHaveText("Pending")
         try await expect(page.locator(".level-progress-line-view")).toHaveText("Calibrated: 1 of 4 images")
-        // The machine's: revised, committed and permitted, never deleted.
+        // The machine's: revised, committed and permitted, never discarded.
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Commit", "Permit"])
         // Its Commit is for calibration, over the pages it still owes,

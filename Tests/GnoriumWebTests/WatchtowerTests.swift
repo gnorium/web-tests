@@ -120,7 +120,7 @@ struct WatchtowerTests {
       }
       // A call's every status, in order (user, 2026-10-21): pending
       // (awaiting Commit or queued: one figure), running, submitted (1w),
-      // failed (1w); neither nullified nor hidden is a figure.
+      // failed (1w); a nullified one is not a figure.
       let calls = try await page.evaluate("""
         [...document.querySelectorAll('[id^="live-region-watchtower-arbitration-"][id$="-figures"] .watchtower-figure-columns-column')]
           .map(column => [column.querySelector('.watchtower-figure-columns-tab').textContent.trim(),

@@ -23,8 +23,8 @@ struct OriginTargetIdentityTests {
         BEGIN;
         DELETE FROM revisions WHERE revisable_id = '\(overture)';
         DELETE FROM lexicographic_overtures WHERE id = '\(overture)';
-        UPDATE lexicographic_figurants SET deleted_at = now(), deleted_by = '\(admin.username)'
-          WHERE id = '\(figurant)' AND deleted_at IS NULL;
+        UPDATE lexicographic_figurants SET discarded_at = now(), discarded_by = '\(admin.username)'
+          WHERE id = '\(figurant)' AND discarded_at IS NULL;
         COMMIT;
         """)
       source.remove()

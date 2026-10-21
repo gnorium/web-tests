@@ -37,8 +37,8 @@ struct ComboboxTests {
         BEGIN;
         DELETE FROM bibliographic_overtures WHERE bibliographic_figurant_id IN
           (SELECT id FROM bibliographic_figurants WHERE source_url = '\(source)');
-        UPDATE bibliographic_figurants SET deleted_at = now(), deleted_by = '\(admin.username)'
-          WHERE source_url = '\(source)' AND deleted_at IS NULL;
+        UPDATE bibliographic_figurants SET discarded_at = now(), discarded_by = '\(admin.username)'
+          WHERE source_url = '\(source)' AND discarded_at IS NULL;
         COMMIT;
         """)
     }
@@ -244,8 +244,8 @@ struct ComboboxTests {
         BEGIN;
         DELETE FROM bibliographic_overtures WHERE bibliographic_figurant_id IN
           (SELECT id FROM bibliographic_figurants WHERE source_url = '\(source)');
-        UPDATE bibliographic_figurants SET deleted_at = now(), deleted_by = '\(admin.username)'
-          WHERE source_url = '\(source)' AND deleted_at IS NULL;
+        UPDATE bibliographic_figurants SET discarded_at = now(), discarded_by = '\(admin.username)'
+          WHERE source_url = '\(source)' AND discarded_at IS NULL;
         COMMIT;
         """)
     }

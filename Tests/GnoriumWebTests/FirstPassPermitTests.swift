@@ -26,11 +26,11 @@ struct FirstPassPermitTests {
       let page = "/mission-control/overtures/lexicographic/\(pass.overtureID)"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { tab in
         try await tab.openHydrated(page)
-        // Revise, Commit, Permit, Delete, in that order.
+        // Revise, Commit, Permit, Discard, in that order.
         let actions = try await tab.evaluate(
           "[...document.querySelectorAll('.disputorium-core-actions .button-view')].map(b => b.textContent.trim()).join(' ')",
           as: String.self)
-        #expect(actions == "Revise Commit Permit Delete", "\(actions)")
+        #expect(actions == "Revise Commit Permit Discard", "\(actions)")
         try await expect(tab.locator("form#overture-permit[action='\(page)/permit' i]")).toHaveCount(1)
 
         try await tab.locator("button[form='overture-permit']").click()
@@ -103,13 +103,13 @@ struct FirstPassPermitTests {
             """
             BEGIN;
             DELETE FROM lexicographic_overtures WHERE id = '\(overture)';
-            UPDATE lexicographic_figurants SET deleted_at = now(), deleted_by = '\(admin.username)'
-              WHERE id = '\(figurant)' AND deleted_at IS NULL;
+            UPDATE lexicographic_figurants SET discarded_at = now(), discarded_by = '\(admin.username)'
+              WHERE id = '\(figurant)' AND discarded_at IS NULL;
             COMMIT;
             """)
         }
         try await tab.openHydrated("/mission-control/overtures/lexicographic/\(overture)")
-        try await expect(tab.locator("button[form='overture-delete']")).toHaveCount(1)
+        try await expect(tab.locator("button[form='overture-discard']")).toHaveCount(1)
         try await expect(tab.locator("button[form='overture-permit']")).toHaveCount(0)
       }
     } catch {

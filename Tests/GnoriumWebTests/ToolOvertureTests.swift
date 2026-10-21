@@ -28,7 +28,7 @@ struct ToolOvertureTests {
       try count(
         """
         SELECT count(*) FROM vignette_overtures
-        WHERE slot = '\(slot)' AND vignette_kind = 'tool' AND permitted_at IS NULL AND deleted_at IS NULL
+        WHERE slot = '\(slot)' AND vignette_kind = 'tool' AND permitted_at IS NULL AND discarded_at IS NULL
         """) == "0"
     else {
       try Test.cancel(Comment(rawValue: "\(slot) has tool vignettes that are not a web test's"))
@@ -52,12 +52,12 @@ struct ToolOvertureTests {
       try count(
         """
         SELECT \(column) FROM vignette_overtures o JOIN vignette_palinodes p ON p.id = o.vignette_palinode_id
-        WHERE o.slot = '\(slot)' AND o.vignette_kind = 'tool' AND o.deleted_at IS NULL
+        WHERE o.slot = '\(slot)' AND o.vignette_kind = 'tool' AND o.discarded_at IS NULL
           AND p.submitted_by_user_id = '\(user)'
         """)
     }
     // Its thread, runs and revisions go; the overture is deleted as an
-    // admin deletes one; the palinode, a frozen submission, stays, and with
+    // admin discards one; the palinode, a frozen submission, stays, and with
     // it the scratch vignette it names, out of force.
     func remove() {
       let id = (try? opened()) ?? ""
@@ -65,7 +65,7 @@ struct ToolOvertureTests {
         DELETE FROM locutions WHERE locutable_id = '\(id)';
         DELETE FROM tool_test_runs WHERE overture_id = '\(id)';
         DELETE FROM revisions WHERE revisable_id = '\(id)';
-        UPDATE vignette_overtures SET deleted_at = now(), deleted_by = '\(admin.username)' WHERE id = '\(id)';
+        UPDATE vignette_overtures SET discarded_at = now(), discarded_by = '\(admin.username)' WHERE id = '\(id)';
         """
       let named = (try? count("SELECT count(*) FROM vignette_palinodes WHERE tool_vignette_id = '\(vignette)'")) ?? "1"
       _ = try? TestAdmin.query(

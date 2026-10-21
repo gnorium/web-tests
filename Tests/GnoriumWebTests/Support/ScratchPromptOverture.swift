@@ -6,7 +6,7 @@ import Foundation
 /// ever permitted and no call is committed (no model is ever
 /// asked) and no prompt is put in force, so no activation row (append-only
 /// history) names it. `remove()` deletes its thread and its revisions and
-/// deletes the overture as an admin does (its row stays, closed); the
+/// discards the overture as an admin does (its row stays, closed); the
 /// palinode, a submission, is frozen and stays, under the throwaway
 /// account. A killed run's overture, opened by a web-tests account an hour
 /// ago and never permitted, is swept on the next `init`. One process holds
@@ -39,7 +39,7 @@ struct ScratchPromptOverture {
     let stale = """
       SELECT o.id FROM vignette_overtures o JOIN vignette_palinodes p ON p.id = o.vignette_palinode_id
         JOIN users u ON u.id = p.submitted_by_user_id
-      WHERE o.slot = '\(slot)' AND o.vignette_kind = 'prompt' AND o.permitted_at IS NULL AND o.deleted_at IS NULL
+      WHERE o.slot = '\(slot)' AND o.vignette_kind = 'prompt' AND o.permitted_at IS NULL AND o.discarded_at IS NULL
         AND u.username LIKE 'web\\_tests\\_%' AND o.created_at < now() - interval '1 hour'
       """
     _ = try TestAdmin.query(
@@ -47,13 +47,13 @@ struct ScratchPromptOverture {
       BEGIN;
       DELETE FROM locutions WHERE locutable_id IN (\(stale));
       DELETE FROM revisions WHERE revisable_id IN (\(stale));
-      UPDATE vignette_overtures SET deleted_at = now(), deleted_by = 'web-tests' WHERE id IN (\(stale));
+      UPDATE vignette_overtures SET discarded_at = now(), discarded_by = 'web-tests' WHERE id IN (\(stale));
       COMMIT;
       """)
     let open = try TestAdmin.query(
       """
       SELECT count(*) FROM vignette_overtures
-      WHERE slot = '\(slot)' AND vignette_kind = 'prompt' AND permitted_at IS NULL AND deleted_at IS NULL
+      WHERE slot = '\(slot)' AND vignette_kind = 'prompt' AND permitted_at IS NULL AND discarded_at IS NULL
       """)
     guard open.trimmingCharacters(in: .whitespacesAndNewlines) == "0" else { throw Occupied(slot: slot) }
     _ = try TestAdmin.query(
@@ -102,7 +102,7 @@ struct ScratchPromptOverture {
       BEGIN;
       DELETE FROM locutions WHERE locutable_id = '\(id)';
       DELETE FROM revisions WHERE revisable_id = '\(id)';
-      UPDATE vignette_overtures SET deleted_at = now(), deleted_by = '\(owner)' WHERE id = '\(id)' AND deleted_at IS NULL;
+      UPDATE vignette_overtures SET discarded_at = now(), discarded_by = '\(owner)' WHERE id = '\(id)' AND discarded_at IS NULL;
       COMMIT;
       """)
   }

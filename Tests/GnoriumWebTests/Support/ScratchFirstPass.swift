@@ -7,7 +7,7 @@ import Foundation
 /// of its own, no record yet. Owned by the test's account; every row by its
 /// own id, removed in the order the foreign keys allow—what a Permit of
 /// the overture made (the record, its lemma, its postulated version)
-/// included. The figurant is soft-deleted, as the site deletes one.
+/// included. The figurant is soft-discarded, as the site discards one.
 struct ScratchFirstPass {
   let work: ScratchWork
   let antiphonID: String
@@ -75,8 +75,8 @@ struct ScratchFirstPass {
       DELETE FROM lemmas WHERE citation_form = '\(title)';
       DELETE FROM locutions WHERE locutable_type = 'lexicographic_overture' AND locutable_id = '\(overtureID)';
       DELETE FROM lexicographic_overtures WHERE id = '\(overtureID)';
-      UPDATE lexicographic_figurants SET deleted_at = now(), deleted_by = '\(owner)'
-        WHERE id = '\(figurantID)' AND deleted_at IS NULL;
+      UPDATE lexicographic_figurants SET discarded_at = now(), discarded_by = '\(owner)'
+        WHERE id = '\(figurantID)' AND discarded_at IS NULL;
       \(SessionTrace.delete(table: "bibliographic_explication_nocturnes", where: "id='\(nocturneID)'"))
       DELETE FROM bibliographic_explication_nocturnes WHERE id = '\(nocturneID)';
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
