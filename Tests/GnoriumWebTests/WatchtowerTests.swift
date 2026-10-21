@@ -142,7 +142,7 @@ struct WatchtowerTests {
   /// - a machine's OBJECT figures (a quatrain, an antiphon, a serenade as a
   ///   whole) its header chip's marks: pending its pending ring (a
   ///   quatrain's dotted, an antiphon's plain, a serenade's disc), in
-  ///   flight its turning mark, submitted the blue check, failed the red
+  ///   flight its turning mark, submitted the blue mailbox, failed the red
   ///   cross (a failure the machine retries counts as pending: failed
   ///   always needs a person). A call's too, at its object's level: pending
   ///   that level still, running it turning, submitted the check, failed
@@ -152,7 +152,7 @@ struct WatchtowerTests {
   ///   madrigal's the ring, an epilogue's the disc), committed the blue
   ///   arrow right (a lexicographic epilogue's committed, on its verdict,
   ///   the disc), permitted the green stamp—the only green; a figurant's
-  ///   and a palinode's submitted the blue check; Arbitration's box's
+  ///   and a palinode's submitted the blue mailbox; Arbitration's box's
   ///   passed the blue check, its work done. Neither stale nor hidden is a figure.
   /// A turning mark always turns, at zero too (its computed animation is
   /// never none, outside reduced motion); a still one never does.
@@ -168,25 +168,30 @@ struct WatchtowerTests {
         let column: String
         let leads: Bool
         let animated: Bool
+        let animation: String
+        let gray: Bool
       }
       let figures = try await page.evaluate("""
         (() => {
           const kinds = ['rotating-dotted-ring-sector-view', 'rotating-ring-sector-with-disc-view',
             'rotating-ring-sector-view', 'rotating-sector-view', 'ringed-disc-icon-view', 'dotted-ring-view',
-            'ring-icon-view', 'disc-icon-view', 'check-icon-view', 'octagon-alert-icon-view', 'triangle-alert-icon-view',
-            'arrow-right-icon-view', 'stamp-icon-view']
+            'ring-icon-view', 'disc-icon-view', 'check-icon-view', 'mailbox-icon-view', 'octagon-alert-icon-view', 'triangle-alert-icon-view',
+            'gavel-icon-view', 'stamp-icon-view']
           const owner = figure => {
             const box = figure.closest('.watchtower-processes-view')
             const region = figure.closest('.live-region-view')?.id ?? ''
             if (box) return box.getAttribute('data-process') + (region.includes('arbitration') ? ':' + region : '')
             return region
           }
+          const probe = document.createElement('span'); document.body.append(probe)
+          probe.style.color = 'var(--color-subtle)'; const subtle = getComputedStyle(probe).color; probe.remove()
           return [...document.querySelectorAll('.watchtower-view .live-figure-body')].map(body => {
             const mark = body.querySelector('.live-figure-mark')
             const shape = mark && mark.firstElementChild
             const kind = shape ? (kinds.find(k => shape.classList.contains(k)) ?? shape.getAttribute('class')) : ''
             const animated = !!mark && [...mark.querySelectorAll('*')].some(e => getComputedStyle(e).animationName !== 'none')
-            return { owner: owner(body), text: body.querySelector('.live-figure-text').textContent.trim(),
+            const spin = mark ? [...mark.querySelectorAll('*')].map(e => getComputedStyle(e).animationName).find(n => n !== 'none') : undefined
+            return { owner: owner(body), animation: spin ?? 'none', gray: !!mark && getComputedStyle(mark).color === subtle, text: body.querySelector('.live-figure-text').textContent.trim(),
               mark: kind, color: mark?.getAttribute('data-color') ?? '',
               column: body.closest('.watchtower-figure-columns-column')?.getAttribute('data-tab') ?? '',
               leads: !!mark && body.firstElementChild === mark, animated }
@@ -243,7 +248,7 @@ struct WatchtowerTests {
             switch word {
             case "pending": wanted = level.still
             case "running": wanted = level.running
-            case "submitted": wanted = "check-icon-view"
+            case "submitted": wanted = "mailbox-icon-view"
             default: wanted = "octagon-alert-icon-view"; color = "red"
             }
             calls += 1
@@ -252,7 +257,7 @@ struct WatchtowerTests {
           switch word {
           case "pending": wanted = object.pending
           case object.word: wanted = object.inFlight
-          case "submitted": wanted = "check-icon-view"
+          case "submitted": wanted = "mailbox-icon-view"
           default: wanted = "octagon-alert-icon-view"; color = "red"
           }
           machines += 1
@@ -260,21 +265,26 @@ struct WatchtowerTests {
           let tab = figure.column
           switch word {
           case "pending": wanted = entry.value.pending
-          case "committed": wanted = entry.value.committed[tab] ?? "arrow-right-icon-view"
+          case "committed": wanted = entry.value.committed[tab] ?? "gavel-icon-view"
           default: wanted = "stamp-icon-view"; color = "green"
           }
           people += 1
         } else {
-          // A register's row (a figurant, a palinode): submitted, the blue check.
-          wanted = "check-icon-view"
+          // A register's row (a figurant, a palinode): submitted, the blue mailbox.
+          wanted = "mailbox-icon-view"
           people += 1
         }
         #expect(figure.leads, "\(figure.owner) \(figure.text): its mark leads its words")
         #expect(figure.mark == wanted, "\(figure.owner) \(figure.text): \(figure.mark), not \(wanted)")
+        // The data-color stays the status color; only the painted color goes quiet.
         #expect(figure.color == color, "\(figure.owner) \(figure.text): \(figure.color), not \(color)")
-        // A running mark always turns: its computed animation is never
-        // none, at zero too (user, 2026-10-21).
-        #expect(figure.animated == turns, "\(figure.owner) \(figure.text) (\(count)): animated \(figure.animated)")
+        // At zero the mark is gray, as quiet as its label, and a turning
+        // mark stands still (animation-name none); above zero it wears its
+        // color and a turning mark's animation-name is its spin
+        // (user, 2026-10-21).
+        #expect(figure.gray == (count == 0), "\(figure.owner) \(figure.text): gray \(figure.gray) at \(count)")
+        #expect(figure.animated == (turns && count > 0), "\(figure.owner) \(figure.text) (\(count)): animated \(figure.animated)")
+        #expect((figure.animation == "none") == !(turns && count > 0), "\(figure.owner) \(figure.text): animation-name \(figure.animation)")
       }
       // Three processes and three machines, four statuses on both sides.
       #expect(processes == 24 && machines == 24, "\(processes) process figures, \(machines) object figures")
