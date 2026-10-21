@@ -11,7 +11,10 @@ import WebTestsTesting
 /// quote—and Submit files a lexicographic palinode, frozen (submitted: no
 /// Revise, no Permit, no thread), and creates its overture (user,
 /// 2026-10-22), whose page says what it removes, offers Revise, and for an
-/// admin Permit. A refused Submit
+/// admin Permit. An amendment is about ONE sentiment (user, 2026-10-22), as
+/// a biblio-record's is about one testament: the first change makes that
+/// sentiment the amendment's and the others freeze, grey and inert, with
+/// their handles disabled and a hint saying why; undone, they open again. A refused Submit
 /// draws the form again with everything posted and why, never the error
 /// page. Phone and desktop, nothing scrolling sideways. A throwaway admin
 /// owns a scratch word, removed after with the overture it created (its
@@ -62,6 +65,13 @@ struct LexicographicAmendmentTests {
         try await expect(remove).toHaveText("Sentiment 1.")
         try await expect(remove).toHaveAttribute("aria-label", "Remove Sentiment 1.")
         try await expect(restore).toBeHidden()
+        // Nothing changed yet: every sentiment is open, no hint shown, and
+        // none is the amendment's.
+        let branch = outline.locator(".outliner-item[data-outliner-id='s-1']")
+        try await expect(branch).toHaveAttribute("data-sentiment-frozen", "false")
+        try await expect(item).toHaveAttribute("data-sentiment-frozen", "false")
+        try await expect(outline.locator(".sentiment-outliner-hint[data-visible='true']")).toHaveCount(0)
+        try await expect(outline.locator("input[name='sentiment-chosen']")).toHaveValue("")
         // One new sentiment, its fields always drawn.
         try await expect(form.locator("[name='new-sentiment-definition']")).toHaveCount(1)
         try await expect(form.locator("[name='new-sentiment-source-url']")).toHaveCount(1)
@@ -83,6 +93,16 @@ struct LexicographicAmendmentTests {
         try await expect(leaf.locator("input[name$='-remove']")).toHaveValue("true")
         let shape = try await outline.locator("input[name='sentiment-shape']").inputValue()
         #expect(!shape.contains("\"s-1-1\""), "\(shape)")
+        // The removed sentiment is the amendment's one: it is chosen, the
+        // others freeze (their fields, merge, split, removal and handle
+        // stop, the new sentiment's fields too) and the hint says why.
+        try await expect(item).toHaveAttribute("data-sentiment-chosen", "true")
+        try await expect(outline.locator("input[name='sentiment-chosen']")).toHaveValue("s-1-1")
+        try await expect(branch).toHaveAttribute("data-sentiment-frozen", "true")
+        try await expect(branch.locator(".outliner-handle").first).toBeDisabled()
+        try await expect(outline.locator(".sentiment-outliner-hint[data-hint='edit']")).toHaveAttribute(
+          "data-visible", "true")
+        try await expect(form.locator(".submit-lexicographic-amendment-new")).toHaveAttribute("inert", "")
         try await expect(restore).toBeVisible()
         try await expect(restore).toHaveText("Sentiment 1.")
         try await expect(restore).toHaveAttribute("aria-label", "Restore Sentiment 1.")
@@ -91,6 +111,9 @@ struct LexicographicAmendmentTests {
         try await expect(item).not.toHaveAttribute("data-outline-state", "removed")
         try await expect(leaf.locator("input[name$='-remove']")).toHaveValue("")
         try await expect(remove).toBeVisible()
+        // Undone, every sentiment is open again.
+        try await expect(branch).toHaveAttribute("data-sentiment-frozen", "false")
+        try await expect(form.locator(".submit-lexicographic-amendment-new")).not.toHaveAttribute("inert", "")
 
         // The leaf removed, Submit: its overture's page.
         try await remove.click()
@@ -164,13 +187,14 @@ struct LexicographicAmendmentTests {
         let definition = form.locator("textarea[name='new-sentiment-definition']")
         let quote = form.locator("textarea[name='new-sentiment-quote']")
 
-        // The leaf removed, a new sentiment with its quote but no image
-        // nor Source URL.
-        try await leaf.locator(".sentiment-outliner-remove").click()
-        try await dialog.locator(".dialog-primary-button button").click()
-        try await expect(item).toHaveAttribute("data-outline-state", "removed")
+        // A new sentiment with its quote but no image nor Source URL: it is
+        // the amendment's one sentiment, and the others freeze.
         try await definition.fill("A slope beside water.")
         try await quote.fill("upon the bank, \"where the wild thyme\" grows")
+        try await expect(item).toHaveAttribute("data-sentiment-frozen", "true")
+        try await expect(outline.locator(".sentiment-outliner-hint[data-hint='add']")).toHaveAttribute(
+          "data-visible", "true")
+        try await expect(leaf.locator(".sentiment-outliner-actions")).toHaveAttribute("inert", "")
         try await form.locator(".record-actions button[type='submit']").click()
 
         // The form again, at the address it posts to, saying why above
@@ -192,20 +216,22 @@ struct LexicographicAmendmentTests {
         // Everything as it was posted.
         try await expect(definition).toHaveValue("A slope beside water.")
         try await expect(quote).toHaveValue("upon the bank, \"where the wild thyme\" grows")
-        try await expect(item).toHaveAttribute("data-outline-state", "removed")
-        try await expect(leaf.locator("input[name$='-remove']")).toHaveValue("true")
-        try await expect(leaf.locator(".sentiment-outliner-restore")).toBeVisible()
-        let shape = try await outline.locator("input[name='sentiment-shape']").inputValue()
-        #expect(!shape.contains("\"s-1-1\""), "\(shape)")
+        try await expect(leaf.locator("input[name$='-remove']")).toHaveValue("")
+        try await expect(item).toHaveAttribute("data-sentiment-frozen", "true")
         let filed = try TestAdmin.query(
           "SELECT count(*) FROM lexicographic_palinodes WHERE lexico_record_id = '\(record)'")
         #expect(filed.trimmingCharacters(in: .whitespacesAndNewlines) == "0", "nothing refused is filed")
         try await page.expectNoErrors(ignoring: ["status of 422"])
         try await page.expectNoHorizontalOverflow()
 
-        // Corrected—the new sentiment left out—it files.
+        // Corrected—the new sentiment left out, so every sentiment is open
+        // again, and a leaf removed instead—it files.
         try await definition.fill("")
         try await quote.fill("")
+        try await expect(item).toHaveAttribute("data-sentiment-frozen", "false")
+        try await leaf.locator(".sentiment-outliner-remove").click()
+        try await dialog.locator(".dialog-primary-button button").click()
+        try await expect(item).toHaveAttribute("data-outline-state", "removed")
         try await page.locator("form.submit-lexicographic-amendment-form .record-actions button[type='submit']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the overture's page") {
           $0.path.hasPrefix("/mission-control/overtures/lexicographic/amendments/")
