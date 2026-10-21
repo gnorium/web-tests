@@ -58,7 +58,7 @@ struct TestAdmin: Sendable {
     // its password can't be deleted through the site, so it stays; so does
     // one with a locution, which can't stand without its author).
     try runSQL(
-      "DELETE FROM users WHERE username LIKE 'web\\_tests\\_%' AND email LIKE 'web\\_tests\\_%@gnorium.test' AND created_at < now() - interval '1 hour' AND NOT EXISTS (SELECT 1 FROM event_logs WHERE event_logs.user_id = users.id) AND NOT EXISTS (SELECT 1 FROM submissions WHERE submissions.user_id = users.id) AND NOT EXISTS (SELECT 1 FROM prompt_vignettes WHERE prompt_vignettes.committed_by_user_id = users.id) AND NOT EXISTS (SELECT 1 FROM locutions WHERE locutions.author_id = users.id);"
+      "DELETE FROM users WHERE username LIKE 'web\\_tests\\_%' AND email LIKE 'web\\_tests\\_%@gnorium.test' AND created_at < now() - interval '1 hour' AND NOT EXISTS (SELECT 1 FROM event_logs WHERE event_logs.user_id = users.id) AND NOT EXISTS (SELECT 1 FROM submissions WHERE submissions.user_id = users.id) AND NOT EXISTS (SELECT 1 FROM prompt_vignettes WHERE prompt_vignettes.committed_by_user_id = users.id) AND NOT EXISTS (SELECT 1 FROM locutions WHERE locutions.author_id = users.id) AND NOT EXISTS (SELECT 1 FROM vignette_palinodes WHERE vignette_palinodes.submitted_by_user_id = users.id);"
     )
     let suffix = randomHex(bytes: 5)
     // The username rule: 3–20 lowercase letters, digits and underscores.
@@ -148,8 +148,10 @@ struct TestAdmin: Sendable {
   }
 
   /// This throwaway account's own row, while it is live (it has its email).
+  /// An account that submitted a palinode stays: a palinode is frozen and
+  /// can't stand without its submitter.
   private static func deleteStatement(_ username: String) -> String {
-    "DELETE FROM users WHERE username = '\(username)' AND email = '\(username)@gnorium.test';"
+    "DELETE FROM users WHERE username = '\(username)' AND email = '\(username)@gnorium.test' AND NOT EXISTS (SELECT 1 FROM vignette_palinodes WHERE vignette_palinodes.submitted_by_user_id = users.id);"
   }
 
   /// A new sign-in over HTTP, as its cookie: another session row of this
