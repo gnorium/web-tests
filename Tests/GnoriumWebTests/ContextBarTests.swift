@@ -176,7 +176,7 @@ struct ContextBarTests {
         #expect(
           try await page.evaluate(
             "document.querySelector('.computorium-session-view').dataset.contextUsage", as: String.self)
-            == "67063 1048576 68263 50000 1145 632 1200 900 3100 2048 12000 500 41000 3000 0 3315")
+            == "67063 1048576 68263 50000 1145 632 1200 3100 900 2048 12000 500 41000 3000 0 3315")
         try await page.expectNoErrors()
       }
     } catch {
