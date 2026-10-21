@@ -229,8 +229,15 @@ struct ToolOvertureTests {
         let amend = page.locator(".tool-details-amend button[type='submit']")
         try await expect(amend).toHaveText("Submit Amendment")
         try await amend.click()
-        try await expect(page.locator(".tool-details-amend .alert-content")).toHaveText("Sign in to submit an amendment.")
-        #expect(URL(string: try await page.url())?.path.lowercased() == "/mission-control/tools/vignettes/\(vignette)")
+        // The Amend form opens for a reader who is signed out; its Submit
+        // says signing in is needed and files nothing.
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the Amend form, signed out") {
+          $0.path.lowercased() == "/mission-control/tools/vignettes/\(vignette)/amend"
+        }
+        try await page.locator("#amend-vignette-form button[type='submit']").click()
+        try await expect(page.locator(".action-gate-view .alert-content")).toContainText("Signing in is needed")
+        try await expect(page.locator(".action-gate-view .action-gate-alert a")).toHaveAttribute("target", "_blank")
+        #expect(URL(string: try await page.url())?.path.lowercased() == "/mission-control/tools/vignettes/\(vignette)/amend")
       }
     } catch {
       remove()

@@ -247,8 +247,14 @@ struct LexicographicAmendmentTests {
 
   /// Signed out, the amendment page asks for a sign-in, as the
   /// biblio-record's does.
+  /// The form is open to a reader who is signed out (user, 2026-10-22): they
+  /// fill it in, its Submit posts nothing and says signing in is needed with
+  /// a link that opens in a new tab, what they typed is kept in
+  /// `localStorage`, and once they sign in in another tab the page lets
+  /// Submit through when they return to it, no reload. `/auth/status` says
+  /// only whether the session is signed in.
   @Test(arguments: [BrowserEngine.chrome])
-  func theAmendmentPageIsASignedInReaders(engine: BrowserEngine) async throws {
+  func theAmendmentFormIsOpenToASignedOutReaderWhoSignsInElsewhere(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -256,7 +262,38 @@ struct LexicographicAmendmentTests {
     defer { word.remove() }
     try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine)) { page in
       let result = try await page.goto("\(word.path)/amendments/new")
-      #expect(result.status == 401, "signed out: \(String(describing: result.status))")
+      #expect(result.status == 200, "signed out: \(String(describing: result.status))")
+      try await page.openHydrated("\(word.path)/amendments/new")
+      try await expect(page.locator("form.submit-lexicographic-amendment-form")).toHaveCount(1)
+      let status = try await page.evaluate(
+        "fetch('/auth/status').then(async (r) => r.headers.get('cache-control') + ' ' + (await r.text()))")
+      #expect(status.string == "no-store {\"signedIn\":false}", "status: \(String(describing: status.string))")
+      // Typed in, kept.
+      _ = try await page.evaluate(
+        """
+        (() => {
+          const field = document.querySelector("main input[name][type='text'], main textarea[name]");
+          field.value = 'kept';
+          field.dispatchEvent(new Event('input', { bubbles: true }));
+        })()
+        """)
+      try await Task.sleep(for: .milliseconds(800))
+      let kept = try await page.evaluate("localStorage.getItem('gnorium:draft:' + location.pathname)")
+      #expect(kept.string?.contains("kept") == true, "the draft is kept")
+      // Submit posts nothing: the alert says so, with a link to a new tab.
+      let gate = page.locator(".action-gate-view .action-gate-alert[data-gate-sign-in='true']")
+      try await expect(gate).toBeHidden()
+      try await page.locator(".action-gate-view button[type='submit']").click()
+      try await expect(gate).toBeVisible()
+      try await expect(gate.locator("a")).toHaveAttribute("target", "_blank")
+      try await expect(gate.locator("a")).toHaveAttribute("rel", "noopener")
+      let href = try await gate.locator("a").getAttribute("href")
+      #expect(href?.hasPrefix("/auth/sign-in?next=") == true, "sign-in comes back here: \(String(describing: href))")
+      #expect(URL(string: try await page.url())?.path == "\(word.path)/amendments/new")
+      // Signed in in another tab: back on this one, the notice goes.
+      try await page.setCookie(name: admin.cookie.name, value: admin.cookie.value)
+      _ = try await page.evaluate("window.dispatchEvent(new Event('focus'))")
+      try await expect(gate).toHaveCount(0)
     }
     try await admin.remove()
   }

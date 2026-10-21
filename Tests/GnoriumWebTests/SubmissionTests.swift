@@ -467,9 +467,16 @@ struct SubmissionTests {
       }
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(work.path)
+        // Signed out, the amendment's form opens all the same (user,
+        // 2026-10-22); only its Submit needs a person.
         try await page.locator(".record-actions a").filter(hasText: "Submit Amendment").click()
-        try await expect(page.locator(".record-actions .alert-content")).toHaveText("Sign in to submit an amendment.")
-        #expect(URL(string: try await page.url())?.path == work.path)
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the record's amendment, signed out") {
+          $0.path == "\(work.path)/amendments/new"
+        }
+        try await expect(page.locator(".testament-outliner-view")).toHaveCount(1)
+        try await page.locator(".action-gate-view button[type='submit']").click()
+        try await expect(page.locator(".action-gate-view .alert-content")).toContainText("Signing in is needed")
+        #expect(URL(string: try await page.url())?.path == "\(work.path)/amendments/new")
         try await page.openHydrated(Self.sentimentForm)
         // The gate's alert is drawn with the page, hidden until its action
         // is pressed (`ActionGateView`, user 2026-10-16): not shown yet.
@@ -477,8 +484,10 @@ struct SubmissionTests {
         try await expect(gate).toBeHidden()
         try await page.locator(".record-actions button[type='submit']").click()
         try await expect(gate).toBeVisible()
-        try await expect(page.locator(".record-actions .alert-content")).toHaveText("Sign in to submit a sentiment.")
+        try await expect(page.locator(".record-actions .alert-content")).toContainText("Signing in is needed to file this sentiment.")
         #expect(URL(string: try await page.url())?.path == Self.sentimentForm)
+        // Its link opens sign-in in a new tab, back to this form.
+        try await expect(page.locator(".record-actions .action-gate-alert a")).toHaveAttribute("target", "_blank")
       }
     } catch {
       word.remove()
