@@ -394,7 +394,8 @@ struct ArbitrationTests {
         // output; embedded alone and read-only, no pager, no re-run and no
         // header, and no row of controls of its own. The reply's controls
         // are one row, as a person's locution's (user, 2026-10-17): the
-        // reaction picker, its session's Raw, Replay, then one ⓘ with the
+        // reaction picker, its session's Raw, Replay and its speed (user,
+        // 2026-10-21), then one ⓘ with the
         // model and when; no Raw of the locution's own. The page image in
         // the task prompt as the model received it.
         try await expect(session.locator(".computorium-session-output")).toHaveCount(1)
@@ -414,6 +415,7 @@ struct ArbitrationTests {
             const kinds = parts.map(e => e.classList.contains('reaction-picker-view') ? 'picker'
               : e.classList.contains('computorium-session-markdown-toggle') ? 'raw'
               : e.classList.contains('replay-btn') ? 'replay'
+              : e.classList.contains('replay-speed-view') ? 'speed'
               : e.classList.contains('reactions-when') ? 'info' : 'other').join(' ')
             // One flex row: every control's middle on one line.
             // The picker draws as its contents (display: contents): its button's box.
@@ -422,7 +424,7 @@ struct ArbitrationTests {
             const oneLine = middles.every(m => Math.abs(m - middles[0]) <= 1)
             return kinds + (getComputedStyle(row).display === 'flex' && oneLine ? ' one-row' : ' split ' + JSON.stringify(middles)) }
           """).string
-        #expect(row == "picker raw replay info one-row", Comment(rawValue: row ?? "—"))
+        #expect(row == "picker raw replay speed info one-row", Comment(rawValue: row ?? "—"))
         // Replay brings the page to the stream's end, where its tokens
         // appear, and follows it there (user, 2026-10-17): the reader starts
         // where the reply's transcript end is out of view.
@@ -466,6 +468,9 @@ struct ArbitrationTests {
           "The chip said Arbitrating during the replay")
         try await expect(chip.locator(".info-chip-text"), timeout: .seconds(15)).toHaveText("Pending")
         try await expect(chip.locator(".rotating-sector-view")).toHaveCount(0)
+        // Replay's speed (user, 2026-10-21): the recorded waits divided by
+        // it, changed mid-replay at once, the viewer's choice kept.
+        try await expectReplaySpeed(page, path: reading.path, replyID: replyID)
         // The page image in the task prompt as the model received it (user,
         // 2026-10-17): one stage at the message's whole width, zoomed in
         // place—no chip, thumbnail, name or lightbox, no loose lines under
@@ -752,6 +757,93 @@ struct ArbitrationTests {
     // The madrigal's own state again: Pending, its verdict to come.
     try await expect(chip).toHaveText("Pending")
     try await expect(page.locator(".disputorium-core-header-status-chip .rotating-sector-view")).toHaveCount(0)
+  }
+
+  /// Replay's speed (user, 2026-10-21) on the reply's replay, its stream
+  /// the test's stand-in (at `#pace-test`): frames recorded 0, 4 and 12
+  /// seconds in. At 2× the second shows 2s after the first; switched to 4×
+  /// as it shows, the third 2s after it (8s left at 4×, not 4s at 2×). The
+  /// group is "Replay speed", its buttons 1×, 2× and 4× pressed by
+  /// aria-pressed; the last choice is kept across a reload, then set back
+  /// to 1×, and the page left as freshly loaded.
+  func expectReplaySpeed(_ page: Page, path: String, replyID: String) async throws {
+    let reply = "#locution-\(replyID.uppercased())"
+    try await page.addInitScript("""
+      if (location.hash === '#pace-test') {
+        const Real = window.EventSource
+        window.EventSource = class {
+          // The reply's replay only; any other stream stays the real one.
+          constructor(url, options) {
+            if (!String(url).includes('replay=1')) return new Real(url, options)
+            this.handlers = {}
+            setTimeout(() => {
+              const image = document.querySelector('\(reply) .computorium-session-view').dataset.computoriumSessionImage ?? ''
+              const frame = (at, fields) => this.emit('chunk', JSON.stringify({ replay_at: String(at), image, image_index: -1, ...fields }))
+              this.emit('start', '{"replay":true,"process":"arbitration"}')
+              // Every frame at once, as the server sends a replay's.
+              frame(0, { type: 'reset', text: '', reset: '1' })
+              frame(0, { type: 'text', text: 'Pace one.', reset: '1' })
+              frame(4000, { type: 'text', text: ' Pace two.', append: '1' })
+              frame(12000, { type: 'text', text: ' Pace three.', append: '1' })
+              frame(12000, { type: 'status', text: 'succeeded', message: '' })
+              this.emit('done', '{"status":"passed","error":"","message":"","replayed":"true"}')
+            }, 0)
+          }
+          addEventListener(name, fn) { (this.handlers[name] ??= []).push(fn) }
+          emit(name, data) { for (const fn of this.handlers[name] ?? []) fn({ data }) }
+          close() {}
+        }
+      }
+      """)
+    try await page.openHydrated(path + "?pace=1#pace-test")
+    let group = page.locator("\(reply) .replay-speed-view")
+    try await expect(group).toHaveCount(1)
+    try await expect(group).toHaveAttribute("role", "group")
+    try await expect(group).toHaveAttribute("aria-label", "Replay speed")
+    let buttons = group.locator(".toggle-button-group-button")
+    #expect(try await buttons.allTextContents().map { $0.trimmingCharacters(in: .whitespacesAndNewlines) } == ["1×", "2×", "4×"])
+    try await expect(buttons.nth(0)).toHaveAttribute("aria-pressed", "true")
+    // Chosen before the replay.
+    try await buttons.nth(1).click()
+    try await expect(buttons.nth(1)).toHaveAttribute("aria-pressed", "true")
+    try await expect(buttons.nth(0)).toHaveAttribute("aria-pressed", "false")
+    // When each frame shows; 4× pressed the moment the second does.
+    _ = try await page.evaluate("""
+      (() => { const content = document.querySelector('\(reply) .computorium-session-view')
+        window.__paced = {}
+        new MutationObserver(() => {
+          const text = content.textContent
+          for (const word of ['one', 'two', 'three'])
+            if (text.includes('Pace ' + word + '.') && !window.__paced[word]) {
+              window.__paced[word] = performance.now()
+              if (word === 'two') document.querySelector('\(reply) .replay-speed-view [data-value="4"]').click()
+            }
+        }).observe(content, { childList: true, subtree: true, characterData: true })
+        return true })()
+      """, as: Bool.self)
+    _ = try await page.locator("\(reply) .replay-btn").evaluate("el => el.click()")
+    try await expect(page.locator("\(reply) .computorium-session-view"), timeout: .seconds(20))
+      .toContainText("Pace three.")
+    let gaps = try await page.evaluate("""
+      [window.__paced.two - window.__paced.one, window.__paced.three - window.__paced.two].map(Math.round).join(' ')
+      """, as: String.self)
+    let ms = gaps.split(separator: " ").compactMap { Int($0) }
+    #expect(ms.count == 2 && (1500...3200).contains(ms[0]),
+      "At 2× a 4s recorded wait takes 2s, not 4s: \(gaps)")
+    #expect(ms.count == 2 && (1500...3200).contains(ms[1]),
+      "Switched to 4× mid-replay, the 8s left take 2s, not 4s at 2×: \(gaps)")
+    try await expect(buttons.nth(2)).toHaveAttribute("aria-pressed", "true")
+    // The replay ends where its frames end, the done held until then.
+    try await expect(page.locator("\(reply) .computorium-session-view"))
+      .toHaveAttribute("data-computorium-session-status", "succeeded")
+    // The viewer's last choice, kept; set back to 1× for what follows.
+    try await page.openHydrated(path)
+    try await expect(buttons.nth(2)).toHaveAttribute("aria-pressed", "true")
+    try await expect(buttons.nth(0)).toHaveAttribute("aria-pressed", "false")
+    try await buttons.nth(0).click()
+    try await expect(buttons.nth(0)).toHaveAttribute("aria-pressed", "true")
+    #expect(try await page.evaluate("localStorage.getItem('gnorium:replay-speed')", as: String.self) == "1")
+    try await page.openHydrated(path)
   }
 
   /// The madrigal page, its arbitration session running, its reply's watch
