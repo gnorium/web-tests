@@ -150,11 +150,11 @@ struct ToolCardFieldsTests {
               && getComputedStyle(chip.querySelector('.info-chip-text') || chip).color === green
           })()
           """, as: Bool.self), "The Submitted chip is green")
-        // The tools the model is offered go with every request, and the
-        // trace records them before each model call: a Tools card where
-        // each was recorded, before each round (user, 2026-10-10).
+        // The tools go with every request, but the chat template writes
+        // them once, into the system turn: the trace's three identical sets
+        // draw one card, never one per round (user, 2026-10-21).
         let tools = session.locator(".computorium-session-tools")
-        try await expect(tools).toHaveCount(3)
+        try await expect(tools).toHaveCount(1)
         // Its name, then its JSON switch at the header's end, as a tool
         // call's card (user, 2026-10-16: 378b642a0).
         try await expect(tools.first.locator(".accordion-title .computorium-session-tools-name")).toHaveText("Tools")

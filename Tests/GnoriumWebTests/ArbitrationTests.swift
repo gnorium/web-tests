@@ -538,11 +538,11 @@ struct ArbitrationTests {
         try await raw.click()
         try await expect(session).toHaveAttribute("data-raw-view", "false")
         try await expect(received).toBeVisible()
-        // The tools offered, where the trace recorded them, before each
-        // model call: the thinking's, and the reply's after the call
-        // (user, 2026-10-10).
+        // The tools offered: once, as the chat template writes them into
+        // the system turn, though both model calls sent them (user,
+        // 2026-10-21).
         let tools = session.locator(".computorium-session-tools")
-        try await expect(tools).toHaveCount(2)
+        try await expect(tools).toHaveCount(1)
         try await tools.first.locator(".accordion-summary").first.click()
         try await expect(tools.first).toContainText("Read the exact human Revise fields and attached evidence.")
         let tool = session.locator("#computorium-session-tool-arbitration_read")
