@@ -906,7 +906,8 @@ struct ArbitrationTests {
     try await expect(slider).toHaveAttribute("aria-label", "Replay position")
     try await expect(slider).toHaveAttribute("aria-valuemax", "120000")
     try await expect(slider.locator(".slider-tick")).toHaveCount(1)
-    try await expect(toggle).toHaveText("Pause")
+    try await expect(toggle).toHaveAttribute("aria-label", "Pause")
+    try await expect(toggle.locator("svg.pause-icon-view")).toHaveCount(1)
     try await expect(time).toContainText(" / 2:00")
     try await expect(time).toContainText("0:0")
     try await expect(session).toContainText("Seek one.")
@@ -929,7 +930,9 @@ struct ArbitrationTests {
     try await expect(time).toContainText("0:0")
     // Pause holds it where it stands.
     try await toggle.click()
-    try await expect(toggle).toHaveText("Play")
+    try await expect(toggle).toHaveAttribute("aria-label", "Play")
+    try await expect(toggle.locator("svg.play-icon-view")).toHaveCount(1)
+    try await expect(toggle.locator("svg.pause-icon-view")).toHaveCount(0)
     let held = try await slider.getAttribute("aria-valuenow") ?? ""
     try await Task.sleep(for: .milliseconds(800))
     #expect(try await slider.getAttribute("aria-valuenow") == held, "Paused, the position holds")
@@ -943,7 +946,7 @@ struct ArbitrationTests {
     try await expect(session).not.toContainText("Seek three.")
     let clicked = Int(try await slider.getAttribute("aria-valuenow") ?? "") ?? 0
     #expect((86000...94000).contains(clicked), "The track's 3/4 is 90s: \(clicked)")
-    try await expect(toggle).toHaveText("Play")
+    try await expect(toggle).toHaveAttribute("aria-label", "Play")
     // At 4×, from 115s: the last frame 5 recorded seconds on, about 1.25s.
     _ = try await page.locator("\(reply) .replay-speed-view [data-value='4']").evaluate("el => el.click()")
     try await slider.focus()
@@ -959,17 +962,17 @@ struct ArbitrationTests {
         return true })()
       """, as: Bool.self)
     try await toggle.click()
-    try await expect(toggle).toHaveText("Pause")
+    try await expect(toggle).toHaveAttribute("aria-label", "Pause")
     try await expect(session, timeout: .seconds(10)).toContainText("Seek three.")
     let waited = try await page.evaluate("Math.round(window.__soughtShown - window.__soughtFrom)", as: Int.self)
     #expect((700...3500).contains(waited), "5 recorded seconds at 4× take about 1.25s, not 5s: \(waited)ms")
     // The end: its status, the clock full, Play to start over.
     try await expect(session).toHaveAttribute("data-computorium-session-status", "succeeded")
     try await expect(time).toHaveText("2:00 / 2:00")
-    try await expect(toggle).toHaveText("Play")
+    try await expect(toggle).toHaveAttribute("aria-label", "Play")
     try await expect(seek).toBeVisible()
     try await toggle.click()
-    try await expect(toggle).toHaveText("Pause")
+    try await expect(toggle).toHaveAttribute("aria-label", "Pause")
     try await expect(session).not.toContainText("Seek two.")
     try await expect(session).toContainText("Seek one.")
     // 1× again for what follows, and the page as freshly loaded.
