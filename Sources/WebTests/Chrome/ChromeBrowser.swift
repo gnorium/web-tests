@@ -21,17 +21,45 @@ public final class ChromeBrowser: BrowserDriver, @unchecked Sendable {
     "\(NSHomeDirectory())/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
   ]
 
+  /// Chrome's headless shell, newest first: Chrome for Testing's (as
+  /// Puppeteer installs it), then Playwright's build of it.
+  ///
+  /// Headless runs prefer it to the app. Every launch of Google Chrome.app
+  /// clones the app bundle into the temporary folder
+  /// (`X/com.google.Chrome.code_sign_clone`) and removes the clone only when
+  /// Chrome quits on its own: a run that ends in a signal leaves a full copy
+  /// of Chrome behind. The shell is a bare binary and makes no clone.
+  public static func headlessShellPaths() -> [String] {
+    let fileManager = FileManager.default
+    let home = NSHomeDirectory()
+    let roots = [
+      ("\(home)/.cache/puppeteer/chrome-headless-shell", ""),
+      ("\(home)/Library/Caches/ms-playwright", "chromium_headless_shell-"),
+    ]
+    return roots.flatMap { root, prefix -> [String] in
+      let versions = ((try? fileManager.contentsOfDirectory(atPath: root)) ?? [])
+        .filter { prefix.isEmpty || $0.hasPrefix(prefix) }
+        .sorted { $0.compare($1, options: .numeric) == .orderedDescending }
+      return versions.flatMap { version -> [String] in
+        let directory = "\(root)/\(version)"
+        return ((try? fileManager.contentsOfDirectory(atPath: directory)) ?? [])
+          .filter { $0.hasPrefix("chrome-headless-shell-") }
+          .map { "\(directory)/\($0)/chrome-headless-shell" }
+      }
+    }
+  }
+
   /// Launches Chrome.
   ///
   /// - Parameters:
-  ///   - executablePath: The Chrome binary; the installed app when nil.
-  ///   - headless: Run without a window (`--headless=new`, Chrome's own
-  ///     browser, not the old headless shell).
+  ///   - executablePath: The Chrome binary; when nil, the headless shell
+  ///     for a headless run if one is installed, else the installed app.
+  ///   - headless: Run without a window. The app runs as `--headless=new`;
+  ///     the headless shell has no window to hide.
   public static func launch(executablePath: String? = nil, headless: Bool = true) async throws -> ChromeBrowser {
     let fileManager = FileManager.default
-    guard let executable = ([executablePath].compactMap { $0 } + defaultExecutablePaths)
-      .first(where: { fileManager.isExecutableFile(atPath: $0) })
-    else {
+    let candidates = [executablePath].compactMap { $0 } + (headless ? headlessShellPaths() : []) + defaultExecutablePaths
+    guard let executable = candidates.first(where: { fileManager.isExecutableFile(atPath: $0) }) else {
       throw BrowserUnavailable(
         engine: .chrome, reason: "Google Chrome is not installed in /Applications (set WEB_TESTS_CHROME to its binary).")
     }
@@ -61,7 +89,8 @@ public final class ChromeBrowser: BrowserDriver, @unchecked Sendable {
       "--mute-audio",
       "--window-size=1400,900",
     ]
-    if headless { arguments.append("--headless=new") }
+    let isHeadlessShell = URL(fileURLWithPath: executable).lastPathComponent == "chrome-headless-shell"
+    if headless && !isHeadlessShell { arguments.append("--headless=new") }
     arguments.append("about:blank")
 
     let process = Process()
@@ -134,9 +163,26 @@ public final class ChromeBrowser: BrowserDriver, @unchecked Sendable {
     closeSynchronously()
   }
 
-  /// Ends the process and removes the profile without waiting on anything
-  /// async: what an exit handler can still do.
+  /// Ends the process and removes the profile, blocking: what an exit
+  /// handler can still do. Chrome is first asked to quit (`Browser.close`),
+  /// as only a Chrome that quits on its own removes its app clone; a signal
+  /// is the fallback.
   func closeSynchronously() {
+    let unclosed = closed.withLock { closed in
+      defer { closed = true }
+      return !closed
+    }
+    if unclosed && process.isRunning {
+      let asked = DispatchSemaphore(value: 0)
+      Task.detached { [connection] in
+        _ = try? await connection.send("Browser.close", timeout: .seconds(3))
+        asked.signal()
+      }
+      _ = asked.wait(timeout: .now() + 4)
+      connection.close()
+      let deadline = Date().addingTimeInterval(5)
+      while process.isRunning && Date() < deadline { usleep(20_000) }
+    }
     if process.isRunning {
       process.terminate()
       let deadline = Date().addingTimeInterval(3)

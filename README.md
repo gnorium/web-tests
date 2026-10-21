@@ -138,7 +138,7 @@ WEB_TESTS_HEADED=1 swift test               # watch Chrome work
 |---|---|
 | `<PREFIX>_BASE_URL` | where relative URLs point (for Gnorium, `GNORIUM_BASE_URL`, default `http://localhost:8080`) |
 | `BROWSERS` | `chrome`, `safari` or `chrome,safari` (the default) |
-| `WEB_TESTS_CHROME` | another Chrome binary |
+| `WEB_TESTS_CHROME` | another Chrome binary (headless runs otherwise prefer an installed `chrome-headless-shell`, which leaves no app clone in the temporary folder; `npx @puppeteer/browsers install chrome-headless-shell@stable --path ~/.cache/puppeteer` installs one) |
 | `WEB_TESTS_HEADED` | `1` shows Chrome's window |
 | `WEB_TESTS_ARTIFACTS` | where failure artifacts go |
 
