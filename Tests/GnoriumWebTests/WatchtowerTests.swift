@@ -3,12 +3,12 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// The Watchtower on the home page links each permitted status to the
-/// records it shows, and that page's filter names the same status.
+/// The Watchtower on the home page links each permitted record-vignette
+/// figure to the records it shows, and that page's filter names the same status.
 @Suite("Watchtower")
 struct WatchtowerTests {
   /// The Watchtower's links into the public records.
-  static let permitLinks = "a.watchtower-routes-name[href*='-records?']"
+  static let permitLinks = "a.live-figure-body[href*='-records?']"
 
   @Test(arguments: gnorium.engines)
   func permitLinksOpenMatchingFilters(engine: BrowserEngine) async throws {
@@ -39,6 +39,26 @@ struct WatchtowerTests {
         try await expect(selected).not.toHaveText("")
         let shown = try await selected.textContent()
         #expect(shown.lowercased().contains(status), "\(phrase): the filter reads \(shown), not \(status)")
+      }
+    }
+  }
+
+  /// A Permit's record vignettes are figures, a pair a level (user,
+  /// 2026-10-21), one a side alike in shape and wording, the level's mark
+  /// before the count.
+  @Test(arguments: gnorium.engines)
+  func permittedRecordVignettesAreFiguresASide(engine: BrowserEngine) async throws {
+    try await withPage(engine, gnorium) { page in
+      try await page.openHydrated("/")
+      let figures = page.locator(Self.permitLinks)
+      try await expect(figures).toHaveCount(8)
+      for index in 0..<8 {
+        let figure = figures.nth(index)
+        let text = try await figure.locator(".live-figure-text").textContent()
+        #expect(
+          text.range(of: #"^\d+ (postulated|calibrated|explicated|translated) (biblio|lexico)-record vignettes? \(1w\)$"#,
+            options: .regularExpression) != nil, "\(text)")
+        try await expect(figure.locator(".live-figure-mark svg")).toHaveCount(1)
       }
     }
   }
@@ -309,61 +329,6 @@ struct WatchtowerTests {
       #expect(routes.split(separator: "\n").map(String.init) == Array(repeating: "commit ← locution|submit → locution", count: 3))
       #expect(try await cards.count() > 0)
     }
-  }
-
-  /// A status mark sits in its permit row's line (user, 2026-10-10): the
-  /// words of the row's first line—mono verb, sans arrow, status word and
-  /// names—share one baseline, and the 26px mark centers on the capitals
-  /// of the word beside it, by the font's cap height, within half a pixel.
-  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func statusMarksCenterOnTheirRowsCapitals(engine: BrowserEngine, layout: Layout) async throws {
-    guard gnorium.engines.contains(engine) else { return }
-    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-      try await page.openHydrated("/")
-      let rows = try await page.evaluate("""
-        (() => {
-          const ctx = document.createElement('canvas').getContext('2d');
-          // A text run's baseline (a zero box on it) and cap height (its font's H).
-          const measure = node => {
-            const probe = document.createElement('span');
-            probe.style.cssText = 'display:inline-block;width:0;height:0';
-            node.parentNode.insertBefore(probe, node.nextSibling);
-            const baseline = probe.getBoundingClientRect().bottom;
-            probe.remove();
-            const style = getComputedStyle(node.parentElement);
-            ctx.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-            return { text: node.textContent.trim(), baseline, cap: ctx.measureText('H').actualBoundingBoxAscent };
-          };
-          return [...document.querySelectorAll('.watchtower-routes-row:has(.watchtower-routes-mark)')].map(row => {
-            const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
-            const runs = [];
-            for (let node; (node = walker.nextNode());) if (node.textContent.trim()) runs.push(measure(node));
-            const word = measure(row.querySelector('.watchtower-routes-mark-text').firstChild);
-            const icon = row.querySelector('.watchtower-routes-mark .icon-view').getBoundingClientRect();
-            const line = runs.filter(r => Math.abs(r.baseline - word.baseline) < 8);
-            return {
-              row: runs.map(r => r.text).join(' '),
-              baselines: Math.max(...line.map(r => r.baseline)) - Math.min(...line.map(r => r.baseline)),
-              tops: Math.max(...line.map(r => r.baseline - r.cap)) - Math.min(...line.map(r => r.baseline - r.cap)),
-              offset: (icon.top + icon.bottom) / 2 - (word.baseline - word.cap / 2),
-            };
-          });
-        })()
-        """, as: [Row].self)
-      try #require(!rows.isEmpty, "the Watchtower shows no status mark")
-      for row in rows {
-        #expect(row.baselines < 0.5, "\(row.row): its first line's words are \(row.baselines)px off one baseline")
-        #expect(row.tops < 0.5, "\(row.row): its first line's capitals are \(row.tops)px apart at the top")
-        #expect(abs(row.offset) < 0.5, "\(row.row): the mark is \(row.offset)px off its word's capitals")
-      }
-    }
-  }
-
-  struct Row: Decodable {
-    let row: String
-    let baselines: Double
-    let tops: Double
-    let offset: Double
   }
 
   static let statusLabels = ["Status"]
