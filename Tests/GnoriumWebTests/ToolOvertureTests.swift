@@ -84,7 +84,7 @@ struct ToolOvertureTests {
         try await expect(page.locator("a[href='/mission-control/tools/vignettes/\(vignette)' i]").first).toBeVisible()
         // Its page names its commits and offers an admin Amend.
         try await page.openHydrated("/mission-control/tools/vignettes/\(vignette)")
-        try await expect(page.locator(".tool-details-title")).toHaveText("Bibliographic Translation Tool Vignette")
+        try await expect(page.locator(".tool-details-title")).toHaveText("Bibliographic Translation Tools Vignette")
         try await expect(page.locator(".pedigree-view").filter(hasText: commit).first).toBeVisible()
         let robots = try await page.evaluate(
           "document.querySelector(\"meta[name='robots']\")?.content ?? ''", as: String.self)

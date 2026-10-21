@@ -162,7 +162,7 @@ struct PromptOvertureTests {
         // the overture; no thread, no action.
         try await page.openHydrated(palinodePath)
         try await expect(page.locator(".mission-control-object-header-view h1, .palinode-title").first)
-          .toHaveText("Bibliographic Prompt Palinode")
+          .toHaveText("Bibliographic Palinode")
         try await expect(page.locator(".pedigree-view a[href='\(path)' i]")).toHaveCount(1)
         try await expect(page.locator(".palinode-submission a[href='/mission-control/prompts/vignettes/\(vignette)' i]"))
           .toHaveCount(1)
