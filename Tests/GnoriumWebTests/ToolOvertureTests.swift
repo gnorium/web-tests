@@ -7,8 +7,9 @@ import WebTestsTesting
 /// Mission Control alone (user, 2026-10-21), as its prompts are: a tool
 /// vignette is a pinned commit of the tools code; its page offers an admin
 /// Amend, which submits a palinode, frozen, opening the overture; the
-/// overture's page is never indexed and holds Revise, Commit and Permit,
-/// each refusal said when pressed. The vignette here is a scratch one, of
+/// overture's page is never indexed and holds Revise and Permit—no header
+/// Commit (user, 2026-10-21): a review is a call to gnorium in its thread—
+/// Permit's refusal said when pressed. The vignette here is a scratch one, of
 /// commits no repository holds, put in force only where the process has
 /// none and taken out of force after (the frozen palinode names it, so its
 /// row stays, never in force); no review is called (no model is asked), no
@@ -16,7 +17,7 @@ import WebTestsTesting
 @Suite("Tool overtures", .serialized)
 struct ToolOvertureTests {
   @Test(arguments: [BrowserEngine.chrome])
-  func amendOpensAToolOvertureWhoseCommitAndPermitSayWhyTheyWait(engine: BrowserEngine) async throws {
+  func amendOpensAToolOvertureWhosePermitSaysWhyItWaits(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let slot = "bibliographic_translation"
@@ -127,18 +128,16 @@ struct ToolOvertureTests {
         try await expect(page.locator("a[href='/mission-control/tools/vignettes/\(vignette)' i]").first).toBeVisible()
         try await expect(page.locator("#tool-overture-body").filter(hasText: "Not run").first).toBeVisible()
         try await expect(page.getByText("No accepted revision changes the tools yet.")).toBeVisible()
-        // Commit, pressed with nothing accepted, says why and sends nothing.
-        try await page.locator("button[form='tool-overture-commit']").click()
+        // No header Commit: a review is a call in its thread.
+        try await expect(page.locator("button[form='tool-overture-commit']")).toHaveCount(0)
+        // Permit, pressed with nothing accepted, says why and sends
+        // nothing; nothing is put in force.
+        try await page.locator("button[form='tool-overture-permit']").click()
         try await expect(
           page.locator(".action-gate-alert").filter(hasText: "No accepted revision changes the tools yet.")
         ).toBeVisible()
         #expect(try count("SELECT count(*) FROM locutions WHERE locutable_id = '\(id)'") == "0", "No review was called")
         #expect(try count("SELECT count(*) FROM tool_test_runs WHERE overture_id = '\(id)'") == "0", "No test ran")
-        // Permit says the same; nothing is put in force.
-        try await page.locator("button[form='tool-overture-permit']").click()
-        try await expect(
-          page.locator(".action-gate-alert").filter(hasText: "No accepted revision changes the tools yet.")
-        ).toBeVisible()
         #expect(try count("SELECT vignette_id FROM active_tool_vignettes WHERE slot = '\(slot)'") == vignette)
         // The vignette's page now leads to the open overture, no Amend.
         try await page.openHydrated("/mission-control/tools/vignettes/\(vignette)")
@@ -147,7 +146,7 @@ struct ToolOvertureTests {
           .toHaveCount(1)
         try await page.expectNoErrors()
       }
-      // A reader signed out: the page, no Commit or Permit.
+      // A reader signed out: the page, no Permit (and never a Commit).
       let id = try opened()
       try await withPage(engine, gnorium, viewport: .desktop) { page in
         try await page.openHydrated("/mission-control/tools/overtures/bibliographic/\(id)")

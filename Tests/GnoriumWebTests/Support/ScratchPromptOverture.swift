@@ -3,7 +3,7 @@ import Foundation
 /// A throwaway overture of one process's prompt vignette in force (user,
 /// 2026-10-21), opened as an admin's Amend opens one: the test's account
 /// submits a palinode, frozen, which opens the overture. Nothing here is
-/// ever committed or permitted: no review is called (no model is ever
+/// ever permitted and no call is committed (no model is ever
 /// asked) and no prompt is put in force, so no activation row (append-only
 /// history) names it. `remove()` deletes its thread and its revisions and
 /// deletes the overture as an admin does (its row stays, closed); the

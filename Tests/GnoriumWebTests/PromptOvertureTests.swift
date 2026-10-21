@@ -9,14 +9,15 @@ import WebTestsTesting
 /// submits a palinode, frozen, opening the overture; the overture's page is
 /// never indexed, its Pedigree the line palinode › overture, its thread
 /// opening with the palinode's submitting naming the vignette amended, and
-/// holds Revise, Commit, Permit and Delete, each refusal said when pressed;
-/// the palinode's page is the submission and its Pedigree alone. No review is ever
-/// called here (no model is asked) and nothing is permitted (no prompt put
-/// in force).
+/// holds Revise, Permit and Delete—no header Commit (user, 2026-10-21):
+/// a review is a call to gnorium in its thread, which needs nothing
+/// ticked—Permit's refusal said when pressed; the palinode's page is the
+/// submission and its Pedigree alone. No call is ever committed here (no
+/// model is asked) and nothing is permitted (no prompt put in force).
 @Suite("Prompt overtures", .serialized)
 struct PromptOvertureTests {
   @Test(arguments: [BrowserEngine.chrome])
-  func amendOpensAnOvertureWhoseCommitAndPermitSayWhyTheyWait(engine: BrowserEngine) async throws {
+  func amendOpensAnOvertureWhosePermitSaysWhyItWaits(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -115,11 +116,38 @@ struct PromptOvertureTests {
         try await expect(page.locator("#prompt-overture-body")).toContainText("Web tests overture line.")
         #expect(try TestAdmin.query("SELECT count(*) FROM revisions WHERE revisable_id = '\(id)'")
           .trimmingCharacters(in: .whitespacesAndNewlines) == "0", "No revision was filed")
-        // Permit waits on a review; no review is called here.
+        // No header Commit: a review is a call in its thread.
+        try await expect(page.locator("button[form='prompt-overture-commit']")).toHaveCount(0)
+        try await expect(page.locator("button[form='prompt-overture-permit']")).toHaveCount(1)
+        // Permit waits on an open revision, asking no review; pressed, it
+        // says why and sends nothing.
+        let revision = UUID().uuidString.lowercased()
+        _ = try TestAdmin.query(
+          """
+          INSERT INTO revisions (id, revisable_type, revisable_id, requested_by_user_id, status, prompt_changes_json,
+            created_at)
+          VALUES ('\(revision)', 'bibliographicPromptOverture', '\(id)', '\(user)', 'pending', '[]', now());
+          """)
+        try await page.openHydrated(path)
         try await page.locator("button[form='prompt-overture-permit']").click()
-        try await expect(page.locator(".action-gate-alert").filter(hasText: "Commit it for review first.")).toBeVisible()
-        let calls = try TestAdmin.query("SELECT count(*) FROM locutions WHERE locutable_id = '\(id)'")
-        #expect(calls.trimmingCharacters(in: .whitespacesAndNewlines) == "0", "No review was called")
+        try await expect(
+          page.locator(".action-gate-alert").filter(hasText: "Accept or reject its open revision first: \(revision)")
+        ).toBeVisible()
+        // A call to gnorium needs nothing ticked here: posted pending, its
+        // Commit attaches the diffs. It is never committed here.
+        try await page.locator("#locution-thread-locution-body").fill("@gnorium Is this change sound?")
+        try await page.locator(".locution-thread-submit").click()
+        try await expect(page.locator(".field-validation-message-view").filter(
+          hasText: "Tick evidence, metadata, a prompt or a locution for this call.")).toHaveCount(0)
+        try await expect(page.getByText("Is this change sound?").first, timeout: .seconds(15)).toBeVisible()
+        let calls = try TestAdmin.query(
+          "SELECT count(*) FROM locutions WHERE locutable_id = '\(id)' AND kind = 'call' AND call_status = 'pending'")
+        #expect(calls.trimmingCharacters(in: .whitespacesAndNewlines) == "1", "The call was posted, pending")
+        let committed = try TestAdmin.query(
+          "SELECT count(*) FROM locutions WHERE locutable_id = '\(id)' AND kind = 'reply'")
+        #expect(committed.trimmingCharacters(in: .whitespacesAndNewlines) == "0", "No review was committed")
+        let status = try TestAdmin.query("SELECT committed_at IS NULL FROM vignette_overtures WHERE id = '\(id)'")
+        #expect(status.trimmingCharacters(in: .whitespacesAndNewlines) == "t", "The overture is never committed")
         let still = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
         #expect(still.trimmingCharacters(in: .whitespacesAndNewlines) == vignette, "Nothing is put in force")
 
@@ -141,7 +169,7 @@ struct PromptOvertureTests {
         try await expect(page.locator(".associated-links-view a[href='\(path)' i]")).toHaveCount(1)
         try await page.expectNoErrors()
       }
-      // A reader signed out: the page, no Commit or Permit.
+      // A reader signed out: the page, no Permit (and never a Commit).
       let id = try opened()
       try await withPage(engine, gnorium, viewport: .desktop) { page in
         try await page.openHydrated("/mission-control/prompts/overtures/bibliographic/\(id)")
