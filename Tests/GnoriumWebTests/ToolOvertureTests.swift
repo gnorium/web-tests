@@ -131,10 +131,17 @@ struct ToolOvertureTests {
         // No header Commit: a review is a call in its thread.
         try await expect(page.locator("button[form='tool-overture-commit']")).toHaveCount(0)
         // Permit, pressed with nothing accepted, says why and sends
-        // nothing; nothing is put in force.
+        // nothing; nothing is put in force. While a serenade committed
+        // for translation is pending or running, Permit waits for it first
+        // (user, 2026-10-21): it runs with the tools it was committed with.
+        let running = try count(
+          "SELECT count(*) FROM bibliographic_serenades WHERE processing_status IN ('pending', 'translating')") != "0"
         try await page.locator("button[form='tool-overture-permit']").click()
         try await expect(
-          page.locator(".action-gate-alert").filter(hasText: "No accepted revision changes the tools yet.")
+          page.locator(".action-gate-alert").filter(
+            hasText: running
+              ? "Permit waits until the process's committed objects finish."
+              : "No accepted revision changes the tools yet.")
         ).toBeVisible()
         #expect(try count("SELECT count(*) FROM locutions WHERE locutable_id = '\(id)'") == "0", "No review was called")
         #expect(try count("SELECT count(*) FROM tool_test_runs WHERE overture_id = '\(id)'") == "0", "No test ran")
