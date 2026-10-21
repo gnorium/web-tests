@@ -66,7 +66,9 @@ struct WatchtowerTests {
   /// The chain top to bottom (user, 2026-10-21): each Disputorium card
   /// over the machine its Commit moves forward to, the halftone between the
   /// overture and the madrigal; and every process box splits its figures
-  /// into a Bibliographic and a Lexicographic column, one figure a row.
+  /// into a Bibliographic and a Lexicographic column, one figure a row,
+  /// pending first on calibration, explication and translation and on
+  /// their objects (user, 2026-10-21), plain text with no mark.
   @Test(arguments: gnorium.engines)
   func theHalftoneStandsInTheChainAndProcessesSplitByKind(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium) { page in
@@ -80,18 +82,40 @@ struct WatchtowerTests {
           ?.closest('.watchtower-object-view').querySelector('.watchtower-object-description')?.textContent.trim() ?? ''
         """, as: String.self)
       #expect(description == "The calibrated document people settle, then commit or permit.", "\(description)")
+      // Each box's process, then its columns' headings and figures' words.
       let columns = try await page.evaluate("""
         [...document.querySelectorAll('.watchtower-process-figures')].map(box =>
-          [...box.querySelectorAll('.watchtower-figure-columns-column')].map(column =>
+          [box.closest('.watchtower-processes-view').getAttribute('data-process'),
+           ...[...box.querySelectorAll('.watchtower-figure-columns-column')].map(column =>
             [column.querySelector('.watchtower-figure-columns-tab').textContent.trim(),
              ...[...column.querySelectorAll('.live-figure-text')].map(f => f.textContent.trim().replace(/^\\S+ /, ''))]
-              .join('|')))
+              .join('|'))])
         """, as: [[String]].self)
       #expect(columns.count == 6, "calibration, explication, translation and three arbitrations: \(columns.count)")
       for box in columns {
-        #expect(box == ["Bibliographic|running|finished (1w)|failed (1w)", "Lexicographic|running|finished (1w)|failed (1w)"],
-          "\(box)")
+        // Arbitration's calls awaiting Commit are its object figures' pending.
+        let figures = box.first == "Arbitration"
+          ? "running|finished (1w)|failed (1w)" : "pending|running|finished (1w)|failed (1w)"
+        #expect(Array(box.dropFirst()) == ["Bibliographic|\(figures)", "Lexicographic|\(figures)"], "\(box)")
       }
+      // A machine's object: pending, running, submitted (1w), failed (1w).
+      for object in ["quatrain", "antiphon", "serenade"] {
+        let figures = try await page.evaluate("""
+          [...document.querySelectorAll('#live-region-watchtower-\(object)-figures .watchtower-figure-columns-column')]
+            .map(column => [column.querySelector('.watchtower-figure-columns-tab').textContent.trim(),
+              ...[...column.querySelectorAll('.live-figure-text')].map(f => f.textContent.trim().replace(/^\\S+ /, ''))]
+              .join('|'))
+          """, as: [String].self)
+        #expect(figures == ["Bibliographic|pending|running|submitted (1w)|failed (1w)",
+          "Lexicographic|pending|running|submitted (1w)|failed (1w)"], "\(object): \(figures)")
+      }
+      // Pending is plain text: no mark follows it.
+      let markedPending = try await page.evaluate("""
+        [...document.querySelectorAll('.live-figure-body')]
+          .filter(f => / pending$/.test(f.querySelector('.live-figure-text')?.textContent.trim() ?? '')
+            && f.children.length > 1).length
+        """, as: Int.self)
+      #expect(markedPending == 0, "\(markedPending) pending figures wear a mark")
       let promoted = try await page.evaluate(
         "document.querySelector('.watchtower-view').textContent.toLowerCase().includes('promot')", as: Bool.self)
       #expect(!promoted, "nothing on the Watchtower is promoted")

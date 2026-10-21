@@ -159,12 +159,18 @@ struct WatchtowerFigureLinksTests {
     try await withPage(engine, gnorium) { page in
       try await page.openHydrated("/")
       let figures = try await Self.figures(page)
-      // Objects: four Disputorium objects and three machines of three
-      // figures, the fountain and four palinodes of one, on both sides: 52;
-      // processes and arbitrations below: 54.
-      try #require(figures.count >= 100, "the Watchtower shows \(figures.count) figure links")
+      // Objects: four Disputorium objects of three figures, three machines
+      // of four (pending first), the fountain and four palinodes of one, on
+      // both sides: 58; processes and arbitrations below: 60.
+      try #require(figures.count >= 112, "the Watchtower shows \(figures.count) figure links")
       // Calibration, explication and translation have three nocturne links
-      // on each kind: 18.
+      // on each kind (18), and a pending link to their object's list, its
+      // objects waiting for a worker (6).
+      let processPending = figures.filter { figure in
+        figure.text.hasSuffix(" pending") && figure.href.hasSuffix("?status=pending")
+          && ["quatrains", "antiphons", "serenades"].contains { figure.href.hasPrefix("/mission-control/\($0)/") }
+      }.count
+      try #require(processPending == 12, "the machines' and their processes' pending links, 6 each: \(processPending)")
       let nocturneLinks = figures.filter { $0.href.hasPrefix("/mission-control/nocturnes/") }.count
       try #require(nocturneLinks == 18, "the processes' nocturne links: \(nocturneLinks)")
       // Arbitration's open the Locutions list (an arbitration session is no
@@ -217,6 +223,12 @@ struct WatchtowerFigureLinksTests {
   static let pendingTestamentOvertures = "/mission-control/overtures/bibliographic?status=pending"
   /// The testaments' pending halftones, listed as overtures are.
   static let pendingTestamentHalftones = "/mission-control/halftones/bibliographic?status=pending"
+  /// A machine's objects committed and waiting for a worker, not yet
+  /// running (user, 2026-10-21): its object's figure and its process's
+  /// open the same list.
+  static let pendingTestamentQuatrains = "/mission-control/quatrains/bibliographic?status=pending"
+  static let pendingSentimentAntiphons = "/mission-control/antiphons/lexicographic?status=pending"
+  static let pendingTestamentSerenades = "/mission-control/serenades/bibliographic?status=pending"
 
   /// A process's figure opens the Nocturnes page: its filter bar names the
   /// process and the status, with no placeholder, and it lists as many
@@ -262,6 +274,10 @@ struct WatchtowerFigureLinksTests {
         (Self.pendingSentimentOvertures, "Pending", "lexicographic", "overtures"),
         (Self.pendingTestamentOvertures, "Pending", "bibliographic", "overtures"),
         (Self.pendingTestamentHalftones, "Pending", "bibliographic", "halftones"),
+        // A machine's objects committed and waiting for a worker.
+        (Self.pendingTestamentQuatrains, "Pending", "bibliographic", "quatrains"),
+        (Self.pendingSentimentAntiphons, "Pending", "lexicographic", "antiphons"),
+        (Self.pendingTestamentSerenades, "Pending", "bibliographic", "serenades"),
       ] {
         try await page.openHydrated("/")
         let link = page.locator(".watchtower-object-figures-view a[href='\(href)']").first
