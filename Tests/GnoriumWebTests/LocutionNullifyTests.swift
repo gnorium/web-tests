@@ -100,7 +100,7 @@ struct LocutionNullifyTests {
         WHERE l.id = '\(locutionID)' GROUP BY l.id
         """) == "|2|1|")
       #expect(try TestAdmin.query("""
-        SELECT count(*) FROM event_logs WHERE action = 'retract' AND resource_id = '\(locutionID)' AND user_id = '\(readerID)'
+        SELECT count(*) FROM event_logs WHERE action = 'nullify' AND resource_id = '\(locutionID)' AND user_id = '\(readerID)'
         """) == "1")
     } catch {
       removeLocutions()
