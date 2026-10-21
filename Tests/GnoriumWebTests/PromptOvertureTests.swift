@@ -73,7 +73,7 @@ struct PromptOvertureTests {
           $0.path.lowercased() == "/mission-control/prompts/vignettes/\(vignette)/amend"
         }
         try await expect(page.locator(".form-header-view h1, .form-header-title").first)
-          .toContainText("Submit Amendment to Bibliographic Translation Prompt")
+          .toContainText("Submit Amendment to Bibliographic Translation Prompts")
         // Submit with nothing changed: refused, said, nothing filed.
         let submit = page.locator("#amend-vignette-form button[type='submit']")
         try await expect(submit).toHaveText("Submit")

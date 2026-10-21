@@ -99,7 +99,7 @@ struct ToolOvertureTests {
           $0.path.lowercased() == "/mission-control/tools/vignettes/\(vignette)/amend"
         }
         try await expect(page.locator(".form-header-title").first)
-          .toContainText("Submit Amendment to Bibliographic Translation Tool")
+          .toContainText("Submit Amendment to Bibliographic Translation Tools")
         try await expect(page.locator("#amend-vignette-form button[type='submit']")).toHaveText("Submit")
         try await expect(page.locator("textarea[name='note']")).toHaveCount(0)
         // The overture a palinode proposing nothing opens (as a migrated
