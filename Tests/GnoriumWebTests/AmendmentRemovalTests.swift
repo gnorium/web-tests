@@ -112,9 +112,9 @@ struct AmendmentRemovalTests {
         try await expect(own(edition, ".testament-outliner-remove")).toBeHidden()
         // The icon and the noun: "+ Testament" restores it, the words for
         // assistive technology.
-        try await expect(own(edition, ".testament-outliner-restore")).toHaveText("Testament")
-        try await expect(own(edition, ".testament-outliner-restore")).toHaveAttribute("aria-label", "Restore Testament")
-        try await expect(own(edition, ".testament-outliner-remove")).toHaveAttribute("aria-label", "Remove Testament")
+        try await expect(own(edition, ".testament-outliner-restore")).toHaveText("Testament 1.")
+        try await expect(own(edition, ".testament-outliner-restore")).toHaveAttribute("aria-label", "Restore Testament 1.")
+        try await expect(own(edition, ".testament-outliner-remove")).toHaveAttribute("aria-label", "Remove Testament 1.")
 
         try await page.locator(".record-actions button[type='submit']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the reopened madrigal") {

@@ -76,8 +76,8 @@ struct AmendmentInsertionTests {
         try await expect(impression).toBeHidden()
         try await expect(page.locator("#testament-outliner .outliner-item[data-testament-draft='true']"))
           .toHaveCount(0)
-        try await expect(add).toHaveText("Testament")
-        try await expect(add).toHaveAttribute("aria-label", "Add Testament")
+        try await expect(add).toHaveText("Testament 1.2.")
+        try await expect(add).toHaveAttribute("aria-label", "Add Testament 1.2.")
 
         // A new child at the next level, after the one it has: 1.2, the
         // copy still 1.1.

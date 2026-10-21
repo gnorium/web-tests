@@ -251,8 +251,8 @@ struct SubmissionTests {
     // node is a testament: the icon and the noun, the words for assistive
     // technology.
     let add = controls(tree, "edition").locator(".testament-draft-add-level")
-    try await expect(add).toHaveText("Testament")
-    try await expect(add).toHaveAttribute("aria-label", "Add Testament")
+    try await expect(add).toHaveText("Testament 1.2.")
+    try await expect(add).toHaveAttribute("aria-label", "Add Testament 1.2.")
     try await expect(row(tree, "edition").locator(".testament-draft-add-level")).toHaveCount(0)
     try await add.click()
     try await expect(node(tree, "impression")).toHaveAttribute("data-outliner-removed", "false")
