@@ -471,6 +471,9 @@ struct ArbitrationTests {
         // Replay's speed (user, 2026-10-21): the recorded waits divided by
         // it, changed mid-replay at once, the viewer's choice kept.
         try await expectReplaySpeed(page, path: reading.path, replyID: replyID)
+        // Replay's seek bar (user, 2026-10-21): a moment sought shows exactly
+        // the frames recorded by then, and plays on from there at the speed.
+        try await expectReplaySeek(page, path: reading.path, replyID: replyID)
         // The page image in the task prompt as the model received it (user,
         // 2026-10-17): one stage at the message's whole width, zoomed in
         // place—no chip, thumbnail, name or lightbox, no loose lines under
@@ -842,6 +845,135 @@ struct ArbitrationTests {
     try await expect(buttons.nth(0)).toHaveAttribute("aria-pressed", "false")
     try await buttons.nth(0).click()
     try await expect(buttons.nth(0)).toHaveAttribute("aria-pressed", "true")
+    #expect(try await page.evaluate("localStorage.getItem('gnorium:replay-speed')", as: String.self) == "1")
+    try await page.openHydrated(path)
+  }
+
+  /// Replay's seek bar (user, 2026-10-21) on the reply's replay, its stream
+  /// the test's stand-in (at `#seek-test`): frames recorded 0, 60 and 120
+  /// seconds in, a model call starting at 0 and at 60. Hidden until Replay
+  /// is pressed; then "0:0x / 2:00", a slider "Replay position" to 120000
+  /// with one tick (the second call), and Pause. The arrows seek 5s: twelve
+  /// show the 60s frame and not the 120s one; Home draws the transcript
+  /// again from its start; Pause holds it, a click on the track's 3/4 goes
+  /// to 90s still held. At 4×, sought to the end (it ends) and back 5s to
+  /// 115s, then played, the last frame shows in
+  /// about 1.25s, not 5s; the replay ends at "2:00 / 2:00" with Play, which
+  /// starts it over. The speed is set back to 1× and the page left freshly
+  /// loaded.
+  func expectReplaySeek(_ page: Page, path: String, replyID: String) async throws {
+    let reply = "#locution-\(replyID.uppercased())"
+    try await page.addInitScript("""
+      if (location.hash === '#seek-test') {
+        const Real = window.EventSource
+        window.EventSource = class {
+          // The reply's replay only; any other stream stays the real one.
+          constructor(url, options) {
+            if (!String(url).includes('replay=1')) return new Real(url, options)
+            this.handlers = {}
+            setTimeout(() => {
+              const image = document.querySelector('\(reply) .computorium-session-view').dataset.computoriumSessionImage ?? ''
+              const frame = (at, fields) => this.emit('chunk', JSON.stringify({ replay_at: String(at), image, image_index: -1, ...fields }))
+              this.emit('start', '{"replay":true,"process":"arbitration"}')
+              // Every frame at once, as the server sends a replay's.
+              frame(0, { type: 'reset', text: '', reset: '1' })
+              frame(0, { type: 'chat_template_input', text: '', continues: 'false', reset: '1' })
+              frame(0, { type: 'text', text: 'Seek one.' })
+              frame(60000, { type: 'chat_template_input', text: '', continues: 'true' })
+              frame(60000, { type: 'text', text: 'Seek two.' })
+              frame(120000, { type: 'text', text: ' Seek three.', append: '1' })
+              frame(120000, { type: 'status', text: 'succeeded', message: '' })
+              this.emit('done', '{"status":"passed","error":"","message":"","replayed":"true"}')
+            }, 0)
+          }
+          addEventListener(name, fn) { (this.handlers[name] ??= []).push(fn) }
+          emit(name, data) { for (const fn of this.handlers[name] ?? []) fn({ data }) }
+          close() {}
+        }
+      }
+      """)
+    try await page.openHydrated(path + "?seek=1#seek-test")
+    let session = page.locator("\(reply) .computorium-session-view")
+    let seek = page.locator("\(reply) .replay-seek-view")
+    let slider = seek.locator(".replay-seek-slider")
+    let toggle = seek.locator(".replay-seek-toggle")
+    let time = seek.locator(".replay-seek-time")
+    try await expect(seek).toHaveCount(1)
+    try await expect(seek).toBeHidden()
+    _ = try await page.locator("\(reply) .replay-btn").evaluate("el => el.click()")
+    try await expect(seek).toBeVisible()
+    try await expect(slider).toHaveAttribute("role", "slider")
+    try await expect(slider).toHaveAttribute("aria-label", "Replay position")
+    try await expect(slider).toHaveAttribute("aria-valuemax", "120000")
+    try await expect(slider.locator(".slider-tick")).toHaveCount(1)
+    try await expect(toggle).toHaveText("Pause")
+    try await expect(time).toContainText(" / 2:00")
+    try await expect(time).toContainText("0:0")
+    try await expect(session).toContainText("Seek one.")
+    try await expect(session).not.toContainText("Seek two.")
+    // Forward: twelve 5s steps to 60s—its frames, none later.
+    try await slider.focus()
+    for _ in 0..<12 { try await page.keyboard.press("ArrowRight") }
+    try await expect(session).toContainText("Seek two.")
+    try await expect(session).not.toContainText("Seek three.")
+    try await expect(time).toContainText("1:0")
+    // Said in words: a minute and a few seconds of two minutes.
+    #expect(try await slider.evaluate("""
+      el => { const words = el.getAttribute('aria-valuetext') ?? ''
+        return words.startsWith('1 minute') && words.endsWith(' of 2 minutes') }
+      """).bool == true, "The position in words")
+    // Back to the start: drawn again, without what came after.
+    try await page.keyboard.press("Home")
+    try await expect(session).not.toContainText("Seek two.")
+    try await expect(session).toContainText("Seek one.")
+    try await expect(time).toContainText("0:0")
+    // Pause holds it where it stands.
+    try await toggle.click()
+    try await expect(toggle).toHaveText("Play")
+    let held = try await slider.getAttribute("aria-valuenow") ?? ""
+    try await Task.sleep(for: .milliseconds(800))
+    #expect(try await slider.getAttribute("aria-valuenow") == held, "Paused, the position holds")
+    // A click on the track's 3/4: 90s, still paused.
+    let point = try await slider.evaluate("""
+      el => { el.scrollIntoView({ block: 'center' }); const track = el.querySelector('.slider-track').getBoundingClientRect()
+        return [track.left + track.width * 0.75, track.top + track.height / 2] }
+      """)
+    try await page.mouse.click(x: point[0].double ?? 0, y: point[1].double ?? 0)
+    try await expect(session).toContainText("Seek two.")
+    try await expect(session).not.toContainText("Seek three.")
+    let clicked = Int(try await slider.getAttribute("aria-valuenow") ?? "") ?? 0
+    #expect((86000...94000).contains(clicked), "The track's 3/4 is 90s: \(clicked)")
+    try await expect(toggle).toHaveText("Play")
+    // At 4×, from 115s: the last frame 5 recorded seconds on, about 1.25s.
+    _ = try await page.locator("\(reply) .replay-speed-view [data-value='4']").evaluate("el => el.click()")
+    try await slider.focus()
+    try await page.keyboard.press("End")
+    try await page.keyboard.press("ArrowLeft")
+    try await expect(session).not.toContainText("Seek three.")
+    _ = try await page.evaluate("""
+      (() => { const content = document.querySelector('\(reply) .computorium-session-view')
+        window.__soughtFrom = performance.now(); window.__soughtShown = 0
+        new MutationObserver(() => {
+          if (!window.__soughtShown && content.textContent.includes('Seek three.')) window.__soughtShown = performance.now()
+        }).observe(content, { childList: true, subtree: true, characterData: true })
+        return true })()
+      """, as: Bool.self)
+    try await toggle.click()
+    try await expect(toggle).toHaveText("Pause")
+    try await expect(session, timeout: .seconds(10)).toContainText("Seek three.")
+    let waited = try await page.evaluate("Math.round(window.__soughtShown - window.__soughtFrom)", as: Int.self)
+    #expect((700...3500).contains(waited), "5 recorded seconds at 4× take about 1.25s, not 5s: \(waited)ms")
+    // The end: its status, the clock full, Play to start over.
+    try await expect(session).toHaveAttribute("data-computorium-session-status", "succeeded")
+    try await expect(time).toHaveText("2:00 / 2:00")
+    try await expect(toggle).toHaveText("Play")
+    try await expect(seek).toBeVisible()
+    try await toggle.click()
+    try await expect(toggle).toHaveText("Pause")
+    try await expect(session).not.toContainText("Seek two.")
+    try await expect(session).toContainText("Seek one.")
+    // 1× again for what follows, and the page as freshly loaded.
+    _ = try await page.locator("\(reply) .replay-speed-view [data-value='1']").evaluate("el => el.click()")
     #expect(try await page.evaluate("localStorage.getItem('gnorium:replay-speed')", as: String.self) == "1")
     try await page.openHydrated(path)
   }
