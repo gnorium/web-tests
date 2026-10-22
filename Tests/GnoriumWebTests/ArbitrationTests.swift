@@ -1029,6 +1029,15 @@ struct ArbitrationTests {
     try await page.keyboard.press("End")
     try await page.keyboard.press("ArrowLeft")
     try await expect(session).not.toContainText("Seek three.")
+    // A seek brings the session's own end (its process container's foot,
+    // above any Drumrolls thread below) to just above the sticky bar, never
+    // the page's end (user, 2026-10-22).
+    #expect(try await page.evaluate("""
+      (() => { const box = document.querySelector('\(reply) .process-container, [data-computorium-core-process]')
+        const bar = document.querySelector('.replay-seek-view:not([hidden])')
+        if (!box || !bar) return true
+        return box.getBoundingClientRect().bottom <= bar.getBoundingClientRect().top + 2 })()
+      """, as: Bool.self) == true, "A seek leaves the session's end above the bar")
     _ = try await page.evaluate("""
       (() => { const content = document.querySelector('\(reply) .computorium-session-view')
         window.__soughtFrom = performance.now(); window.__soughtShown = 0
