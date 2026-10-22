@@ -72,7 +72,7 @@ struct LexicographicOvertureOriginsReviseTests {
         try await expect(tab.locator("main")).toContainText("webtestsetymon")
         // The thread's line names Origin among what changed.
         try await tab.openHydrated(page)
-        try await expect(tab.locator(".locution-thread")).toContainText("Origin")
+        try await expect(tab.locator(".thread")).toContainText("Origin")
       }
     } catch {
       remove()

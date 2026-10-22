@@ -51,9 +51,9 @@ struct LexicographicOvertureDiscardTests {
 
         // The thread: its opening, and the box that posts to the overture.
         try await expect(tab.locator("[id='creation-\(overture)' i]")).toHaveCount(1)
-        try await tab.locator("#locution-thread-locution-body").fill("The class is a verb here.")
-        try await tab.locator(".locution-thread-submit").click()
-        try await expect(tab.locator(".locution-thread")).toContainText("The class is a verb here.")
+        try await tab.locator("#thread-locution-body").fill("The class is a verb here.")
+        try await tab.locator(".thread-submit").click()
+        try await expect(tab.locator(".thread")).toContainText("The class is a verb here.")
 
         // Discard: to the register, the overture Discarded, the row kept.
         // It asks first, saying what goes with it; only the dialog's Discard posts.

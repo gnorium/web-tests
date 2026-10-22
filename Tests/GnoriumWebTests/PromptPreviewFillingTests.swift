@@ -109,7 +109,7 @@ struct PromptPreviewFillingTests {
 
         // Page 2 ticked for a call: Arbitration's prompt for it, its query
         // its slot and the task a template while no call is typed.
-        let box = page.locator("#locution-thread-locution-body")
+        let box = page.locator("#thread-locution-body")
         try await box.focus()
         try await page.locator("#madrigal-images .roster-row").nth(1).locator("input").click()
         try await expect(arbitration, timeout: .seconds(20)).toContainText("Beta page sentence.")

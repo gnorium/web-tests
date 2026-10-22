@@ -211,8 +211,8 @@ struct RevisePagesTests {
         try await expect(event.locator(".avatar-view img").first)
           .toHaveAttribute("src", "/avatars/\(user)?v=webtest")
         try await expect(event).toContainText("suggested revision")
-        try await expect(event.locator(".locution-thread-event-added")).toBeVisible()
-        try await expect(event.locator(".locution-thread-event-changed a").first).toBeVisible()
+        try await expect(event.locator(".thread-event-added")).toBeVisible()
+        try await expect(event.locator(".thread-event-changed a").first).toBeVisible()
         try await expect(event.locator("form[action$='/accept'] button")).toHaveCount(1)
         try await expect(event.locator("form[action$='/reject'] button")).toHaveCount(1)
         // Reactions are only on locutions: the suggestion takes none.
@@ -444,11 +444,11 @@ struct RevisePagesTests {
         }
         try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the overture at its revision", where: Self.atLocution(palinode.path))
-        let changed = page.locator(".locution-thread-event-changed")
+        let changed = page.locator(".thread-event-changed")
         // Each part by its path, its steps apart by the breadcrumb's chevron,
         // the list joined as English joins it (user, 2026-10-14).
         let paths = try await changed.evaluate(
-          "e => [...e.querySelectorAll('.locution-thread-path')].map(p => [...p.children].filter(c => !c.classList.contains('breadcrumb-separator-view')).map(c => c.textContent).join(' › ')).join(' | ')")
+          "e => [...e.querySelectorAll('.thread-path')].map(p => [...p.children].filter(c => !c.classList.contains('breadcrumb-separator-view')).map(c => c.textContent).join(' › ')).join(' | ')")
         #expect(
           paths.string == "Arbitration › Autocompaction › System Prompt | Arbitration › Autocompaction › Task Prompt",
           "\(paths)")
@@ -457,7 +457,7 @@ struct RevisePagesTests {
         #expect(joined.string == "Modified| | and |.", "\(joined)")
         // In a white box of its own, as a call's Attached line is (user,
         // 2026-10-17): said of the revision, not words of the thread.
-        try await expect(page.locator(".list-sentence-view.locution-thread-event-changed")).toHaveCount(1)
+        try await expect(page.locator(".list-sentence-view.thread-event-changed")).toHaveCount(1)
         try await expect(changed).toHaveCSS("border-top-style", "solid")
       }
       let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'").uppercased()
@@ -738,7 +738,7 @@ struct RevisePagesTests {
         let event = page.locator("#revision-\(id)")
         // Its definition and its one usage field, each its own item by
         // its form's label, each linked to its place on the page.
-        let changed = event.locator(".locution-thread-event-changed")
+        let changed = event.locator(".thread-event-changed")
         try await expect(changed).toHaveText("Modified Sentiment 1.1 Definition and Sentiment 1.1 Register.")
         try await expect(changed.locator("a")).toHaveCount(2)
         // Each on the revision's own page, at its field there (user, 2026-10-09).
@@ -763,8 +763,8 @@ struct RevisePagesTests {
         try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("as accepted")
         // One verb, the outcome colored; the act a later one acted on says so
         // under it, a link to that act (user, 2026-10-11).
-        try await expect(page.locator("#revision-\(id)-verdict-1 .locution-thread-event-outcome[data-tone='green']")).toHaveText("accepted")
-        let note = page.locator("#revision-\(id)-verdict-1 .locution-thread-event-note")
+        try await expect(page.locator("#revision-\(id)-verdict-1 .thread-event-outcome[data-tone='green']")).toHaveText("accepted")
+        let note = page.locator("#revision-\(id)-verdict-1 .thread-event-note")
         try await expect(note).toContainText("Evaluated as reverted by")
         try await expect(note).toHaveAttribute("href", "#revision-\(id)-verdict-2")
         // The revert undid the verdict: the revision is pending again, its
@@ -798,13 +798,13 @@ struct RevisePagesTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(epiloguePath)
         let event = page.locator("#revision-\(epilogueRevision)")
-        try await expect(event.locator(".locution-thread-event-changed"))
+        try await expect(event.locator(".thread-event-changed"))
           .toHaveText("Modified Sentiment 1.1 Definition.")
         // Its revision's page, named as the server names it (ids upper case).
         let epilogueRevisionPath =
           "/mission-control/epilogues/lexicographic/\(epilogue.uppercased())/revisions/\(epilogueRevision)"
         try await expect(
-          event.locator(".locution-thread-event-changed a[href='\(epilogueRevisionPath)?source=code#definition']")
+          event.locator(".thread-event-changed a[href='\(epilogueRevisionPath)?source=code#definition']")
         ).toHaveCount(1)
         try await Self.expectChangedLinksLand(page, revision: epilogueRevision, on: epilogueRevisionPath)
         try await page.openHydrated(epiloguePath)
@@ -970,7 +970,7 @@ struct RevisePagesTests {
         let clash = page.locator(".prompt-clash-view")
         try await expect(clash.locator(".prompt-clash-label").filter(hasText: "Old diff")).toHaveCount(1)
         try await expect(clash.locator(".prompt-clash-label").filter(hasText: "New diff")).toHaveCount(1)
-        try await expect(clash.locator(".locution-thread-path")).toContainText("Explication")
+        try await expect(clash.locator(".thread-path")).toContainText("Explication")
         try await expect(clash).toContainText("Web tests C.")
         try await expect(clash).toContainText("Web tests A.")
         try await page.locator("button[form='revision-accept']").click()
@@ -1030,7 +1030,7 @@ struct RevisePagesTests {
   /// (user, 2026-10-09, 2026-10-16).
   static func expectChangedLinksLand(_ page: Page, revision id: String, on revisionPath: String) async throws {
     let hrefs = try await page.evaluate(
-      "JSON.stringify([...document.querySelectorAll('#revision-\(id) .locution-thread-event-changed a')].map(a => a.getAttribute('href')))"
+      "JSON.stringify([...document.querySelectorAll('#revision-\(id) .thread-event-changed a')].map(a => a.getAttribute('href')))"
     ).string ?? "[]"
     let links = try JSONDecoder().decode([String].self, from: Data(hrefs.utf8))
     #expect(!links.isEmpty, "a Modified line")
@@ -1147,7 +1147,7 @@ struct RevisePagesTests {
         let rows = try TestAdmin.query("SELECT count(*) FROM revisions WHERE requested_by_user_id = '\(user)'")
         #expect(rows.trimmingCharacters(in: .whitespacesAndNewlines) == "1")
         // Its "Modified" line names each part.
-        let changed = page.locator(".locution-thread-event-changed").last
+        let changed = page.locator(".thread-event-changed").last
         try await expect(changed).toContainText("Continuation Prompt")
         try await expect(changed).toContainText("Task Prompt")
       }

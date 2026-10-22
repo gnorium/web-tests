@@ -92,13 +92,13 @@ struct ArbitrationTests {
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".disputorium-core-work #artifact-page-total"), timeout: .seconds(20)).toHaveText("3")
-        try await expect(page.locator("#locution-thread-locution-image")).toHaveValue("1")
-        try await expect(page.locator("#locution-thread-process")).toHaveValue("explication")
-        try await expect(page.locator(".locution-thread-form input[type='checkbox']")).toHaveCount(0)
-        try await expect(page.locator(".locution-thread-submit")).toHaveText("Submit")
+        try await expect(page.locator("#thread-locution-image")).toHaveValue("1")
+        try await expect(page.locator("#thread-process")).toHaveValue("explication")
+        try await expect(page.locator(".thread-form input[type='checkbox']")).toHaveCount(0)
+        try await expect(page.locator(".thread-submit")).toHaveText("Submit")
         try await expect(page.locator("#madrigal-images .roster-row").nth(1).locator(".checkbox-input")).toBeDisabled()
-        try await page.locator("#locution-thread-locution-body").fill("@gnorium Hi")
-        try await page.locator(".locution-thread-submit").click()
+        try await page.locator("#thread-locution-body").fill("@gnorium Hi")
+        try await page.locator(".thread-submit").click()
         try await expect(page.locator(".locution-view"), timeout: .seconds(15)).toHaveCount(1)
         try await expect(page.locator(".locution-call-page")).toHaveCount(0)
         #expect(try TestAdmin.query("""
@@ -114,10 +114,10 @@ struct ArbitrationTests {
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".disputorium-core-work #artifact-page-total"), timeout: .seconds(20)).toHaveText("3")
-        try await expect(page.locator("#locution-thread-locution-image")).toHaveValue("2")
-        try await page.locator("#locution-thread-locution-body").fill("@gnorium What does the selected evidence support?")
+        try await expect(page.locator("#thread-locution-image")).toHaveValue("2")
+        try await page.locator("#thread-locution-body").fill("@gnorium What does the selected evidence support?")
         try await page.locator("#madrigal-images .roster-row").nth(0).locator("input").click()
-        try await page.locator(".locution-thread-submit").click()
+        try await page.locator(".thread-submit").click()
         // Posted pending: no status chip on a call (user, 2026-10-11), and
         // no Commit for a contributor.
         try await expect(page.locator(".locution-call-page"), timeout: .seconds(15)).toHaveCount(1)
@@ -677,7 +677,7 @@ struct ArbitrationTests {
         // One instance: no pager.
         try await expect(resumed.locator(".locution-pages-nav")).toHaveCount(0)
         // The Continue, an act of the thread.
-        let act = page.locator(".locution-thread-event-line").filter(hasText: "continued locution \(callID.uppercased())")
+        let act = page.locator(".thread-event-line").filter(hasText: "continued locution \(callID.uppercased())")
         try await expect(act).toHaveCount(1)
         try await expect(act).not.toContainText("instance")
         // Waiting again: its Continue drawn hidden, shown only should it fail
@@ -696,9 +696,9 @@ struct ArbitrationTests {
         #expect(try TestAdmin.query("SELECT count(*) FROM bibliographic_arbitration_sessions WHERE call_locution_id = '\(callID)'") == "1")
         // An admin submits through exactly the same pending process, the
         // page ticked as any caller ticks it.
-        try await page.locator("#locution-thread-locution-body").fill("@gnorium Read this evidence again.")
+        try await page.locator("#thread-locution-body").fill("@gnorium Read this evidence again.")
         try await page.locator("#madrigal-images .roster-row").nth(0).locator("input").click()
-        try await page.locator(".locution-thread-submit").click()
+        try await page.locator(".thread-submit").click()
         try await expect(page.locator(".locution-commit"), timeout: .seconds(15)).toHaveCount(1)
         try await expect(page.locator(".locution-call-status")).toHaveCount(0)
         #expect(try TestAdmin.query("SELECT count(*) FROM bibliographic_arbitration_sessions WHERE locutable_id = '\(objectID)'") == "1")
@@ -1266,7 +1266,7 @@ struct ArbitrationTests {
     #expect(try await page.evaluate("""
       (async () => { for (let i = 0; i < 50 && !window.__suggestStream; i++) await new Promise(r => setTimeout(r, 100)); return !!window.__suggestStream })()
       """, as: Bool.self), "The reply's watch is attached")
-    let act = page.locator(".locution-thread-timeline #revision-\(revisionID)")
+    let act = page.locator(".thread-timeline #revision-\(revisionID)")
     try await expect(act).toHaveCount(0)
     _ = try await page.evaluate("(() => { window.__notReloaded = true; return true })()", as: Bool.self)
     _ = try TestAdmin.query("""
@@ -1281,11 +1281,11 @@ struct ArbitrationTests {
         return true })()
       """, as: Bool.self)
     try await expect(act, timeout: .seconds(15)).toHaveCount(1)
-    try await expect(act.locator(".locution-thread-event-line")).toContainText("suggested revision")
-    try await expect(act.locator(".locution-thread-event-line a[href$='/revisions/\(revisionID)']")).toHaveCount(1)
+    try await expect(act.locator(".thread-event-line")).toContainText("suggested revision")
+    try await expect(act.locator(".thread-event-line a[href$='/revisions/\(revisionID)']")).toHaveCount(1)
     // In its place: the last entry, its timestamp's ⓘ live.
     #expect(try await page.evaluate("""
-      (() => { const entries = [...document.querySelectorAll('.locution-thread-timeline > *')]
+      (() => { const entries = [...document.querySelectorAll('.thread-timeline > *')]
         return entries[entries.length - 1]?.id === 'revision-\(revisionID)' })()
       """, as: Bool.self), "The act is the thread's last entry")
     #expect(try await page.evaluate("window.__notReloaded === true", as: Bool.self), "The act arrives without a reload")
@@ -1296,7 +1296,7 @@ struct ArbitrationTests {
     #expect(fragment.contains("id=\"revision-\(revisionID)\"") || fragment.lowercased().contains("id=\"revision-\(revisionID.lowercased())\""),
       "the thread fragment holds the revision's act")
     #expect(fragment.contains("suggested revision"), "the fragment says what was done")
-    #expect(fragment.contains("locution-thread-view"), "the fragment is the thread")
+    #expect(fragment.contains("thread-view"), "the fragment is the thread")
     for chrome in ["<html", "<!DOCTYPE", "layout-main", "disputorium-core-view", "artifact-view"] {
       #expect(!fragment.contains(chrome), "the fragment carries the page's chrome: \(chrome)")
     }
@@ -1346,13 +1346,13 @@ struct ArbitrationTests {
         // Commit mode: the three read pages locked, the blank one ticked for.
         try await expect(rows.nth(0).locator(".checkbox-icon-wrapper")).toBeHidden()
         try await expect(rows.nth(3).locator(".checkbox-icon-wrapper")).toBeVisible()
-        let body = page.locator("#locution-thread-locution-body")
+        let body = page.locator("#thread-locution-body")
         try await body.focus()
         try await expect(roster).toHaveAttribute("data-mode", "attach")
         try await expect(rows.nth(0).locator(".checkbox-icon-wrapper")).toBeVisible()
         try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked(false)
         try await expect(rows.nth(0).locator(".checkbox-input")).toHaveAttribute("name", "evidence[]")
-        try await expect(rows.nth(0).locator(".checkbox-input")).toHaveAttribute("form", "locution-thread-form")
+        try await expect(rows.nth(0).locator(".checkbox-input")).toHaveAttribute("form", "thread-form")
         try await expect(rows.nth(1).locator(".checkbox-input")).toBeChecked(false)
         try await expect(rows.nth(3).locator(".checkbox-icon-wrapper")).toBeHidden()
         try await expect(rows.nth(3).locator(".checkbox-input")).toBeDisabled()
@@ -1373,7 +1373,7 @@ struct ArbitrationTests {
         try await expect(rows.nth(2).locator(".checkbox-input")).toBeChecked(false)
         // Back to commit mode when the box is left empty; attach again on
         // "@gnorium" typed.
-        try await page.locator(".locution-thread-title, h3").first.click()
+        try await page.locator(".thread-title, h3").first.click()
         try await expect(roster).toHaveAttribute("data-mode", "commit")
         try await expect(rows.nth(0).locator(".checkbox-icon-wrapper")).toBeHidden()
         try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked(false)
@@ -1384,7 +1384,7 @@ struct ArbitrationTests {
         try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked(false)
         try await rows.nth(0).locator("input").click()
         try await rows.nth(1).locator("input").click()
-        try await page.locator(".locution-thread-submit").click()
+        try await page.locator(".thread-submit").click()
         // Pending: no status chip; an admin's Commit stands under the call's words.
         try await expect(page.locator(".locution-said + .locution-call-actions .locution-commit"), timeout: .seconds(15))
           .toHaveText("Commit")
@@ -1399,7 +1399,7 @@ struct ArbitrationTests {
         try await expect(page.locator(".locution-header").first).not.toContainText("Image 2")
         let both = try await page.locator(".locution-attachments").first.evaluate("""
           el => [...el.querySelectorAll('.locution-attachments-item')].map(item => {
-            const path = item.querySelector('.locution-thread-path')
+            const path = item.querySelector('.thread-path')
             return path ? [...path.children].filter(c => !c.classList.contains('breadcrumb-separator-view'))
               .map(c => c.textContent.trim()).join(' › ') : item.querySelector('a').textContent.trim() }).join(' | ')
           """).string
@@ -1436,9 +1436,9 @@ struct ArbitrationTests {
     do {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(reading.path)
-        let body = page.locator("#locution-thread-locution-body")
+        let body = page.locator("#thread-locution-body")
         try await body.fill("The title reads oddly.")
-        try await page.locator(".locution-thread-submit").click()
+        try await page.locator(".thread-submit").click()
         let first = page.locator(".locution-view").first
         try await expect(first, timeout: .seconds(15)).toBeVisible()
         let firstID = try TestAdmin.query("SELECT id FROM locutions WHERE locutable_id = '\(objectID)'").uppercased()
@@ -1495,7 +1495,7 @@ struct ArbitrationTests {
         let page2 = page.locator("#madrigal-images .roster-row").nth(1).locator("input")
         try await page2.click()
         try await expect(page2).toBeChecked()
-        try await page.locator(".locution-thread-submit").click()
+        try await page.locator(".thread-submit").click()
         try await expect(page.locator(".locution-said + .locution-call-actions .locution-commit"), timeout: .seconds(15))
           .toHaveText("Commit")
         let stored = try TestAdmin.query("""
@@ -1515,7 +1515,7 @@ struct ArbitrationTests {
         try await expect(attachments).toContainText("Attached ")
         let crumbs = try await attachments.evaluate("""
           el => [...el.querySelectorAll('.locution-attachments-item')].map(item => {
-            const path = item.querySelector('.locution-thread-path')
+            const path = item.querySelector('.thread-path')
             return path ? [...path.children].filter(c => !c.classList.contains('breadcrumb-separator-view'))
               .map(c => c.textContent.trim()).join(' › ') : item.querySelector('a').textContent.trim() }).join(' | ')
           """).string
@@ -1562,10 +1562,10 @@ struct ArbitrationTests {
         let viewer = page.locator(".artifact-view").first
         try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
         let roster = page.locator("#madrigal-images")
-        let body = page.locator("#locution-thread-locution-body")
+        let body = page.locator("#thread-locution-body")
         // Submit at the right, under the box's right edge (user, 2026-10-10).
         let field = try #require(try await body.boundingBox())
-        let submit = try #require(try await page.locator(".locution-thread-submit").boundingBox())
+        let submit = try #require(try await page.locator(".thread-submit").boundingBox())
         #expect(abs((submit.x + submit.width) - (field.x + field.width)) < 1, "Submit under the box's right edge")
         #expect(submit.x > field.x + 1, "Submit is not at the left")
         try await body.fill("@gnorium Read the line in the box.")
@@ -1588,7 +1588,7 @@ struct ArbitrationTests {
         try await page.mouse.up(x: x1, y: y1)
         try await expect(image.locator(".canvas-crop")).toBeVisible()
         try await expect(roster).toHaveAttribute("data-mode", "attach")
-        try await page.locator(".locution-thread-submit").click()
+        try await page.locator(".thread-submit").click()
         // Pending: no status chip; an admin's Commit stands under the call's words.
         try await expect(page.locator(".locution-said + .locution-call-actions .locution-commit"), timeout: .seconds(15))
           .toHaveText("Commit")

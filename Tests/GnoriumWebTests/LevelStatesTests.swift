@@ -85,10 +85,10 @@ struct LevelStatesTests {
         try await expect(Self.chip(page)).toHaveText("Committed")
         try await expect(page.locator(".overture-committed")).toHaveCount(0)
         // What its Commit created is the thread's event line, not the closure note's.
-        try await expect(page.locator(".locution-thread-event-line a[href='\(scratch.quatrainPath)' i]")).toBeVisible()
+        try await expect(page.locator(".thread-event-line a[href='\(scratch.quatrainPath)' i]")).toBeVisible()
         try await expect(page.locator(".commit-trigger")).toHaveCount(0)
         try await expect(page.locator(".mission-control-object-header-action-buttons")).toHaveCount(0)
-        try await expect(page.locator(".locution-thread-settled-note")).toContainText("has been committed; its locutions are closed.")
+        try await expect(page.locator(".thread-settled-note")).toContainText("has been committed; its locutions are closed.")
       }
     } catch {
       scratch.remove()
@@ -199,9 +199,9 @@ struct LevelStatesTests {
         try await page.openHydrated(scratch.halftonePath)
         try await expect(Self.chip(page)).toHaveText("Committed")
         try await expect(page.locator(".overture-committed")).toHaveCount(0)
-        try await expect(page.locator(".locution-thread-event-line a[href='\(scratch.antiphonPath)' i]")).toBeVisible()
+        try await expect(page.locator(".thread-event-line a[href='\(scratch.antiphonPath)' i]")).toBeVisible()
         try await expect(page.locator(".commit-trigger")).toHaveCount(0)
-        try await expect(page.locator(".locution-thread-settled-note")).toContainText("has been committed; its locutions are closed.")
+        try await expect(page.locator(".thread-settled-note")).toContainText("has been committed; its locutions are closed.")
         // Its Pedigree names its Commit, for explication.
         try await page.locator(".pedigree-accordion .accordion-summary").first.click()
         try await expect(page.locator(".pedigree-rows")).toContainText("for explication")

@@ -8,7 +8,7 @@ import WebTestsTesting
 /// version's acts or locutions, though they share an argument; its pedigree
 /// shows those. The count counts what it shows.
 @Suite("Locution thread scope", .serialized)
-struct LocutionThreadScopeTests {
+struct ThreadScopeTests {
   @Test(arguments: [BrowserEngine.chrome])
   func aMadrigalsThreadShowsOnlyItsOwnActsAndLocutions(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -50,13 +50,13 @@ struct LocutionThreadScopeTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         // The later version: its creation and its own locution alone.
         try await page.openHydrated("/mission-control/madrigals/bibliographic/\(laterID)")
-        let events = page.locator(".locution-thread-event")
+        let events = page.locator(".thread-event")
         try await expect(events).toHaveCount(1)
         try await expect(page.locator("#creation-\(laterID.uppercased())")).toHaveCount(1)
         try await expect(page.locator("#locution-\(laterLocutionID.uppercased())")).toHaveCount(1)
         try await expect(page.locator("#locution-\(earlierLocutionID.uppercased())")).toHaveCount(0)
         // Its one locution: the events beside it are not counted.
-        try await expect(page.locator(".locution-thread-count")).toHaveText("1")
+        try await expect(page.locator(".thread-count")).toHaveText("1")
 
         // The earlier one: its creation and its commit, never the later's.
         try await page.openHydrated(scratch.madrigalPath)
@@ -66,7 +66,7 @@ struct LocutionThreadScopeTests {
         try await expect(page.locator("#creation-\(laterID.uppercased())")).toHaveCount(0)
         try await expect(page.locator("#locution-\(earlierLocutionID.uppercased())")).toHaveCount(1)
         try await expect(page.locator("#locution-\(laterLocutionID.uppercased())")).toHaveCount(0)
-        try await expect(page.locator(".locution-thread-count")).toHaveText("1")
+        try await expect(page.locator(".thread-count")).toHaveText("1")
         try await page.expectNoErrors()
       }
     } catch {
@@ -134,16 +134,16 @@ struct LocutionThreadScopeTests {
         #expect(shifted == 0, "No layout shift in the thread: \(shifted)")
         let replyButton = page.locator("\(quoted) .locution-reply-button")
         try await expect(replyButton).toBeVisible()
-        try await expect(replyButton).toHaveAttribute("href", "?reply=\(quotedID.uppercased())#locution-thread-form")
+        try await expect(replyButton).toHaveAttribute("href", "?reply=\(quotedID.uppercased())#thread-form")
         try await replyButton.click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the page answering it", where: {
           $0.absoluteString.contains("reply=\(quotedID.uppercased())")
         })
-        let replying = page.locator(".locution-thread-replying")
+        let replying = page.locator(".thread-replying")
         try await expect(replying.locator(".locution-quote-author")).toHaveText(other.username)
         try await expect(replying.locator(".locution-quote-text")).toHaveText("The first page is misread.")
-        try await page.locator("#locution-thread-locution-body").fill("Agreed; it reads 1611.")
-        try await page.locator(".locution-thread-submit").click()
+        try await page.locator("#thread-locution-body").fill("Agreed; it reads 1611.")
+        try await page.locator(".thread-submit").click()
         for _ in 0..<60 {
           let count = try TestAdmin.query(
             "SELECT count(*) FROM locutions WHERE parent_id = '\(quotedID)'")
@@ -160,7 +160,7 @@ struct LocutionThreadScopeTests {
         try await expect(reply.locator(".locution-body")).toContainText("Agreed; it reads 1611.")
         // In time order: the reply after what it answers.
         let order = try await page.evaluate(
-          "[...document.querySelectorAll('.locution-thread-entry')].map(e => e.id).join(' ')"
+          "[...document.querySelectorAll('.thread-entry')].map(e => e.id).join(' ')"
         ).string ?? ""
         let answered = order.range(of: "locution-\(quotedID.uppercased())")?.lowerBound
         let answering = order.range(of: "locution-\(replyID)")?.lowerBound

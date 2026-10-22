@@ -167,7 +167,7 @@ struct OriginDiffTests {
         // `RevisePagesTests.expectChangedLinksLand`); the tree has no
         // format toggle, so it opens as it is.
         try await tab.openHydrated(page)
-        let link = tab.locator(".locution-thread-event-changed a").filter(hasText: "Origin")
+        let link = tab.locator(".thread-event-changed a").filter(hasText: "Origin")
         try await expect(link).toHaveCount(1)
         let href = try await link.evaluate("(el) => el.getAttribute('href')")
         #expect(

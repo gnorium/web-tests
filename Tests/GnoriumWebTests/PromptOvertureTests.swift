@@ -73,7 +73,7 @@ struct PromptOvertureTests {
           $0.path.lowercased() == "/mission-control/prompts/vignettes/\(vignette)/amend"
         }
         try await expect(page.locator(".form-header-view h1, .form-header-title").first)
-          .toContainText("Submit Amendment to Bibliographic Translation Prompts")
+          .toContainText("Submit Amendment")
         // Submit with nothing changed: refused, said, nothing filed.
         let submit = page.locator("#amend-vignette-form button[type='submit']")
         try await expect(submit).toHaveText("Submit")
@@ -135,14 +135,14 @@ struct PromptOvertureTests {
         // while it is written each changed part offers its box, none
         // ticked; posted pending, it holds the one ticked. It is never
         // committed here.
-        try await page.locator("#locution-thread-locution-body").fill("@gnorium Is this change sound?")
+        try await page.locator("#thread-locution-body").fill("@gnorium Is this change sound?")
         let ticks = page.locator(".prompt-change-view .call-tick-view")
         try await expect(ticks.first).toBeVisible()
         try await expect(ticks.first.locator("input")).toBeChecked(false)
         let part = try #require(try await ticks.first.locator("input").getAttribute("value"))
         #expect(part.hasPrefix("prompt-diff-"), "A diff's review id: \(part)")
         try await ticks.first.locator("input").click()
-        try await page.locator(".locution-thread-submit").click()
+        try await page.locator(".thread-submit").click()
         try await expect(page.getByText("Is this change sound?").first, timeout: .seconds(15)).toBeVisible()
         let ticked = try TestAdmin.query(
           "SELECT prompt_ids FROM locutions WHERE locutable_id = '\(id)' AND kind = 'call'")

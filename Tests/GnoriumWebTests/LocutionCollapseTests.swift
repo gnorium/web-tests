@@ -62,7 +62,7 @@ struct LocutionCollapseTests {
         try await expect(toggle).toHaveAttribute("aria-label", "Collapse locution")
         try await expect(body).toBeVisible()
         // The acts beside it do not fold.
-        try await expect(page.locator(".locution-thread-event .locution-collapse")).toHaveCount(0)
+        try await expect(page.locator(".thread-event .locution-collapse")).toHaveCount(0)
 
         // Hovered, the scrim and its chevron cover the avatar.
         try await expect(overlay).toHaveCSS("display", "none")
@@ -168,8 +168,8 @@ struct LocutionCollapseTests {
         try await page.openHydrated(scratch.madrigalPath)
         let open = page.locator("#locution-\(openID.uppercased())")
         let folded = page.locator("#locution-\(foldedID.uppercased())")
-        let all = page.locator(".locution-thread-collapse")
-        let section = page.locator(".locution-thread-view")
+        let all = page.locator(".thread-collapse")
+        let section = page.locator(".thread-view")
         try await expect(all).toHaveAttribute("aria-expanded", "true")
 
         // One folded by its avatar.

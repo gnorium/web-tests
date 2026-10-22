@@ -48,7 +48,7 @@ struct LexicographicAmendmentTests {
         // each with its controls at its foot.
         let form = page.locator("form.submit-lexicographic-amendment-form")
         try await expect(form).toHaveCount(1)
-        try await expect(form.locator(".form-header-view")).toContainText("Submit Amendment to Lexico-record")
+        try await expect(form.locator(".form-header-view")).toContainText("Submit Amendment")
         let outline = form.locator(".sentiment-outliner-view")
         try await expect(outline.locator("input[name='sentiment-shape']")).toHaveCount(1)
         let leaf = outline.locator(".sentiment-outliner-controls[data-sentiment-id='s-1-1']")

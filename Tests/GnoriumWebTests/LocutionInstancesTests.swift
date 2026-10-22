@@ -92,7 +92,7 @@ struct LocutionInstancesTests {
 
         // The thread's acts: each Edit, its instances linked; followed, the
         // locution is paged to it.
-        let acts = page.locator(".locution-thread-event-line").filter(hasText: "submitted locution \(id) instance")
+        let acts = page.locator(".thread-event-line").filter(hasText: "submitted locution \(id) instance")
         try await expect(acts).toHaveCount(2)
         try await expect(acts.first).toContainText("submitted locution \(id) instance 1, creating instance 2")
         try await expect(acts.nth(1)).toContainText("submitted locution \(id) instance 2, creating instance 3")
@@ -115,9 +115,9 @@ struct LocutionInstancesTests {
 
         // A reply, to the current instance, records it and quotes its words.
         try await replyLink.click()
-        try await expect(page.locator(".locution-thread-replying .locution-quote-text")).toHaveText(Self.words[2])
-        try await page.locator("#locution-thread-locution-body").fill("Agreed, on this reading.")
-        try await page.locator(".locution-thread-submit").click()
+        try await expect(page.locator(".thread-replying .locution-quote-text")).toHaveText(Self.words[2])
+        try await page.locator("#thread-locution-body").fill("Agreed, on this reading.")
+        try await page.locator(".thread-submit").click()
         try await expect(page.locator(".locution-view .locution-quote-text").filter(hasText: Self.words[2]),
           timeout: .seconds(15)).toHaveCount(1)
         #expect(try TestAdmin.query("""
