@@ -74,7 +74,7 @@ struct ScratchOverture {
 
         INSERT INTO bibliographic_quatrains (id, bibliographic_overture_id, requested_by_user_id, image_service_ids_json, processing_status, created_at, updated_at)
           VALUES ('\(quatrainID)', '\(overtureID)', '\(user)', '\(scope)', 'submitted', now(), now());
-        INSERT INTO scan_layouts (id, image_url, fetched_url, bytes_sha256, width, height, analysis_version, layout, fetch_ms, measure_ms)
+        INSERT INTO scan_layouts (id, image_url, fetched_url, bytes_sha256, width, height, measuring_version, layout, fetch_ms, measure_ms)
           VALUES ('\(layoutID)', '\(images[0])', '\(images[0])', '\(String(repeating: "a", count: 64))', 100, 100, '\(String(repeating: "b", count: 64))', '{}'::jsonb, 1, 1);
         """
       for index in 0..<calibrated {
@@ -82,7 +82,7 @@ struct ScratchOverture {
 
           INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, image, instance, provider, model, result, duration_ms, created_at, finished_at)
             VALUES ('\(nocturneIDs[index])', '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[index])', 1, 'DeepSeek', 'deepseek-flash', 'passed', 1500, now() - interval '1 minute', now() - interval '1 minute');
-          INSERT INTO calibration_pages (bibliographic_calibration_nocturne_id, bibliographic_overture_id, image, ordinal, label, layout_id, analysis_version, em, judgment_json, tool_hashes_json, facts_json, created_at)
+          INSERT INTO calibration_pages (bibliographic_calibration_nocturne_id, bibliographic_overture_id, image, ordinal, label, layout_id, measuring_version, em, judgment_json, tool_hashes_json, facts_json, created_at)
             VALUES ('\(nocturneIDs[index])', '\(overtureID)', '\(services[index])', \(index + 1), '\(index + 1)', '\(layoutID)', '\(String(repeating: "b", count: 64))', 20.5, '{}', '{}', '{"width":2000.0,"body":45.4,"measure":55.1,"height":76.4}', now() - interval '1 minute');
           """
       }
@@ -98,7 +98,7 @@ struct ScratchOverture {
         + images.enumerated().map { "<pb n=\"\($0.offset + 1)\" facs=\"\($0.element)\"/>" }.joined() + "</body></text></TEI>"
       let content = String(decoding: try JSONSerialization.data(withJSONObject: ["teiXml": tei]), as: UTF8.self)
         .replacingOccurrences(of: "'", with: "''")
-      let header = #"{"header_tei":"<teiHeader/>","face":null,"analysis_versions":[],"page_count":4,"fitted":[]}"#
+      let header = #"{"header_tei":"<teiHeader/>","face":null,"measuring_versions":[],"page_count":4,"fitted":[]}"#
       statements += """
 
         INSERT INTO bibliographic_antiphons (id, bibliographic_halftone_id, document_json, header_json, metadata_json, requested_by_user_id, image_service_ids_json, processing_status, created_at, updated_at)

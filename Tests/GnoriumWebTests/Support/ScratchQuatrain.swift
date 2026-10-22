@@ -79,9 +79,9 @@ struct ScratchQuatrain {
         VALUES ('\(nocturneIDs[0])', '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[0])', 1, 'DeepSeek', 'deepseek-flash', 'passed', NULL, 1500, now(), now()),
           ('\(nocturneIDs[1])', '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[1])', 1, 'DeepSeek', 'deepseek-flash', 'failed', 'Image 2 cannot be measured.', 900, now(), now()),
           ('\(nocturneIDs[2])', '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[2])', 1, 'DeepSeek', 'deepseek-flash', '\(status == "submitted" ? "passed" : "running")', NULL, NULL, now(), NULL);
-      INSERT INTO scan_layouts (id, image_url, fetched_url, bytes_sha256, width, height, analysis_version, layout, fetch_ms, measure_ms)
+      INSERT INTO scan_layouts (id, image_url, fetched_url, bytes_sha256, width, height, measuring_version, layout, fetch_ms, measure_ms)
         VALUES ('\(layoutID)', '\(images[0])', '\(images[0])', '\(String(repeating: "a", count: 64))', 100, 100, '\(String(repeating: "b", count: 64))', '{}'::jsonb, 1, 1);
-      INSERT INTO calibration_pages (bibliographic_calibration_nocturne_id, bibliographic_overture_id, image, ordinal, label, layout_id, analysis_version, em, judgment_json, tool_hashes_json, facts_json)
+      INSERT INTO calibration_pages (bibliographic_calibration_nocturne_id, bibliographic_overture_id, image, ordinal, label, layout_id, measuring_version, em, judgment_json, tool_hashes_json, facts_json)
         VALUES ('\(nocturneIDs[0])', '\(overtureID)', '\(services[0])', 1, '1', '\(layoutID)', '\(String(repeating: "b", count: 64))', 20.5, '{}', '{}', '{"width":2000.0,"body":45.4,"measure":55.1,"height":76.4}');
       \(try SessionTrace.append(measured, table: "bibliographic_calibration_nocturnes", id: nocturneIDs[0]))
       \(try SessionTrace.append(failedTrace, table: "bibliographic_calibration_nocturnes", id: nocturneIDs[1]))
