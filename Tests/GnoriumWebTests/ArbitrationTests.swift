@@ -286,7 +286,7 @@ struct ArbitrationTests {
         try await expect(slot).toHaveCount(1)
         try await expect(call.locator(".computorium-session-view")).toHaveCount(0)
         try await expect(slot.locator(".locution-header")).toContainText(
-          "gnorium submitting locution \(replyID.uppercased()) replying to locution \(callID.uppercased())")
+          "gnorium submitted locution \(replyID.uppercased()) replying to locution \(callID.uppercased())")
         #expect(try await page.evaluate("""
           (() => { const top = s => document.querySelector(s).getBoundingClientRect().top
             return top('#locution-\(callID.uppercased())') < top('#commit-\(callID.uppercased())')
