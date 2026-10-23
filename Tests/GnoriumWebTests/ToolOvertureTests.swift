@@ -5,17 +5,23 @@ import WebTestsTesting
 
 /// A process's tools are revised on an overture of their vignette, in
 /// Mission Control alone (user, 2026-10-21), as its prompts are: a tool
-/// vignette is a pinned commit of the tools code; its page offers an
+/// vignette is a flat set of the tools code's module files kept in the
+/// database; its page offers an
 /// Amend (any reader's), which submits a palinode, frozen, opening the overture; the
 /// overture's page is never indexed and holds Revise and Permit—no header
 /// Commit (user, 2026-10-21): a review is a call to gnorium in its thread—
-/// Permit's refusal said when pressed. The vignette here is a scratch one, of
-/// commits no repository holds, put in force only where the process has
-/// none and taken out of force after (the frozen palinode names it, so its
-/// row stays, never in force); no review is called (no model is asked), no
+/// Permit's refusal said when pressed. The vignette here is a scratch one, one
+/// file, put in force only where the process has none and taken out of force
+/// after (its modules are immutable and the frozen palinode names it, so its
+/// rows stay, never in force); no review is called (no model is asked), no
 /// test runs and nothing is permitted.
 @Suite("Tool overtures", .serialized)
 struct ToolOvertureTests {
+  /// The first harness contract (migration 0218), and the scratch vignette's one file.
+  static let contract = "01a16a0d-8ea4-8105-a9ed-bdcfe354c6bc"
+  static let file = "scratch_tools.py"
+  static let source = "SCRATCH = 1\\n"
+
   @Test(arguments: [BrowserEngine.chrome])
   func amendOpensAToolOvertureWhosePermitSaysWhyItWaits(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -37,12 +43,15 @@ struct ToolOvertureTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let user = try admin.column("id")
     let vignette = UUID().uuidString.lowercased()
-    let commit = String(repeating: "0", count: 40)
+    // A hash no other run's (a slot holds one vignette a hash).
+    let hash = (UUID().uuidString + UUID().uuidString).replacingOccurrences(of: "-", with: "").lowercased().prefix(64).description
     _ = try TestAdmin.query(
       """
       BEGIN;
-      INSERT INTO tool_vignettes (id, slot, gnorium_python_commit, philology_tools_commit, created_at)
-      VALUES ('\(vignette)', '\(slot)', '\(commit)', '\(commit)', now());
+      INSERT INTO tool_vignettes (id, slot, contract_id, modules_hash, created_at)
+      VALUES ('\(vignette)', '\(slot)', '\(Self.contract)', '\(hash)', now());
+      INSERT INTO tool_vignette_modules (id, tool_vignette_id, filename, kind, tool_names_json, source, source_hash)
+      VALUES (gen_random_uuid(), '\(vignette)', '\(Self.file)', 'helper', '[]', '\(Self.source)', '\(hash)');
       INSERT INTO active_tool_vignettes (slot, vignette_id, activated_by, activated_at)
       VALUES ('\(slot)', '\(vignette)', NULL, now());
       COMMIT;
@@ -67,13 +76,11 @@ struct ToolOvertureTests {
         DELETE FROM revisions WHERE revisable_id = '\(id)';
         UPDATE vignette_overtures SET discarded_at = now(), discarded_by = '\(admin.username)' WHERE id = '\(id)';
         """
-      let named = (try? count("SELECT count(*) FROM vignette_palinodes WHERE tool_vignette_id = '\(vignette)'")) ?? "1"
       _ = try? TestAdmin.query(
         """
         BEGIN;
         \(overture)
         DELETE FROM active_tool_vignettes WHERE slot = '\(slot)' AND vignette_id = '\(vignette)';
-        \(named == "0" ? "DELETE FROM tool_vignettes WHERE id = '\(vignette)';" : "")
         COMMIT;
         """)
     }
@@ -82,10 +89,10 @@ struct ToolOvertureTests {
         // The tools list links the process's vignette in force.
         try await page.openHydrated("/mission-control/tools/bibliographic")
         try await expect(page.locator("a[href='/mission-control/tools/vignettes/\(vignette)' i]").first).toBeVisible()
-        // Its page names its commits and offers an Amend.
+        // Its page names its file, flat, and offers an Amend.
         try await page.openHydrated("/mission-control/tools/vignettes/\(vignette)")
         try await expect(page.locator(".tool-details-title")).toHaveText("Bibliographic Translation Tools Vignette")
-        try await expect(page.locator(".pedigree-view").filter(hasText: commit).first).toBeVisible()
+        try await expect(page.locator(".tool-change-view").filter(hasText: Self.file).first).toBeVisible()
         let robots = try await page.evaluate(
           "document.querySelector(\"meta[name='robots']\")?.content ?? ''", as: String.self)
         #expect(robots.contains("noindex"), "Never indexed: \(robots)")
@@ -93,8 +100,7 @@ struct ToolOvertureTests {
         try await expect(amend).toHaveText("Submit Amendment")
         try await amend.click()
         // Its Amend form: the vignette in edit mode, its tool files, no
-        // note. Its commits are no repository's, so its files cannot be
-        // read: said, and nothing to change.
+        // note.
         try await expect(page, timeout: .seconds(15)).toHaveURL("the Amend form") {
           $0.path.lowercased() == "/mission-control/tools/vignettes/\(vignette)/amend"
         }
@@ -131,17 +137,12 @@ struct ToolOvertureTests {
         // No header Commit: a review is a call in its thread.
         try await expect(page.locator("button[form='tool-overture-commit']")).toHaveCount(0)
         // Permit, pressed with nothing accepted, says why and sends
-        // nothing; nothing is put in force. While a serenade committed
-        // for translation is pending or running, Permit waits for it first
-        // (user, 2026-10-21): it runs with the tools it was committed with.
-        let running = try count(
-          "SELECT count(*) FROM bibliographic_serenades WHERE processing_status IN ('pending', 'translating')") != "0"
+        // nothing; nothing is put in force. A serenade committed for
+        // translation, pending or running, holds nothing: it runs the
+        // vignette it was committed with.
         try await page.locator("button[form='tool-overture-permit']").click()
         try await expect(
-          page.locator(".action-gate-alert").filter(
-            hasText: running
-              ? "Permit waits until the process's committed objects finish."
-              : "No accepted revision changes the tools yet.")
+          page.locator(".action-gate-alert").filter(hasText: "No accepted revision changes the tools yet.")
         ).toBeVisible()
         #expect(try count("SELECT count(*) FROM locutions WHERE locutable_id = '\(id)'") == "0", "No review was called")
         #expect(try count("SELECT count(*) FROM tool_test_runs WHERE overture_id = '\(id)'") == "0", "No test ran")
@@ -193,12 +194,15 @@ struct ToolOvertureTests {
     }
     let reader = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let vignette = UUID().uuidString.lowercased()
-    let commit = String(repeating: "0", count: 40)
+    // A hash no other run's (a slot holds one vignette a hash).
+    let hash = (UUID().uuidString + UUID().uuidString).replacingOccurrences(of: "-", with: "").lowercased().prefix(64).description
     _ = try TestAdmin.query(
       """
       BEGIN;
-      INSERT INTO tool_vignettes (id, slot, gnorium_python_commit, philology_tools_commit, created_at)
-      VALUES ('\(vignette)', '\(slot)', '\(commit)', '\(commit)', now());
+      INSERT INTO tool_vignettes (id, slot, contract_id, modules_hash, created_at)
+      VALUES ('\(vignette)', '\(slot)', '\(Self.contract)', '\(hash)', now());
+      INSERT INTO tool_vignette_modules (id, tool_vignette_id, filename, kind, tool_names_json, source, source_hash)
+      VALUES (gen_random_uuid(), '\(vignette)', '\(Self.file)', 'helper', '[]', '\(Self.source)', '\(hash)');
       INSERT INTO active_tool_vignettes (slot, vignette_id, activated_by, activated_at)
       VALUES ('\(slot)', '\(vignette)', NULL, now());
       COMMIT;
@@ -208,7 +212,6 @@ struct ToolOvertureTests {
         """
         BEGIN;
         DELETE FROM active_tool_vignettes WHERE slot = '\(slot)' AND vignette_id = '\(vignette)';
-        DELETE FROM tool_vignettes WHERE id = '\(vignette)';
         COMMIT;
         """)
     }
