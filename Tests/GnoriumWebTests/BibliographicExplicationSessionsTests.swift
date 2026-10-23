@@ -151,7 +151,8 @@ struct BibliographicExplicationSessionsTests {
         // The autocompaction card is white; the prompt the summarizer was
         // given and the summary the main model is given from then on are
         // gray cards on it, each under its legend (user, 2026-10-10).
-        try await expect(page.locator(".computorium-session-compaction-summary-fieldset legend")).toHaveText("Autocompaction Summary")
+        // The summary has no legend: a gray box of its own under the prompt's.
+        try await expect(page.locator(".computorium-session-compaction-summary-box legend")).toHaveCount(0)
         #expect(try await page.evaluate("""
           (() => {
             const probe = document.createElement('span'); document.body.append(probe)
@@ -160,13 +161,15 @@ struct BibliographicExplicationSessionsTests {
             const bg = (el) => getComputedStyle(el).backgroundColor
             const card = document.querySelector('.computorium-session-compaction-rendered')
             const prompt = document.querySelector('.computorium-session-compaction-prompt-fieldset')
-            const summary = document.querySelector('.computorium-session-compaction-summary-fieldset')
+            const summary = document.querySelector('.computorium-session-compaction-summary-box')
             // Their legends are the boxes' last rows: 16 on every side
             // (user, 2026-10-12).
             const even = [prompt, summary].every(e => getComputedStyle(e).paddingBottom === '16px')
-            return [bg(card) === white, bg(prompt) === seen, bg(summary) === seen, bg(summary.querySelector('legend')) === seen, even].join(' ')
+            // Each scrolls inside a 256px cap: the prompt's text, the summary's box.
+            const capped = [prompt.querySelector('.computorium-session-compaction-prompt'), summary].every(e => getComputedStyle(e).maxHeight === '256px')
+            return [bg(card) === white, bg(prompt) === seen, bg(summary) === seen, even, capped].join(' ')
           })()
-          """, as: String.self) == "true true true true true", "Compaction card white, its prompt and summary gray, legends inside")
+          """, as: String.self) == "true true true true true", "Compaction card white, its prompt and summary gray and capped, no summary legend")
         // Raw is the chat template's text only: none recorded, none drawn.
         let rawCount = try await page.locator(".computorium-session-view .computorium-session-output-raw").count()
         #expect(rawCount == 0)
