@@ -80,9 +80,12 @@ struct ScratchOverture {
       for index in 0..<calibrated {
         statements += """
 
-          INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, image, instance, provider, model, result, duration_ms, created_at, finished_at)
-            VALUES ('\(nocturneIDs[index])', '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[index])', 1, 'DeepSeek', 'deepseek-flash', 'passed', 1500, now() - interval '1 minute', now() - interval '1 minute');
-          INSERT INTO calibration_pages (bibliographic_calibration_nocturne_id, bibliographic_overture_id, image, ordinal, label, layout_id, measuring_version, em, judgment_json, tool_hashes_json, facts_json, created_at)
+          INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, image, instance_count)
+           VALUES (md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[index])')::text, ''))::uuid, '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[index])', 1)
+           ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_calibration_nocturnes.instance_count + 1;
+          INSERT INTO bibliographic_calibration_nocturne_instances (id, nocturne_id, instance, provider, model, result, duration_ms, created_at, finished_at)
+          VALUES ('\(nocturneIDs[index])', md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[index])')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'passed', 1500, now() - interval '1 minute', now() - interval '1 minute');
+          INSERT INTO calibration_pages (bibliographic_calibration_nocturne_instance_id, bibliographic_overture_id, image, ordinal, label, layout_id, measuring_version, em, judgment_json, tool_hashes_json, facts_json, created_at)
             VALUES ('\(nocturneIDs[index])', '\(overtureID)', '\(services[index])', \(index + 1), '\(index + 1)', '\(layoutID)', '\(String(repeating: "b", count: 64))', 20.5, '{}', '{}', '{"width":2000.0,"body":45.4,"measure":55.1,"height":76.4}', now() - interval '1 minute');
           """
       }
@@ -110,16 +113,16 @@ struct ScratchOverture {
   }
 
   func remove() {
-    let table = "bibliographic_calibration_nocturnes"
+    let table = "bibliographic_calibration_nocturne_instances"
     _ = try? TestAdmin.query(
       """
       BEGIN;
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
       DELETE FROM bibliographic_halftones WHERE id = '\(halftoneID)';
-      \(SessionTrace.delete(table: table, where: "bibliographic_quatrain_id = '\(quatrainID)'"))
-      DELETE FROM calibration_observations WHERE bibliographic_calibration_nocturne_id IN (SELECT id FROM \(table) WHERE bibliographic_quatrain_id = '\(quatrainID)');
+      \(SessionTrace.delete(table: table, where: "nocturne_id IN (SELECT id FROM bibliographic_calibration_nocturnes WHERE bibliographic_quatrain_id = '\(quatrainID)')"))
+      DELETE FROM calibration_observations WHERE bibliographic_calibration_nocturne_instance_id IN (SELECT id FROM \(table) WHERE nocturne_id IN (SELECT id FROM bibliographic_calibration_nocturnes WHERE bibliographic_quatrain_id = '\(quatrainID)'));
       DELETE FROM calibration_pages WHERE bibliographic_overture_id = '\(overtureID)';
-      DELETE FROM model_calls WHERE bibliographic_calibration_nocturne_id IN (SELECT id FROM \(table) WHERE bibliographic_quatrain_id = '\(quatrainID)');
+      DELETE FROM model_calls WHERE bibliographic_calibration_nocturne_instance_id IN (SELECT id FROM \(table) WHERE nocturne_id IN (SELECT id FROM bibliographic_calibration_nocturnes WHERE bibliographic_quatrain_id = '\(quatrainID)'));
       DELETE FROM \(table) WHERE bibliographic_quatrain_id = '\(quatrainID)';
       DELETE FROM scan_layouts WHERE id = '\(layoutID)';
       DELETE FROM bibliographic_quatrains WHERE id = '\(quatrainID)';
