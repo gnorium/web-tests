@@ -126,11 +126,11 @@ struct RevisePagesTests {
         WHERE id = '\#(commit.madrigalID)'
         """#)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        // The process's page is read-only, its nocturnes its associated ones.
+        // The process's page is read-only and has no associated line (the vignette page does).
         let processURL = "/mission-control/prompts/bibliographic/explication"
         try await page.openHydrated(processURL)
         try await expect(page.locator("a[href='\(processURL)/revise']")).toHaveCount(0)
-        try await expect(page.locator(".associated-links-view a")).toHaveText("nocturnes")
+        try await expect(page.locator(".associated-links-view")).toHaveCount(0)
 
         try await page.openHydrated("\(commit.madrigalPath)/revise")
         try await expect(page.locator(".testament-tree-diff-view")).toHaveCount(1)
