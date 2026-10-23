@@ -90,11 +90,12 @@ struct LexicographicQuatrainTests {
           image_id, word_id, step, selected, rank, gate, dated_year, surprise, surface, lemma, class, testament, date,
           cert, row_json)
           VALUES \(scores);
-        INSERT INTO lexicographic_calibration_nocturnes (id, lexicographic_quatrain_id, process, instance, provider, model,
-          duration_ms, rounds, result, created_at, finished_at)
-          VALUES ('\(nocturne)', '\(quatrainID)', 'calibration', 1, 'DeepSeek', 'deepseek-flash', 1200, 2, 'passed',
-            now(), now());
-        INSERT INTO lexicographic_calibration_declarations (lexicographic_calibration_nocturne_id, judgment_json,
+        INSERT INTO lexicographic_calibration_nocturnes (id, lexicographic_quatrain_id, process, instance_count)
+         VALUES (md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce((NULL)::text, ''))::uuid, '\(quatrainID)', 'calibration', 1)
+         ON CONFLICT (id) DO UPDATE SET instance_count = lexicographic_calibration_nocturnes.instance_count + 1;
+        INSERT INTO lexicographic_calibration_nocturne_instances (id, nocturne_id, lexicographic_quatrain_id, process, instance, provider, model, duration_ms, rounds, result, created_at, finished_at)
+        VALUES ('\(nocturne)', md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce((NULL)::text, ''))::uuid, '\(quatrainID)', 'calibration', 1, 'DeepSeek', 'deepseek-flash', 1200, 2, 'passed', now(), now());
+        INSERT INTO lexicographic_calibration_declarations (lexicographic_calibration_nocturne_instance_id, judgment_json,
           tool_hashes_json, header_tei, selection_sha256)
           VALUES ('\(nocturne)', '\(judgment)', '{}', '<teiHeader/>', '\(String(repeating: "d", count: 64))');
         COMMIT;
@@ -105,8 +106,8 @@ struct LexicographicQuatrainTests {
       _ = try? TestAdmin.query(
         """
         BEGIN;
-        DELETE FROM model_calls WHERE lexicographic_calibration_nocturne_id IN
-          (SELECT id FROM lexicographic_calibration_nocturnes WHERE lexicographic_quatrain_id = '\(quatrainID)');
+        DELETE FROM model_calls WHERE lexicographic_calibration_nocturne_instance_id IN
+          (SELECT id FROM lexicographic_calibration_nocturne_instances WHERE lexicographic_quatrain_id = '\(quatrainID)');
         DELETE FROM lexicographic_quatrains WHERE id = '\(quatrainID)';
         DELETE FROM sentiments WHERE uuid = '\(sentimentID)';
         DELETE FROM sentiment_inventories WHERE language_code = 'eng' AND lemma = '\(title)' AND class = 'noun';

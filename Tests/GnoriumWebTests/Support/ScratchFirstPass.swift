@@ -11,6 +11,9 @@ import Foundation
 struct ScratchFirstPass {
   let work: ScratchWork
   let antiphonID: String
+  /// The page session's row: an instance of its nocturne.
+  let instanceID: String
+  /// The nocturne the session is an instance of (a Pedigree names it).
   let nocturneID: String
   let figurantID: String
   let overtureID: String
@@ -24,7 +27,7 @@ struct ScratchFirstPass {
     let user = try owner.column("id")
     work = try ScratchWork(owner: owner)
     antiphonID = UUID().uuidString.lowercased()
-    nocturneID = UUID().uuidString.lowercased()
+    instanceID = UUID().uuidString.lowercased()
     figurantID = UUID().uuidString.lowercased()
     overtureID = UUID().uuidString.lowercased()
     sentimentID = UUID().uuidString.lowercased()
@@ -36,13 +39,15 @@ struct ScratchFirstPass {
       BEGIN;
       INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
         VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-      INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
-        VALUES ('\(nocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
-          'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 1200, now());
+      INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+       VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 1)
+       ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
+      INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+      VALUES ('\(instanceID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 1200, now());
       INSERT INTO submissions (id, user_id) VALUES ('\(submission)', '\(user)');
       INSERT INTO lexicographic_figurants (id, batch_id, language, order_in_batch, processing_status,
-        title_form_json, anchors_json, bibliographic_explication_nocturne_id, created_at)
-        VALUES ('\(figurantID)', '\(submission)', 'eng', 0, 'pending', '\(form)', '[]', '\(nocturneID)', now());
+        title_form_json, anchors_json, bibliographic_explication_nocturne_instance_id, created_at)
+        VALUES ('\(figurantID)', '\(submission)', 'eng', 0, 'pending', '\(form)', '[]', '\(instanceID)', now());
       INSERT INTO lexicographic_overtures (id, lexicographic_figurant_id, title_form_json, anchors_json, created_at)
         VALUES ('\(overtureID)', '\(figurantID)', '\(form)', '[]', now());
       INSERT INTO sentiment_inventories (language_code, lemma, class, version) VALUES ('eng', '\(title)', 'noun', 1);
@@ -52,6 +57,8 @@ struct ScratchFirstPass {
           'A scratch sense of the web tests.', 'a scratch sense of the web tests', true);
       COMMIT;
       """)
+    nocturneID = try TestAdmin.query(
+      "SELECT nocturne_id FROM bibliographic_explication_nocturne_instances WHERE id = '\(instanceID)';")
   }
 
   /// The record a Permit made, by its title; "" while there is none.
@@ -77,8 +84,8 @@ struct ScratchFirstPass {
       DELETE FROM lexicographic_overtures WHERE id = '\(overtureID)';
       UPDATE lexicographic_figurants SET discarded_at = now(), discarded_by = '\(owner)'
         WHERE id = '\(figurantID)' AND discarded_at IS NULL;
-      \(SessionTrace.delete(table: "bibliographic_explication_nocturnes", where: "id='\(nocturneID)'"))
-      DELETE FROM bibliographic_explication_nocturnes WHERE id = '\(nocturneID)';
+      \(SessionTrace.delete(table: "bibliographic_explication_nocturne_instances", where: "id='\(instanceID)'"))
+      DELETE FROM bibliographic_explication_nocturnes WHERE id IN (SELECT nocturne_id FROM bibliographic_explication_nocturne_instances WHERE id = '\(instanceID)');
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
       COMMIT;
       """)

@@ -9,7 +9,7 @@ import WebTestsTesting
 @Suite("Bibliographic explication sessions", .serialized)
 struct BibliographicExplicationSessionsTests {
   /// The sessions' table, which owns their traces (`SessionTrace`).
-  static let nocturnes = "bibliographic_explication_nocturnes"
+  static let nocturnes = "bibliographic_explication_nocturne_instances"
   static let page = #"<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><pb n="1"/><p><s><w lemma="sea" class="noun">sea</w></s><lb/></p></body></text></TEI>"#
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
@@ -45,11 +45,11 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
-          VALUES ('\(nocturneID)',
-            (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
-            'explication', '1–2', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(),
-            '\(antiphonID)', 1200, now());
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1–2')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1–2', 1)
+         ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
+        INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        VALUES ('\(nocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1–2')::text, ''))::uuid, (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1–2', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 1200, now());
         \(try SessionTrace.append(blocks, table: Self.nocturnes, id: nocturneID))
         COMMIT;
         """)
@@ -224,11 +224,11 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
-          VALUES ('\(nocturneID)',
-            (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
-            'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(),
-            '\(antiphonID)', 1200, now());
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 1)
+         ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
+        INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        VALUES ('\(nocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 1200, now());
         \(try SessionTrace.append(blocks, table: Self.nocturnes, id: nocturneID))
         COMMIT;
         """)
@@ -324,21 +324,23 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes
-          (id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
-          VALUES ('\(nocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
-            'explication', '1', 2, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 3000, now());
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 1)
+         ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
+        INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        VALUES ('\(nocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 2, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 3000, now());
         \(try SessionTrace.append(blocks, table: Self.nocturnes, id: nocturneID, stepMs: 300))
-        INSERT INTO bibliographic_explication_nocturnes
-          (id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
-          VALUES ('\(failedNocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
-            'explication', '1', 1, 'DeepSeek', 'deepseek-flash',
-            'failed', gen_random_uuid(), '\(antiphonID)', 500, now() - interval '1 second');
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 1)
+         ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
+        INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        VALUES ('\(failedNocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'failed', gen_random_uuid(), '\(antiphonID)', 500, now() - interval '1 second');
         \(try SessionTrace.append([["type": "thinking", "content": "Historical partial thought."]], table: Self.nocturnes, id: failedNocturneID))
-        INSERT INTO bibliographic_explication_nocturnes
-          (id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
-          VALUES ('\(otherNocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
-            'explication', '2', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 100, now());
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('2')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '2', 1)
+         ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
+        INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        VALUES ('\(otherNocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('2')::text, ''))::uuid, (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '2', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 100, now());
         \(try SessionTrace.append([["type": "text", "content": "Another finished session."]], table: Self.nocturnes, id: otherNocturneID))
         COMMIT;
         """)
@@ -448,20 +450,29 @@ struct BibliographicExplicationSessionsTests {
     do {
       let user = try admin.column("id")
       let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())')"
-      let columns = "(id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)"
+      let columns = "(id, nocturne_id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)"
       func text(_ content: String) -> [[String: String]] { [["type": "text", "content": content]] }
       _ = try TestAdmin.query("""
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes \(columns)
-          VALUES ('\(nocturneIDs[0])', \(batch), 'explication', '1', 2, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now());
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', \(batch), 'explication', '1', 1)
+         ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
+        INSERT INTO bibliographic_explication_nocturne_instances \(columns)
+        VALUES ('\(nocturneIDs[0])', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, \(batch), 'explication', '1', 2, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now());
         \(try SessionTrace.append(text("The second instance."), table: Self.nocturnes, id: nocturneIDs[0]))
-        INSERT INTO bibliographic_explication_nocturnes \(columns)
-          VALUES ('\(nocturneIDs[1])', \(batch), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now() - interval '1 second');
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', \(batch), 'explication', '1', 1)
+         ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
+        INSERT INTO bibliographic_explication_nocturne_instances \(columns)
+        VALUES ('\(nocturneIDs[1])', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, \(batch), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now() - interval '1 second');
         \(try SessionTrace.append(text("The first instance."), table: Self.nocturnes, id: nocturneIDs[1]))
-        INSERT INTO bibliographic_explication_nocturnes \(columns)
-          VALUES ('\(nocturneIDs[2])', \(batch), 'explication', '2', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 100, now());
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('2')::text, ''))::uuid, '\(antiphonID)', \(batch), 'explication', '2', 1)
+         ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
+        INSERT INTO bibliographic_explication_nocturne_instances \(columns)
+        VALUES ('\(nocturneIDs[2])', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('2')::text, ''))::uuid, \(batch), 'explication', '2', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 100, now());
         \(try SessionTrace.append(text("Another page."), table: Self.nocturnes, id: nocturneIDs[2]))
         COMMIT;
         """)
@@ -567,16 +578,22 @@ struct BibliographicExplicationSessionsTests {
         ["type": "text", "content": "Saved."],
       ]
       let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())')"
-      let columns = "(id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, prompt_vignette_id, created_at)"
+      let columns = "(id, nocturne_id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, prompt_vignette_id, created_at)"
       _ = try TestAdmin.query("""
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes \(columns)
-          VALUES ('\(nocturneIDs[0])', \(batch), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, '\(vignette)', now());
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', \(batch), 'explication', '1', 1)
+         ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
+        INSERT INTO bibliographic_explication_nocturne_instances \(columns)
+        VALUES ('\(nocturneIDs[0])', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, \(batch), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, '\(vignette)', now());
         \(try SessionTrace.append(recorded, table: Self.nocturnes, id: nocturneIDs[0]))
-        INSERT INTO bibliographic_explication_nocturnes \(columns)
-          VALUES ('\(nocturneIDs[1])', \(batch), 'explication', '2', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, '\(vignette)', now());
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('2')::text, ''))::uuid, '\(antiphonID)', \(batch), 'explication', '2', 1)
+         ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
+        INSERT INTO bibliographic_explication_nocturne_instances \(columns)
+        VALUES ('\(nocturneIDs[1])', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('2')::text, ''))::uuid, \(batch), 'explication', '2', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, '\(vignette)', now());
         \(try SessionTrace.append(old, table: Self.nocturnes, id: nocturneIDs[1]))
         COMMIT;
         """)
@@ -637,10 +654,11 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes
-          (id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
-          VALUES ('\(nocturneID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'),
-            'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now());
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 1)
+         ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
+        INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
+        VALUES ('\(nocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now());
         \(try SessionTrace.append(blocks, table: Self.nocturnes, id: nocturneID))
         COMMIT;
         """)
@@ -712,7 +730,7 @@ struct BibliographicExplicationSessionsTests {
       """
       BEGIN;
       \(SessionTrace.delete(table: Self.nocturnes, where: nocturnes))
-      DELETE FROM bibliographic_explication_nocturnes WHERE \(nocturnes);
+      DELETE FROM bibliographic_explication_nocturnes WHERE id IN (SELECT nocturne_id FROM bibliographic_explication_nocturne_instances WHERE \(nocturnes));
       DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)';
       COMMIT;
       """)

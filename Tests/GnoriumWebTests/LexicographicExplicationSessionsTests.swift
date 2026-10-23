@@ -54,11 +54,12 @@ struct LexicographicExplicationSessionsTests {
             'Test via Stub', 3, 'quote-v1', '["u-1","u-2","u-3"]');
         INSERT INTO quote_clusters (id, quote_clustering_id, position, quote_ids_json)
           VALUES ('\(clusters[0])', '\(clustering)', 0, '["u-1","u-2"]'), ('\(clusters[1])', '\(clustering)', 1, '["u-3"]');
-        INSERT INTO lexicographic_explication_nocturnes (id, lexicographic_antiphon_id, process, instance, provider, model, result,
-          duration_ms, quote_cluster_id, created_at)
-          VALUES ('\(nocturne)', '\(antiphon)', 'explication', 1, 'openrouter', 'qwen/qwen3.8-max-0902',
-            'passed', 1200, '\(clusters[0])', now());
-        \(try SessionTrace.append(Self.trace, table: "lexicographic_explication_nocturnes", id: nocturne))
+        INSERT INTO lexicographic_explication_nocturnes (id, lexicographic_antiphon_id, process, instance_count)
+         VALUES (md5('head:' || ('\(antiphon)'):: text || ':' || coalesce((NULL)::text, ''))::uuid, '\(antiphon)', 'explication', 1)
+         ON CONFLICT (id) DO UPDATE SET instance_count = lexicographic_explication_nocturnes.instance_count + 1;
+        INSERT INTO lexicographic_explication_nocturne_instances (id, nocturne_id, lexicographic_antiphon_id, process, instance, provider, model, result, duration_ms, quote_cluster_id, created_at)
+        VALUES ('\(nocturne)', md5('head:' || ('\(antiphon)'):: text || ':' || coalesce((NULL)::text, ''))::uuid, '\(antiphon)', 'explication', 1, 'openrouter', 'qwen/qwen3.8-max-0902', 'passed', 1200, '\(clusters[0])', now());
+        \(try SessionTrace.append(Self.trace, table: "lexicographic_explication_nocturne_instances", id: nocturne))
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -86,8 +87,8 @@ struct LexicographicExplicationSessionsTests {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      \(SessionTrace.delete(table: "lexicographic_explication_nocturnes", where: "lexicographic_antiphon_id = '\(antiphon)'"))
-      DELETE FROM lexicographic_explication_nocturnes WHERE lexicographic_antiphon_id = '\(antiphon)';
+      \(SessionTrace.delete(table: "lexicographic_explication_nocturne_instances", where: "lexicographic_antiphon_id = '\(antiphon)'"))
+      DELETE FROM lexicographic_explication_nocturnes WHERE id IN (SELECT nocturne_id FROM lexicographic_explication_nocturne_instances WHERE lexicographic_antiphon_id = '\(antiphon)');
       DELETE FROM quote_clusterings WHERE lexicographic_antiphon_id = '\(antiphon)';
       DELETE FROM lexicographic_antiphons WHERE id = '\(antiphon)';
       COMMIT;

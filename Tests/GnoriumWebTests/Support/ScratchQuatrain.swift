@@ -75,17 +75,26 @@ struct ScratchQuatrain {
         VALUES ('\(overtureID)', '\(submissionID)', '\(figurantID)', '\(source)', 'pdf', '\(pagesJSON)', 'eng', 'pending', '\(title)', '\(user)', now(), now());
       INSERT INTO bibliographic_quatrains (id, bibliographic_overture_id, requested_by_user_id, image_service_ids_json, processing_status, processing_error, created_at, updated_at)
         VALUES ('\(quatrainID)', '\(overtureID)', '\(user)', '\(scope)', '\(status)', \(error), now(), now());
-      INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, image, instance, provider, model, result, error_message, duration_ms, created_at, finished_at)
-        VALUES ('\(nocturneIDs[0])', '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[0])', 1, 'DeepSeek', 'deepseek-flash', 'passed', NULL, 1500, now(), now()),
-          ('\(nocturneIDs[1])', '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[1])', 1, 'DeepSeek', 'deepseek-flash', 'failed', 'Image 2 cannot be measured.', 900, now(), now()),
-          ('\(nocturneIDs[2])', '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[2])', 1, 'DeepSeek', 'deepseek-flash', '\(status == "submitted" ? "passed" : "running")', NULL, NULL, now(), NULL);
+      INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, image, instance_count)
+       VALUES (md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[0])')::text, ''))::uuid, '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[0])', 1)
+       ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_calibration_nocturnes.instance_count + 1;
+      INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, image, instance_count)
+       VALUES (md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[1])')::text, ''))::uuid, '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[1])', 1)
+       ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_calibration_nocturnes.instance_count + 1;
+      INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, image, instance_count)
+       VALUES (md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[2])')::text, ''))::uuid, '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[2])', 1)
+       ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_calibration_nocturnes.instance_count + 1;
+      INSERT INTO bibliographic_calibration_nocturne_instances (id, nocturne_id, bibliographic_quatrain_id, submission_id, process, image, instance, provider, model, result, error_message, duration_ms, created_at, finished_at)
+      VALUES ('\(nocturneIDs[0])', md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[0])')::text, ''))::uuid, '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[0])', 1, 'DeepSeek', 'deepseek-flash', 'passed', NULL, 1500, now(), now()),
+        ('\(nocturneIDs[1])', md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[1])')::text, ''))::uuid, '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[1])', 1, 'DeepSeek', 'deepseek-flash', 'failed', 'Image 2 cannot be measured.', 900, now(), now()),
+        ('\(nocturneIDs[2])', md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[2])')::text, ''))::uuid, '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[2])', 1, 'DeepSeek', 'deepseek-flash', '\(status == "submitted" ? "passed" : "running")', NULL, NULL, now(), NULL);
       INSERT INTO scan_layouts (id, image_url, fetched_url, bytes_sha256, width, height, measuring_version, layout, fetch_ms, measure_ms)
         VALUES ('\(layoutID)', '\(images[0])', '\(images[0])', '\(String(repeating: "a", count: 64))', 100, 100, '\(String(repeating: "b", count: 64))', '{}'::jsonb, 1, 1);
-      INSERT INTO calibration_pages (bibliographic_calibration_nocturne_id, bibliographic_overture_id, image, ordinal, label, layout_id, measuring_version, em, judgment_json, tool_hashes_json, facts_json)
+      INSERT INTO calibration_pages (bibliographic_calibration_nocturne_instance_id, bibliographic_overture_id, image, ordinal, label, layout_id, measuring_version, em, judgment_json, tool_hashes_json, facts_json)
         VALUES ('\(nocturneIDs[0])', '\(overtureID)', '\(services[0])', 1, '1', '\(layoutID)', '\(String(repeating: "b", count: 64))', 20.5, '{}', '{}', '{"width":2000.0,"body":45.4,"measure":55.1,"height":76.4}');
-      \(try SessionTrace.append(measured, table: "bibliographic_calibration_nocturnes", id: nocturneIDs[0]))
-      \(try SessionTrace.append(failedTrace, table: "bibliographic_calibration_nocturnes", id: nocturneIDs[1]))
-      \(try SessionTrace.append(running, table: "bibliographic_calibration_nocturnes", id: nocturneIDs[2]))
+      \(try SessionTrace.append(measured, table: "bibliographic_calibration_nocturne_instances", id: nocturneIDs[0]))
+      \(try SessionTrace.append(failedTrace, table: "bibliographic_calibration_nocturne_instances", id: nocturneIDs[1]))
+      \(try SessionTrace.append(running, table: "bibliographic_calibration_nocturne_instances", id: nocturneIDs[2]))
       COMMIT;
       """)
   }
@@ -103,14 +112,14 @@ struct ScratchQuatrain {
   }
 
   func remove() {
-    let table = "bibliographic_calibration_nocturnes"
+    let table = "bibliographic_calibration_nocturne_instances"
     _ = try? TestAdmin.query(
       """
       BEGIN;
       \(SessionTrace.delete(table: table, where: "bibliographic_quatrain_id = '\(quatrainID)'"))
-      DELETE FROM calibration_observations WHERE bibliographic_calibration_nocturne_id IN (SELECT id FROM \(table) WHERE bibliographic_quatrain_id = '\(quatrainID)');
+      DELETE FROM calibration_observations WHERE bibliographic_calibration_nocturne_instance_id IN (SELECT id FROM \(table) WHERE bibliographic_quatrain_id = '\(quatrainID)');
       DELETE FROM calibration_pages WHERE bibliographic_overture_id = '\(overtureID)';
-      DELETE FROM model_calls WHERE bibliographic_calibration_nocturne_id IN (SELECT id FROM \(table) WHERE bibliographic_quatrain_id = '\(quatrainID)');
+      DELETE FROM model_calls WHERE bibliographic_calibration_nocturne_instance_id IN (SELECT id FROM \(table) WHERE bibliographic_quatrain_id = '\(quatrainID)');
       DELETE FROM \(table) WHERE bibliographic_quatrain_id = '\(quatrainID)';
       DELETE FROM scan_layouts WHERE id = '\(layoutID)';
       DELETE FROM bibliographic_quatrains WHERE id = '\(quatrainID)';
