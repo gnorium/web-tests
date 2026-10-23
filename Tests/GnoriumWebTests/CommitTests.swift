@@ -75,7 +75,7 @@ struct CommitTests {
           .toHaveTexts(["Revise", "Commit", "Permit", "Discard"])
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_calibration")
         try await expect(page.locator(".commit-view input[name='scope']")).toHaveCount(0)
-        let roster = page.locator(".overture-images").first
+        let roster = page.locator(".overture-evidence-items").first
         try await expect(roster.locator(".roster-row"), timeout: .seconds(20)).toHaveCount(3)
         try await expect(roster.locator(".roster-row input[form='commit-form']:checked")).toHaveCount(3)
         #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
@@ -86,7 +86,7 @@ struct CommitTests {
         #expect(all.ticked == "0-2")
         // Nothing ticked: refused under the roster, never sent.
         _ = try await page.evaluate(
-          "(() => { window.__commit = null; document.querySelector(\".overture-images\").querySelectorAll(\".roster-row input[form='commit-form']\").forEach(box => box.click()); return true })()",
+          "(() => { window.__commit = null; document.querySelector(\".overture-evidence-items\").querySelectorAll(\".roster-row input[form='commit-form']\").forEach(box => box.click()); return true })()",
           as: Bool.self)
         try await page.locator(".commit-trigger").click()
         try await expect(page.locator(".field-validation-message-view").first)
@@ -94,7 +94,7 @@ struct CommitTests {
         #expect(try await Self.posted(page) == nil, "an empty commit was sent")
         // A tick clears it, and Commit posts that item.
         _ = try await page.evaluate(
-          "(() => { document.querySelectorAll(\".overture-images .roster-row input[form='commit-form']\")[1].click(); return true })()",
+          "(() => { document.querySelectorAll(\".overture-evidence-items .roster-row input[form='commit-form']\")[1].click(); return true })()",
           as: Bool.self)
         try await expect(page.locator(".field-validation-message-view")).toHaveCount(0)
         try await page.locator(".commit-trigger").click()

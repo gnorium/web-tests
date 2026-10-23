@@ -115,7 +115,7 @@ struct LevelStatesTests {
         // Its Commit is for calibration, over the pages it still misses,
         // ticked to begin with; the page calibrated is locked.
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_calibration")
-        let roster = page.locator(".halftone-images").first
+        let roster = page.locator(".halftone-evidence-items").first
         let rows = roster.locator(".roster-row")
         try await expect(rows).toHaveCount(4)
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
@@ -137,7 +137,7 @@ struct LevelStatesTests {
         #expect(sent.process == "bibliographic_calibration")
         #expect(sent.ticked == "1-3")
         _ = try await page.evaluate(
-          "(() => { document.querySelectorAll(\".halftone-images .roster-row input[form='commit-form']\").forEach(box => { if (box.checked) box.click() }); return true })()",
+          "(() => { document.querySelectorAll(\".halftone-evidence-items .roster-row input[form='commit-form']\").forEach(box => { if (box.checked) box.click() }); return true })()",
           as: Bool.self)
         _ = try await page.evaluate("(() => { window.__commit = null; return true })()", as: Bool.self)
         try await page.locator(".commit-trigger").click()
@@ -170,7 +170,7 @@ struct LevelStatesTests {
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_explication")
         // The header will be frozen: a sentence says so.
         try await expect(page.locator(".halftone-explication-note")).toContainText("freezes the scale as its header")
-        try await expect(page.locator(".halftone-images").first.locator(".roster-row")).toHaveCount(4)
+        try await expect(page.locator(".halftone-evidence-items").first.locator(".roster-row")).toHaveCount(4)
         try await page.expectNoHorizontalOverflow()
       }
     } catch {

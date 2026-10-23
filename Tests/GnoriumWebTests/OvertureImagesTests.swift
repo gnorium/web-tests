@@ -51,7 +51,7 @@ struct OvertureImagesTests {
         try await expect(viewer.locator(".artifact-object")).toBeVisible()
         try await expect(viewer.locator(".artifact-canvas-toggle, .artifact-xml-toggle, .testament-find-button"))
           .toHaveCount(0)
-        let roster = page.locator(".overture-images").first
+        let roster = page.locator(".overture-evidence-items").first
         let rows = roster.locator(".roster-row")
         try await expect(rows).toHaveCount(3)
         try await expect(rows.nth(0)).toHaveAttribute("class", "roster-row roster-row-check roster-row-selected")
