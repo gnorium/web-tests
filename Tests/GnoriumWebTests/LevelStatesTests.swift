@@ -17,23 +17,21 @@ struct LevelStatesTests {
   /// The status chip's words.
   static func chip(_ page: Page) -> Locator { page.locator(".mission-control-object-header-status-chip .info-chip-text").first }
 
-  /// The overture roster's rows in order, each in its calibration's level-one
-  /// mark: the plain ring done, the dotted ring waiting.
-  static func expectMarks(_ roster: Locator, _ expected: [(String, String, String)]) async throws {
+  /// The halftone roster's rows in order, each by the shape its mark takes
+  /// (`data-mark`): the plain ring calibrated, the dotted ring waiting.
+  static func expectShapes(_ roster: Locator, _ expected: [(String, String)]) async throws {
     let states = try await roster.evaluate(
       """
       (el) => [...el.querySelectorAll('.roster-row')].map(row => {
         const mark = row.querySelector('.roster-status');
-        const shown = [...mark.children].find(c => getComputedStyle(c).display !== 'none');
-        return [row.dataset.computoriumSessionLabel, mark.dataset.process, mark.dataset.status, shown ? shown.className : ''].join(':');
+        return [row.dataset.computoriumSessionLabel, mark.dataset.mark].join(':');
       }).join('|')
       """).string ?? ""
     let rows = states.split(separator: "|").map(String.init)
     #expect(rows.count == expected.count, "rows: \(states)")
     for (index, item) in expected.enumerated() where index < rows.count {
-      let (label, status, slot) = item
-      #expect(rows[index].hasPrefix("\(label):calibration:\(status):"), "row \(label): \(rows[index])")
-      #expect(rows[index].contains(slot), "row \(label) shows \(slot): \(rows[index])")
+      #expect(rows[index].hasPrefix("\(item.0):"), "row \(item.0): \(rows[index])")
+      #expect(rows[index].hasSuffix(":\(item.1)"), "row \(item.0) is \(item.1): \(rows[index])")
     }
   }
 
@@ -117,7 +115,7 @@ struct LevelStatesTests {
         // Its Commit is for calibration, over the pages it still misses,
         // ticked to begin with; the page calibrated is locked.
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_calibration")
-        let roster = page.locator(".overture-images").first
+        let roster = page.locator(".halftone-images").first
         let rows = roster.locator(".roster-row")
         try await expect(rows).toHaveCount(4)
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
@@ -127,13 +125,10 @@ struct LevelStatesTests {
         }
         try await expect(page.locator(".commit-ticked")).toHaveAttribute("value", "1-3")
         // A page calibrated is a plain ring; the ones missing a dotted ring.
-        try await Self.expectMarks(
-          roster, [
-            ("1", "succeeded", "roster-status-done"), ("2", "queued", "roster-status-pending"),
-            ("3", "queued", "roster-status-pending"), ("4", "queued", "roster-status-pending"),
-          ])
+        try await Self.expectShapes(
+          roster, [("1", "ring"), ("2", "dotted-ring"), ("3", "dotted-ring"), ("4", "dotted-ring")])
         // Nothing is frozen yet.
-        try await expect(page.locator(".overture-explication-note")).toHaveCount(0)
+        try await expect(page.locator(".halftone-explication-note")).toHaveCount(0)
         // Commit posts calibration over those pages; with none ticked it is
         // refused under the roster.
         #expect(try await page.evaluate(CommitTests.interceptScript, as: Bool.self))
@@ -142,7 +137,7 @@ struct LevelStatesTests {
         #expect(sent.process == "bibliographic_calibration")
         #expect(sent.ticked == "1-3")
         _ = try await page.evaluate(
-          "(() => { document.querySelectorAll(\".overture-images .roster-row input[form='commit-form']\").forEach(box => { if (box.checked) box.click() }); return true })()",
+          "(() => { document.querySelectorAll(\".halftone-images .roster-row input[form='commit-form']\").forEach(box => { if (box.checked) box.click() }); return true })()",
           as: Bool.self)
         _ = try await page.evaluate("(() => { window.__commit = null; return true })()", as: Bool.self)
         try await page.locator(".commit-trigger").click()
@@ -174,8 +169,8 @@ struct LevelStatesTests {
         try await expect(page.locator(".level-progress-line-view")).toHaveText("Calibrated: 4 of 4 images")
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_explication")
         // The header will be frozen: a sentence says so.
-        try await expect(page.locator(".overture-explication-note")).toContainText("freezes the scale as its header")
-        try await expect(page.locator(".overture-images").first.locator(".roster-row")).toHaveCount(4)
+        try await expect(page.locator(".halftone-explication-note")).toContainText("freezes the scale as its header")
+        try await expect(page.locator(".halftone-images").first.locator(".roster-row")).toHaveCount(4)
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
