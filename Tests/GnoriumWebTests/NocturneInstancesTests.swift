@@ -39,8 +39,8 @@ struct NocturneInstancesTests {
       for (index, id) in instanceIDs.enumerated() {
         statements += """
 
-          INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, submission_id, process, image, instance, provider, model, result, nocturne_batch_id, bibliographic_antiphon_id, duration_ms, created_at)
-            VALUES ('\(id)', \(head), \(batch), 'explication', '1', \(index + 1), 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), '\(antiphonID)', 300, now() - interval '\(instances - index) minutes');
+          INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
+            VALUES ('\(id)', \(head), \(index + 1), 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), 300, now() - interval '\(instances - index) minutes');
           \(try SessionTrace.append([["type": "text", "content": "Instance \(index + 1)."]], table: "bibliographic_explication_nocturne_instances", id: id))
           """
       }

@@ -53,8 +53,8 @@ struct TranslationSessionsTests {
         INSERT INTO bibliographic_translation_nocturnes (id, bibliographic_serenade_id, process, chunk, instance_count)
          VALUES (md5('head:' || ('\(serenade)'):: text || ':' || coalesce(('1–2')::text, ''))::uuid, '\(serenade)', 'translation', '1–2', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_translation_nocturnes.instance_count + 1;
-        INSERT INTO bibliographic_translation_nocturne_instances (id, nocturne_id, bibliographic_serenade_id, process, chunk, instance, provider, model, result, duration_ms, created_at)
-        VALUES ('\(nocturne)', md5('head:' || ('\(serenade)'):: text || ':' || coalesce(('1–2')::text, ''))::uuid, '\(serenade)', 'translation', '1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902', 'passed', 1200, now());
+        INSERT INTO bibliographic_translation_nocturne_instances (id, nocturne_id, instance, provider, model, result, duration_ms, created_at)
+        VALUES ('\(nocturne)', md5('head:' || ('\(serenade)'):: text || ':' || coalesce(('1–2')::text, ''))::uuid, 1, 'openrouter', 'qwen/qwen3.8-max-0902', 'passed', 1200, now());
         \(try SessionTrace.append(Self.trace, table: Self.nocturnes, id: nocturne))
         COMMIT;
         """)
@@ -108,8 +108,8 @@ struct TranslationSessionsTests {
         INSERT INTO bibliographic_translation_nocturnes (id, bibliographic_serenade_id, process, chunk, instance_count)
          VALUES (md5('head:' || ('\(serenade)'):: text || ':' || coalesce(('1–2')::text, ''))::uuid, '\(serenade)', 'translation', '1–2', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_translation_nocturnes.instance_count + 1;
-        INSERT INTO bibliographic_translation_nocturne_instances (id, nocturne_id, bibliographic_serenade_id, process, chunk, instance, provider, model, result, error_message, duration_ms, created_at)
-        VALUES ('\(nocturne)', md5('head:' || ('\(serenade)'):: text || ':' || coalesce(('1–2')::text, ''))::uuid, '\(serenade)', 'translation', '1–2', 1, 'openrouter', 'qwen/qwen3.8-max-0902', 'queued', '\(stopped)', 1200, now());
+        INSERT INTO bibliographic_translation_nocturne_instances (id, nocturne_id, instance, provider, model, result, error_message, duration_ms, created_at)
+        VALUES ('\(nocturne)', md5('head:' || ('\(serenade)'):: text || ':' || coalesce(('1–2')::text, ''))::uuid, 1, 'openrouter', 'qwen/qwen3.8-max-0902', 'queued', '\(stopped)', 1200, now());
         \(try SessionTrace.append(Self.trace, table: Self.nocturnes, id: nocturne))
         COMMIT;
         """)
@@ -135,8 +135,8 @@ struct TranslationSessionsTests {
     _ = try? TestAdmin.query(
       """
       BEGIN;
-      \(SessionTrace.delete(table: Self.nocturnes, where: "bibliographic_serenade_id = '\(serenade)'"))
-      DELETE FROM bibliographic_translation_nocturnes WHERE id IN (SELECT nocturne_id FROM bibliographic_translation_nocturne_instances WHERE bibliographic_serenade_id = '\(serenade)');
+      \(SessionTrace.delete(table: Self.nocturnes, where: "nocturne_id IN (SELECT id FROM bibliographic_translation_nocturnes WHERE bibliographic_serenade_id = '\(serenade)')"))
+      DELETE FROM bibliographic_translation_nocturnes WHERE bibliographic_serenade_id = '\(serenade)';
       DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';
       COMMIT;
       """)
