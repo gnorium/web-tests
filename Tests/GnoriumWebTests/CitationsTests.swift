@@ -112,7 +112,7 @@ struct CitationsTests {
         try await page.openHydrated(reading.path)
         // After the work, Entries above Citations.
         let order = try await page.evaluate(
-          "(() => { const w = document.querySelector('.disputorium-core-work'), e = document.querySelector('.disputorium-core-view #record-entries'), c = document.querySelector('.disputorium-core-view #record-citations'); return w && e && c && (w.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING) && (e.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) ? 'in order' : 'out of order'; })()"
+          "(() => { const w = document.querySelector('.disputorium-core-object'), e = document.querySelector('.disputorium-core-view #record-entries'), c = document.querySelector('.disputorium-core-view #record-citations'); return w && e && c && (w.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING) && (e.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) ? 'in order' : 'out of order'; })()"
         ).string
         #expect(order == "in order")
         let entries = page.locator("#record-entries")

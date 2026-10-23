@@ -41,7 +41,7 @@ struct OvertureImagesTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(scratch.overturePath)
-        let viewer = page.locator(".disputorium-core-work .artifact-view").first
+        let viewer = page.locator(".disputorium-core-object .artifact-view").first
         try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
         // The manifest is fetched after hydration: slow while the full run
         // loads the server, so waited for in full.

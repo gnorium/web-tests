@@ -29,7 +29,7 @@ struct DisputoriumVerboseTests {
       #expect(label[0] == label[1], "\(label)")
       try await expect(page.locator("#apparatus-metadata")).toHaveAttribute("data-expanded", "true")
       #expect(try await page.evaluate("""
-        (()=>{const work=document.querySelector('.lexicographic-overture-view .disputorium-core-work');const rule=work.previousElementSibling;
+        (()=>{const work=document.querySelector('.lexicographic-overture-view .disputorium-core-object');const rule=work.previousElementSibling;
           const metadata=work.querySelector('.record-metadata-change > .metadata-accordion-view > .accordion-view');
           const fields=[...work.querySelectorAll('#apparatus-metadata [data-metadata-added=true]')];
           const probe=document.createElement('span');document.body.append(probe);probe.style.borderColor='var(--border-color-subtle)';const neutral=getComputedStyle(probe).borderTopColor;
@@ -40,7 +40,7 @@ struct DisputoriumVerboseTests {
         """, as: Bool.self))
       try await toggle.click()
       try await expect(toggle).toHaveAttribute("aria-pressed", "true")
-      try await expect(page.locator(".lexicographic-overture-view .disputorium-core-work .accordion-details[data-expanded=false]")).toHaveCount(0)
+      try await expect(page.locator(".lexicographic-overture-view .disputorium-core-object .accordion-details[data-expanded=false]")).toHaveCount(0)
       // Every accordion below the switch (user, 2026-10-17): the Prompts
       // too, fetched in under the work—open whether they arrived before
       // the press or after it—and each prompt's own accordions in them.
