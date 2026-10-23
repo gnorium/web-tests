@@ -309,29 +309,26 @@ struct ToolCardFieldsTests {
           })()
           """, as: Wrappers.self)
         #expect(wrappers.count >= 8 && wrappers.bare, "Plain values have no inner wrapper: \(wrappers)")
-        #expect(wrappers.flush, "A multi-line value is mono text at the field's inset, no box: \(wrappers)")
-        // Markup the model sent is code: XML colored by highlights over its
-        // text (`CodeSyntax`), never by markup written into it; the full
-        // width of its datum, capped at 256 and scrolled inside.
+        #expect(wrappers.flush, "A multi-line value is sans text at the field's inset, no box: \(wrappers)")
+        // A tei the model sent is a multi-line value like any other: a sans
+        // block with its newlines, never a code view; full width of its
+        // datum, capped at 256 and scrolled inside (user, 2026-10-24).
         let write = page.locator("#computorium-session-tool-wt")
         try await write.locator(".accordion-summary").first.click()
         let markup = try await page.evaluate("""
           (() => {
-            const datum = document.querySelector('#computorium-session-tool-wt .computorium-session-tool-call-args .tool-field-markup');
-            const code = datum.querySelector('.code-view');
-            const value = datum.querySelector(':scope > .datum-value');
-            return !!code.querySelector('.code-code.language-xml')
-              && Math.abs(code.getBoundingClientRect().width - value.getBoundingClientRect().width) <= 2.5
-              && getComputedStyle(code).maxHeight === '256px' && getComputedStyle(code).overflowY === 'auto'
-              && code.clientHeight <= 256 && code.scrollHeight > code.clientHeight
-              && [...(CSS.highlights.get('code-name') ?? [])].some(r => code.contains(r.startContainer))
-              && !code.querySelector('.hljs-tag')
-              && code.getBoundingClientRect().top - value.getBoundingClientRect().top <= 1.5
-              && code.querySelector('.code-code').getBoundingClientRect().top - value.getBoundingClientRect().top <= 9.5
-              && value.getBoundingClientRect().bottom - code.getBoundingClientRect().bottom <= 1.5;
+            const datum = document.querySelector('#computorium-session-tool-wt .computorium-session-tool-call-args .tool-field-multiline');
+            const block = datum.querySelector('.tool-field-block');
+            const cs = getComputedStyle(block);
+            return !datum.querySelector('.code-view') && !datum.querySelector('.code-code')
+              && datum.classList.contains('tool-field-multiline') && !datum.classList.contains('tool-field-markup')
+              && block.textContent.includes('\\n') && cs.whiteSpace === 'pre-wrap'
+              && cs.fontFamily === getComputedStyle(document.querySelector('#computorium-session-tool-wt .computorium-session-tool-call-args')).fontFamily
+              && cs.maxHeight === '256px' && cs.overflowY === 'auto'
+              && block.clientHeight <= 256 && block.scrollHeight > block.clientHeight;
           })()
           """, as: Bool.self)
-        #expect(markup, "A tei argument is a CodeView: xml, full width, capped at 256")
+        #expect(markup, "A tei argument is a sans pre-wrap block, no code view, capped at 256")
         for text in [signature, search, saved] {
           #expect(!text.contains("={\"") && !text.contains("[{"), "No object is printed as JSON: \(text)")
         }
@@ -396,7 +393,8 @@ struct ToolCardFieldsTests {
         let liveOrder = try await page.evaluate(orderJS, as: String.self)
         #expect(liveOrder == order, "The live transcript keeps the recorded order: \(liveOrder)")
         try await expect(page.locator(".computorium-session-tools .tool-result-box-view").first).toBeAttached()
-        try await expect(page.locator("#computorium-session-tool-live_wt .tool-field-markup .code-code.language-xml")).toBeAttached()
+        try await expect(page.locator("#computorium-session-tool-live_wt .tool-field-block")).toBeAttached()
+        try await expect(page.locator("#computorium-session-tool-live_wt .code-view")).toHaveCount(0)
         // Live cards take the same grounds as recorded ones.
         #expect(try await page.evaluate("""
           (() => {
