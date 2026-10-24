@@ -241,4 +241,66 @@ struct LocutionCollapseTests {
     scratch.remove()
     try await reader.remove()
   }
+
+  /// A section of more than a page is paged, a hundred entries each, oldest
+  /// first: it opens on the last page (the newest), the pager sits at the
+  /// bottom right inside the collapsible body, the count badge keeps the
+  /// whole, `?locutions=1` opens the first page, and only the page asked
+  /// for is in the document.
+  @Test(arguments: [BrowserEngine.chrome])
+  func aLongSectionIsPagedAndOpensOnItsLastPage(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let reader = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let scratch: ScratchCommit
+    do { scratch = try ScratchCommit(owner: reader) } catch { try await reader.remove(after: error) }
+    let madrigalID = scratch.madrigalID.lowercased()
+    func removeLocutions() {
+      _ = try? TestAdmin.query("DELETE FROM locutions WHERE locutable_id = '\(madrigalID)';")
+    }
+    do {
+      let readerID = try reader.column("id")
+      _ = try TestAdmin.query(
+        """
+        INSERT INTO locutions (id, locutable_type, locutable_id, author_id, content, created_at)
+          SELECT gen_random_uuid(), 'bibliographic_madrigal', '\(madrigalID)', '\(readerID)',
+                 'Locution ' || n, now() - ((150 - n) || ' seconds')::interval
+          FROM generate_series(1, 150) AS n;
+        """)
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [reader.cookie]) { page in
+        try await page.openHydrated(scratch.madrigalPath)
+        let pager = page.locator(".thread-section-content .thread-pages .pagination-view")
+        try await expect(pager).toBeVisible()
+        // Newest page: 50 of 150, in the document; the badge is the whole.
+        try await expect(page.locator(".thread-timeline .locution-view")).toHaveCount(50)
+        try await expect(page.locator(".thread-count")).toHaveText("150")
+        try await expect(page.locator("text=Locution 150")).toBeVisible()
+        try await expect(page.locator("text=Locution 1 ").first).toHaveCount(0)
+
+        // The first page by its query: a hundred.
+        try await page.openHydrated(scratch.madrigalPath + "?locutions=1")
+        try await expect(page.locator(".thread-timeline .locution-view")).toHaveCount(100)
+        try await expect(page.locator(".thread-count")).toHaveText("150")
+        // A locution's own fold still works there.
+        let first = page.locator(".thread-timeline .locution-view").first
+        try await first.locator("button.locution-collapse").click()
+        try await expect(first).toHaveAttribute("data-collapsed", "true")
+
+        // Folding the section hides the pager with the rest.
+        try await page.locator(".thread-collapse").click()
+        try await expect(pager).toBeHidden()
+        try await expect(page.locator(".thread-count")).toBeVisible()
+        try await page.locator(".thread-collapse").click()
+        try await expect(pager).toBeVisible()
+        try await page.expectNoErrors()
+      }
+    } catch {
+      removeLocutions()
+      scratch.remove()
+      try await reader.remove(after: error)
+    }
+    removeLocutions()
+    scratch.remove()
+    try await reader.remove()
+  }
 }
