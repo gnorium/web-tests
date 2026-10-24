@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// Small fixes (user, 2026-10-24): a testament's citation numbers are headed
-/// "Reference number" (one per row); a seeded vignette reads "Permitted" by gnorium in its
+/// "Reference" (one per row); a seeded vignette reads "Permitted" by gnorium in its
 /// Pedigree.
 /// Written, not run, with the change.
 @Suite("Small fixes", .serialized)
@@ -20,8 +20,8 @@ struct SmallFixesTests {
         let legends = try await page.evaluate(
           "[...document.querySelectorAll('.submit-testament-form .form-item-legend, .submit-testament-form .section-legend')].map(l => l.textContent.trim())",
           as: [String].self)
-        #expect(legends.contains("Reference number"), "\(legends)")
-        #expect(!legends.contains("Reference numbers"), "no legend names the set")
+        #expect(legends.contains("Reference"), "\(legends)")
+        #expect(!legends.contains("References"), "no legend names the set")
         #expect(!legends.contains { $0.contains("Citation") })
         try await page.expectNoErrors()
       }
