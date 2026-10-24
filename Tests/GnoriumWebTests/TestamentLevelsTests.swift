@@ -76,7 +76,7 @@ struct TestamentLevelsTests {
             '#testament-copy-label', ".activity-statement-view[data-as-namespace='production']",
             ".activity-statement-view[data-as-namespace='digitization']", "[name='provider-dropdown']",
             "[data-item-list='as-digitization']", "[name='as-digitization-place']", '#testament-source-url',
-            '#testament-license',
+            '#testament-digitization-license',
           ];
           for (let i = 1; i < chain.length; i++) {
             const a = at(chain[i - 1]), b = at(chain[i]);
