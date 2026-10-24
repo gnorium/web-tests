@@ -168,35 +168,68 @@ struct LocutionCollapseTests {
         try await page.openHydrated(scratch.madrigalPath)
         let open = page.locator("#locution-\(openID.uppercased())")
         let folded = page.locator("#locution-\(foldedID.uppercased())")
-        let all = page.locator(".thread-collapse")
+        let toggle = page.locator(".thread-collapse")
         let section = page.locator(".thread-view")
-        try await expect(all).toHaveAttribute("aria-expanded", "true")
+        let content = page.locator(".thread-section-content")
+        let count = page.locator(".thread-count")
+        try await expect(toggle).toHaveAttribute("aria-expanded", "true")
+        try await expect(toggle).toHaveAttribute("aria-label", "Collapse locutions")
+        try await expect(content).toBeVisible()
 
-        // One folded by its avatar.
+        // One locution folded by its avatar, inside the open section.
         try await folded.locator("button.locution-collapse").click()
         try await expect(folded).toHaveAttribute("data-collapsed", "true")
         try await expect(open).toHaveAttribute("data-collapsed", "false")
-        try await expect(all).toHaveAttribute("aria-expanded", "true")
 
-        // All folded: the section's fold, each one's own left as it was.
-        try await all.click()
-        try await expect(section).toHaveAttribute("data-all-collapsed", "true")
-        try await expect(all).toHaveAttribute("aria-expanded", "false")
-        try await expect(all).toHaveAttribute("aria-label", "Expand locutions")
-        try await expect(open).toHaveAttribute("data-collapsed", "true")
-        try await expect(folded).toHaveAttribute("data-collapsed", "true")
-        try await expect(open).not.toHaveAttribute("data-own-collapsed", "true")
-        try await expect(folded).toHaveAttribute("data-own-collapsed", "true")
+        // The section folds with a motion: partway shortly after the press.
+        let motion = try await page.evaluate(
+          """
+          (async () => {
+            const clip = document.querySelector('.thread-section');
+            const before = clip.getBoundingClientRect().height;
+            document.querySelector('.thread-collapse').click();
+            await new Promise(r => setTimeout(r, 100));
+            const during = clip.getBoundingClientRect().height;
+            await new Promise(r => setTimeout(r, 600));
+            return [before, during, clip.getBoundingClientRect().height];
+          })()
+          """, as: [Double].self)
+        #expect(motion[0] > 0 && motion[2] == 0, "Open, then folded: \(motion)")
+        #expect(motion[1] > 0 && motion[1] < motion[0], "Mid-fold, a height between: \(motion)")
+        try await expect(section).toHaveAttribute("data-section-collapsed", "true")
+        try await expect(toggle).toHaveAttribute("aria-expanded", "false")
+        try await expect(toggle).toHaveAttribute("aria-label", "Expand locutions")
+        try await expect(content).toBeHidden()
+        try await expect(open).toBeHidden()
+        try await expect(page.locator("#thread-form")).toBeHidden()
+        // The count stays.
+        try await expect(count).toBeVisible()
+        try await expect(count).toHaveText("2")
 
-        // All opened: each as it was—the one folded by its avatar still folded.
-        try await all.click()
-        try await expect(section).toHaveAttribute("data-all-collapsed", "false")
-        try await expect(all).toHaveAttribute("aria-expanded", "true")
-        try await expect(open).toHaveAttribute("data-collapsed", "false")
+        // Kept for the session across a reload and another visit of the page
+        // kind (what a roster row switch does to the thread).
+        _ = try await page.reload()
+        try await expect(page.locator("html"), timeout: .seconds(20))
+          .toHaveAttribute("data-wasm-status", "started")
+        try await expect(toggle).toHaveAttribute("aria-expanded", "false")
+        try await expect(content).toBeHidden()
+        try await expect(count).toBeVisible()
+        try await page.openHydrated(scratch.madrigalPath + "?roster=other")
+        try await expect(toggle).toHaveAttribute("aria-expanded", "false")
+        try await expect(content).toBeHidden()
+
+        // Opened: every locution as its own fold left it.
+        try await toggle.click()
+        try await expect(section).toHaveAttribute("data-section-collapsed", "false")
+        try await expect(section).toHaveAttribute("data-section-motion", "idle")
+        try await expect(toggle).toHaveAttribute("aria-expanded", "true")
         try await expect(open.locator(".locution-body")).toBeVisible()
+        try await expect(page.locator("#thread-form")).toBeVisible()
         try await expect(folded).toHaveAttribute("data-collapsed", "true")
-        try await expect(folded.locator(".locution-body")).toBeHidden()
         try await expect(folded.locator("button.locution-collapse")).toHaveAttribute("aria-expanded", "false")
+        // A locution's own toggle still works inside the open section.
+        try await folded.locator("button.locution-collapse").click()
+        try await expect(folded).toHaveAttribute("data-collapsed", "false")
         try await page.expectNoErrors()
       }
     } catch {
