@@ -76,6 +76,13 @@ struct ZoneEditTests {
         // Click selects; drag moves: the code's box changes, nothing else.
         try await Self.zone(page, "z-L2").click()
         try await expect(Self.zone(page, "z-L2")).toHaveAttribute("data-selected", "true")
+        // The reader's own region follow takes it from there: the caret
+        // stands on the zone's tag in the page's code, so its crop of the
+        // scan is shown by the existing highlight, not a second one.
+        let caret = try await page.evaluate(
+          "(() => { const a = document.querySelector('.tei-page[data-active=\"true\"] .code-editor-input'); const at = a.value.indexOf('<zone xml:id=\"z-L2\"'); return a.selectionStart >= at && a.selectionStart <= at + 6 })()",
+          as: Bool.self)
+        #expect(caret, "The caret is on the selected zone's tag")
         try await Self.drag(page, from: (0.5, 0.17), to: (0.5, 0.27))
         var code = try await page.evaluate(Self.code, as: String.self)
         #expect(!code.contains(#"xml:id="z-L2" ulx="100" uly="150" lrx="900" lry="190""#), "Moved: \(code)")

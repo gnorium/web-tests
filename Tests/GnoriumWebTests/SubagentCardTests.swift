@@ -3,9 +3,9 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A subagent is a whole agent with a page of its own (user, 2026-10-24).
+/// A subagent is a whole agent, a subrow of its parent's in the object page's roster (user, 2026-10-24).
 /// Its parent's `spawn_subagent` call shows the subagent's report in its
-/// gray result box and, over the box, a link to that page—the way a
+/// gray result box and, over the box, a link to its selection on the same page—the way a
 /// compaction card's stub leads to its card—and never the subagent's trace
 /// inline. The Workers page says a parent that yielded its worker is
 /// awaiting subagents. Chrome, desktop.
@@ -56,7 +56,7 @@ struct SubagentCardTests {
         // The report, in the gray box; the link over it.
         try await expect(call.locator(".tool-result-box-view")).toContainText("Zones L1 to L40 read.")
         let link = call.locator(".computorium-session-tool-subagent a")
-        try await expect(link).toHaveAttribute("href", "/mission-control/subagents/\(child)")
+        try await expect(link).toHaveAttribute("href", "?image=\(child)")
         try await expect(link).toHaveText("Subagent L1-L40")
         let above = try await page.evaluate(
           """
