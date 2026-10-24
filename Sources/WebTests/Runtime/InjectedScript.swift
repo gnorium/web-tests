@@ -401,6 +401,13 @@ enum InjectedScript {
         if (options.role) result.role = roleOf(el);
         const r = el.getBoundingClientRect();
         result.box = { x: r.left, y: r.top, width: r.width, height: r.height };
+        if (options.viewport) {
+          // The share of the element's box inside the viewport (Playwright's toBeInViewport).
+          const w = Math.max(0, Math.min(r.right, innerWidth) - Math.max(r.left, 0));
+          const h = Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0));
+          const area = r.width * r.height;
+          result.viewportRatio = area > 0 ? (w * h) / area : 0;
+        }
         return result;
       };
 

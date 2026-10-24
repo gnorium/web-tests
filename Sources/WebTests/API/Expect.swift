@@ -91,6 +91,17 @@ public struct LocatorAssertions: Sendable {
     }
   }
 
+  /// One element matches and it intersects the viewport: any part of it
+  /// (`ratio` 0, the default), or at least `ratio` of its box (Playwright's
+  /// `toBeInViewport({ ratio })`).
+  public func toBeInViewport(ratio: Double = 0) async throws {
+    try await check("toBeInViewport(ratio: \(ratio))", options: ["viewport": true]) { result in
+      let share = result["viewportRatio"].double ?? 0
+      let pass = result["count"].int == 1 && (ratio > 0 ? share >= ratio : share > 0)
+      return (pass, result["count"].int == 1 ? "\(Int((share * 100).rounded()))% in the viewport" : Locator.stateText(result))
+    }
+  }
+
   /// No element matches, or the one that does is not visible.
   public func toBeHidden() async throws {
     try await check("toBeHidden()") { result in

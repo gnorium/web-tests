@@ -452,7 +452,7 @@ struct RevisePagesTests {
           "\(paths)")
         let joined = try await changed.evaluate(
           "e => e.querySelector('.list-sentence-lead').textContent + '|' + [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|')")
-        #expect(joined.string.hasPrefix("Modified"), "\(joined)")
+        #expect(joined.string?.hasPrefix("Modified") == true, "\(joined)")
         // In a white box of its own, as a call's Attached line is (user,
         // 2026-10-17): said of the revision, not words of the thread.
         try await expect(page.locator(".list-sentence-view.thread-event-changed")).toHaveCount(1)
