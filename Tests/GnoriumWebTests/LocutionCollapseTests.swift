@@ -168,35 +168,176 @@ struct LocutionCollapseTests {
         try await page.openHydrated(scratch.madrigalPath)
         let open = page.locator("#locution-\(openID.uppercased())")
         let folded = page.locator("#locution-\(foldedID.uppercased())")
-        let all = page.locator(".thread-collapse")
+        let toggle = page.locator(".thread-collapse")
         let section = page.locator(".thread-view")
-        try await expect(all).toHaveAttribute("aria-expanded", "true")
+        let content = page.locator(".thread-section-content")
+        let count = page.locator(".thread-count")
+        try await expect(toggle).toHaveAttribute("aria-expanded", "true")
+        try await expect(toggle).toHaveAttribute("aria-label", "Collapse locutions")
+        try await expect(content).toBeVisible()
 
-        // One folded by its avatar.
+        // One locution folded by its avatar, inside the open section.
         try await folded.locator("button.locution-collapse").click()
         try await expect(folded).toHaveAttribute("data-collapsed", "true")
         try await expect(open).toHaveAttribute("data-collapsed", "false")
-        try await expect(all).toHaveAttribute("aria-expanded", "true")
 
-        // All folded: the section's fold, each one's own left as it was.
-        try await all.click()
-        try await expect(section).toHaveAttribute("data-all-collapsed", "true")
-        try await expect(all).toHaveAttribute("aria-expanded", "false")
-        try await expect(all).toHaveAttribute("aria-label", "Expand locutions")
-        try await expect(open).toHaveAttribute("data-collapsed", "true")
-        try await expect(folded).toHaveAttribute("data-collapsed", "true")
-        try await expect(open).not.toHaveAttribute("data-own-collapsed", "true")
-        try await expect(folded).toHaveAttribute("data-own-collapsed", "true")
+        // The section folds with a motion: partway shortly after the press.
+        let motion = try await page.evaluate(
+          """
+          (async () => {
+            const clip = document.querySelector('.thread-section');
+            const before = clip.getBoundingClientRect().height;
+            document.querySelector('.thread-collapse').click();
+            await new Promise(r => setTimeout(r, 100));
+            const during = clip.getBoundingClientRect().height;
+            await new Promise(r => setTimeout(r, 600));
+            return [before, during, clip.getBoundingClientRect().height];
+          })()
+          """, as: [Double].self)
+        #expect(motion[0] > 0 && motion[2] == 0, "Open, then folded: \(motion)")
+        #expect(motion[1] > 0 && motion[1] < motion[0], "Mid-fold, a height between: \(motion)")
+        try await expect(section).toHaveAttribute("data-section-collapsed", "true")
+        try await expect(toggle).toHaveAttribute("aria-expanded", "false")
+        try await expect(toggle).toHaveAttribute("aria-label", "Expand locutions")
+        try await expect(content).toBeHidden()
+        try await expect(open).toBeHidden()
+        try await expect(page.locator("#thread-form")).toBeHidden()
+        // The count stays.
+        try await expect(count).toBeVisible()
+        try await expect(count).toHaveText("2")
 
-        // All opened: each as it was—the one folded by its avatar still folded.
-        try await all.click()
-        try await expect(section).toHaveAttribute("data-all-collapsed", "false")
-        try await expect(all).toHaveAttribute("aria-expanded", "true")
-        try await expect(open).toHaveAttribute("data-collapsed", "false")
+        // Kept for the session across a reload and another visit of the page
+        // kind (what a roster row switch does to the thread).
+        _ = try await page.reload()
+        try await expect(page.locator("html"), timeout: .seconds(20))
+          .toHaveAttribute("data-wasm-status", "started")
+        try await expect(toggle).toHaveAttribute("aria-expanded", "false")
+        try await expect(content).toBeHidden()
+        try await expect(count).toBeVisible()
+        try await page.openHydrated(scratch.madrigalPath + "?roster=other")
+        try await expect(toggle).toHaveAttribute("aria-expanded", "false")
+        try await expect(content).toBeHidden()
+
+        // Opened: every locution as its own fold left it.
+        try await toggle.click()
+        try await expect(section).toHaveAttribute("data-section-collapsed", "false")
+        try await expect(section).toHaveAttribute("data-section-motion", "idle")
+        try await expect(toggle).toHaveAttribute("aria-expanded", "true")
         try await expect(open.locator(".locution-body")).toBeVisible()
+        try await expect(page.locator("#thread-form")).toBeVisible()
         try await expect(folded).toHaveAttribute("data-collapsed", "true")
-        try await expect(folded.locator(".locution-body")).toBeHidden()
         try await expect(folded.locator("button.locution-collapse")).toHaveAttribute("aria-expanded", "false")
+        // A locution's own toggle still works inside the open section.
+        try await folded.locator("button.locution-collapse").click()
+        try await expect(folded).toHaveAttribute("data-collapsed", "false")
+        try await page.expectNoErrors()
+      }
+    } catch {
+      removeLocutions()
+      scratch.remove()
+      try await reader.remove(after: error)
+    }
+    removeLocutions()
+    scratch.remove()
+    try await reader.remove()
+  }
+
+  /// A section of more than a page is paged, a hundred entries each, oldest
+  /// first: it opens on the last page (the newest), the pager sits at the
+  /// bottom right inside the collapsible body, the count badge keeps the
+  /// whole, `?locutions=1` opens the first page, and only the page asked
+  /// for is in the document.
+  @Test(arguments: [BrowserEngine.chrome])
+  func aLongSectionIsPagedAndOpensOnItsLastPage(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let reader = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let scratch: ScratchCommit
+    do { scratch = try ScratchCommit(owner: reader) } catch { try await reader.remove(after: error) }
+    let madrigalID = scratch.madrigalID.lowercased()
+    let firstID = UUID().uuidString.lowercased()
+    let lastID = UUID().uuidString.lowercased()
+    let hundredthID = UUID().uuidString.lowercased()
+    // Drumrolls (antiphons' creations) either side of the 100th locution's
+    // boundary: one just before it, one just after.
+    let beforeID = UUID().uuidString.lowercased()
+    let afterID = UUID().uuidString.lowercased()
+    func removeLocutions() {
+      _ = try? TestAdmin.query(
+        """
+        BEGIN;
+        DELETE FROM locutions WHERE locutable_id = '\(madrigalID)';
+        DELETE FROM bibliographic_antiphons WHERE id IN ('\(beforeID)', '\(afterID)');
+        COMMIT;
+        """)
+    }
+    do {
+      let readerID = try reader.column("id")
+      _ = try TestAdmin.query(
+        """
+        INSERT INTO locutions (id, locutable_type, locutable_id, author_id, content, created_at)
+          SELECT CASE n WHEN 1 THEN '\(firstID)'::uuid WHEN 100 THEN '\(hundredthID)'::uuid WHEN 150 THEN '\(lastID)'::uuid ELSE gen_random_uuid() END,
+                 'bibliographic_madrigal', '\(madrigalID)', '\(readerID)',
+                 'Locution ' || n, now() - ((150 - n) || ' seconds')::interval
+          FROM generate_series(1, 150) AS n;
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status, created_at, updated_at)
+          VALUES ('\(beforeID)', '\(madrigalID)', '\(readerID)', '[]', 'submitted', now() - interval '100.5 seconds', now()),
+                 ('\(afterID)', '\(madrigalID)', '\(readerID)', '[]', 'submitted', now() - interval '99.5 seconds', now());
+        """)
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [reader.cookie]) { page in
+        try await page.openHydrated(scratch.madrigalPath)
+        let pager = page.locator(".thread-section-content .thread-pages .pagination-view")
+        try await expect(pager).toBeVisible()
+        // Newest page: 50 of 150, in the document; the badge is the whole.
+        try await expect(page.locator(".thread-timeline .locution-view")).toHaveCount(50)
+        try await expect(page.locator(".thread-count")).toHaveText("150")
+        try await expect(page.locator("text=Locution 150")).toBeVisible()
+        try await expect(page.locator("text=Locution 1 ").first).toHaveCount(0)
+
+        // The footer reads as the tables': the range at the start, the pager
+        // at the end.
+        try await expect(page.locator(".pagination-info")).toHaveText("101–150 of 150 locutions")
+        try await expect(page.locator(".table-pagination-controls")).toBeVisible()
+
+        // A link to an item on another page opens the page holding it.
+        try await page.openHydrated(scratch.madrigalPath + "#locution-\(firstID.uppercased())")
+        try await expect(page.locator("#locution-\(firstID.uppercased())")).toBeInViewport()
+        try await expect(page.locator(".pagination-info")).toHaveText("1–100 of 150 locutions")
+        // And back to the last page for the newest: where a posted reply or
+        // any new item lands (the page after posting has no page asked for).
+        try await page.openHydrated(scratch.madrigalPath + "#locution-\(lastID.uppercased())")
+        try await expect(page.locator("#locution-\(lastID.uppercased())")).toBeInViewport()
+        try await expect(page.locator(".pagination-info")).toHaveText("101–150 of 150 locutions")
+
+        // The boundary falls right after the 100th locution: page 2 begins
+        // with the drumroll that follows it, page 1 ends with locution 100
+        // and holds the drumroll before it.
+        try await expect(page.locator(".thread-timeline > *").first)
+          .toHaveAttribute("id", "creation-\(afterID.uppercased())")
+        try await page.openHydrated(scratch.madrigalPath + "?locutions=1")
+        try await expect(page.locator(".thread-timeline > *").last)
+          .toHaveAttribute("id", "locution-\(hundredthID.uppercased())")
+        try await expect(page.locator("#creation-\(beforeID.uppercased())")).toHaveCount(1)
+        try await expect(page.locator("#creation-\(afterID.uppercased())")).toHaveCount(0)
+        // A link to the drumroll after the boundary opens page 2.
+        try await page.openHydrated(scratch.madrigalPath + "?locutions=1#creation-\(afterID.uppercased())")
+        try await expect(page.locator("#creation-\(afterID.uppercased())")).toHaveCount(1)
+        try await page.openHydrated(scratch.madrigalPath + "?locutions=1")
+
+        // The first page by its query: a hundred.
+        try await expect(page.locator(".thread-timeline .locution-view")).toHaveCount(100)
+        try await expect(page.locator(".thread-count")).toHaveText("150")
+        // A locution's own fold still works there.
+        let first = page.locator(".thread-timeline .locution-view").first
+        try await first.locator("button.locution-collapse").click()
+        try await expect(first).toHaveAttribute("data-collapsed", "true")
+
+        // Folding the section hides the pager with the rest.
+        try await page.locator(".thread-collapse").click()
+        try await expect(pager).toBeHidden()
+        try await expect(page.locator(".thread-count")).toBeVisible()
+        try await page.locator(".thread-collapse").click()
+        try await expect(pager).toBeVisible()
         try await page.expectNoErrors()
       }
     } catch {
