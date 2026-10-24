@@ -282,18 +282,18 @@ struct LocutionCollapseTests {
 
         // The footer reads as the tables': the range at the start, the pager
         // at the end.
-        try await expect(page.locator(".thread-pages-info")).toHaveText("101–150 of 150")
+        try await expect(page.locator(".thread-pages-info")).toHaveText("101–150 of 150 locutions")
         try await expect(page.locator(".thread-pages-controls")).toBeVisible()
 
         // A link to an item on another page opens the page holding it.
         try await page.openHydrated(scratch.madrigalPath + "#locution-\(firstID.uppercased())")
         try await expect(page.locator("#locution-\(firstID.uppercased())")).toBeInViewport()
-        try await expect(page.locator(".thread-pages-info")).toHaveText("1–100 of 150")
+        try await expect(page.locator(".thread-pages-info")).toHaveText("1–100 of 150 locutions")
         // And back to the last page for the newest: where a posted reply or
         // any new item lands (the page after posting has no page asked for).
         try await page.openHydrated(scratch.madrigalPath + "#locution-\(lastID.uppercased())")
         try await expect(page.locator("#locution-\(lastID.uppercased())")).toBeInViewport()
-        try await expect(page.locator(".thread-pages-info")).toHaveText("101–150 of 150")
+        try await expect(page.locator(".thread-pages-info")).toHaveText("101–150 of 150 locutions")
 
         // The first page by its query: a hundred.
         try await page.openHydrated(scratch.madrigalPath + "?locutions=1")
