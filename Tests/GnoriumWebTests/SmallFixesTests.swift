@@ -4,13 +4,13 @@ import WebTests
 import WebTestsTesting
 
 /// Small fixes (user, 2026-10-24): a testament's citation numbers are headed
-/// "Citations"; a seeded vignette reads "Permitted" by gnorium in its
+/// "Reference numbers"; a seeded vignette reads "Permitted" by gnorium in its
 /// Pedigree.
 /// Written, not run, with the change.
 @Suite("Small fixes", .serialized)
 struct SmallFixesTests {
   @Test(arguments: [BrowserEngine.chrome])
-  func aTestamentsCitationNumbersAreHeadedCitations(engine: BrowserEngine) async throws {
+  func aTestamentsCitationNumbersAreHeadedReferenceNumbers(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -20,8 +20,8 @@ struct SmallFixesTests {
         let legends = try await page.evaluate(
           "[...document.querySelectorAll('.submit-testament-form .section-legend')].map(l => l.textContent.trim())",
           as: [String].self)
-        #expect(legends.contains("Citations"), "\(legends)")
-        #expect(!legends.contains { $0.contains("Citation numbers") || $0.contains("Reference citations") })
+        #expect(legends.contains("Reference numbers"), "\(legends)")
+        #expect(!legends.contains { $0.contains("Citation") })
         try await page.expectNoErrors()
       }
     } catch {
