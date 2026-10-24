@@ -257,18 +257,32 @@ struct LocutionCollapseTests {
     let madrigalID = scratch.madrigalID.lowercased()
     let firstID = UUID().uuidString.lowercased()
     let lastID = UUID().uuidString.lowercased()
+    let hundredthID = UUID().uuidString.lowercased()
+    // Drumrolls (antiphons' creations) either side of the 100th locution's
+    // boundary: one just before it, one just after.
+    let beforeID = UUID().uuidString.lowercased()
+    let afterID = UUID().uuidString.lowercased()
     func removeLocutions() {
-      _ = try? TestAdmin.query("DELETE FROM locutions WHERE locutable_id = '\(madrigalID)';")
+      _ = try? TestAdmin.query(
+        """
+        BEGIN;
+        DELETE FROM locutions WHERE locutable_id = '\(madrigalID)';
+        DELETE FROM bibliographic_antiphons WHERE id IN ('\(beforeID)', '\(afterID)');
+        COMMIT;
+        """)
     }
     do {
       let readerID = try reader.column("id")
       _ = try TestAdmin.query(
         """
         INSERT INTO locutions (id, locutable_type, locutable_id, author_id, content, created_at)
-          SELECT CASE n WHEN 1 THEN '\(firstID)'::uuid WHEN 150 THEN '\(lastID)'::uuid ELSE gen_random_uuid() END,
+          SELECT CASE n WHEN 1 THEN '\(firstID)'::uuid WHEN 100 THEN '\(hundredthID)'::uuid WHEN 150 THEN '\(lastID)'::uuid ELSE gen_random_uuid() END,
                  'bibliographic_madrigal', '\(madrigalID)', '\(readerID)',
                  'Locution ' || n, now() - ((150 - n) || ' seconds')::interval
           FROM generate_series(1, 150) AS n;
+        INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status, created_at, updated_at)
+          VALUES ('\(beforeID)', '\(madrigalID)', '\(readerID)', '[]', 'submitted', now() - interval '100.5 seconds', now()),
+                 ('\(afterID)', '\(madrigalID)', '\(readerID)', '[]', 'submitted', now() - interval '99.5 seconds', now());
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [reader.cookie]) { page in
         try await page.openHydrated(scratch.madrigalPath)
@@ -295,8 +309,22 @@ struct LocutionCollapseTests {
         try await expect(page.locator("#locution-\(lastID.uppercased())")).toBeInViewport()
         try await expect(page.locator(".pagination-info")).toHaveText("101–150 of 150 locutions")
 
-        // The first page by its query: a hundred.
+        // The boundary falls right after the 100th locution: page 2 begins
+        // with the drumroll that follows it, page 1 ends with locution 100
+        // and holds the drumroll before it.
+        try await expect(page.locator(".thread-timeline > *").first)
+          .toHaveAttribute("id", "creation-\(afterID.uppercased())")
         try await page.openHydrated(scratch.madrigalPath + "?locutions=1")
+        try await expect(page.locator(".thread-timeline > *").last)
+          .toHaveAttribute("id", "locution-\(hundredthID.uppercased())")
+        try await expect(page.locator("#creation-\(beforeID.uppercased())")).toHaveCount(1)
+        try await expect(page.locator("#creation-\(afterID.uppercased())")).toHaveCount(0)
+        // A link to the drumroll after the boundary opens page 2.
+        try await page.openHydrated(scratch.madrigalPath + "?locutions=1#creation-\(afterID.uppercased())")
+        try await expect(page.locator("#creation-\(afterID.uppercased())")).toHaveCount(1)
+        try await page.openHydrated(scratch.madrigalPath + "?locutions=1")
+
+        // The first page by its query: a hundred.
         try await expect(page.locator(".thread-timeline .locution-view")).toHaveCount(100)
         try await expect(page.locator(".thread-count")).toHaveText("150")
         // A locution's own fold still works there.
