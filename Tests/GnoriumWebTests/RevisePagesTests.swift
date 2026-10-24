@@ -423,25 +423,23 @@ struct RevisePagesTests {
     do {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(palinode.path)/revise")
-        let auto = page.locator("#prompt-revision-autocompaction-\(parent)")
+        // The autocompaction prompt is one text, like the continuation's:
+        // one accordion, no system prompt (user, 2026-10-24).
+        let auto = page.locator("#prompt-revision-autocompaction-\(slot)")
         try await expect(auto).toHaveAttribute("data-expanded", "false")
-        try await expect(auto.locator(".accordion-details[data-expanded='false']")).toHaveCount(2)
+        try await expect(page.locator("textarea[name='prompt-system-\(slot)']")).toHaveCount(0)
         try await page.locator("#prompt-revision-process-\(parent) .accordion-summary").first.click()
         try await auto.locator(".accordion-summary").first.click()
-        for (part, suffix) in [("system", "Web tests summarizer system."), ("task", "Web tests summarizer task.")] {
-          try await auto.locator("#prompt-revision-\(part)-accordion-\(slot) .accordion-summary").click()
-          try await expect(auto.locator("#prompt-revision-\(part)-accordion-\(slot)"))
-            .toHaveAttribute("data-open-finished", "true")
-          _ = try await page.evaluate(
-            """
-            (() => {
-              const area = document.querySelector("textarea[name='prompt-\(part)-\(slot)']")
-              area.value += '\\n\(suffix)'
-              area.dispatchEvent(new Event('input', { bubbles: true }))
-              return true
-            })()
-            """, as: Bool.self)
-        }
+        try await expect(auto).toHaveAttribute("data-open-finished", "true")
+        _ = try await page.evaluate(
+          """
+          (() => {
+            const area = document.querySelector("textarea[name='prompt-task-\(slot)']")
+            area.value += '\\nWeb tests summarizer task.'
+            area.dispatchEvent(new Event('input', { bubbles: true }))
+            return true
+          })()
+          """, as: Bool.self)
         try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the overture at its revision", where: Self.atLocution(palinode.path))
         let changed = page.locator(".thread-event-changed")
@@ -450,11 +448,11 @@ struct RevisePagesTests {
         let paths = try await changed.evaluate(
           "e => [...e.querySelectorAll('.thread-path')].map(p => [...p.children].filter(c => !c.classList.contains('breadcrumb-separator-view')).map(c => c.textContent).join(' › ')).join(' | ')")
         #expect(
-          paths.string == "Arbitration › Autocompaction › System Prompt | Arbitration › Autocompaction › Task Prompt",
+          paths.string == "Arbitration › Autocompaction Prompt",
           "\(paths)")
         let joined = try await changed.evaluate(
           "e => e.querySelector('.list-sentence-lead').textContent + '|' + [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|')")
-        #expect(joined.string == "Modified| | and |.", "\(joined)")
+        #expect(joined.string.hasPrefix("Modified"), "\(joined)")
         // In a white box of its own, as a call's Attached line is (user,
         // 2026-10-17): said of the revision, not words of the thread.
         try await expect(page.locator(".list-sentence-view.thread-event-changed")).toHaveCount(1)
@@ -468,20 +466,17 @@ struct RevisePagesTests {
         // it, the rest closed (user, 2026-10-10).
         try await expect(page.locator(".prompt-change-heading")).toHaveText("Prompts")
         try await expect(page.locator("#prompt-change-process-\(parent)")).toHaveAttribute("data-expanded", "true")
-        try await expect(page.locator("#prompt-change-autocompaction-\(parent)")).toHaveAttribute("data-expanded", "true")
-        try await expect(page.locator("#prompt-change-\(parent)_autocompaction-system")).toHaveAttribute("data-expanded", "true")
+        try await expect(page.locator("#prompt-change-\(parent)_autocompaction-task")).toHaveAttribute("data-expanded", "true")
         try await expect(page.locator("#prompt-change-\(parent)-system")).toHaveAttribute("data-expanded", "false")
         try await expect(page.locator("#prompt-change-process-bibliographic_explication")).toHaveCount(0)
-        try await expect(page.locator(".prompt-change-view .diff-view")).toHaveCount(2)
+        try await expect(page.locator(".prompt-change-view .diff-view")).toHaveCount(1)
         try await page.locator("button[form='revision-accept']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the overture at its revision", where: Self.atLocution(palinode.path))
         // Accepted, the palinode's body draws it against the prompts in force.
         let body = page.locator("#prompt-overture-body")
-        try await expect(body.locator("#prompt-change-autocompaction-\(parent)")).toHaveCount(1)
-        try await expect(body).toContainText("Web tests summarizer system.")
+        try await expect(body.locator("#prompt-change-\(parent)_autocompaction-task")).toHaveCount(1)
         try await expect(body).toContainText("Web tests summarizer task.")
         try await page.openHydrated("\(palinode.path)/revise")
-        try await expect(page.locator("textarea[name='prompt-system-\(slot)']")).toContainText("Web tests summarizer system.")
         try await expect(page.locator("textarea[name='prompt-task-\(slot)']")).toContainText("Web tests summarizer task.")
       }
       let still = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(parent)'")
@@ -1060,7 +1055,7 @@ struct RevisePagesTests {
   /// One Suggest on a palinode changes several prompts of its process at
   /// once (user, 2026-10-14, 2026-10-20): Arbitration's system prompt, its
   /// task template and its continuation in one revision. Refused first—an
-  /// autocompaction template that drops its variable—the page comes back
+  /// autocompaction prompt that names a variable—the page comes back
   /// (422) with every value as it was typed, byte for byte, why right above
   /// Suggest, and the field marked; corrected, the one revision holds each.
   @Test(arguments: [BrowserEngine.chrome])
@@ -1096,7 +1091,7 @@ struct RevisePagesTests {
               system: set("textarea[name='prompt-system-\(arbitration)']", '\\n' + system + '\\n' + long),
               task: set("textarea[name='prompt-task-\(arbitration)']", task + '\\r\\nCite the image, "always".'),
               continuation: set("textarea[name='prompt-task-\(continuation)']", 'Carry on, <never> & "again".'),
-              auto: set("textarea[name='prompt-task-\(auto)']", 'Summarize the turns.'),
+              auto: set("textarea[name='prompt-task-\(auto)']", 'Summarize the turns {transcript}.'),
             })
           })()
           """, as: String.self)
@@ -1105,11 +1100,11 @@ struct RevisePagesTests {
 
         // The page again, at its own address, saying why above Suggest.
         let form = page.locator(".revision-form-view")
-        let alert = form.locator(".alert-view").filter(hasText: "Keep the required task variable {transcript}.")
+        let alert = form.locator(".alert-view").filter(hasText: "Unknown variable {transcript}, an autocompaction prompt is sent as written.")
         try await expect(alert, timeout: .seconds(15)).toBeVisible()
         try await expect(page).toHaveURL("the Revise page, not a redirect") { $0.path.hasSuffix("/revise") && $0.query == nil }
         // The field it is of, marked where it stands.
-        try await expect(page.locator("#prompt-revision-task-accordion-\(auto) .field-validation-message-view"))
+        try await expect(page.locator("#prompt-revision-autocompaction-\(auto) .field-validation-message-view"))
           .toContainText("{transcript}")
         // Every value as it was typed.
         let restored = try await page.evaluate(

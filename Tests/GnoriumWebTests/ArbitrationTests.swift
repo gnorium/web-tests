@@ -1671,15 +1671,15 @@ struct ArbitrationTests {
             // One accordion a process, its three nested (user, 2026-10-10).
             try await expect(sections.nth(index).locator("#\(id) .prompt-preview-title-words").first).toHaveText(name)
             try await expect(sections.nth(index).locator("#\(id)")).toHaveAttribute("data-expanded", "false")
-            try await expect(sections.nth(index).getByText("System Prompt", exact: true)).toHaveCount(2)
+            try await expect(sections.nth(index).getByText("System Prompt", exact: true)).toHaveCount(1)
             // Its task filled as sent, or its template where none can be,
-            // and its autocompaction's, each titled "Task Prompt" (user,
-            // 2026-10-17); a template lists its variables.
+            // and its autocompaction prompt, one text with no variables
+            // (user, 2026-10-24); a template lists its variables.
             let titles = sections.nth(index).locator(".prompt-preview-title-words")
-            try await expect(titles.filter(hasText: "Task Prompt")).toHaveCount(2)
+            try await expect(titles.filter(hasText: "Task Prompt")).toHaveCount(1)
             try await expect(titles.filter(hasText: "Template")).toHaveCount(0)
-            try await expect(sections.nth(index).locator(".prompt-variables-view")).toHaveCount(filled ? 1 : 2)
-            try await expect(sections.nth(index).getByText("Autocompaction", exact: true)).toHaveCount(1)
+            try await expect(sections.nth(index).locator(".prompt-variables-view")).toHaveCount(filled ? 0 : 1)
+            try await expect(sections.nth(index).getByText("Autocompaction Prompt", exact: true)).toHaveCount(1)
           }
           // Its Revise page holds no prompt: a process's prompts are revised
           // on a palinode of their vignette (user, 2026-10-20).

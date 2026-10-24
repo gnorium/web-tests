@@ -89,11 +89,12 @@ struct PromptPreviewFillingTests {
         try await expect(pageImage.locator(".expandable-attachment-trigger")).toHaveCount(1)
         try await expect(explicationSection.locator(".expandable-attachment-view[data-presentation='received']"))
           .toHaveCount(0)
-        // Autocompaction's alone stays a template, its variables listed;
-        // both headings say "Task Prompt", the autocompaction's under its
-        // own accordion (user, 2026-10-17).
+        // The autocompaction prompt is one text, sent as written, titled
+        // "Autocompaction Prompt" (user, 2026-10-24).
         try await expect(explicationSection.locator(".prompt-preview-title-words").filter(hasText: "Task Prompt"))
-          .toHaveCount(2)
+          .toHaveCount(1)
+        try await expect(explicationSection.locator(".prompt-preview-title-words").filter(hasText: "Autocompaction Prompt"))
+          .toHaveCount(1)
         try await expect(explicationSection.locator(".prompt-variables-view")).toHaveCount(1)
         let slots = try await page.evaluate(
           """
@@ -127,7 +128,7 @@ struct PromptPreviewFillingTests {
         try await expect(process).toBeChecked()
         try await expect(page.locator("#prompt-tick-system-bibliographic_arbitration")).toBeChecked()
         try await expect(page.locator("#prompt-tick-task-bibliographic_arbitration_continuation")).toBeChecked()
-        try await expect(page.locator("#prompt-tick-system-bibliographic_arbitration_autocompaction")).toBeChecked()
+        try await expect(page.locator("#prompt-tick-task-bibliographic_arbitration_autocompaction")).toBeChecked()
         try await expect(arbitration, timeout: .seconds(20)).toContainText("Arbitration › System Prompt")
         try await page.locator("#prompt-tick-system-bibliographic_arbitration").click()
         let partly = try await page.evaluate(
