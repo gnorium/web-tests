@@ -255,7 +255,7 @@ struct ComboboxTests {
         let form = page.locator(".submit-testament-form")
         let rows = "[data-item-list='work-voice'] [data-item-section='true']:not([data-item-template] *)"
         let voice = form.locator("\(rows) .combobox-view").first
-        let field = voice.getByRole(.combobox, name: "Voice name")
+        let field = voice.getByRole(.combobox, name: "Name")
         let value = voice.locator("input[type='hidden']")
         try await expect(field).toHaveCount(1)
 
@@ -312,7 +312,7 @@ struct ComboboxTests {
         // Chosen, then edited: the edited text, as typed.
         try await page.openHydrated(Self.form)
         let again = page.locator(".submit-testament-form \(rows) .combobox-view").first
-        let againField = again.getByRole(.combobox, name: "Voice name")
+        let againField = again.getByRole(.combobox, name: "Name")
         try await againField.type(work.suffix)
         let againOption = again.locator(".combobox-option[data-value='\(work.author)']")
         try await againOption.click()
