@@ -131,6 +131,89 @@ struct TranslationSessionsTests {
     try await admin.remove()
   }
 
+  /// The Drumrolls heading's button folds the object's thread of events
+  /// on a Computorium page as Locutions folds on a Disputorium one: its
+  /// lines and pager hidden, the count kept, then open again.
+  @Test(arguments: [BrowserEngine.chrome])
+  func theDrumrollsFoldAndOpen(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let reading: ScratchReading
+    do { reading = try ScratchReading(owner: admin, tei: Self.tei) }
+    catch { try await admin.remove(after: error) }
+    let epilogue = UUID().uuidString.lowercased()
+    let serenade = UUID().uuidString.lowercased()
+    let nocturne = UUID().uuidString.lowercased()
+    do {
+      let user = try admin.column("id")
+      _ = try TestAdmin.query(
+        """
+        BEGIN;
+        \(reading.translation(to: epilogue))
+        INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, requested_by_user_id,
+          processing_status, processing_error)
+          VALUES ('\(serenade)', '\(epilogue)', 'eng', '\(user)', 'failed', 'Web tests');
+        INSERT INTO bibliographic_translation_nocturnes (id, bibliographic_serenade_id, process, chunk, instance_count)
+         VALUES (md5('head:' || ('\(serenade)'):: text || ':' || coalesce(('1–2')::text, ''))::uuid, '\(serenade)', 'translation', '1–2', 1)
+         ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_translation_nocturnes.instance_count + 1;
+        INSERT INTO bibliographic_translation_nocturne_instances (id, nocturne_id, instance, provider, model, result, duration_ms, created_at)
+        VALUES ('\(nocturne)', md5('head:' || ('\(serenade)'):: text || ':' || coalesce(('1–2')::text, ''))::uuid, 1, 'openrouter', 'qwen/qwen3.8-max-0902', 'passed', 1200, now());
+        \(try SessionTrace.append(Self.trace, table: Self.nocturnes, id: nocturne))
+        COMMIT;
+        """)
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
+        try await page.openHydrated("/mission-control/serenades/bibliographic/\(serenade)")
+        let section = page.locator(".thread-view[data-section-name='drumrolls']")
+        let toggle = section.locator(".thread-collapse")
+        let content = section.locator(".thread-section-content")
+        let events = section.locator(".thread-event")
+        let count = section.locator(".thread-count")
+        try await expect(toggle).toHaveAttribute("aria-label", "Collapse drumrolls")
+        try await expect(toggle).toHaveAttribute("aria-expanded", "true")
+        try await expect(events.first).toBeVisible()
+
+        // Folded: partway shortly after the press, then nothing below the heading.
+        let motion = try await page.evaluate(
+          """
+          (async () => {
+            const view = document.querySelector(".thread-view[data-section-name='drumrolls']");
+            const clip = view.querySelector('.thread-section');
+            const before = clip.getBoundingClientRect().height;
+            view.querySelector('.thread-collapse').click();
+            await new Promise(r => setTimeout(r, 100));
+            const during = clip.getBoundingClientRect().height;
+            await new Promise(r => setTimeout(r, 600));
+            return [before, during, clip.getBoundingClientRect().height];
+          })()
+          """, as: [Double].self)
+        #expect(motion[0] > 0 && motion[2] == 0, "Open, then folded: \(motion)")
+        #expect(motion[1] > 0 && motion[1] < motion[0], "Mid-fold, a height between: \(motion)")
+        try await expect(section).toHaveAttribute("data-section-collapsed", "true")
+        try await expect(section).toHaveAttribute("data-section-motion", "idle")
+        try await expect(toggle).toHaveAttribute("aria-expanded", "false")
+        try await expect(toggle).toHaveAttribute("aria-label", "Expand drumrolls")
+        try await expect(content).toBeHidden()
+        try await expect(events.first).toBeHidden()
+        try await expect(count).toBeVisible()
+
+        // Opened again by the same button.
+        try await toggle.click()
+        try await expect(section).toHaveAttribute("data-section-collapsed", "false")
+        try await expect(section).toHaveAttribute("data-section-motion", "idle")
+        try await expect(toggle).toHaveAttribute("aria-expanded", "true")
+        try await expect(content).toBeVisible()
+        try await expect(events.first).toBeVisible()
+        try await page.expectNoErrors()
+      }
+    } catch {
+      remove(serenade: serenade, reading: reading)
+      try await admin.remove(after: error)
+    }
+    remove(serenade: serenade, reading: reading)
+    try await admin.remove()
+  }
+
   private func remove(serenade: String, reading: ScratchReading) {
     _ = try? TestAdmin.query(
       """

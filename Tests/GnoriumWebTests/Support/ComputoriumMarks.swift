@@ -30,11 +30,11 @@ enum ComputoriumMarks {
               stale: '.ring-icon-view', failed: '.disc-icon-view' };
         const failures = [];
         // The header chip keeps its own vocabulary (never the roster's):
-        // submitted the blue check, permitted green, failed red, in flight
-        // or pending blue (one mark a verb, user, 2026-10-21).
+        // submitted the green inbox (user, 2026-10-25), permitted green,
+        // failed red, in flight or pending blue (one mark a verb).
         const header = document.querySelector('.computorium-core-header-status-chip');
         const label = header ? header.textContent.trim() : '';
-        const tone = label === 'Permitted' ? 'green' : label === 'Failed' ? 'red' : 'blue';
+        const tone = label === 'Permitted' || label === 'Submitted' ? 'green' : label === 'Failed' ? 'red' : 'blue';
         if (!header || !header.classList.contains('info-chip-' + tone)) failures.push('header not ' + tone);
         if (document.querySelector('.computorium-core-view :is(.alert-red, .alert-orange, .alert-green)'))
           failures.push('non-blue alert');

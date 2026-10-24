@@ -142,17 +142,17 @@ struct ToolCardFieldsTests {
           """, as: Bool.self), "Thinking remains an inner 256px scrollport")
         let session = page.locator(".computorium-session-view")
         // The header's status chip keeps its own vocabulary: a submitted
-        // antiphon's is the blue inbox (one mark a verb, user, 2026-10-21).
+        // antiphon's is the green inbox (user, 2026-10-25).
         #expect(try await page.evaluate("""
           (() => {
             const chip = document.querySelector('.computorium-core-header-status-chip')
             const probe = document.createElement('span'); document.body.append(probe)
-            probe.style.color = 'var(--color-blue)'; const blue = getComputedStyle(probe).color; probe.remove()
-            return chip.classList.contains('info-chip-blue') && chip.textContent.trim() === 'Submitted'
+            probe.style.color = 'var(--color-green)'; const green = getComputedStyle(probe).color; probe.remove()
+            return chip.classList.contains('info-chip-green') && chip.textContent.trim() === 'Submitted'
               && !!chip.querySelector('.inbox-icon-view')
-              && getComputedStyle(chip.querySelector('.info-chip-text') || chip).color === blue
+              && getComputedStyle(chip.querySelector('.info-chip-text') || chip).color === green
           })()
-          """, as: Bool.self), "The Submitted chip is the blue inbox")
+          """, as: Bool.self), "The Submitted chip is the green inbox")
         // The tools go with every request, but the chat template writes
         // them once, into the system turn: the trace's three identical sets
         // draw one card, never one per round (user, 2026-10-21).

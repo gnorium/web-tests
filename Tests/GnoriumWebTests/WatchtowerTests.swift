@@ -162,7 +162,7 @@ struct WatchtowerTests {
   /// - a machine's OBJECT figures (a quatrain, an antiphon, a serenade as a
   ///   whole) its header chip's marks: pending its pending ring (a
   ///   quatrain's dotted, an antiphon's plain, a serenade's disc), in
-  ///   flight its turning mark, submitted the blue inbox, failed the red
+  ///   flight its turning mark, submitted the green inbox, failed the red
   ///   cross (a failure the machine retries counts as pending: failed
   ///   always needs a person). A call's too, at its object's level: pending
   ///   that level still, running it turning, submitted the check, failed
@@ -171,8 +171,8 @@ struct WatchtowerTests {
   ///   pending mark (an overture's and a halftone's the dotted ring, a
   ///   madrigal's the ring, an epilogue's the disc), committed the blue
   ///   arrow right (a lexicographic epilogue's committed, on its verdict,
-  ///   the disc), permitted the green stamp—the only green; a figurant's
-  ///   and a palinode's submitted the blue inbox; Arbitration's box's
+  ///   the disc), permitted the green stamp; a figurant's and a
+  ///   palinode's submitted the green inbox (user, 2026-10-25); Arbitration's box's
   ///   passed the blue check, its work done. Neither stale nor hidden is a figure.
   /// A turning mark always turns, at zero too (its computed animation is
   /// never none, outside reduced motion); a still one never does.
@@ -268,7 +268,7 @@ struct WatchtowerTests {
             switch word {
             case "pending": wanted = level.still
             case "running": wanted = level.running
-            case "submitted": wanted = "inbox-icon-view"
+            case "submitted": wanted = "inbox-icon-view"; color = "green"
             default: wanted = "octagon-alert-icon-view"; color = "red"
             }
             calls += 1
@@ -277,7 +277,7 @@ struct WatchtowerTests {
           switch word {
           case "pending": wanted = object.pending
           case object.word: wanted = object.inFlight
-          case "submitted": wanted = "inbox-icon-view"
+          case "submitted": wanted = "inbox-icon-view"; color = "green"
           default: wanted = "octagon-alert-icon-view"; color = "red"
           }
           machines += 1
@@ -290,8 +290,8 @@ struct WatchtowerTests {
           }
           people += 1
         } else {
-          // A register's row (a figurant, a palinode): submitted, the blue inbox.
-          wanted = "inbox-icon-view"
+          // A register's row (a figurant, a palinode): submitted, the green inbox.
+          wanted = "inbox-icon-view"; color = "green"
           people += 1
         }
         #expect(figure.leads, "\(figure.owner) \(figure.text): its mark leads its words")
