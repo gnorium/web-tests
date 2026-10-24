@@ -214,6 +214,75 @@ struct MarkupRegionTests {
     try await contributor.remove()
   }
 
+  /// A `<zone>` that writes its corners (`ulx uly lrx lry`) is edited on the
+  /// image as a bbox is (user, 2026-10-24): the caret on it draws its crop
+  /// with four handles, and a drag or an arrow rewrites the four numbers in
+  /// the TEI text, the attribute names between them kept. Zones are changed
+  /// by editing the text; the server refuses a malformed result.
+  @Test(arguments: [BrowserEngine.chrome])
+  func aZonesCornersAreEditedOnTheImageAsABboxIs(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let fixture = try await FixtureServer.threePageManifest()
+    defer { fixture.stop() }
+    let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let commit = try ScratchCommit(owner: contributor, sourceURL: fixture.baseURL + "/manifest.json")
+    do {
+      _ = try TestAdmin.query(
+        #"""
+        UPDATE bibliographic_madrigals SET
+          metadata_json = (metadata_json::jsonb || '{"provider":"folger_shakespeare_library"}'::jsonb)::text,
+          proposed_content_json = '{"teiXml":"<TEI><facsimile><surface ulx="0" uly="0" lrx="1000" lry="1000"><zone xml:id="z1" ulx="100" uly="200" lrx="600" lry="400"/></surface></facsimile><text><body><pb n="1" facs="\#(fixture.baseURL)/page-1/full/1300,/0/default.jpg"/><p>Before</p></body></text></TEI>"}'
+        WHERE id = '\#(commit.madrigalID)'
+        """#)
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
+        try await page.openHydrated("\(commit.madrigalPath)/revise")
+        try await Self.showImage(page)
+        try await expect(page.locator(".tei-page-edit .code-code").first).toBeVisible()
+        // The caret on the zone: its crop, with its four handles.
+        #expect(try await page.evaluate(Self.caretScript("ulx=\"10"), as: Bool.self))
+        try await Self.expectRegion(page, [100, 200, 500, 200], "ok", "The caret in the zone draws its crop")
+        try await expect(page.locator(".canvas-view[data-active='true'] .canvas-crop-handle")).toHaveCount(4)
+        // The arrows rewrite the four numbers, the names between kept.
+        try await page.keyboard.press("ArrowRight")
+        try await Self.expectEditor(
+          page, contains: "ulx=\"101\" uly=\"200\" lrx=\"601\" lry=\"400\"", "ArrowRight moves the zone by 1")
+        try await page.keyboard.press("Alt+ArrowDown")
+        try await Self.expectEditor(
+          page, contains: "ulx=\"101\" uly=\"200\" lrx=\"601\" lry=\"401\"", "Alt+ArrowDown grows it by 1")
+        // Its bottom-right handle dragged: lrx and lry follow.
+        #expect(try await page.evaluate(Self.caretScript("ulx=\"10"), as: Bool.self))
+        let corner = try await Self.screenPoint(page, 601, 401)
+        let target = try await Self.screenPoint(page, 700, 500)
+        try await page.mouse.move(x: corner.x, y: corner.y)
+        try await page.mouse.down(x: corner.x, y: corner.y)
+        for step in 1...5 {
+          let t = Double(step) / 5
+          try await page.mouse.move(x: corner.x + (target.x - corner.x) * t, y: corner.y + (target.y - corner.y) * t)
+        }
+        try await page.mouse.up(x: target.x, y: target.y)
+        var written: (Int, Int)?
+        for _ in 0..<40 where written == nil {
+          let text = try await page.evaluate(Self.editorText, as: String.self)
+          if let match = text.firstMatch(of: /ulx="101" uly="200" lrx="(\d+)" lry="(\d+)"/),
+            let right = Int(match.1), let bottom = Int(match.2), abs(right - 700) <= 1, abs(bottom - 500) <= 1
+          {
+            written = (right, bottom)
+          } else {
+            try await Task.sleep(for: .milliseconds(50))
+          }
+        }
+        #expect(written != nil, "The drag writes the corners into the TEI text")
+        try await page.expectNoErrors()
+      }
+    } catch {
+      commit.remove()
+      try await contributor.remove(after: error)
+    }
+    commit.remove()
+    try await contributor.remove()
+  }
+
   @Test(arguments: [BrowserEngine.chrome])
   func thePointerOnAZonesElementInRawDrawsItsRegion(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
