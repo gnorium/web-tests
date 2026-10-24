@@ -280,9 +280,10 @@ struct LocutionCollapseTests {
                  'bibliographic_madrigal', '\(madrigalID)', '\(readerID)',
                  'Locution ' || n, now() - ((150 - n) || ' seconds')::interval
           FROM generate_series(1, 150) AS n;
+        -- Locution n is (150 - n) seconds old: the 100th is 50 seconds old.
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status, created_at, updated_at)
-          VALUES ('\(beforeID)', '\(madrigalID)', '\(readerID)', '[]', 'submitted', now() - interval '100.5 seconds', now()),
-                 ('\(afterID)', '\(madrigalID)', '\(readerID)', '[]', 'submitted', now() - interval '99.5 seconds', now());
+          VALUES ('\(beforeID)', '\(madrigalID)', '\(readerID)', '[]', 'submitted', now() - interval '50.5 seconds', now()),
+                 ('\(afterID)', '\(madrigalID)', '\(readerID)', '[]', 'submitted', now() - interval '49.5 seconds', now());
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [reader.cookie]) { page in
         try await page.openHydrated(scratch.madrigalPath)
