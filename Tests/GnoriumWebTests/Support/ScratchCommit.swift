@@ -42,6 +42,9 @@ struct ScratchCommit {
     pendingOvertureID = id()
     committedOvertureID = id()
     madrigalID = id()
+    // The witness's fields, on the halftone, the antiphon and the madrigal alike: the madrigal's page
+    // decodes the antiphon's too.
+    let metadata = #"{"language":"eng","sourceUrl":"\#(sourceURL)","sourceKind":"iiif-manifest"}"#
     _ = try TestAdmin.query(
       """
       BEGIN;
@@ -52,9 +55,9 @@ struct ScratchCommit {
         VALUES ('\(pendingOvertureID)', '\(submissionID)', '\(figurantID)', '\(sourceURL)', 'eng', 'pending', now());
       INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_figurant_id, source_url, language, processing_status, committed_by_user_id, committed_at, created_at)
         VALUES ('\(committedOvertureID)', '\(submissionID)', '\(figurantID)', '\(sourceURL)', 'eng', 'pending', '\(user)', now(), now() - interval '1 minute');
-      \(chain.insert(overture: committedOvertureID, user: user))
+      \(chain.insert(overture: committedOvertureID, user: user, metadata: metadata))
       INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, proposed_content_json, metadata_json, processing_status, created_at, updated_at)
-        VALUES ('\(madrigalID)', '\(madrigalID)', '\(chain.antiphonID)', '{"teiXml":"<TEI><text><body><pb n=\\"1\\" facs=\\"\(sourceURL.replacingOccurrences(of: "/manifest.json", with: ""))/page-1/full/max/0/default.jpg\\"/></body></text></TEI>"}', '{"language":"eng","sourceUrl":"\(sourceURL)","sourceKind":"iiif-manifest"}', 'pending', now(), now());
+        VALUES ('\(madrigalID)', '\(madrigalID)', '\(chain.antiphonID)', '{"teiXml":"<TEI><text><body><pb n=\\"1\\" facs=\\"\(sourceURL.replacingOccurrences(of: "/manifest.json", with: ""))/page-1/full/max/0/default.jpg\\"/></body></text></TEI>"}', '\(metadata)', 'pending', now(), now());
       COMMIT;
       """)
   }

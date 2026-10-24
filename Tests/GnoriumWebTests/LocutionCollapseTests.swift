@@ -291,8 +291,8 @@ struct LocutionCollapseTests {
         // Newest page: 50 of 150, in the document; the badge is the whole.
         try await expect(page.locator(".thread-timeline .locution-view")).toHaveCount(50)
         try await expect(page.locator(".thread-count")).toHaveText("150")
-        try await expect(page.locator("text=Locution 150")).toBeVisible()
-        try await expect(page.locator("text=Locution 1 ").first).toHaveCount(0)
+        try await expect(page.locator(".locution-view p").filter(hasText: "Locution 150", exact: true)).toBeVisible()
+        try await expect(page.locator(".locution-view p").filter(hasText: "Locution 1", exact: true)).toHaveCount(0)
 
         // The footer reads as the tables': the range at the start, the pager
         // at the end.

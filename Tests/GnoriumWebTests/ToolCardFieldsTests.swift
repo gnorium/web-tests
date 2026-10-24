@@ -325,7 +325,9 @@ struct ToolCardFieldsTests {
             return !datum.querySelector('.code-view') && !datum.querySelector('.code-code')
               && datum.classList.contains('tool-field-multiline') && !datum.classList.contains('tool-field-markup')
               && block.textContent.includes('\\n') && cs.whiteSpace === 'pre-wrap'
-              && cs.fontFamily === getComputedStyle(document.querySelector('#computorium-session-tool-wt .computorium-session-tool-call-args')).fontFamily
+              // The block is set in sans (gnorium-web 819783bd3, ToolFieldsView),
+              // inside the arguments box's mono (a7a1e2bf5): never the box's font.
+              && cs.fontFamily === getComputedStyle(document.body).fontFamily && !cs.fontFamily.includes('Mono')
               && cs.maxHeight === '256px' && cs.overflowY === 'auto'
               && block.clientHeight <= 256 && block.scrollHeight > block.clientHeight;
           })()

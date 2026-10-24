@@ -79,7 +79,7 @@ struct WatchtowerTests {
       // No heading over a process's block: the block names its process.
       try await expect(page.locator(".watchtower-group-name")).toHaveCount(0)
       try await expect(page.locator(".watchtower-process-name")).toHaveTexts(
-        ["ARBITRATION", "CALIBRATION", "ARBITRATION", "EXPLICATION", "ARBITRATION", "TRANSLATION"])
+        ["ARBITRATION", "CALIBRATION", "ARBITRATION", "EXPLICATION", "ARBITRATION", "TRANSLATION", "ARBITRATION"])
     }
   }
 
@@ -111,7 +111,9 @@ struct WatchtowerTests {
              ...[...column.querySelectorAll('.live-figure-text')].map(f => f.textContent.trim().replace(/^\\S+ /, ''))]
               .join('|'))])
         """, as: [[String]].self)
-      #expect(columns.count == 6, "calibration, explication, translation and three arbitrations: \(columns.count)")
+      // Arbitration on each of the four Disputorium objects, the halftone's
+      // since 9bc3cbb91 (gnorium-web, 2026-10-21).
+      #expect(columns.count == 7, "calibration, explication, translation and four arbitrations: \(columns.count)")
       for box in columns {
         // Every status a nocturne can be in, as its lifecycle runs;
         // arbitration's sessions alike (user, 2026-10-21).
@@ -248,6 +250,13 @@ struct WatchtowerTests {
       var machines = 0
       var calls = 0
       var people = 0
+      var records = 0
+      // A Permit's record vignettes, each its level's mark in green
+      // (`WatchtowerPermittedRecordsView`, gnorium-web aea2044fe).
+      let vignettes = [
+        "overture": "dotted-ring-view", "halftone": "ring-icon-view", "madrigal": "disc-icon-view",
+        "epilogue": "ringed-disc-icon-view",
+      ]
       for figure in figures {
         let word = figure.text.split(separator: " ").dropFirst().first.map(String.init) ?? ""
         let count = Int(figure.text.prefix { $0.isNumber }) ?? 0
@@ -281,11 +290,18 @@ struct WatchtowerTests {
           default: wanted = "octagon-alert-icon-view"; color = "red"
           }
           machines += 1
+        } else if let level = vignettes.first(where: { figure.owner.hasSuffix("watchtower-\($0.key)-permitted-records-figures") }) {
+          wanted = level.value
+          color = "green"
+          records += 1
         } else if let entry = disputorium.first(where: { figure.owner.hasSuffix("watchtower-\($0.key)-figures") }) {
           let tab = figure.column
           switch word {
           case "pending": wanted = entry.value.pending
           case "committed": wanted = entry.value.committed[tab] ?? "gavel-icon-view"
+          // Input changed since its work was done: the orange triangle
+          // (gnorium-web d1f9e1413, 2026-10-22).
+          case "stale": wanted = "triangle-alert-icon-view"; color = "orange"
           default: wanted = "stamp-icon-view"; color = "green"
           }
           people += 1
@@ -307,9 +323,11 @@ struct WatchtowerTests {
       }
       // Three processes and three machines, four statuses on both sides.
       #expect(processes == 24 && machines == 24, "\(processes) process figures, \(machines) object figures")
-      // Four Disputorium objects of three figures and the figurant's and
-      // four palinodes' one, both sides.
-      #expect(people == 4 * 3 * 2 + 5 * 2, "\(people) Disputorium and register figures")
+      // Four Disputorium objects of four figures (stale since d1f9e1413) and
+      // the figurant's and four palinodes' one, both sides; a record
+      // vignette figure a side for each of the four.
+      #expect(people == 4 * 4 * 2 + 5 * 2, "\(people) Disputorium and register figures")
+      #expect(records == 4 * 2, "\(records) record vignette figures")
       // Each nested Locution card's call: four statuses on both sides.
       #expect(calls > 0 && calls % 8 == 0, "\(calls) call figures")
     }
@@ -326,7 +344,8 @@ struct WatchtowerTests {
           .map(e => [...e.closest('.watchtower-object-view').querySelectorAll(':scope > .watchtower-routes-view')]
             .map(r => [...r.querySelectorAll('.watchtower-routes-row > span')].map(s => s.textContent.trim()).join(' ')).join('|')).join('\\n')
         """, as: String.self)
-      #expect(routes.split(separator: "\n").map(String.init) == Array(repeating: "commit ← locution|submit → locution", count: 3))
+      #expect(routes.split(separator: "\n").map(String.init) == Array(repeating: "commit ← locution|submit → locution", count: 4),
+        "one Locution card an arbitration: the overture's, the halftone's (gnorium-web 9bc3cbb91), the madrigal's, the epilogue's")
       #expect(try await cards.count() > 0)
     }
   }
