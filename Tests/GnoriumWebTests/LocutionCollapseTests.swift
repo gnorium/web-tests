@@ -255,6 +255,8 @@ struct LocutionCollapseTests {
     let scratch: ScratchCommit
     do { scratch = try ScratchCommit(owner: reader) } catch { try await reader.remove(after: error) }
     let madrigalID = scratch.madrigalID.lowercased()
+    let firstID = UUID().uuidString.lowercased()
+    let lastID = UUID().uuidString.lowercased()
     func removeLocutions() {
       _ = try? TestAdmin.query("DELETE FROM locutions WHERE locutable_id = '\(madrigalID)';")
     }
@@ -263,7 +265,8 @@ struct LocutionCollapseTests {
       _ = try TestAdmin.query(
         """
         INSERT INTO locutions (id, locutable_type, locutable_id, author_id, content, created_at)
-          SELECT gen_random_uuid(), 'bibliographic_madrigal', '\(madrigalID)', '\(readerID)',
+          SELECT CASE n WHEN 1 THEN '\(firstID)'::uuid WHEN 150 THEN '\(lastID)'::uuid ELSE gen_random_uuid() END,
+                 'bibliographic_madrigal', '\(madrigalID)', '\(readerID)',
                  'Locution ' || n, now() - ((150 - n) || ' seconds')::interval
           FROM generate_series(1, 150) AS n;
         """)
@@ -276,6 +279,21 @@ struct LocutionCollapseTests {
         try await expect(page.locator(".thread-count")).toHaveText("150")
         try await expect(page.locator("text=Locution 150")).toBeVisible()
         try await expect(page.locator("text=Locution 1 ").first).toHaveCount(0)
+
+        // The footer reads as the tables': the range at the start, the pager
+        // at the end.
+        try await expect(page.locator(".thread-pages-info")).toHaveText("101–150 of 150")
+        try await expect(page.locator(".thread-pages-controls")).toBeVisible()
+
+        // A link to an item on another page opens the page holding it.
+        try await page.openHydrated(scratch.madrigalPath + "#locution-\(firstID.uppercased())")
+        try await expect(page.locator("#locution-\(firstID.uppercased())")).toBeInViewport()
+        try await expect(page.locator(".thread-pages-info")).toHaveText("1–100 of 150")
+        // And back to the last page for the newest: where a posted reply or
+        // any new item lands (the page after posting has no page asked for).
+        try await page.openHydrated(scratch.madrigalPath + "#locution-\(lastID.uppercased())")
+        try await expect(page.locator("#locution-\(lastID.uppercased())")).toBeInViewport()
+        try await expect(page.locator(".thread-pages-info")).toHaveText("101–150 of 150")
 
         // The first page by its query: a hundred.
         try await page.openHydrated(scratch.madrigalPath + "?locutions=1")
