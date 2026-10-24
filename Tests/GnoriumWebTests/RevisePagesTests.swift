@@ -494,7 +494,7 @@ struct RevisePagesTests {
   /// Each process's Prompts list its continuation prompt third (user,
   /// 2026-10-15): the system prompt, the task prompt template, the
   /// continuation prompt—one text, no system prompt—then the
-  /// autocompaction. Read on each process's palinode's Revise page.
+  /// subagent prompt and the autocompaction (user, 2026-10-24). Read on each process's palinode's Revise page.
   @Test(arguments: [BrowserEngine.chrome])
   func eachProcessListsItsContinuationPromptThird(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -518,7 +518,7 @@ struct RevisePagesTests {
               return named.map(a => a.querySelector('.accordion-summary').textContent.trim()).join(' | ');
             })()
             """, as: String.self)
-          #expect(order == "System Prompt | Task Prompt | Continuation Prompt | Autocompaction", "\(slot): \(order)")
+          #expect(order == "System Prompt | Task Prompt | Continuation Prompt | Subagent Prompt | Autocompaction Prompt", "\(slot): \(order)")
           let continuation = "\(slot)_continuation"
           try await expect(page.locator("textarea[name='prompt-task-\(continuation)']")).toHaveCount(1)
           try await expect(page.locator("textarea[name='prompt-system-\(continuation)']")).toHaveCount(0)

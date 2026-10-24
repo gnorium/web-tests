@@ -70,10 +70,10 @@ struct OvertureImagesTests {
           .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator("[data-process='Calibration'] #prompt-preview-task .prompt-preview-title-words").first)
           .toHaveText("Task Prompt")
-        // Arbitration's and Calibration's five each: the process and its
-        // System, Task, Continuation and Autocompaction Prompts (user,
-        // 2026-10-24).
-        try await expect(page.locator(".prompt-previews-content .accordion-view")).toHaveCount(10)
+        // Arbitration's and Calibration's six each: the process and its
+        // System, Task, Continuation, Subagent and Autocompaction Prompts
+        // (user, 2026-10-24).
+        try await expect(page.locator(".prompt-previews-content .accordion-view")).toHaveCount(12)
         try await expect(task).toContainText("Title page")
 
         // The pager moves the roster and the address.
@@ -107,7 +107,8 @@ struct OvertureImagesTests {
         try await expect(page.locator("#prompt-preview-process")).toHaveAttribute("data-expanded", "false")
         try await expect(page.locator("#prompt-preview-process .prompt-preview-title-words").nth(1)).toHaveText("System Prompt")
         try await expect(page.locator("#prompt-preview-process .prompt-preview-title-words").nth(3)).toHaveText("Continuation Prompt")
-        try await expect(page.locator("#prompt-preview-process .prompt-preview-title-words").nth(4)).toHaveText("Autocompaction Prompt")
+        try await expect(page.locator("#prompt-preview-process .prompt-preview-title-words").nth(4)).toHaveText("Subagent Prompt")
+        try await expect(page.locator("#prompt-preview-process .prompt-preview-title-words").nth(5)).toHaveText("Autocompaction Prompt")
         try await shoot(page, "roster", layout)
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
