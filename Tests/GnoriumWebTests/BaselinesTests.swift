@@ -99,14 +99,16 @@ struct BaselinesTests {
       // Spending: baselines' part of it, beside production's.
       try await expect(page.locator("#spending").getByText("Baselines (", exact: false)).toBeAttached()
       try await expect(page.locator("#spending .baseline-spending-table").first).toBeAttached()
-      // Gold, as the item response fit finds it (user, 2026-10-17):
-      // how many permitted pages are gold, the configurations, the gold
-      // pages, arbitration's revisers and the runs; Run baseline is an
-      // admin's, there is no Fit now, and no page takes a vote.
+      // Gold, in the shape of 2026-10-24 (design-notes/baselines-page.md):
+      // how many permitted pages are gold, then the runs (Run baseline is an
+      // admin's), the configurations, the gold pages and arbitration's
+      // revisers; there is no Fit now, and no page takes a vote. The imported
+      // datasets follow, said to be a dataset's.
       let gold = page.locator("#gold")
       try await expect(gold.locator(".baseline-gold-summary")).toBeAttached()
       try await expect(gold.locator(".baseline-gold-heading"))
-        .toHaveTexts(["Configurations", "Gold pages", "Revisers", "Baseline runs"])
+        .toHaveTexts(["Baseline runs", "Configurations", "Gold pages", "Revisers"])
+      try await expect(page.locator("#datasets h2")).toHaveText("Datasets")
       try await expect(gold.getByText("Fit now", exact: true)).toHaveCount(0)
       try await expect(gold.locator(".baseline-gold-run-form")).toHaveCount(0)
       try await expect(page.locator(".baseline-hard-vote-view")).toHaveCount(0)
