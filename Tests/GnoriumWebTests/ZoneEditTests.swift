@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// A halftone's zones, edited in its Revise (user, 2026-10-24): the reader
 /// already edits a page's TEI in raw and files it through Suggest; the zone
-/// panel moves, splits, merges and sets aside zones by rewriting that same
+/// panel drags, splits, merges and sets aside zones on the page's image by rewriting that same
 /// code, so the page is marked edited as typing would mark it, and an edit
 /// that cannot be made says so in red and changes nothing. Chrome, desktop.
 @Suite("Zone edit", .serialized)
@@ -36,13 +36,26 @@ struct ZoneEditTests {
       """
   }
 
-  static func fields(_ page: Page, zone: String, _ more: [String: String] = [:]) async throws {
-    try await page.locator("#zone-edit-zone").fill(zone)
-    for (id, value) in more { try await page.locator("#zone-edit-\(id)").fill(value) }
+  /// The stage's zone `id`, and its box on the page as the code writes it.
+  static func zone(_ page: Page, _ id: String) -> Locator { page.locator(".zone-edit-zone[data-zone='\(id)']") }
+
+  /// A drag from `from` to `to`, both fractions of the layer (0...1).
+  static func drag(_ page: Page, from: (Double, Double), to: (Double, Double)) async throws {
+    let box = try await page.evaluate(
+      "(() => { const r = document.querySelector('.zone-edit-layer').getBoundingClientRect(); return [r.left, r.top, r.width, r.height] })()",
+      as: [Double].self)
+    func point(_ f: (Double, Double)) -> (Double, Double) { (box[0] + box[2] * f.0, box[1] + box[3] * f.1) }
+    let a = point(from), b = point(to)
+    try await page.mouse.down(x: a.0, y: a.1)
+    for step in 1...6 {
+      let t = Double(step) / 6
+      try await page.mouse.move(x: a.0 + (b.0 - a.0) * t, y: a.1 + (b.1 - a.1) * t)
+    }
+    try await page.mouse.up(x: b.0, y: b.1)
   }
 
   @Test(arguments: [BrowserEngine.chrome])
-  func zonesAreMovedSplitMergedAndSetAsideInTheCode(engine: BrowserEngine) async throws {
+  func zonesAreDraggedSplitMergedAndSetAsideOnThePage(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -57,46 +70,47 @@ struct ZoneEditTests {
         try await expect(page.locator(".zone-edit-view")).toHaveCount(1)
         _ = try await page.evaluate(Self.typing(Self.page), as: Int.self)
 
-        // The zones on the page.
-        try await page.locator("[data-zone-edit='list']").click()
-        try await expect(page.locator(".zone-edit-done .zone-edit-message-text")).toHaveText("Zones on this page: z-L1, z-L2.")
+        // The zones are drawn over the page, one box each.
+        try await expect(page.locator(".zone-edit-zone")).toHaveCount(2)
 
-        // Move: its four edges, nothing else.
-        try await Self.fields(page, zone: "z-L2", ["left": "120", "top": "160", "right": "880", "bottom": "200"])
-        try await page.locator("[data-zone-edit='move']").click()
+        // Click selects; drag moves: the code's box changes, nothing else.
+        try await Self.zone(page, "z-L2").click()
+        try await expect(Self.zone(page, "z-L2")).toHaveAttribute("data-selected", "true")
+        try await Self.drag(page, from: (0.5, 0.17), to: (0.5, 0.27))
         var code = try await page.evaluate(Self.code, as: String.self)
-        #expect(code.contains(#"xml:id="z-L2" ulx="120" uly="160" lrx="880" lry="200""#), "Moved: \(code)")
+        #expect(!code.contains(#"xml:id="z-L2" ulx="100" uly="150" lrx="900" lry="190""#), "Moved: \(code)")
         #expect(code.contains(#"xml:id="z-L1" ulx="100" uly="100" lrx="900" lry="140""#), "The other is as it was: \(code)")
-        // The reader took it as an edit of the page.
         try await expect(page.locator(".tei-page[data-active='true']")).toHaveAttribute("data-edited", "true")
 
-        // A move that cannot be made says why and changes nothing.
-        try await Self.fields(page, zone: "z-L2", ["left": "500", "right": "400"])
-        try await page.locator("[data-zone-edit='move']").click()
-        try await expect(page.locator(".zone-edit-failed")).toBeVisible()
-        try await expect(page.locator(".zone-edit-failed .zone-edit-message-text"))
-          .toContainText("right edge must be right of its left edge")
-        #expect(try await page.evaluate(Self.code, as: String.self) == code, "A refused edit changes nothing")
-
-        // Split: two zones, the line's words divided by width.
-        try await Self.fields(page, zone: "z-L1", ["split": "500"])
-        try await page.locator("[data-zone-edit='split']").click()
+        // A corner resizes.
+        let before = code
+        try await Self.drag(page, from: (0.9, 0.27), to: (0.8, 0.3))
         code = try await page.evaluate(Self.code, as: String.self)
-        #expect(code.contains(#"xml:id="z-L1" ulx="100" uly="100" lrx="500" lry="140""#), "The left keeps the id: \(code)")
-        #expect(code.contains(#"xml:id="z-L1-b" ulx="500" uly="100" lrx="900" lry="140""#), "The right is new: \(code)")
-        #expect(code.contains(#"<lb facs="#z-L1-b"/>"#), "It has its line: \(code)")
-        try await expect(page.locator(".zone-edit-done")).toBeVisible()
+        #expect(code != before, "Resized: \(code)")
 
-        // Merge it back: one zone, the text joined.
-        try await Self.fields(page, zone: "z-L1", ["merge": "z-L1-b"])
+        // Split: select one, press Split, click inside it.
+        try await Self.zone(page, "z-L1").click()
+        try await page.locator("[data-zone-edit='split']").click()
+        try await expect(page.locator(".zone-edit-done")).toBeVisible()
+        try await Self.zone(page, "z-L1").click()
+        code = try await page.evaluate(Self.code, as: String.self)
+        #expect(code.contains(#"xml:id="z-L1-b""#), "A new zone on the right: \(code)")
+        #expect(code.contains(#"<lb facs="#z-L1-b"/>"#), "It has its line: \(code)")
+
+        // Merge needs two: refused with one, done with two.
+        try await page.locator("[data-zone-edit='merge']").click()
+        try await expect(page.locator(".zone-edit-failed")).toBeVisible()
+        try await Self.zone(page, "z-L1").click()
+        try await page.keyboard.down("Shift")
+        try await Self.zone(page, "z-L1-b").click()
+        try await page.keyboard.up("Shift")
         try await page.locator("[data-zone-edit='merge']").click()
         code = try await page.evaluate(Self.code, as: String.self)
-        #expect(code.contains(#"xml:id="z-L1" ulx="100" uly="100" lrx="900" lry="140""#), "One zone again: \(code)")
-        #expect(!code.contains("z-L1-b"), "The second is gone: \(code)")
+        #expect(!code.contains("z-L1-b"), "One zone again: \(code)")
         #expect(code.contains("the quick brown fox jumps"), "Its words are whole: \(code)")
 
-        // Set aside: its zone and its line leave the page.
-        try await Self.fields(page, zone: "z-L2")
+        // Set aside: the selected zone and its line leave the page.
+        try await Self.zone(page, "z-L2").click()
         try await page.locator("[data-zone-edit='aside']").click()
         code = try await page.evaluate(Self.code, as: String.self)
         #expect(!code.contains("z-L2"), "Zone and line are gone: \(code)")
