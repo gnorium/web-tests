@@ -42,9 +42,9 @@ struct VoicesTests {
       try await expect(rows).toHaveCount(1)
       try await expect(list.locator(":scope > .form-items-heading")).toHaveCount(0)
       // Its name a combobox: the voices already on works suggested as typed.
-      try await expect(rows.first.getByRole(.combobox, name: "Voice name")).toHaveCount(1)
-      try await expect(rows.first.locator(".text-input-input")).toHaveAttribute("placeholder", "Voice name")
-      try await expect(rows.first).toContainText("Voice role")
+      try await expect(rows.first.getByRole(.combobox, name: "Name")).toHaveCount(1)
+      try await expect(rows.first.locator(".text-input-input")).toHaveAttribute("placeholder", "Name")
+      try await expect(rows.first).toContainText("Role")
       let firstType = rows.first.locator(".dropdown-view")
       try await expect(firstType.locator(".dropdown-selected-text")).toHaveText("Author")
       try await expect(rows.first.locator("input[id$='-dropdown']")).toHaveValue("author")
