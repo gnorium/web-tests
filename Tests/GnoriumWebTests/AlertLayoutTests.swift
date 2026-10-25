@@ -89,12 +89,12 @@ struct AlertLayoutTests {
   static let notice = """
     <div class="source-change-notice"><div class="alert-view alert-orange alert-inline" id="notice" aria-live="polite">\
     <div class="alert-motion-content">\(icon)<div class="alert-content">\
-    <span>This page’s image changed at its source since it was sent (seen <time>Oct 17, 2026</time>)</span>\
+    <span>This image changed at its source since it was sent (seen <time>Oct 17, 2026</time>)</span>\
     <span>; the source’s image now: </span>\
     <div class="expandable-attachment-view" data-kind="image" data-fallback-src="" data-presentation="line">\
     <button type="button" class="expandable-attachment-trigger expandable-attachment-image-trigger" \
-    aria-label="The page’s image as its source serves it now">\
-    <img src="/page.svg" alt="The page’s image as its source serves it now" loading="lazy" class="expandable-attachment-image-thumb" \
+    aria-label="The image as its source serves it now">\
+    <img src="/page.svg" alt="The image as its source serves it now" loading="lazy" class="expandable-attachment-image-thumb" \
     style="display: block; flex-shrink: 0; width: var(--line-height-small-22); height: var(--line-height-small-22); \
     object-fit: contain"/>\
     </button></div><span>.</span><span> The image shown is the one that was sent, as archived.</span>\
