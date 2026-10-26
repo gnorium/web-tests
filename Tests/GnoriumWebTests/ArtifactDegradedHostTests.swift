@@ -157,7 +157,7 @@ struct ArtifactDegradedHostTests {
     guard FileManager.default.fileExists(atPath: wasm.path),
       FileManager.default.fileExists(atPath: assets.appendingPathComponent("loader.js").path)
     else { return nil }
-    let css = try ["layout-view.css", "artifact-view.css", "canvas-view.css"].map {
+    let css = try ["layout-view.css", "artifact-view.css", "image-view.css"].map {
       try String(contentsOf: assets.appendingPathComponent("style-sheets/" + $0), encoding: .utf8)
     }.joined(separator: "\n")
     let service = "\(host.baseURL)/svc/1"
@@ -167,13 +167,13 @@ struct ArtifactDegradedHostTests {
       body { margin: 0; }
       .artifact-view { display: flex; flex-direction: column; width: 1000px; height: 820px; }
       .artifact-object { width: 1000px; height: 800px; flex: none; display: flex; }
-      .canvas-view { width: 1000px; height: 800px; }
-      .canvas-viewport { width: 1000px; height: 800px; position: relative; overflow: hidden; }
-      .canvas-tile-surface { position: absolute; inset: 0; width: 100%; height: 100%; }
+      .image-view { width: 1000px; height: 800px; }
+      .image-viewport { width: 1000px; height: 800px; position: relative; overflow: hidden; }
+      .image-tile-surface { position: absolute; inset: 0; width: 100%; height: 100%; }
       </style></head><body>
       <div class="artifact-view" data-manifest-url="/manifest">
-        <div class="artifact-object"><div class="canvas-view" data-service-id="\(service)" data-active="true">
-          <div class="canvas-viewport"><div class="canvas-spinner" data-visible="false"></div></div>
+        <div class="artifact-object"><div class="image-view" data-service-id="\(service)" data-active="true">
+          <div class="image-viewport"><div class="image-spinner" data-visible="false"></div></div>
         </div></div>
       </div><script src="/loader.js"></script></body></html>
       """
@@ -192,8 +192,8 @@ struct ArtifactDegradedHostTests {
   /// whole of it, read from the address each image was asked for.
   static let outcomeScript = """
     (() => {
-      const v = document.querySelector('.canvas-view[data-active="true"] .canvas-viewport');
-      const images = [...v.querySelectorAll('.canvas-tile-image')];
+      const v = document.querySelector('.image-view[data-active="true"] .image-viewport');
+      const images = [...v.querySelectorAll('.image-tile-image')];
       let best = 0, tiles = 0, loadedTiles = 0;
       for (const i of images) {
         const href = i.getAttribute('href') || '', loaded = i.getAttribute('data-loaded') === 'true';
@@ -201,8 +201,8 @@ struct ArtifactDegradedHostTests {
         if ((m = href.match(/\\/full\\/(\\d+),/))) { if (loaded) best = Math.max(best, Number(m[1])); }
         else if (/\\/\\d+,\\d+,\\d+,\\d+\\//.test(href)) { tiles++; if (loaded) loadedTiles++; }
       }
-      const zoom = Number(v.querySelector('.canvas-tile-compositor').getAttribute('transform').match(/-?[\\d.]+/g)[2]);
-      return {best, tiles, loadedTiles, zoom, spinner: v.querySelector('.canvas-spinner').dataset.visible};
+      const zoom = Number(v.querySelector('.image-tile-compositor').getAttribute('transform').match(/-?[\\d.]+/g)[2]);
+      return {best, tiles, loadedTiles, zoom, spinner: v.querySelector('.image-spinner').dataset.visible};
     })()
     """
 
@@ -222,12 +222,12 @@ struct ArtifactDegradedHostTests {
       try await page.goto("/")
       try await expect(page.locator("html")).toHaveAttribute("data-wasm-status", "started")
       // The first copies are on screen.
-      try await expect(page.locator(".canvas-view[data-active='true'] .canvas-tile-image[data-loaded='true']").first).toBeAttached()
+      try await expect(page.locator(".image-view[data-active='true'] .image-tile-image[data-loaded='true']").first).toBeAttached()
       // Zoomed in to the actual size, where tiles are what the image asks for.
       _ = try await page.evaluate(
         """
         (async () => {
-          const v = document.querySelector('.canvas-viewport'), b = v.getBoundingClientRect();
+          const v = document.querySelector('.image-viewport'), b = v.getBoundingClientRect();
           for (let i = 0; i < 14; i++) {
             v.dispatchEvent(new WheelEvent('wheel', {deltaY: -40, clientX: b.x + 500, clientY: b.y + 400, bubbles: true, cancelable: true}));
             await new Promise(r => setTimeout(r, 16));
@@ -255,7 +255,7 @@ struct ArtifactDegradedHostTests {
       for _ in 0..<6 {
         _ = try await page.evaluate(
           """
-          (() => { const v = document.querySelector('.canvas-viewport'), b = v.getBoundingClientRect();
+          (() => { const v = document.querySelector('.image-viewport'), b = v.getBoundingClientRect();
             v.dispatchEvent(new WheelEvent('wheel', {deltaY: 40, clientX: b.x + 500, clientY: b.y + 400, bubbles: true, cancelable: true}));
             v.dispatchEvent(new WheelEvent('wheel', {deltaY: -40, clientX: b.x + 500, clientY: b.y + 400, bubbles: true, cancelable: true})); return 1 })()
           """)

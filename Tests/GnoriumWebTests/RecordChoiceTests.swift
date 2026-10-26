@@ -117,7 +117,7 @@ struct RecordChoiceTests {
       try await expect(option.locator(":scope > span")).toHaveCount(2)
       let label = option.locator(".dropdown-option-display-text .breadcrumb-label-view")
       try await expect(label.locator(".breadcrumb-label-context")).toHaveText("English")
-      try await expect(label.locator(".breadcrumb-separator-view .next-icon-view")).toHaveCount(1)
+      try await expect(label.locator(".breadcrumb-separator-view .chevron-right-icon-view")).toHaveCount(1)
       try await expect(label.locator(".breadcrumb-label-text")).toHaveText(work.title)
       try await expect(option.locator(".dropdown-option-alt-text")).toHaveText("\(work.author) · Report")
       try await expect(option).not.toContainText(work.path)
@@ -133,12 +133,12 @@ struct RecordChoiceTests {
           menu.dataset.open = 'true';
           const box = (s) => el.querySelector(s).getBoundingClientRect();
           const context = box('.breadcrumb-label-context'), chevron = box('.breadcrumb-separator-view');
-          const trail = document.querySelector('.breadcrumb-view .breadcrumb-separator-view .next-icon-view');
+          const trail = document.querySelector('.breadcrumb-view .breadcrumb-separator-view .chevron-right-icon-view');
           const measured = {
             display: getComputedStyle(el).display,
             sameLine: Math.abs((chevron.top + chevron.bottom) / 2 - (context.top + context.bottom) / 2) < 8,
             after: chevron.left >= context.right,
-            size: el.querySelector('.breadcrumb-separator-view .next-icon-view').getBoundingClientRect().height,
+            size: el.querySelector('.breadcrumb-separator-view .chevron-right-icon-view').getBoundingClientRect().height,
             trail: trail ? trail.getBoundingClientRect().height : null,
           };
           menu.dataset.open = 'false';

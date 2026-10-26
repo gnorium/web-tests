@@ -361,6 +361,9 @@ struct ArbitrationTests {
 
         try await page.openHydrated(reading.path)
         let reply = page.locator("#locution-\(replyID.uppercased())")
+        try await expect(reply).toHaveAttribute("data-collapsed", "true")
+        try await reply.locator(".locution-collapse").click()
+        try await expect(reply).toHaveAttribute("data-collapsed", "false")
         let session = reply.locator(".computorium-session-view")
         try await expect(session).toHaveCount(1)
         // Its received boxes as sent: our system prompt and the task, one
@@ -575,6 +578,7 @@ struct ArbitrationTests {
           """)
         try await page.openHydrated(reading.path)
         let failed = page.locator("#locution-\(replyID.uppercased())")
+        try await failed.locator(".locution-collapse").click()
         try await expect(failed.locator(".computorium-session-view")).toHaveAttribute("data-computorium-session-status", "failed")
         try await expect(failed.locator(".computorium-session-failed-alert"))
           .toContainText("Stopped: no answer in round 6 after 3 tries.")
@@ -607,6 +611,7 @@ struct ArbitrationTests {
         }
         _ = try TestAdmin.query("BEGIN; \(try SessionTrace.append(long, table: Self.sessions, id: sessionID)) COMMIT;")
         try await page.openHydrated(reading.path)
+        try await failed.locator(".locution-collapse").click()
         let failedSession = failed.locator(".computorium-session-view")
         let failedRaw = failed.locator(".reactions-raw-info .computorium-session-markdown-toggle button")
         _ = try await page.evaluate("""
@@ -1575,7 +1580,7 @@ struct ArbitrationTests {
         // The page images on; the ticked image takes a box.
         let toggle = viewer.locator(".artifact-canvas-toggle button")
         if try await toggle.getAttribute("aria-pressed") != "true" { try await toggle.click() }
-        let image = viewer.locator(".canvas-view[data-active='true'] .canvas-viewport")
+        let image = viewer.locator(".image-view[data-active='true'] .image-viewport")
         try await expect(image).toHaveAttribute("data-cropping", "true")
         let box = try #require(try await image.boundingBox())
         let (x0, y0) = (box.x + box.width * 0.4, box.y + box.height * 0.4)
@@ -1586,7 +1591,7 @@ struct ArbitrationTests {
           try await page.mouse.move(x: x0 + (x1 - x0) * Double(step) / 5, y: y0 + (y1 - y0) * Double(step) / 5)
         }
         try await page.mouse.up(x: x1, y: y1)
-        try await expect(image.locator(".canvas-crop")).toBeVisible()
+        try await expect(image.locator(".image-crop")).toBeVisible()
         try await expect(roster).toHaveAttribute("data-mode", "attach")
         try await page.locator(".thread-submit").click()
         // Pending: no status chip; an admin's Commit stands under the call's words.

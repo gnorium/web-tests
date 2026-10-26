@@ -54,7 +54,7 @@ struct VoicesTests {
       try await expect(firstType.locator(".dropdown-option[data-value='editor']")).toHaveCount(0)
       // "+ Add voice": the Codex add icon, then its words (no "+" character).
       try await expect(list.locator("[data-item-add-btn='true'] button")).toHaveText("Voice")
-      try await expect(list.locator("[data-item-add-btn='true'] button svg.add-icon-view")).toHaveCount(1)
+      try await expect(list.locator("[data-item-add-btn='true'] button svg.plus-icon-view")).toHaveCount(1)
       try await rows.first.locator(".text-input-input").fill("Homer")
 
       // A second row starts as an author; made a translator.
@@ -75,7 +75,7 @@ struct VoicesTests {
       let remove = rows.nth(2).locator(".item-remove-btn")
       try await expect(remove).toHaveText("Voice")
       try await expect(remove).toHaveAttribute("aria-label", "Remove Voice")
-      try await expect(remove.locator("svg.subtract-icon-view")).toHaveCount(1)
+      try await expect(remove.locator("svg.minus-icon-view")).toHaveCount(1)
       let ownLine = try await rows.nth(2).evaluate(
         "(r) => { const b = r.querySelector(':scope > .form-actions-view > .item-remove-btn').getBoundingClientRect(); const f = r.querySelector(':scope > .form-items-fields').getBoundingClientRect(); const n = r.querySelector('[id$=\\'-text-input\\']').closest('.combobox-view, .text-input-view').getBoundingClientRect(); return b.top >= n.bottom && b.top >= f.bottom && Math.abs(b.left - f.left) < 2 && b.width <= f.width + 1 }"
       ).bool

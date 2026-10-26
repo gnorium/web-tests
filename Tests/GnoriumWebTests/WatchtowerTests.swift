@@ -71,15 +71,19 @@ struct WatchtowerTests {
     try await withPage(engine, gnorium) { page in
       try await page.openHydrated("/")
       for (process, numbers) in [
-        ("Calibration", ["1"]), ("Explication", ["2"]), ("Translation", ["3"]),
+        ("Calibration", ["1", ""]), ("Explication", ["2", ""]), ("Translation", ["3", ""]),
       ] {
         let card = page.locator(".watchtower-processes-view[data-process='\(process)']").first
         try await expect(card.locator(".watchtower-process-number")).toHaveTexts(numbers)
+        try await expect(card.locator(".watchtower-process-number .integral-icon-view")).toHaveCount(1)
       }
       // No heading over a process's block: the block names its process.
       try await expect(page.locator(".watchtower-group-name")).toHaveCount(0)
       try await expect(page.locator(".watchtower-process-name")).toHaveTexts(
-        ["ARBITRATION", "CALIBRATION", "ARBITRATION", "EXPLICATION", "ARBITRATION", "TRANSLATION", "ARBITRATION"])
+        [
+          "ARBITRATION", "CALIBRATION", "INTEGRATION", "ARBITRATION", "EXPLICATION", "INTEGRATION",
+          "ARBITRATION", "TRANSLATION", "INTEGRATION", "ARBITRATION",
+        ])
     }
   }
 
@@ -112,8 +116,9 @@ struct WatchtowerTests {
               .join('|'))])
         """, as: [[String]].self)
       // Arbitration on each of the four Disputorium objects, the halftone's
-      // since 9bc3cbb91 (gnorium-web, 2026-10-21).
-      #expect(columns.count == 7, "calibration, explication, translation and four arbitrations: \(columns.count)")
+      // since 9bc3cbb91 (gnorium-web, 2026-10-21), and each unit process with
+      // its integration subprocess.
+      #expect(columns.count == 10, "calibration, explication, translation, their three integrations and four arbitrations: \(columns.count)")
       for box in columns {
         // Every status a nocturne can be in, as its lifecycle runs;
         // arbitration's sessions alike (user, 2026-10-21).
@@ -184,6 +189,7 @@ struct WatchtowerTests {
       try await page.openHydrated("/")
       struct Marked: Decodable {
         let owner: String
+        let integration: Bool
         let text: String
         let mark: String
         let color: String
@@ -213,7 +219,8 @@ struct WatchtowerTests {
             const kind = shape ? (kinds.find(k => shape.classList.contains(k)) ?? shape.getAttribute('class')) : ''
             const animated = !!mark && [...mark.querySelectorAll('*')].some(e => getComputedStyle(e).animationName !== 'none')
             const spin = mark ? [...mark.querySelectorAll('*')].map(e => getComputedStyle(e).animationName).find(n => n !== 'none') : undefined
-            return { owner: owner(body), animation: spin ?? 'none', gray: !!mark && getComputedStyle(mark).color === subtle, text: body.querySelector('.live-figure-text').textContent.trim(),
+            return { owner: owner(body), integration: body.closest('.watchtower-process-view')?.getAttribute('data-integration') === 'true',
+              animation: spin ?? 'none', gray: !!mark && getComputedStyle(mark).color === subtle, text: body.querySelector('.live-figure-text').textContent.trim(),
               mark: kind, color: mark?.getAttribute('data-color') ?? '',
               column: body.closest('.watchtower-figure-columns-column')?.getAttribute('data-tab') ?? '',
               leads: !!mark && body.firstElementChild === mark, animated }
@@ -244,7 +251,7 @@ struct WatchtowerTests {
         "overture": ("dotted-ring-view", [:]),
         "halftone": ("dotted-ring-view", [:]),
         "madrigal": ("ring-icon-view", [:]),
-        "epilogue": ("disc-icon-view", ["lexicographic": "disc-icon-view"]),
+        "epilogue": ("disc-icon-view", [:]),
       ]
       var processes = 0
       var machines = 0
@@ -265,7 +272,7 @@ struct WatchtowerTests {
         var color = "blue"
         if let process = levels[figure.owner.lowercased()] {
           wanted = word == "pending" ? process.pending : word == "running" ? process.running : process.done
-          if word == "failed" { color = "red" }
+          color = word == "failed" ? "red" : (figure.integration ? "magenta" : "blue")
           processes += 1
         } else if let level = arbitrations.first(where: { figure.owner.contains("arbitration-\($0.key)") })?.value {
           if figure.owner.lowercased().hasPrefix("arbitration:") {
@@ -321,8 +328,8 @@ struct WatchtowerTests {
         #expect(figure.animated == turns, "\(figure.owner) \(figure.text) (\(count)): animated \(figure.animated)")
         #expect((figure.animation == "none") == !turns, "\(figure.owner) \(figure.text): animation-name \(figure.animation)")
       }
-      // Three processes and three machines, four statuses on both sides.
-      #expect(processes == 24 && machines == 24, "\(processes) process figures, \(machines) object figures")
+      // Three processes and their three integration subprocesses, and three machines, four statuses on both sides.
+      #expect(processes == 48 && machines == 24, "\(processes) process figures, \(machines) object figures")
       // Four Disputorium objects of four figures (stale since d1f9e1413) and
       // the figurant's and four palinodes' one, both sides; a record
       // vignette figure a side for each of the four.

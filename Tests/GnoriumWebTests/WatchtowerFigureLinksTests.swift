@@ -103,7 +103,7 @@ struct WatchtowerFigureLinksTests {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/")
       let badges = page.locator(".watchtower-process-number:has(.therefore-icon-view)")
-      try await expect(badges).toHaveCount(3)
+      try await expect(badges).toHaveCount(4)
       let offsets = try await page.evaluate(
         """
         [...document.querySelectorAll('.watchtower-process-number')]
@@ -132,10 +132,11 @@ struct WatchtowerFigureLinksTests {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
       try await page.openHydrated("/")
       // The entry, seven chain objects, four palinodes (one before each
-      // Disputorium object) and three nested cards' figures; six process
-      // boxes (calibration, explication, translation, three arbitrations).
+      // Disputorium object) and four nested cards' figures; ten process boxes
+      // (calibration, explication, translation, their three integrations,
+      // four arbitrations).
       let views = page.locator(".watchtower-figure-columns-view")
-      try await expect(views).toHaveCount(21)
+      try await expect(views).toHaveCount(26)
       let rows = try await page.evaluate(
         """
         [...document.querySelectorAll('.watchtower-figure-columns-view')].map(view => {
@@ -172,7 +173,7 @@ struct WatchtowerFigureLinksTests {
       }.count
       try #require(processPending == 12, "the machines' and their processes' pending links, 6 each: \(processPending)")
       let nocturneLinks = figures.filter { $0.href.hasPrefix("/mission-control/nocturnes/") }.count
-      try #require(nocturneLinks == 18, "the processes' nocturne links: \(nocturneLinks)")
+      try #require(nocturneLinks == 42, "the processes' nocturne links: \(nocturneLinks)")
       // Arbitration's open the Locutions list (an arbitration session is no
       // nocturne): its calls by Status, gnorium's replies by Created by.
       // Each nested Locution card: its process box four a kind (pending,

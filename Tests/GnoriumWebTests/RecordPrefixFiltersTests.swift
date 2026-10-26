@@ -52,11 +52,11 @@ struct RecordPrefixFiltersTests {
     // the same −, and takes itself away.
     let add = filter.locator(".filter-bar-add-btn")
     try await expect(add).toHaveText("")
-    try await expect(add.locator("svg.add-icon-view")).toHaveCount(1)
+    try await expect(add.locator("svg.plus-icon-view")).toHaveCount(1)
     try await expect(add).toHaveAttribute("aria-label", "Add filter")
     let secondRemove = filter.locator(".filter-bar-row").nth(1).locator(".filter-bar-remove-btn")
     try await expect(secondRemove).toHaveText("")
-    try await expect(secondRemove.locator("svg.subtract-icon-view")).toHaveCount(1)
+    try await expect(secondRemove.locator("svg.minus-icon-view")).toHaveCount(1)
     try await expect(secondRemove).toHaveAttribute("aria-label", "Remove filter")
     try await add.click()
     try await expect(filter.locator(".filter-bar-row")).toHaveCount(3)
@@ -66,7 +66,7 @@ struct RecordPrefixFiltersTests {
         .toHaveTexts(["Language", "Title", "Class", "Status"])
     }
     let addedRemove = filter.locator(".filter-bar-row").nth(2).locator(".filter-bar-remove-btn")
-    try await expect(addedRemove.locator("svg.subtract-icon-view")).toHaveCount(1)
+    try await expect(addedRemove.locator("svg.minus-icon-view")).toHaveCount(1)
     try await expect(addedRemove).toHaveAttribute("aria-label", "Remove filter")
     try await addedRemove.click()
     try await expect(filter.locator(".filter-bar-row")).toHaveCount(2)

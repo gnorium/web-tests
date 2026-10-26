@@ -39,13 +39,13 @@ struct ArtifactZoomTrailsTests {
   /// What the surface holds, read from where each image is on the window.
   static let momentScript = """
     (name) => {
-      const v = document.querySelector('.canvas-view[data-active="true"] .canvas-viewport'), vb = v.getBoundingClientRect();
-      const g = v.querySelector('.canvas-tile-compositor');
+      const v = document.querySelector('.image-view[data-active="true"] .image-viewport'), vb = v.getBoundingClientRect();
+      const g = v.querySelector('.image-tile-compositor');
       const t = g.getAttribute('transform').match(/-?[\\d.]+(e-?\\d+)?/g).map(Number);
       const image = [vb.left + t[0], vb.top + t[1], vb.left + t[0] + 2820 * t[2], vb.top + t[1] + 3781 * t[2]];
       const outside = [];
       let tiles = 0, wholes = 0;
-      for (const i of v.querySelectorAll('.canvas-tile-image')) {
+      for (const i of v.querySelectorAll('.image-tile-image')) {
         const href = i.getAttribute('href') || '';
         if (/\\/\\d+,\\d+,\\d+,\\d+\\//.test(href)) tiles++; else wholes++;
         const r = i.getBoundingClientRect();
@@ -61,7 +61,7 @@ struct ArtifactZoomTrailsTests {
   /// A reader's gestures: the wheel zooming about a point, a drag panning.
   static let gestures = """
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-    const viewport = () => document.querySelector('.canvas-view[data-active="true"] .canvas-viewport');
+    const viewport = () => document.querySelector('.image-view[data-active="true"] .image-viewport');
     const wheel = (dy, fx, fy) => {
       const v = viewport(), b = v.getBoundingClientRect();
       v.dispatchEvent(new WheelEvent('wheel', {deltaY: dy, clientX: b.x + b.width * fx, clientY: b.y + b.height * fy, bubbles: true, cancelable: true}));
@@ -87,7 +87,7 @@ struct ArtifactZoomTrailsTests {
     guard FileManager.default.fileExists(atPath: wasm.path),
       FileManager.default.fileExists(atPath: assets.appendingPathComponent("loader.js").path)
     else { try Test.cancel("Build gnorium-web's local client assets with make client first") }
-    let css = try ["layout-view.css", "artifact-view.css", "canvas-view.css"].map {
+    let css = try ["layout-view.css", "artifact-view.css", "image-view.css"].map {
       try String(contentsOf: assets.appendingPathComponent("style-sheets/" + $0), encoding: .utf8)
     }.joined(separator: "\n")
     // The reader's styles as they are, the viewport only given its size.
@@ -97,12 +97,12 @@ struct ArtifactZoomTrailsTests {
       body { margin: 0; }
       .artifact-view { display: flex; flex-direction: column; width: 1000px; height: 600px; border: 0; }
       .artifact-object { width: 1000px; height: 600px; flex: none; display: flex; }
-      .canvas-view { width: 1000px; height: 600px; }
-      .canvas-viewport { width: 1000px; height: 600px; position: relative; overflow: hidden; }
+      .image-view { width: 1000px; height: 600px; }
+      .image-viewport { width: 1000px; height: 600px; position: relative; overflow: hidden; }
       </style></head><body>
       <div class="artifact-view" data-manifest-url="/manifest">
-        <div class="artifact-object"><div class="canvas-view" data-service-id="/svc/1" data-active="true">
-          <div class="canvas-viewport"><div class="canvas-spinner" data-visible="false"></div></div>
+        <div class="artifact-object"><div class="image-view" data-service-id="/svc/1" data-active="true">
+          <div class="image-viewport"><div class="image-spinner" data-visible="false"></div></div>
         </div></div>
       </div><script src="/loader.js"></script></body></html>
       """

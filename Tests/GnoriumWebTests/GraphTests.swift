@@ -88,7 +88,7 @@ struct GraphTests {
         let stacked = try await page.evaluate(
           """
           (() => {
-            const svg = document.querySelector('form.graph-query svg.swap-icon-view');
+            const svg = document.querySelector('form.graph-query svg.arrow-left-right-icon-view');
             const [a, b] = [...svg.querySelectorAll('path')].map(p => p.getBoundingClientRect());
             const box = svg.getBoundingClientRect();
             const middle = r => r.left + r.width / 2;
@@ -232,10 +232,10 @@ struct GraphTests {
         try await expectTexts(page.locator("form.graph-query .graph-word"), ["of", "of"])
         // Icon-only: the Codex add and subtract icons, no "+"/"−" character.
         try await expect(page.locator("form.graph-query .graph-add")).toHaveText("")
-        try await expect(page.locator("form.graph-query .graph-add svg.add-icon-view")).toHaveCount(1)
+        try await expect(page.locator("form.graph-query .graph-add svg.plus-icon-view")).toHaveCount(1)
         try await expect(page.locator("form.graph-query .graph-add")).toHaveAttribute("aria-label", "Add a relation")
         try await expect(page.locator("form.graph-query .graph-remove")).toHaveText("")
-        try await expect(page.locator("form.graph-query .graph-remove svg.subtract-icon-view")).toHaveCount(1)
+        try await expect(page.locator("form.graph-query .graph-remove svg.minus-icon-view")).toHaveCount(1)
         let laidOut = try await page.evaluate(
           """
           (() => {
@@ -320,7 +320,7 @@ struct GraphTests {
         // The swap control (⇄, not reload) turns it round, the relation and
         // the record kept.
         let swap = sentence.locator("button[aria-label='Put the relation first']")
-        try await expect(swap.locator("svg.swap-icon-view")).toHaveCount(1)
+        try await expect(swap.locator("svg.arrow-left-right-icon-view")).toHaveCount(1)
         try await swap.click()
         try await expectTexts(page.locator("form.graph-query .graph-word"), ["of"])
         try await expect(page.locator("form.graph-query input[name='record']")).toHaveValue(translation.path)

@@ -370,7 +370,7 @@ struct SearchMenuTests {
   {
     let crumb = row.locator("\(label) .breadcrumb-label-view")
     try await expect(crumb.locator(".breadcrumb-label-context")).toHaveText(expected.language)
-    try await expect(crumb.locator(".breadcrumb-separator-view .next-icon-view")).toHaveCount(1)
+    try await expect(crumb.locator(".breadcrumb-separator-view .chevron-right-icon-view")).toHaveCount(1)
     try await expect(crumb.locator(".breadcrumb-label-text")).toHaveText(expected.name)
     // Its class alone: no namesake is listed beside it.
     try await expect(row.locator(detail)).toHaveText(expected.type)

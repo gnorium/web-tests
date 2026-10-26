@@ -19,9 +19,9 @@ struct ChangedPageCanvasTests {
       try await viewer.locator(".artifact-canvas-toggle button").click()
     }
     try await expect(viewer).toHaveAttribute("data-canvas-shown", "true")
-    try await expect(viewer.locator(".canvas-view[data-active='true'] .canvas-tile-image").first).toBeAttached()
+    try await expect(viewer.locator(".image-view[data-active='true'] .image-tile-image").first).toBeAttached()
     let rect = """
-      (() => { const r = document.querySelector(".artifact-view .canvas-view[data-active='true'] .canvas-tile-compositor")
+      (() => { const r = document.querySelector(".artifact-view .image-view[data-active='true'] .image-tile-compositor")
         .getBoundingClientRect(); return [r.left, r.top, r.width, r.height].join(','); })()
       """
     func box() async throws -> [Double] {
@@ -31,7 +31,7 @@ struct ChangedPageCanvasTests {
     _ = try await page.evaluate(
       """
       (() => {
-        const vp = document.querySelector(".artifact-view .canvas-view[data-active='true'] .canvas-viewport");
+        const vp = document.querySelector(".artifact-view .image-view[data-active='true'] .image-viewport");
         const r = vp.getBoundingClientRect();
         for (let i = 0; i < 8; i++) vp.dispatchEvent(new WheelEvent('wheel', { deltaY: -40, bubbles: true,
           cancelable: true, clientX: r.left + r.width / 3, clientY: r.top + r.height / 3 }));
@@ -88,7 +88,7 @@ struct ChangedPageCanvasTests {
         try await page.openHydrated(commit.madrigalPath)
         let live = try await Self.zoomAndPan(page)
         let scale = """
-          (() => { const t = document.querySelector(".artifact-view .canvas-view[data-active='true'] .canvas-tile-compositor")
+          (() => { const t = document.querySelector(".artifact-view .image-view[data-active='true'] .image-tile-compositor")
             .getAttribute('transform'); return Number(/scale\\(([\\d.]+)/.exec(t)[1]); })()
           """
         let liveZoom = try await page.evaluate(scale, as: Double.self)
@@ -110,7 +110,7 @@ struct ChangedPageCanvasTests {
         // The images shown as the session left them.
         let viewer = page.locator(".artifact-view").first
         try await expect(viewer).toHaveAttribute("data-canvas-shown", "true")
-        try await expect(viewer.locator(".canvas-view[data-active='true'] .canvas-tile-image").first).toBeAttached()
+        try await expect(viewer.locator(".image-view[data-active='true'] .image-tile-image").first).toBeAttached()
         let keptZoom = try await page.evaluate(scale, as: Double.self)
         #expect(abs(keptZoom - liveZoom) < 1e-6, "the archived copy opens at the live canvas's zoom: \(keptZoom), \(liveZoom)")
         // Each opened at its fit: the session keeps the image's zoom
@@ -122,7 +122,7 @@ struct ChangedPageCanvasTests {
         let archived = try await Self.zoomAndPan(page)
         let after = try await page.evaluate(
           """
-          [...document.querySelectorAll(".artifact-view .canvas-view[data-active='true'] .canvas-tile-image")]
+          [...document.querySelectorAll(".artifact-view .image-view[data-active='true'] .image-tile-image")]
             .map((i) => i.getAttribute('href')).join(' ')
           """, as: String.self)
         #expect(after.contains("/web/20261011000000id_/page-1.jpg"), "The archived copy is shown: \(after)")
@@ -173,7 +173,7 @@ struct ChangedPageCanvasTests {
           label: [...b.attributes].filter((a) => !['disabled', 'aria-disabled', 'aria-pressed'].includes(a.name))
             .map((a) => a.name + '=' + a.value).join(' ') + '|' + b.textContent.trim(),
           hidden: getComputedStyle(r.querySelector('.artifact-object')).display === 'none',
-          canvases: r.querySelectorAll('.canvas-view[data-active=true]').length,
+          canvases: r.querySelectorAll('.image-view[data-active=true]').length,
           kept: sessionStorage.getItem('gnorium:artifact-page-images'),
           width: r.querySelector('.artifact-markup').getBoundingClientRect().width,
         };
@@ -257,7 +257,7 @@ struct ChangedPageCanvasTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         let viewer = page.locator(".artifact-view").first
         let toggle = viewer.locator(".artifact-canvas-toggle button")
-        let shownImage = viewer.locator(".canvas-view[data-active='true'] .canvas-tile-image[data-loaded='true']").first
+        let shownImage = viewer.locator(".image-view[data-active='true'] .image-tile-image[data-loaded='true']").first
         // Page 1's notice: its last sentence, what the image shows.
         let said = page.locator(".source-change-notice[data-service='\(base)/page-1'] .source-change-notice-reader").first
         // The live canvas first, the images switched on (the person's

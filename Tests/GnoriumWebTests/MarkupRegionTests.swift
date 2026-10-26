@@ -20,15 +20,15 @@ struct MarkupRegionTests {
   /// pixel, else what is wrong.
   static let regionScript = """
     (box) => {
-      const canvas = document.querySelector(".artifact-view .canvas-view[data-active='true']");
+      const canvas = document.querySelector(".artifact-view .image-view[data-active='true']");
       const shown = (el) => !!el && !el.hidden && getComputedStyle(el).display !== 'none';
-      const region = canvas && canvas.querySelector('.canvas-region');
-      const dim = canvas && canvas.querySelector('.canvas-region-dim');
-      const grid = canvas && canvas.querySelector('.canvas-grid');
+      const region = canvas && canvas.querySelector('.image-region');
+      const dim = canvas && canvas.querySelector('.image-region-dim');
+      const grid = canvas && canvas.querySelector('.image-grid');
       if (!shown(region)) return shown(grid) || shown(dim) ? 'grid or dim without a region' : 'none';
       if (!shown(dim)) return 'no dim';
       if (!shown(grid)) return 'no grid';
-      const image = canvas.querySelector('.canvas-tile-compositor').getBoundingClientRect();
+      const image = canvas.querySelector('.image-tile-compositor').getBoundingClientRect();
       const g = grid.getBoundingClientRect();
       const midpoint = g.left + g.width * 500 / 1000;
       if ([g.left - image.left, g.top - image.top, g.width - image.width, g.height - image.height,
@@ -47,7 +47,7 @@ struct MarkupRegionTests {
     let at = (try await page.evaluate(
       """
       (() => {
-        const image = document.querySelector(".artifact-view .canvas-view[data-active='true'] .canvas-tile-compositor")
+        const image = document.querySelector(".artifact-view .image-view[data-active='true'] .image-tile-compositor")
           .getBoundingClientRect();
         return (image.left + \(x) / 1000 * image.width) + ',' + (image.top + \(y) / 1000 * image.height);
       })()
@@ -111,7 +111,7 @@ struct MarkupRegionTests {
       try await viewer.locator(".artifact-canvas-toggle button").click()
     }
     try await expect(viewer).toHaveAttribute("data-canvas-shown", "true")
-    try await expect(viewer.locator(".canvas-view[data-active='true'] .canvas-tile-image").first).toBeAttached()
+    try await expect(viewer.locator(".image-view[data-active='true'] .image-tile-image").first).toBeAttached()
     try await page.locator(".artifact-xml-toggle").first.click()
   }
 
@@ -159,7 +159,7 @@ struct MarkupRegionTests {
         // one undo takes the drag back whole.
         #expect(try await page.evaluate(Self.caretScript("bbox=\"120 3"), as: Bool.self))
         try await Self.expectRegion(page, [120, 340, 500, 380], "ok", "The caret back in the bbox")
-        try await expect(page.locator(".canvas-view[data-active='true'] .canvas-crop-handle")).toHaveCount(4)
+        try await expect(page.locator(".image-view[data-active='true'] .image-crop-handle")).toHaveCount(4)
         let corner = try await Self.screenPoint(page, 620, 720)
         let target = try await Self.screenPoint(page, 800, 900)
         try await page.mouse.move(x: corner.x, y: corner.y)
@@ -242,7 +242,7 @@ struct MarkupRegionTests {
         // The caret on the zone: its crop, with its four handles.
         #expect(try await page.evaluate(Self.caretScript("ulx=\"10"), as: Bool.self))
         try await Self.expectRegion(page, [100, 200, 500, 200], "ok", "The caret in the zone draws its crop")
-        try await expect(page.locator(".canvas-view[data-active='true'] .canvas-crop-handle")).toHaveCount(4)
+        try await expect(page.locator(".image-view[data-active='true'] .image-crop-handle")).toHaveCount(4)
         // The arrows rewrite the four numbers, the names between kept.
         try await page.keyboard.press("ArrowRight")
         try await Self.expectEditor(
@@ -362,14 +362,14 @@ struct MarkupRegionTests {
         let expected = try await page.evaluate(
           """
           (() => {
-            const image = document.querySelector(".artifact-view .canvas-view[data-active='true'] .canvas-tile-compositor")
+            const image = document.querySelector(".artifact-view .image-view[data-active='true'] .image-tile-compositor")
               .getBoundingClientRect();
             return Math.round((\(spot.x) - image.left) / image.width * 1000) + ', '
               + Math.round((\(spot.y) - image.top) / image.height * 1000);
           })()
           """, as: String.self)
         try await page.mouse.move(x: spot.x, y: spot.y)
-        let readout = page.locator(".canvas-view[data-active='true'] .canvas-readout")
+        let readout = page.locator(".image-view[data-active='true'] .image-readout")
         try await expect(readout).toBeVisible()
         // Within one unit of where the screen pixel falls: the readout
         // rounds the pointer's place on the image's own box.
@@ -387,13 +387,13 @@ struct MarkupRegionTests {
         // Finer levels as the image is enlarged: none of 1 at its fitted size;
         // zoomed in to its actual size (the most it zooms, user 2026-10-12),
         // each level whose units stand 4px apart drawn.
-        let grid = page.locator(".canvas-view[data-active='true'] .canvas-grid")
+        let grid = page.locator(".image-view[data-active='true'] .image-grid")
         let fitted = try await grid.getAttribute("data-levels") ?? ""
         #expect(!fitted.split(separator: " ").contains("1") && fitted.hasPrefix("100"), "Fitted levels: \(fitted)")
         _ = try await page.evaluate(
           """
           (() => {
-            const vp = document.querySelector(".artifact-view .canvas-view[data-active='true'] .canvas-viewport");
+            const vp = document.querySelector(".artifact-view .image-view[data-active='true'] .image-viewport");
             const r = vp.getBoundingClientRect();
             for (let i = 0; i < 60; i++) vp.dispatchEvent(new WheelEvent('wheel', { deltaY: -40, bubbles: true,
               cancelable: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }));
@@ -403,8 +403,8 @@ struct MarkupRegionTests {
         let levels = try await page.evaluate(
           """
           (() => {
-            const grid = document.querySelector(".artifact-view .canvas-view[data-active='true'] .canvas-grid");
-            const image = document.querySelector(".artifact-view .canvas-view[data-active='true'] .canvas-tile-compositor")
+            const grid = document.querySelector(".artifact-view .image-view[data-active='true'] .image-grid");
+            const image = document.querySelector(".artifact-view .image-view[data-active='true'] .image-tile-compositor")
               .getBoundingClientRect();
             const want = [100, 50, 10, 5, 1].filter((u) => Math.min(image.width, image.height) * u / 1000 >= 4);
             return grid.dataset.levels === want.join(' ') ? 'ok' : grid.dataset.levels + ' vs ' + want.join(' ');
@@ -417,8 +417,8 @@ struct MarkupRegionTests {
         let full = try await page.evaluate(
           """
           (() => {
-            const grid = document.querySelector(".artifact-view .canvas-view[data-active='true'] .canvas-grid");
-            const image = document.querySelector(".artifact-view .canvas-view[data-active='true'] .canvas-tile-compositor")
+            const grid = document.querySelector(".artifact-view .image-view[data-active='true'] .image-grid");
+            const image = document.querySelector(".artifact-view .image-view[data-active='true'] .image-tile-compositor")
               .getBoundingClientRect();
             const want = [100, 50, 10, 5, 1].filter((u) => Math.min(image.width, image.height) * u / 1000 >= 4);
             return grid.dataset.levels === want.join(' ') ? 'ok' : grid.dataset.levels + ' vs ' + want.join(' ');

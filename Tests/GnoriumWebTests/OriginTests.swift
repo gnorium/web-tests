@@ -206,9 +206,9 @@ struct OriginTests {
       let actions = controls(items.first)
       try await expect(actions.locator(".origin-add-own-btn")).toHaveAttribute("aria-label", "Add Origin")
       try await expect(actions.locator(".origin-add-own-btn")).toHaveText("Origin")
-      try await expect(actions.locator(".origin-add-own-btn svg.add-icon-view")).toHaveCount(1)
+      try await expect(actions.locator(".origin-add-own-btn svg.plus-icon-view")).toHaveCount(1)
       try await expect(actions.locator(".origin-remove-btn")).toHaveAttribute("aria-label", "Remove Origin")
-      try await expect(actions.locator(".origin-remove-btn svg.subtract-icon-view")).toHaveCount(1)
+      try await expect(actions.locator(".origin-remove-btn svg.minus-icon-view")).toHaveCount(1)
       // The form keeps one step at least (user, 2026-09-29): a lone step
       // has no "− Origin", so the box can never go.
       try await expect(actions.locator(".origin-remove-btn")).toBeHidden()
@@ -294,7 +294,7 @@ struct OriginTests {
       try await expect(actions.locator(".origin-remove-btn")).toBeVisible()
       let secondActions = controls(items.nth(1))
       try await expect(secondActions.locator(".origin-remove-btn")).toHaveText("Origin")
-      try await expect(secondActions.locator(".origin-remove-btn svg.subtract-icon-view")).toHaveCount(1)
+      try await expect(secondActions.locator(".origin-remove-btn svg.minus-icon-view")).toHaveCount(1)
       let named = try await secondActions.evaluate(
         "(a) => [...a.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')).join('|')"
       ).string

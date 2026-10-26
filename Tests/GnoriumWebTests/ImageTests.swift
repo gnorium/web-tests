@@ -34,10 +34,10 @@ struct ImageTests {
   struct Image: Decodable { let service: String; let shown: Bool; let tiles: Int }
 
   static let imagesScript = """
-    (viewer) => JSON.stringify([...viewer.querySelectorAll('.artifact-object .canvas-view')].map(s => ({
+    (viewer) => JSON.stringify([...viewer.querySelectorAll('.artifact-object .image-view')].map(s => ({
       service: s.dataset.serviceId,
       shown: getComputedStyle(s).display !== 'none',
-      tiles: s.querySelectorAll('.canvas-tile-image').length,
+      tiles: s.querySelectorAll('.image-tile-image').length,
     })))
     """
 
@@ -157,17 +157,17 @@ struct ImageTests {
         try await toggle.click()
         try await expect(toggle).toHaveAttribute("aria-pressed", "true")
         try await expect(object).toBeVisible()
-        try await expect(viewer.locator(".artifact-object .canvas-view[data-active='true'] .canvas-tile-image").first)
+        try await expect(viewer.locator(".artifact-object .image-view[data-active='true'] .image-tile-image").first)
           .toHaveCount(1)
-        try await expect(viewer.locator(".artifact-object .canvas-view[data-active='true']"))
+        try await expect(viewer.locator(".artifact-object .image-view[data-active='true']"))
           .toHaveAttribute("data-service-id", services[1])
 
         // Across the reader's pages.
         try await viewer.locator(".pagination-next").first.click()
         try await expect(toggle).toHaveAttribute("aria-pressed", "true")
-        try await expect(viewer.locator(".artifact-object .canvas-view[data-active='true']"))
+        try await expect(viewer.locator(".artifact-object .image-view[data-active='true']"))
           .toHaveAttribute("data-service-id", services[2])
-        try await expect(viewer.locator(".artifact-object .canvas-view[data-active='true'] .canvas-tile-image").first)
+        try await expect(viewer.locator(".artifact-object .image-view[data-active='true'] .image-tile-image").first)
           .toHaveCount(1)
 
         // Across navigation in the session.
@@ -176,7 +176,7 @@ struct ImageTests {
         try await expect(again).toHaveAttribute("data-artifact-hydrated", "true")
         try await expect(again.locator(".artifact-canvas-toggle button")).toHaveAttribute("aria-pressed", "true")
         try await expect(again.locator(".artifact-object")).toBeVisible()
-        try await expect(again.locator(".artifact-object .canvas-view[data-active='true'] .canvas-tile-image").first)
+        try await expect(again.locator(".artifact-object .image-view[data-active='true'] .image-tile-image").first)
           .toHaveCount(1)
         try await page.expectNoHorizontalOverflow()
       }
@@ -214,7 +214,7 @@ struct ImageTests {
         try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
         // Only the page on screen's canvas is drawn with the page; the
         // others as they are turned to (user, 2026-10-11).
-        try await expect(viewer.locator(".artifact-object .canvas-view")).toHaveCount(1)
+        try await expect(viewer.locator(".artifact-object .image-view")).toHaveCount(1)
         try await expect(viewer.locator("#artifact-page-total")).toHaveText("3")
         // The page images, off by default, turned on.
         try await viewer.locator(".artifact-canvas-toggle button").click()
@@ -225,7 +225,7 @@ struct ImageTests {
         }
         func expectShown(_ index: Int) async throws {
           // The backdrop is drawn once the image service's format is probed.
-          try await expect(viewer.locator(".artifact-object .canvas-view[data-active='true'] .canvas-tile-image").first)
+          try await expect(viewer.locator(".artifact-object .image-view[data-active='true'] .image-tile-image").first)
             .toHaveCount(1)
           let read = try await images()
           let shown = read.filter(\.shown)

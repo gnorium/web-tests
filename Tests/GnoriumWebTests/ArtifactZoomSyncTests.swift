@@ -29,8 +29,8 @@ struct ArtifactZoomSyncTests {
       .tei-view .tei-line { font-family: serif; }
       .artifact-markup { overflow: auto; overflow-anchor: none; }
       [data-layer] { width: \(width)px; height: 1000px; }
-      .canvas-viewport { width: 500px; height: 400px; position: relative; overflow: hidden; }
-      .canvas-tile-surface { position: absolute; inset: 0; width: 100%; height: 100%; }
+      .image-viewport { width: 500px; height: 400px; position: relative; overflow: hidden; }
+      .image-tile-surface { position: absolute; inset: 0; width: 100%; height: 100%; }
       </style></head><body>
       <div class="artifact-view" data-manifest-url="/manifest">
         <div class="artifact-xml-toggle" style="display:none"><button></button></div>
@@ -43,8 +43,8 @@ struct ArtifactZoomSyncTests {
           </div></div>
           <div data-layer="markup"><div class="code-view"><pre class="code-code">&lt;pb n="1"/&gt;</pre></div></div>
         </div></div></div>
-        <div class="artifact-object"><div class="canvas-view" data-service-id="/scan">
-          <div class="canvas-viewport"><div class="canvas-spinner"></div></div>
+        <div class="artifact-object"><div class="image-view" data-service-id="/scan">
+          <div class="image-viewport"><div class="image-spinner"></div></div>
         </div></div>
       </div><script src="/loader.js"></script></body></html>
       """
@@ -66,7 +66,7 @@ struct ArtifactZoomSyncTests {
         (async () => {
           const pane = document.querySelector('.artifact-markup');
           const layer = pane.querySelector('[data-layer]');
-          const image = document.querySelector('.canvas-viewport');
+          const image = document.querySelector('.image-viewport');
           const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
           const settle = async () => { for (let i = 0; i < 12; i++) await frame(); };
           const wheel = (el, deltaY = -40) => {
@@ -75,7 +75,7 @@ struct ArtifactZoomSyncTests {
           };
           const state = () => {
             const b = layer.getBoundingClientRect(), p = pane.getBoundingClientRect();
-            const t = document.querySelector('.canvas-tile-compositor').getAttribute('transform');
+            const t = document.querySelector('.image-tile-compositor').getAttribute('transform');
             const v = t.match(/[-\d.]+/g).map(Number);
             return [Number(layer.dataset.zoom), pane.scrollLeft, pane.scrollTop,
                     (p.x + pane.clientWidth / 2 - b.x) / b.width,
@@ -168,7 +168,7 @@ struct ArtifactZoomSyncTests {
           const restored = pane.querySelector('[data-page-scale]') !== null && rendering.getBoundingClientRect().height > 0;
           const wait = ms => new Promise(resolve=>setTimeout(resolve,ms));
           await toggle('.artifact-detach-toggle', false); await wait(500);
-          const imageZoom = () => Number(root.querySelector('.canvas-tile-compositor').getAttribute('transform').match(/[-\d.]+/g)[2]);
+          const imageZoom = () => Number(root.querySelector('.image-tile-compositor').getAttribute('transform').match(/[-\d.]+/g)[2]);
           const baseline = Number(rendering.dataset.zoom);
           const pairedRatio = baseline/imageZoom();
           await toggle('.artifact-detach-toggle', true);
