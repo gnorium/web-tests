@@ -275,10 +275,13 @@ struct ArtifactOverlayTests {
             &&count(scan,'missing')===1&&count(edition,'within')===28&&count(scan,'within')===28;
           const strokes=(()=>{const q=r.querySelector('.artifact-structure [data-side=edition][data-state=within]'),o=r.querySelector('.artifact-structure [data-state=off]'),s=r.querySelector('.artifact-structure [data-side=scan]');
             return getComputedStyle(q).strokeWidth==='1px'&&getComputedStyle(o).strokeWidth==='2px'&&getComputedStyle(q).strokeDasharray==='none'&&getComputedStyle(s).strokeDasharray!=='none'})();
-          // The view fits the edition's page and the scan's structure, centered, in the pane's room: its
-          // client box less the text's inset (the TEI view's ring padding) on each side, as its own pane fits it.
-          const pb=pane.getBoundingClientRect(),lb=layer().getBoundingClientRect(),reach=scanBlock()||[];
-          const box=[Math.min(lb.left,...reach.map(p=>p[0])),Math.min(lb.top,...reach.map(p=>p[1])),Math.max(lb.right,...reach.map(p=>p[0])),Math.max(lb.bottom,...reach.map(p=>p[1]))];
+          // The view fits the whole scan image, the edition's text block laid on the scan's (user,
+          // 2026-10-26), centered, in the pane's room: its client box less the text's inset (the TEI view's
+          // ring padding) on each side, as its own pane fits it.
+          const pb=pane.getBoundingClientRect(),zb=layer().getBoundingClientRect(),zz=Number(layer().dataset.zoom);
+          const forth=homography(zone,[[L,T],[R,T],[R,B],[L,B]]);
+          const image=[[0,0],[W,0],[W,H],[0,H]].map(p=>apply(forth,p)).map(([x,y])=>[zb.x+x*zz,zb.y+y*zz]);
+          const box=[Math.min(...image.map(p=>p[0])),Math.min(...image.map(p=>p[1])),Math.max(...image.map(p=>p[0])),Math.max(...image.map(p=>p[1]))];
           const inset=parseFloat(getComputedStyle(r.querySelector('.tei-view')).paddingTop);
           const fits=box[0]>=pb.left-1&&box[1]>=pb.top-1&&box[2]<=pb.right+1&&box[3]<=pb.bottom+1
             &&(Math.abs(box[2]-box[0]-(pane.clientWidth-2*inset))<1.5||Math.abs(box[3]-box[1]-(pane.clientHeight-2*inset))<1.5)
@@ -342,7 +345,7 @@ struct ArtifactOverlayTests {
         "at rest no scan pixels: the scan unwarped and faded out, the structure whole, the text opaque",
         "the planted divergences marked (one extra, one pair off, one missing), every other line quiet (rows \(checks[17]), \(checks[18]); extra \(checks[19]), off \(checks[20]), \(checks[21]), missing \(checks[22]))",
         "quiet strokes 1px, marked 2px, the edition's solid, the scan's dashed",
-        "the edition's page and the scan's structure fit the view, centered",
+        "the whole scan image fits the view, centered",
         "Detach present, disabled and off while the overlay is on", "the zoom never goes below the fit",
         "zoomed to twice the fit, the registration holds within 2px (off by \(checks[23]))", "dragged and keyed, the text and its structure pan as one (off by \(checks[24]), \(checks[25])))",
         "overlay off: the structure gone, the overlay's zoom kept",
@@ -997,7 +1000,10 @@ struct ArtifactOverlayTests {
       let shared = try JSONDecoder().decode(
         [String: [String: [String: Int]]].self, from: Data(contentsOf: skeat.appendingPathComponent("structure.json")))
       #expect(scene.drawn == shared[String(canvas)], "canvas \(canvas): drawn \(scene.drawn), the image's \(shared[String(canvas)] ?? [:])")
-      #expect(!(scene.drawn["edition"] ?? [:]).isEmpty, "canvas \(canvas): no structure drawn")
+      // A page whose only lines are the copy's (a provenance stamp) draws
+      // the scan's alone: copy evidence never joins the edition (user,
+      // 2026-10-26).
+      #expect(!scene.drawn.values.allSatisfy { $0.isEmpty }, "canvas \(canvas): no structure drawn")
       if scene.main.count == 2 {
         let off = zip(scene.main, scene.target).map { abs($0 - $1) }
         #expect(off.allSatisfy { $0 <= Self.landing }, "canvas \(canvas): the scan's main blocks laid \(scene.main), the ink box \(scene.target)")
