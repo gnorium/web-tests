@@ -120,7 +120,7 @@ struct ArtifactZoomTrailsTests {
     try await withPage(.chrome, config, viewport: .desktop) { page in
       try await page.goto("/")
       try await expect(page.locator("html")).toHaveAttribute("data-wasm-status", "started")
-      try await expect(page.locator(".canvas-tile-image[data-loaded='true']").first).toBeAttached()
+      try await expect(page.locator(".image-tile-image[data-loaded='true']").first).toBeAttached()
       func moment(_ name: String) async throws -> Moment {
         try await page.evaluate("(\(Self.momentScript))('\(name)')", as: Moment.self)
       }
