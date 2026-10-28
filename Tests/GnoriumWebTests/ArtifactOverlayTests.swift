@@ -255,19 +255,27 @@ struct ArtifactOverlayTests {
           // Its scan block's corners in the window, as drawn, and where the registration lays them.
           const scanBlock=()=>{const p=r.querySelector('.artifact-structure [data-side=scan][data-kind=block]');if(!p)return null;const b=layer().getBoundingClientRect(),z=Number(layer().dataset.zoom);
             return p.getAttribute('points').split(' ').map(q=>q.split(',').map(Number)).map(([x,y])=>[b.x+x*z,b.y+y*z])};
-          const target=()=>{const [L,T,R,B]=laidOn(zone,inkBox(layer()));return [[L,T],[R,T],[R,B],[L,B]]};
+          // The image's place on screen (its pan and zoom), and its text block's corners there: where the
+          // scan's structure, laid on the edition laid on the image, must land (user, 2026-10-28).
+          const imageBox=()=>{const c=r.querySelector('.image-tile-compositor'),b=c.getBoundingClientRect();return [b.x,b.y,b.width,b.height,b.width/W]};
+          // The scan's structure is leveled (the registration's homography): its block is the zone's, upright, from
+          // the zone's top-left corner on the image, its sides the zone's own lengths there.
+          const target=()=>{const [x,y,w,h]=imageBox(),q=zone.map(([zx,zy])=>[x+zx/W*w,y+zy/H*h]);
+            const across=Math.hypot(q[1][0]-q[0][0],q[1][1]-q[0][1]),down=Math.hypot(q[3][0]-q[0][0],q[3][1]-q[0][1]),[l,t]=q[0];
+            return [[l,t],[l+across,t],[l+across,t+down],[l,t+down]]};
           const off=()=>{const s=scanBlock(),t=target();return s?Math.max(...s.map((q,i)=>Math.hypot(q[0]-t[i][0],q[1]-t[i][1]))):Infinity};
           const place=()=>{const b=layer().getBoundingClientRect();return [Number(layer().dataset.zoom),b.x,b.y]};
           const states=side=>[...new Map([...r.querySelectorAll('.artifact-structure [data-side='+side+'][data-kind=line]')].map(e=>[e.dataset.row,e.dataset.state])).values()];
           const wheel=async(dy,fx,fy,n)=>{const b=pane.getBoundingClientRect();for(let i=0;i<n;i++){pane.dispatchEvent(new WheelEvent('wheel',{deltaY:dy,clientX:b.x+b.width*fx,clientY:b.y+b.height*fy,bubbles:true,cancelable:true}));await wait(20)}};
-          await wheel(-40,0.3,0.3,6);await wait(300);
+          await wheel(-40,0.3,0.3,6);await wait(300);const editionBefore=place(),imageBefore=imageBox(),viewBefore=viewport.getBoundingClientRect();
           // Coming on, midway: the scan fading out, the structure's lines fading in, the text itself.
           const fades=()=>{const s=r.querySelector('.artifact-structure');return [Number(getComputedStyle(object).opacity),s?Number(getComputedStyle(s).opacity):-1,getComputedStyle(layer()).opacity]};
           toggle(true);await wait(150);const onMid=fades();
           await wait(650);
           const registered=off();const atRest=fades();
-          // At rest: the scan unwarped and faded out, the structure whole; the planted divergences marked, every other line quiet.
-          const unwarped=getComputedStyle(surface()).transform==='none'&&atRest[0]===0&&atRest[1]===1&&atRest[2]==='1';
+          // At rest: the image as its pane shows it, unwarped, at a quarter; the structure whole; the planted divergences
+          // marked, every other line quiet.
+          const unwarped=getComputedStyle(surface()).transform==='none'&&Math.abs(atRest[0]-0.25)<1e-6&&atRest[1]===1&&atRest[2]==='1';
           const between=f=>f[0]>0&&f[0]<1&&f[1]>0&&f[1]<1&&f[2]==='1';
           const edition=states('edition'),scan=states('scan');
           const count=(list,state)=>list.filter(s=>s===state).length;
@@ -275,24 +283,24 @@ struct ArtifactOverlayTests {
             &&count(scan,'missing')===1&&count(edition,'within')===28&&count(scan,'within')===28;
           const strokes=(()=>{const q=r.querySelector('.artifact-structure [data-side=edition][data-state=within]'),o=r.querySelector('.artifact-structure [data-state=off]'),s=r.querySelector('.artifact-structure [data-side=scan]');
             return getComputedStyle(q).strokeWidth==='1px'&&getComputedStyle(o).strokeWidth==='2px'&&getComputedStyle(q).strokeDasharray==='none'&&getComputedStyle(s).strokeDasharray!=='none'})();
-          // The view fits the whole scan image, the edition's text block laid on the scan's (user,
-          // 2026-10-26), centered, in the pane's room: its client box less the text's inset (the TEI view's
-          // ring padding) on each side, as its own pane fits it.
-          const pb=pane.getBoundingClientRect(),zb=layer().getBoundingClientRect(),zz=Number(layer().dataset.zoom);
-          const forth=homography(zone,[[L,T],[R,T],[R,B],[L,B]]);
-          const image=[[0,0],[W,0],[W,H],[0,H]].map(p=>apply(forth,p)).map(([x,y])=>[zb.x+x*zz,zb.y+y*zz]);
-          const box=[Math.min(...image.map(p=>p[0])),Math.min(...image.map(p=>p[1])),Math.max(...image.map(p=>p[0])),Math.max(...image.map(p=>p[1]))];
-          const inset=parseFloat(getComputedStyle(r.querySelector('.tei-view')).paddingTop);
-          const fits=box[0]>=pb.left-1&&box[1]>=pb.top-1&&box[2]<=pb.right+1&&box[3]<=pb.bottom+1
-            &&(Math.abs(box[2]-box[0]-(pane.clientWidth-2*inset))<1.5||Math.abs(box[3]-box[1]-(pane.clientHeight-2*inset))<1.5)
-            &&Math.abs((box[0]+box[2])/2-(pb.left+pb.right)/2)<1.5&&Math.abs((box[1]+box[3])/2-(pb.top+pb.bottom)/2)<1.5;
+          // The image as its pane showed it before the overlay (its zoom following the edition's, the panes linked),
+          // never moved by the overlay: its pane made the overlay's whole, the same point at its middle (centered along
+          // a side it no longer fills) and the same zoom over its fit (`ImageView`'s resize).
+          const vb=viewport.getBoundingClientRect(),ib=imageBox();
+          const seen=([x,y,w,h,z],v)=>[(v.x+v.width/2-x)/w,(v.y+v.height/2-y)/h,z/Math.min(v.width/W,v.height/H)];
+          const fits=(()=>{const a=seen(imageBefore,viewBefore),b=seen(ib,vb);
+            // Along a side it no longer fills, centered in its pane, as its pane centers any image narrower than it.
+            const along=(k,extent,size)=>extent<=size+1?Math.abs(b[k]-0.5)<1e-3:Math.abs(a[k]-b[k])<1e-3;
+            return along(0,ib[2],vb.width)&&along(1,ib[3],vb.height)&&Math.abs(a[2]-b[2])<1e-3})();
+          const pb=pane.getBoundingClientRect();
           const detach=r.querySelector('.artifact-detach-toggle'),detachButton=detach.querySelector('button');
           const detachOn=!detach.hidden&&getComputedStyle(detach).display!=='none'&&detachButton.disabled&&detachButton.getAttribute('aria-disabled')==='true'&&detach.getAttribute('aria-pressed')==='false';
-          // Collective zoom and pan: never below the fit; at twice the fit, dragged and keyed, still registered.
-          const fit=place()[0];
-          await wheel(40,0.5,0.5,20);const floor=Math.abs(place()[0]-fit)<1e-6;
-          for(let i=0;i<60&&place()[0]<2*fit;i++)await wheel(-40,0.5,0.5,1);
-          const zoomed=place()[0]>=2*fit*0.98,zoomedOff=off();
+          // The overlay's zoom and pan the image's, the edition on it: never below its fit; at twice the fit,
+          // dragged and keyed, still registered.
+          const fit=Math.min(vb.width/W,vb.height/H);
+          await wheel(40,0.5,0.5,20);const floor=Math.abs(imageBox()[4]-fit)<1e-9;
+          for(let i=0;i<60&&imageBox()[4]<2*fit;i++)await wheel(-40,0.5,0.5,1);
+          const zoomed=imageBox()[4]>=2*fit*0.98,zoomedOff=off();
           // A drag from the blank right of the lines (a press on text selects it).
           const before=place(),cx=pb.right-8,cy=pb.y+pb.height/2;
           pane.dispatchEvent(new MouseEvent('mousedown',{clientX:cx,clientY:cy,button:0,detail:1,bubbles:true,cancelable:true}));window.dispatchEvent(new MouseEvent('mousemove',{clientX:cx-30,clientY:cy+40,bubbles:true}));window.dispatchEvent(new MouseEvent('mouseup',{bubbles:true}));await wait(60);
@@ -301,30 +309,21 @@ struct ArtifactOverlayTests {
           pane.focus();pane.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));await wait(60);
           const keyed=place(),keyedOff=off();
           const panned=(dragged[1]!==before[1]||dragged[2]!==before[2])&&(keyed[2]!==dragged[2]);
-          // Overlay off from three times the fit about the view's middle: the panes slide apart at the
-          // overlay's zoom; the text's middle and the scan's on one point of the scan.
+          // Overlay off from three times the image's fit: the image keeps its view, the edition slides back to
+          // where it was before the overlay (user, 2026-10-28).
           pane.dispatchEvent(new KeyboardEvent('keydown',{key:'0',bubbles:true,cancelable:true}));await wait(60);
-          for(let i=0;i<90&&place()[0]<3*fit;i++)await wheel(-40,0.5,0.5,1);
+          for(let i=0;i<90&&imageBox()[4]<3*fit;i++)await wheel(-40,0.5,0.5,1);
           await wait(100);
-          const zoom=place()[0];
-          const text=inkBox(layer()),layerBox=layer().getBoundingClientRect();
-          const laid=laidOn(zone,[(text[0]-layerBox.x)/zoom,(text[1]-layerBox.y)/zoom,(text[2]-layerBox.x)/zoom,(text[3]-layerBox.y)/zoom]);
-          const backward=homography([[laid[0],laid[1]],[laid[2],laid[1]],[laid[2],laid[3]],[laid[0],laid[3]]],zone);
-          // The image's box on screen, through its pan and zoom.
-          const imageBox=()=>{const v=viewport.getBoundingClientRect(),g=r.querySelector('.image-tile-compositor').getAttribute('transform').match(/-?[\d.]+(e-?\d+)?/g).map(Number);return [v.x+g[0],v.y+g[1],W*g[2],H*g[2]]};
-          const exitFrom=imageBox();
-          toggle(false);await wait(150);const offMid=fades(),exitMid=imageBox();await wait(850);const exitTo=imageBox();
-          // Midway out, the image between where the overlay laid it and its own view: moving into its pane
-          // (its place strictly between on an axis it moves along), its size between (the panes part at the
-          // overlay's zoom, so it may keep it), never jumping to either end.
-          const strictly=(a,m,b)=>Math.min(a,b)<m&&m<Math.max(a,b),within=(a,m,b)=>Math.min(a,b)-0.5<=m&&m<=Math.max(a,b)+0.5;
-          const exitMoving=[0,1].some(k=>strictly(exitFrom[k],exitMid[k],exitTo[k]))&&within(exitFrom[2],exitMid[2],exitTo[2])&&within(exitFrom[3],exitMid[3],exitTo[3]);const gone=!r.querySelector('.artifact-structure')&&getComputedStyle(object).opacity==='1';
-          const kept=Math.abs(place()[0]-zoom)/zoom<0.01;
-          const p2=pane.getBoundingClientRect(),l2=layer().getBoundingClientRect(),z2=place()[0];
-          const textSpot=apply(backward,[(p2.x+pane.clientLeft+pane.clientWidth/2-l2.x)/z2,(p2.y+pane.clientTop+pane.clientHeight/2-l2.y)/z2]);
-          const v2=viewport.getBoundingClientRect(),g2=r.querySelector('.image-tile-compositor').getAttribute('transform').match(/-?[\d.]+(e-?\d+)?/g).map(Number);
-          const scanSpot=[(v2.width/2-g2[0])/g2[2],(v2.height/2-g2[1])/g2[2]];
-          const sameSpot=Math.hypot(textSpot[0]-scanSpot[0],textSpot[1]-scanSpot[1])*g2[2];
+          const imageZoom=seen(imageBox(),viewport.getBoundingClientRect())[2],editionFrom=place();
+          toggle(false);await wait(150);const offMid=fades(),editionMid=place();await wait(850);
+          const editionTo=place();
+          // Midway out, the edition between where it lay on the image and where it goes back to, never jumping.
+          const strictly=(a,m,b)=>Math.min(a,b)<m&&m<Math.max(a,b);
+          const exitMoving=[0,1,2].some(k=>strictly(editionFrom[k],editionMid[k],editionTo[k]));
+          const gone=!r.querySelector('.artifact-structure')&&getComputedStyle(object).opacity==='1';
+          const kept=Math.abs(seen(imageBox(),viewport.getBoundingClientRect())[2]-imageZoom)/imageZoom<0.01;
+          const sameSpot=Math.max(Math.abs(editionTo[0]-editionBefore[0])*1000,Math.abs(editionTo[1]-editionBefore[1]),Math.abs(editionTo[2]-editionBefore[2]));
+          const p2=pane.getBoundingClientRect(),v2=viewport.getBoundingClientRect();
           const apart=window.innerWidth<=480||p2.right<=v2.left+1;
           const detachOff=!detachButton.disabled&&!detachButton.hasAttribute('aria-disabled')&&detach.getAttribute('aria-pressed')==='false';
           const detachTo=on=>detach.dispatchEvent(new CustomEvent('toggle-button-update',{detail:on?'true':'false'}));
@@ -333,7 +332,7 @@ struct ArtifactOverlayTests {
           // Reduced motion: the end state at once, each way.
           const media=window.matchMedia;window.matchMedia=q=>q.includes('reduced-motion')?{matches:true}:media.call(window,q);
           const still=document.createElement('style');still.textContent='*{transition:none!important}';document.head.appendChild(still);
-          toggle(true);await wait(80);const instantOn=off()<2&&fades()[0]===0&&fades()[1]===1;
+          toggle(true);await wait(80);const instantOn=off()<2&&Math.abs(fades()[0]-0.25)<1e-6&&fades()[1]===1;
           toggle(false);await wait(80);const instantOff=!r.querySelector('.artifact-structure')&&getComputedStyle(object).opacity==='1';
           window.matchMedia=media;still.remove();
           return [registered<2,unwarped,marked,strokes,fits,detachOn,floor,zoomed&&zoomedOff<2,panned&&pannedOff<2&&keyedOff<2,gone&&kept,sameSpot<2,apart,detachOff,
@@ -341,21 +340,21 @@ struct ArtifactOverlayTests {
         })()
         """#, as: [Double].self)
       let named = [
-        "the scan's block corners land on the laid ink box within 2px (off by \(checks[15]))",
-        "at rest no scan pixels: the scan unwarped and faded out, the structure whole, the text opaque",
+        "the scan's structure lands on the image's text block within 2px (off by \(checks[15]))",
+        "at rest the image as its pane shows it, unwarped, at a quarter, the structure whole, the text opaque",
         "the planted divergences marked (one extra, one pair off, one missing), every other line quiet (rows \(checks[17]), \(checks[18]); extra \(checks[19]), off \(checks[20]), \(checks[21]), missing \(checks[22]))",
         "quiet strokes 1px, marked 2px, the edition's solid, the scan's dashed",
-        "the whole scan image fits the view, centered",
+        "the image as its pane showed it before the overlay: the same point at its middle, the same zoom over its fit",
         "Detach present, disabled and off while the overlay is on", "the zoom never goes below the fit",
-        "zoomed to twice the fit, the registration holds within 2px (off by \(checks[23]))", "dragged and keyed, the text and its structure pan as one (off by \(checks[24]), \(checks[25])))",
-        "overlay off: the structure gone, the overlay's zoom kept",
-        "overlay off: the text's middle and the scan's on one point of the scan within 2px (off by \(checks[16]))",
+        "the image zoomed to twice its fit, the registration holds within 2px (off by \(checks[23]))", "dragged and keyed, the image pans and the edition and its structure stay on it (off by \(checks[24]), \(checks[25])))",
+        "overlay off: the structure gone, the image keeps its zoom over its fit",
+        "overlay off: the edition back where it was before the overlay within 2px (off by \(checks[16]))",
         "overlay off: the panes side by side", "Detach enabled and off after",
         "detached before: off and disabled while on, detached again after", "with reduced motion the end state applies at once, on and off",
       ]
       for (check, name) in zip(checks, named) { #expect(check == 1, "\(name)") }
       #expect(checks[26] == 1, "midway, each way, the scan and the structure's lines strictly between, the text opaque")
-      #expect(checks[27] == 1, "midway out, the image's box between the overlay's and its own pane's")
+      #expect(checks[27] == 1, "midway out, the edition between where it lay on the image and where it goes back to")
       try await page.expectNoErrors()
     }
   }
@@ -774,8 +773,8 @@ struct ArtifactOverlayTests {
       const img=JSON.parse(document.querySelector('#manifest-size').textContent),W=img[0],H=img[1];
       const zone=page.dataset.textBlock.split(' ').map(p=>p.split(',').map(Number)).map(([x,y])=>[x/1000*W,y/1000*H]);
       // Laid as the reader lays it: a derived block on the frame whole; a block spanning the frame's
-      // measure (its ink at both sides within a word space of the frame's face) on its ink box whole; any
-      // other by its height, centered.
+      // measure (its ink at both sides within a word space of the frame's face) by its ink's width, from its
+      // left, its proportions kept; any other by its height, centered.
       const ink=inkBox(layer),edges=frame.getBoundingClientRect(),fs=getComputedStyle(frame);
       context.font=fs.fontStyle+' '+fs.fontWeight+' '+fs.fontSize+' '+fs.fontFamily;const space=context.measureText(' ').width*z;
       const spans=!!ink&&frame!==layer&&ink[0]-edges.left<=space&&edges.right-ink[2]<=space;
@@ -790,7 +789,7 @@ struct ArtifactOverlayTests {
         for(const rect of (()=>{range.selectNodeContents(n);return [...range.getClientRects()]})())if(rect.height>0)settings.push(set)}}
       const anchor=settings.filter(x=>x==='left').length*2>settings.length?'left':settings.filter(x=>x==='right').length*2>settings.length?'right':'center';
       const typedOn=([L,T,R],s)=>{const across=Math.hypot(zone[1][0]-zone[0][0],zone[1][1]-zone[0][1]),down=Math.hypot(zone[3][0]-zone[0][0],zone[3][1]-zone[0][1]),w=across*s,left=anchor==='left'?L:anchor==='right'?R-w:(L+R)/2-w/2;return [left,T,left+w,T+down*s]};
-      const derived=page.dataset.textBlockDerived==='true',laid=typeScale>0?typedOn(derived?[edges.left,edges.top,edges.right]:ink,typeScale):derived?[edges.left,edges.top,edges.right,edges.bottom]:spans?ink:laidOn(zone,ink);
+      const derived=page.dataset.textBlockDerived==='true',laid=typeScale>0?typedOn(derived?[edges.left,edges.top,edges.right]:ink,typeScale):derived?[edges.left,edges.top,edges.right,edges.bottom]:spans?(()=>{const across=Math.hypot(zone[1][0]-zone[0][0],zone[1][1]-zone[0][1]),down=Math.hypot(zone[3][0]-zone[0][0],zone[3][1]-zone[0][1]),sc=(ink[2]-ink[0])/across;return [ink[0],ink[1],ink[2],ink[1]+down*sc]})():laidOn(zone,ink);
       const h=homography(zone,[[laid[0],laid[1]],[laid[2],laid[1]],[laid[2],laid[3]],[laid[0],laid[3]]]);
       const quads=[],marginBlocks=[];let main=true;
       for(const entry of page.dataset.scanLayout.split(';')){const p=entry.split(' ');const pts=p.slice(3).map(Number);const q=[0,1,2,3].map(i=>apply(h,[pts[2*i]/1000*W,pts[2*i+1]/1000*H]));
@@ -826,9 +825,12 @@ struct ArtifactOverlayTests {
         return [es,ss,pairs]};
       // Down the page by its lines (`OverlayRegistration.baselineShift`): the median distance from the scan's paired
       // baselines to the edition's, three pairs at least; the whole scan moved by it (a margin block's lines are its quads').
-      {const d=pair(editionMain,scanMain,L)[2].map(([e,k])=>seat(editionMain[e])-seat(scanMain[k])).sort((a,c)=>a-c);
-        const dy=d.length<3?0:d.length%2?d[(d.length-1)/2]:(d[d.length/2-1]+d[d.length/2])/2;
-        if(dy){const down=r=>{r[1]+=dy;r[3]+=dy;if(r[7]!=null)r[7]+=dy};scanMain.forEach(down);quads.forEach(q=>down(q.box));laid[1]+=dy;laid[3]+=dy}}
+      // Across by the median distance between their set edges (`OverlayRegistration.edgeShift`).
+      {const median=d=>{d.sort((a,c)=>a-c);return d.length<3?0:d.length%2?d[(d.length-1)/2]:(d[d.length/2-1]+d[d.length/2])/2};
+        const pairs=pair(editionMain,scanMain,L)[2];
+        const dy=median(pairs.map(([e,k])=>seat(editionMain[e])-seat(scanMain[k])));
+        const dx=median(pairs.map(([e,k])=>{const a=editionMain[e],b=scanMain[k];return a[4]==='left'?a[0]-b[0]:a[4]==='right'?a[2]-b[2]:a[4]==='center'?(a[0]+a[2])/2-(b[0]+b[2])/2:a[4]==='justified'?(a[0]-b[0]+a[2]-b[2])/2:null}).filter(x=>x!=null));
+        if(dx||dy){const move=r=>{r[0]+=dx;r[2]+=dx;r[1]+=dy;r[3]+=dy;if(r[7]!=null)r[7]+=dy};scanMain.forEach(move);quads.forEach(q=>move(q.box));laid[0]+=dx;laid[2]+=dx;laid[1]+=dy;laid[3]+=dy}}
       const moved=(rows,[x,y])=>rows.map(r=>{const m=[r[0]-x,r[1]-y,r[2]-x,r[3]-y];if(r[7]!=null)m[7]=r[7]-y;return m});
       const [em,sm]=pair(editionMain,scanMain,L);const eg=[],sg=[];
       // A note's own L: its scan rows' median pitch, else its edition rows', else the body's.
