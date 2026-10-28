@@ -253,16 +253,15 @@ struct ArtifactOverlayTests {
           pageEl.dataset.scanLayout=['block main - '+zone.map(([x,y])=>(x/W*1000)+' '+(y/H*1000)).join(' ').replace(/,/g,' ')]
             .concat(planted.map(row=>'line - - '+quad(row).replace(/[ ,]/g,' '))).join(';');
           // Its scan block's corners in the window, as drawn, and where the registration lays them.
-          const scanBlock=()=>{const p=r.querySelector('.artifact-structure [data-side=scan][data-kind=block]');if(!p)return null;const b=layer().getBoundingClientRect(),z=Number(layer().dataset.zoom);
-            return p.getAttribute('points').split(' ').map(q=>q.split(',').map(Number)).map(([x,y])=>[b.x+x*z,b.y+y*z])};
+          // Through the drawing's own transform to the screen: the edition and its structure turned onto the image.
+          const scanBlock=()=>{const p=r.querySelector('.artifact-structure [data-side=scan][data-kind=block]');if(!p)return null;const m=p.getScreenCTM();
+            return p.getAttribute('points').split(' ').map(q=>q.split(',').map(Number)).map(([x,y])=>{const q=new DOMPoint(x,y).matrixTransform(m);return [q.x,q.y]})};
           // The image's place on screen (its pan and zoom), and its text block's corners there: where the
           // scan's structure, laid on the edition laid on the image, must land (user, 2026-10-28).
           const imageBox=()=>{const c=r.querySelector('.image-tile-compositor'),b=c.getBoundingClientRect();return [b.x,b.y,b.width,b.height,b.width/W]};
-          // The scan's structure is leveled (the registration's homography): its block is the zone's, upright, from
-          // the zone's top-left corner on the image, its sides the zone's own lengths there.
-          const target=()=>{const [x,y,w,h]=imageBox(),q=zone.map(([zx,zy])=>[x+zx/W*w,y+zy/H*h]);
-            const across=Math.hypot(q[1][0]-q[0][0],q[1][1]-q[0][1]),down=Math.hypot(q[3][0]-q[0][0],q[3][1]-q[0][1]),[l,t]=q[0];
-            return [[l,t],[l+across,t],[l+across,t+down],[l,t+down]]};
+          // The edition turned as the scan is photographed: the scan's structure on the image's text block's own
+          // four corners (user, 2026-10-28).
+          const target=()=>{const [x,y,w,h]=imageBox();return zone.map(([zx,zy])=>[x+zx/W*w,y+zy/H*h])};
           const off=()=>{const s=scanBlock(),t=target();return s?Math.max(...s.map((q,i)=>Math.hypot(q[0]-t[i][0],q[1]-t[i][1]))):Infinity};
           const place=()=>{const b=layer().getBoundingClientRect();return [Number(layer().dataset.zoom),b.x,b.y]};
           const states=side=>[...new Map([...r.querySelectorAll('.artifact-structure [data-side='+side+'][data-kind=line]')].map(e=>[e.dataset.row,e.dataset.state])).values()];
@@ -1011,7 +1010,11 @@ struct ArtifactOverlayTests {
       // At rest: the motion and the panes' move done.
       try await page.evaluate("new Promise(resolve=>setTimeout(resolve,1200))")
       let read = "(()=>{" + Self.structureScript + #"""
-        const tally=list=>list.reduce((t,s)=>(t[s]=(t[s]||0)+1,t),{});const s=structureOf();
+        const tally=list=>list.reduce((t,s)=>(t[s]=(t[s]||0)+1,t),{});
+        // Read unturned: the overlay turns the edition onto the image as it is photographed, and the rule reads the
+        // layout's own rows (a turned line's box is its bounds); its states are the same wherever the page lies.
+        const turned=[...document.querySelectorAll('.artifact-markup [data-page-scale=true]')],kept=turned.map(f=>f.style.transform);
+        turned.forEach(f=>f.style.transform='none');const s=structureOf();turned.forEach((f,i)=>f.style.transform=kept[i]);
         return {expected:{edition:tally(s.edition),scan:tally(s.scan)},drawn:{edition:tally(drawnStates('edition')),scan:tally(drawnStates('scan'))},main:s.main,target:s.target}})()
         """#
       let scene = try await page.evaluate(read, as: Scene.self)
