@@ -63,12 +63,12 @@ struct ArtifactOverlayTests {
             toggle(true);await wait(600);const detachedOn=button.disabled&&button.getAttribute('aria-disabled')==='true'&&d.getAttribute('aria-pressed')==='false';
             toggle(false);await wait(600);const detachedAfter=!button.disabled&&!button.hasAttribute('aria-disabled')&&d.getAttribute('aria-pressed')==='true';
             detachTo(false);await wait(30);
-            return [zoomReturned,before[dim]<mid[dim]&&mid[dim]<after[dim],whole&&zoomAnimated,locked,detachOn,rules.imageOpacity==='0'&&rules.textOpacity==='1',rules.bg==='rgba(0, 0, 0, 0)'&&!r.querySelector('.artifact-structure'),detachOff,panesBack,detachedBefore&&detachedOn&&detachedAfter,opacityOnMid>0&&opacityOnMid<1&&opacityOffMid>0&&opacityOffMid<1&&textOnMid==='1'];
+            return [zoomReturned,before[dim]<mid[dim]&&mid[dim]<after[dim],whole&&zoomAnimated,locked,detachOn,rules.imageOpacity==='0.25'&&rules.textOpacity==='1',rules.bg==='rgba(0, 0, 0, 0)'&&!r.querySelector('.artifact-structure'),detachOff,panesBack,detachedBefore&&detachedOn&&detachedAfter,opacityOnMid>0&&opacityOnMid<1&&opacityOffMid>0&&opacityOffMid<1&&textOnMid==='1'];
            })()
         """#, as: [Bool].self)
       let named = [
         "zoom back animated", "the panes move", "the whole page fits, zoom animated", "no gesture moves the scan or the text",
-        "Detach present, disabled and off while on", "at rest the scan faded out, the text opaque",
+        "Detach present, disabled and off while on", "at rest the scan faded to a quarter, the text opaque",
         "the text on no ground of its own; no structure without a measured text block",
         "Detach enabled and off after", "panes back", "detached before: off and disabled while on, detached again after",
         "the scan fades on the overlay's clock, both ways, the text never",
@@ -454,10 +454,12 @@ struct ArtifactOverlayTests {
     }
   }
 
-  /// A zoom the reader chose in the overlay is kept as it goes off (user,
-  /// 2026-10-14, kept 2026-10-17), side by side and stacked on a phone:
-  /// the text in its own pane at that zoom, past its fit, the pane
-  /// scrolling it, a zoom rather than the fit kept.
+  /// A zoom the reader chose in the overlay is the image's (user,
+  /// 2026-10-28: the image stays as its pane shows it, the edition laid on
+  /// it), side by side and stacked on a phone: zoomed in the overlay, the
+  /// image past its fit and the edition on it; overlay off, the image
+  /// keeps that zoom and the edition is back where it was before, at its
+  /// pane's fit.
   @Test(arguments: [(1440, 600, 1.0, false), (375, 812, 3.0, true)])
   func overlayOffKeepsAZoomChosenInTheOverlay(width: Int, height: Int, scale: Double, touch: Bool) async throws {
     let server = try await Self.structureServer()
@@ -468,18 +470,21 @@ struct ArtifactOverlayTests {
       try await expect(page.locator("html")).toHaveAttribute("data-wasm-status", "started")
       try await page.evaluate("new Promise(resolve=>setTimeout(resolve,700))")
       let states = try await page.evaluate((Self.atTheFit + #"""
-          const fit=state();toggle(true);await wait(900);
+          // The image's zoom over its fit: its drawn width over its viewport's fit width.
+          const imageOver=()=>{const vp=[...document.querySelectorAll('.image-viewport')].find(e=>e.getBoundingClientRect().width>0),c=vp.querySelector('.image-tile-compositor')||vp.firstElementChild,r=c.getBoundingClientRect(),b=vp.getBoundingClientRect();return Math.max(r.width/b.width,r.height/b.height)};
+          const fit=state(),imageBefore=imageOver();toggle(true);await wait(900);const imageOn=imageOver();
           const o=pane.getBoundingClientRect();
           for(let i=0;i<6;i++){pane.dispatchEvent(new WheelEvent('wheel',{deltaY:-40,clientX:o.x+o.width/2,clientY:o.y+o.height/2,bubbles:true,cancelable:true}));await wait(30)}
-          await wait(100);const chosen=state();toggle(false);await wait(900);
-          return JSON.stringify([fit,chosen,state()])})()
+          await wait(100);const chosen=state(),imageChosen=imageOver();toggle(false);await wait(900);
+          return JSON.stringify([fit,chosen,state(),[imageBefore,imageChosen,imageOver(),imageOn]])})()
         """#).replacingOccurrences(of: "RINGED", with: "false"), as: String.self)
       let samples = try JSONDecoder().decode([[Double]].self, from: Data(states.utf8))
-      let (fit, chosen, after) = (samples[0], samples[1], samples[2])
-      #expect(chosen[0] > fit[0] * 1.2, "at \(width): zoomed in the overlay, \(chosen[0]) over the pane's fit \(fit[0])")
-      #expect(abs(after[0] - chosen[0]) / chosen[0] < 0.01, "at \(width): off keeps the overlay's zoom \(chosen[0]), now \(after[0])")
-      #expect(after[5] == 0, "at \(width): a zoom kept, not the fit")
-      #expect(after[1] > after[2], "at \(width): the pane scrolls the zoomed text (scroll \(after[1]), client \(after[2]))")
+      let (fit, chosen, after, image) = (samples[0], samples[1], samples[2], samples[3])
+      #expect(chosen[0] > fit[0] * 1.2, "at \(width): the edition zoomed with the image, \(chosen[0]) over the pane's fit \(fit[0])")
+      #expect(abs(image[3] - image[0]) < 0.02, "at \(width): overlay on, the image as its pane showed it, \(image[0]), now \(image[3])")
+      #expect(image[1] > image[0] * 1.2, "at \(width): the image zoomed in the overlay, \(image[1]) over \(image[0])")
+      #expect(abs(image[2] - image[1]) / image[1] < 0.02, "at \(width): off, the image keeps its zoom \(image[1]), now \(image[2])")
+      #expect(abs(after[0] - fit[0]) < 1e-6 && after[5] == 1, "at \(width): off, the edition back at its fit \(fit[0]), now \(after[0])")
       try await page.expectNoErrors()
     }
   }
