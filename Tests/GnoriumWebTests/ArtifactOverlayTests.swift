@@ -730,6 +730,10 @@ struct ArtifactOverlayTests {
   /// the scan's main blocks laid, target: [top, bottom] of the laid ink box}`
   /// in the window's pixels.
   static let structureScript = Self.shared + #"""
+    // Beside a row, not under it (artifact-core `StructurePairing.beside`): on its baseline (7) where both have one,
+    // within half the taller's height; else overlapping down the page by more than half the shorter's height.
+    const beside=(row,line)=>row[7]!=null&&line[7]!=null?Math.abs(row[7]-line[7])<Math.max(row[3]-row[1],line[3]-line[1])/2
+      :Math.min(row[3],line[3])-Math.max(row[1],line[1])>Math.min(row[3]-row[1],line[3]-line[1])/2;
     const structureOf=()=>{
       const r=document.querySelector('.artifact-view'),page=r.querySelector('.tei-page[data-active=true]'),layer=page.querySelector('[data-layer=rendering]'),frame=layer.querySelector('.tei-text-block')||layer;
       const b=layer.getBoundingClientRect(),z=Number(layer.dataset.zoom),toLayer=([x,y])=>[(x-b.x)/z,(y-b.y)/z];
@@ -748,7 +752,10 @@ struct ArtifactOverlayTests {
             let left=Infinity,right=-Infinity;for(const [st,en,rect] of line.glyphs){const g=context.measureText(text.slice(st,en));left=Math.min(left,rect.left-g.actualBoundingBoxLeft*s);right=Math.max(right,rect.left+g.actualBoundingBoxRight*s)}
             // Its baseline (7): the font box's top plus the font's ascent; (8) the em of the line it is of.
             if(right>left&&bottom>top)lines.push([left,top,right,bottom,setting,lineEm,blockEl,drawn.top+m.fontBoundingBoxAscent*s,lineEm])}}}
-        lines.sort((a,c)=>a[1]-c[1]);const rows=[];for(const l of lines){const last=rows[rows.length-1];if(last&&l[1]<last[3]){last[0]=Math.min(last[0],l[0]);last[2]=Math.max(last[2],l[2]);last[3]=Math.max(last[3],l[3]);
+        lines.sort((a,c)=>a[1]-c[1]);const rows=[];for(const l of lines){const last=rows[rows.length-1];if(last&&beside(last,l)){
+          // A left-set line beside a right-set one: both edges judged, no block's last line.
+          if((last[4]==='left'&&l[4]==='right')||(last[4]==='right'&&l[4]==='left')){last[4]='justified';last[6]=null}
+          last[0]=Math.min(last[0],l[0]);last[1]=Math.min(last[1],l[1]);last[2]=Math.max(last[2],l[2]);last[3]=Math.max(last[3],l[3]);
           // A row's baseline its largest type's, the lower of equal ones.
           if(l[8]>last[8]||(l[8]===last[8]&&l[7]>last[7])){last[7]=l[7];last[8]=l[8]}}else rows.push([...l])}
         // A justified block's last line is set from its start alone.
@@ -771,7 +778,13 @@ struct ArtifactOverlayTests {
       // the work's em on the scan, the scan at its own size from the block's top, centered across it (artifact-core
       // `OverlayRegistration.laid`); else by the block, a derived one the frame whole.
       const scanEm=Number(page.dataset.scanEm)/1000*W,renderedEm=parseFloat(fs.fontSize)*z,typeScale=scanEm>0&&renderedEm>0?renderedEm/scanEm:0;
-      const typedOn=([L,T,R],s)=>{const across=Math.hypot(zone[1][0]-zone[0][0],zone[1][1]-zone[0][1]),down=Math.hypot(zone[3][0]-zone[0][0],zone[3][1]-zone[0][1]),half=across*s/2,mid=(L+R)/2;return [mid-half,T,mid+half,T+down*s]};
+      // Across by the edge the block is set from (`OverlayRegistration.anchor`): more than half its lines left, from its
+      // left; right, from its right; else centered.
+      const settings=[];{const w=document.createTreeWalker(frame,NodeFilter.SHOW_TEXT);for(let n=w.nextNode();n;n=w.nextNode()){const st=getComputedStyle(n.parentElement),ta=st.textAlign,rtl=st.direction==='rtl';
+        const set=ta==='justify'?'justified':ta==='center'?'center':(ta==='right'||(ta==='end'&&!rtl)||(ta==='start'&&rtl))?'right':'left';
+        for(const rect of (()=>{range.selectNodeContents(n);return [...range.getClientRects()]})())if(rect.height>0)settings.push(set)}}
+      const anchor=settings.filter(x=>x==='left').length*2>settings.length?'left':settings.filter(x=>x==='right').length*2>settings.length?'right':'center';
+      const typedOn=([L,T,R],s)=>{const across=Math.hypot(zone[1][0]-zone[0][0],zone[1][1]-zone[0][1]),down=Math.hypot(zone[3][0]-zone[0][0],zone[3][1]-zone[0][1]),w=across*s,left=anchor==='left'?L:anchor==='right'?R-w:(L+R)/2-w/2;return [left,T,left+w,T+down*s]};
       const derived=page.dataset.textBlockDerived==='true',laid=typeScale>0?typedOn(derived?[edges.left,edges.top,edges.right]:ink,typeScale):derived?[edges.left,edges.top,edges.right,edges.bottom]:spans?ink:laidOn(zone,ink);
       const h=homography(zone,[[laid[0],laid[1]],[laid[2],laid[1]],[laid[2],laid[3]],[laid[0],laid[3]]]);
       const quads=[],marginBlocks=[];let main=true;
@@ -781,7 +794,7 @@ struct ArtifactOverlayTests {
         if(pts.length===12){const a=apply(h,[pts[8]/1000*W,pts[9]/1000*H]),c2=apply(h,[pts[10]/1000*W,pts[11]/1000*H]);box[7]=(a[1]+c2[1])/2}
         if(p[0]==='block'){main=p[1]!=='marginalia';quads.push({kind:'block',main,box});if(!main)marginBlocks.push({box,lines:[]})}
         else if(p[0]==='line'){quads.push({kind:'line',main,box});if(!main&&marginBlocks.length)marginBlocks[marginBlocks.length-1].lines.push(box)}}
-      const rowsFrom=lines=>{lines.sort((a,c)=>a[1]-c[1]);const rows=[];for(const l of lines){const last=rows[rows.length-1];if(last&&l[1]<last[3]){last[0]=Math.min(last[0],l[0]);last[2]=Math.max(last[2],l[2]);last[3]=Math.max(last[3],l[3]);
+      const rowsFrom=lines=>{lines.sort((a,c)=>a[1]-c[1]);const rows=[];for(const l of lines){const last=rows[rows.length-1];if(last&&beside(last,l)){last[0]=Math.min(last[0],l[0]);last[1]=Math.min(last[1],l[1]);last[2]=Math.max(last[2],l[2]);last[3]=Math.max(last[3],l[3]);
         if(l[7]!=null&&(last[7]==null||l[7]>last[7]))last[7]=l[7]}else rows.push([...l])}return rows};
       // Where a row's letters sit: its baseline, else its ink's bottom (typeface is not parity).
       const seat=r=>r[7]!=null?r[7]:r[3];
@@ -803,9 +816,14 @@ struct ArtifactOverlayTests {
       const pair=(e,s,L,E=e,S=s)=>{const n=e.length,m=s.length,c=[...Array(n+1)].map(()=>Array(m+1).fill(0)),st=[...Array(n+1)].map(()=>Array(m+1).fill(0));
         for(let i=0;i<=n;i++)for(let j=0;j<=m;j++){if(!i&&!j)continue;let best=Infinity,mv=0;if(i&&j)best=c[i-1][j-1]+2*Math.abs(seat(e[i-1])-seat(s[j-1]));
           if(i&&c[i-1][j]+L<best){best=c[i-1][j]+L;mv=1}if(j&&c[i][j-1]+L<best){best=c[i][j-1]+L;mv=2}c[i][j]=best;st[i][j]=mv}
-        const es=Array(n).fill('within'),ss=Array(m).fill('within');let i=n,j=m;
-        while(i||j){const mv=st[i][j];if(mv===0){const ok=Math.abs(seat(E[i-1])-seat(S[j-1]))<=L/4&&across(E[i-1],S[j-1]);es[i-1]=ss[j-1]=ok?'within':'off';i--;j--}else if(mv===1){es[i-1]='extra';i--}else{ss[j-1]='missing';j--}}
-        return [es,ss]};
+        const es=Array(n).fill('within'),ss=Array(m).fill('within'),pairs=[];let i=n,j=m;
+        while(i||j){const mv=st[i][j];if(mv===0){const ok=Math.abs(seat(E[i-1])-seat(S[j-1]))<=L/4&&across(E[i-1],S[j-1]);es[i-1]=ss[j-1]=ok?'within':'off';pairs.push([i-1,j-1]);i--;j--}else if(mv===1){es[i-1]='extra';i--}else{ss[j-1]='missing';j--}}
+        return [es,ss,pairs]};
+      // Down the page by its lines (`OverlayRegistration.baselineShift`): the median distance from the scan's paired
+      // baselines to the edition's, three pairs at least; the whole scan moved by it (a margin block's lines are its quads').
+      {const d=pair(editionMain,scanMain,L)[2].map(([e,k])=>seat(editionMain[e])-seat(scanMain[k])).sort((a,c)=>a-c);
+        const dy=d.length<3?0:d.length%2?d[(d.length-1)/2]:(d[d.length/2-1]+d[d.length/2])/2;
+        if(dy){const down=r=>{r[1]+=dy;r[3]+=dy;if(r[7]!=null)r[7]+=dy};scanMain.forEach(down);quads.forEach(q=>down(q.box));laid[1]+=dy;laid[3]+=dy}}
       const moved=(rows,[x,y])=>rows.map(r=>{const m=[r[0]-x,r[1]-y,r[2]-x,r[3]-y];if(r[7]!=null)m[7]=r[7]-y;return m});
       const [em,sm]=pair(editionMain,scanMain,L);const eg=[],sg=[];
       // A note's own L: its scan rows' median pitch, else its edition rows', else the body's.
