@@ -387,7 +387,8 @@ struct MarkupRegionTests {
         // Finer levels as the image is enlarged: none of 1 at its fitted size;
         // zoomed in to its actual size (the most it zooms, user 2026-10-12),
         // each level whose units stand 4px apart drawn.
-        let grid = page.locator(".image-view[data-active='true'] .image-grid")
+        // The grid's lines, over the part of the image the viewport shows.
+        let grid = page.locator(".image-view[data-active='true'] .image-grid-lines")
         let fitted = try await grid.getAttribute("data-levels") ?? ""
         #expect(!fitted.split(separator: " ").contains("1") && fitted.hasPrefix("100"), "Fitted levels: \(fitted)")
         _ = try await page.evaluate(
@@ -403,7 +404,7 @@ struct MarkupRegionTests {
         let levels = try await page.evaluate(
           """
           (() => {
-            const grid = document.querySelector(".artifact-view .image-view[data-active='true'] .image-grid");
+            const grid = document.querySelector(".artifact-view .image-view[data-active='true'] .image-grid-lines");
             const image = document.querySelector(".artifact-view .image-view[data-active='true'] .image-tile-compositor")
               .getBoundingClientRect();
             const want = [100, 50, 10, 5, 1].filter((u) => Math.min(image.width, image.height) * u / 1000 >= 4);
@@ -417,7 +418,7 @@ struct MarkupRegionTests {
         let full = try await page.evaluate(
           """
           (() => {
-            const grid = document.querySelector(".artifact-view .image-view[data-active='true'] .image-grid");
+            const grid = document.querySelector(".artifact-view .image-view[data-active='true'] .image-grid-lines");
             const image = document.querySelector(".artifact-view .image-view[data-active='true'] .image-tile-compositor")
               .getBoundingClientRect();
             const want = [100, 50, 10, 5, 1].filter((u) => Math.min(image.width, image.height) * u / 1000 >= 4);
