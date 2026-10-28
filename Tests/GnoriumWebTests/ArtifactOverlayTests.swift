@@ -815,12 +815,15 @@ struct ArtifactOverlayTests {
       // Across: the edges the edition's line is set by, past an em of its type.
       const across=(e,s)=>{const em=e[5],set=e[4];if(!(em>0)||!set)return true;const l=Math.abs(e[0]-s[0])<=em,r=Math.abs(e[2]-s[2])<=em;
         return set==='left'?l:set==='right'?r:set==='center'?Math.abs((e[0]+e[2])/2-(s[0]+s[2])/2)<=em:l&&r};
+      // Its size (`StructurePairing.sized`): its width against the print line's by the page's ratio of the two (the
+      // median over the main text's pairs), within an em of its type or a sixth of the width.
+      let ratio=0;const sized=(e,s)=>{const want=(s[2]-s[0])*ratio;return !(ratio>0&&want>0)||Math.abs((e[2]-e[0])-want)<=Math.max(e[5]||0,want*0.15)};
       // Paired on e and s (each from its own box for a note), judged where each stands (E, S), by L.
       const pair=(e,s,L,E=e,S=s)=>{const n=e.length,m=s.length,c=[...Array(n+1)].map(()=>Array(m+1).fill(0)),st=[...Array(n+1)].map(()=>Array(m+1).fill(0));
         for(let i=0;i<=n;i++)for(let j=0;j<=m;j++){if(!i&&!j)continue;let best=Infinity,mv=0;if(i&&j)best=c[i-1][j-1]+2*Math.abs(seat(e[i-1])-seat(s[j-1]));
           if(i&&c[i-1][j]+L<best){best=c[i-1][j]+L;mv=1}if(j&&c[i][j-1]+L<best){best=c[i][j-1]+L;mv=2}c[i][j]=best;st[i][j]=mv}
         const es=Array(n).fill('within'),ss=Array(m).fill('within'),pairs=[];let i=n,j=m;
-        while(i||j){const mv=st[i][j];if(mv===0){const ok=Math.abs(seat(E[i-1])-seat(S[j-1]))<=L/4&&across(E[i-1],S[j-1]);es[i-1]=ss[j-1]=ok?'within':'off';pairs.push([i-1,j-1]);i--;j--}else if(mv===1){es[i-1]='extra';i--}else{ss[j-1]='missing';j--}}
+        while(i||j){const mv=st[i][j];if(mv===0){const ok=Math.abs(seat(E[i-1])-seat(S[j-1]))<=L/4&&across(E[i-1],S[j-1])&&sized(E[i-1],S[j-1]);es[i-1]=ss[j-1]=ok?'within':'off';pairs.push([i-1,j-1]);i--;j--}else if(mv===1){es[i-1]='extra';i--}else{ss[j-1]='missing';j--}}
         return [es,ss,pairs]};
       // Down the page by its lines (`OverlayRegistration.baselineShift`): the median distance from the scan's paired
       // baselines to the edition's, three pairs at least; the whole scan moved by it (a margin block's lines are its quads').
@@ -831,6 +834,8 @@ struct ArtifactOverlayTests {
         const dx=median(pairs.map(([e,k])=>{const a=editionMain[e],b=scanMain[k];return a[4]==='left'?a[0]-b[0]:a[4]==='right'?a[2]-b[2]:a[4]==='center'?(a[0]+a[2])/2-(b[0]+b[2])/2:a[4]==='justified'?(a[0]-b[0]+a[2]-b[2])/2:null}).filter(x=>x!=null));
         if(dx||dy){const move=r=>{r[0]+=dx;r[2]+=dx;r[1]+=dy;r[3]+=dy;if(r[7]!=null)r[7]+=dy};scanMain.forEach(move);quads.forEach(q=>move(q.box));laid[0]+=dx;laid[2]+=dx;laid[1]+=dy;laid[3]+=dy}}
       const moved=(rows,[x,y])=>rows.map(r=>{const m=[r[0]-x,r[1]-y,r[2]-x,r[3]-y];if(r[7]!=null)m[7]=r[7]-y;return m});
+      {const r=pair(editionMain,scanMain,L)[2].filter(([e,k])=>scanMain[k][2]>scanMain[k][0]).map(([e,k])=>(editionMain[e][2]-editionMain[e][0])/(scanMain[k][2]-scanMain[k][0])).sort((a,c)=>a-c);
+        ratio=r.length?(r.length%2?r[(r.length-1)/2]:(r[r.length/2-1]+r[r.length/2])/2):0}
       const [em,sm]=pair(editionMain,scanMain,L);const eg=[],sg=[];
       // A note's own L: its scan rows' median pitch, else its edition rows', else the body's.
       const pitch=rows=>{if(rows.length<2)return null;const d=rows.slice(1).map((r,k)=>r[1]-rows[k][1]).sort((a,c)=>a-c);return d[Math.floor(d.length/2)]};
