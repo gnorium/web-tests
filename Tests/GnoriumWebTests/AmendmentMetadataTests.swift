@@ -37,8 +37,8 @@ struct AmendmentMetadataTests {
   }
 
   /// An amendment names its one digitization (user, 2026-10-31): only the
-  /// leaf has a radio; nothing selected refuses Submit with an alert under
-  /// the outline; editing a parent's fields selects the one digitization
+  /// leaf has a radio; nothing selected refuses Submit with an alert above
+  /// it; editing a parent's fields selects the one digitization
   /// under it, and its edit keeps the selection while it stands.
   @Test(arguments: gnorium.engines, [Layout.desktop])
   func selectingTheDigitization(engine: BrowserEngine, layout: Layout) async throws {
@@ -56,9 +56,9 @@ struct AmendmentMetadataTests {
 
         // Nothing selected: refused where it is, with the alert.
         let alert = page.locator(".testament-outliner-unchosen")
-        try await expect(alert).toHaveAttribute("data-visible", "false")
+        try await expect(alert).toBeHidden()
         try await page.locator(".action-gate-view button[type='submit']").first.click()
-        try await expect(alert).toHaveAttribute("data-visible", "true")
+        try await expect(alert).toBeVisible()
         try await expect(alert).toContainText("Select the digitization this amendment is about.")
         #expect(try await page.url().hasSuffix("/amendments/new"))
 
@@ -71,7 +71,7 @@ struct AmendmentMetadataTests {
         let original = try await title.inputValue()
         try await title.fill(original + " (edited)")
         try await expect(radio).toBeChecked()
-        try await expect(alert).toHaveAttribute("data-visible", "false")
+        try await expect(alert).toBeHidden()
         try await expect(radio).toHaveAttribute("form", "amendment-work")
 
         // Undone: still selected, still a radio.
