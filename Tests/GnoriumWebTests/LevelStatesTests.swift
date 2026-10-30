@@ -168,8 +168,8 @@ struct LevelStatesTests {
         try await expect(Self.chip(page)).toHaveText("Pending")
         try await expect(page.locator(".level-progress-line-view")).toHaveText("Calibrated: 4 of 4 images")
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_explication")
-        // The header will be frozen: a sentence says so.
-        try await expect(page.locator(".halftone-explication-note")).toContainText("freezes the scale as its header")
+        // No sentence on what the Commit freezes: the frozen header says it after (user, 2026-10-30).
+        try await expect(page.locator(".halftone-explication-note")).toHaveCount(0)
         try await expect(page.locator(".halftone-evidence-items").first.locator(".roster-row")).toHaveCount(4)
         try await page.expectNoHorizontalOverflow()
       }
