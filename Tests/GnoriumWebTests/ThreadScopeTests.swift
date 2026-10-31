@@ -79,6 +79,57 @@ struct ThreadScopeTests {
     try await contributor.remove()
   }
 
+  /// A Commit done elsewhere is in the thread without a reload (user,
+  /// 2026-11-01): the page read again when its tab is shown again (or
+  /// restored from the back-forward cache) sets the act last in the
+  /// timeline, and the closed note in place of the composer, under it.
+  @Test(arguments: [BrowserEngine.chrome])
+  func aCommitDoneElsewhereIsSetLastLiveWithTheClosedNote(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
+    let scratch: ScratchCommit
+    do { scratch = try ScratchCommit(owner: contributor) }
+    catch { try await contributor.remove(after: error) }
+    let antiphonID = UUID().uuidString.lowercased()
+    func removeCommit() {
+      _ = try? TestAdmin.query("DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)'")
+    }
+    do {
+      let user = try contributor.column("id")
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
+        try await page.openHydrated(scratch.madrigalPath)
+        try await expect(page.locator(".thread-compose")).toHaveCount(1)
+        try await expect(page.locator(".thread-settled")).toHaveCount(0)
+        // Committed in another tab while this one waits.
+        _ = try TestAdmin.query(
+          """
+          BEGIN;
+          INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status, created_at, updated_at)
+            VALUES ('\(antiphonID)', '\(scratch.madrigalID)', '\(user)', '[]', 'submitted', now(), now());
+          UPDATE bibliographic_madrigals SET processing_status = 'committed' WHERE id = '\(scratch.madrigalID)';
+          COMMIT;
+          """)
+        // The tab shown again.
+        _ = try await page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
+        let commit = page.locator(".thread-timeline > .thread-entry").last
+        try await expect(commit).toHaveAttribute("id", "creation-\(antiphonID.uppercased())")
+        try await expect(commit).toContainText("committed")
+        try await expect(page.locator(".thread-compose")).toHaveCount(0)
+        try await expect(page.locator(".thread-view .thread-timeline + .thread-settled")).toHaveCount(1)
+        try await expect(page.locator(".thread-settled")).toContainText("This madrigal has been committed")
+        try await page.expectNoErrors()
+      }
+    } catch {
+      removeCommit()
+      scratch.remove()
+      try await contributor.remove(after: error)
+    }
+    removeCommit()
+    scratch.remove()
+    try await contributor.remove()
+  }
+
   /// A reply quotes what it answers (user, 2026-10-11): Reply on a
   /// locution sets the composer, which shows the quote; posted, the reply
   /// sits in time order with a quote card above its words, linked to the
