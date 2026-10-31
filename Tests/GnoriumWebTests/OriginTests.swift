@@ -197,17 +197,18 @@ struct OriginTests {
 
       // The row: its relation (a plain noun), its record field, its typed
       // fields while no record is picked, then at its foot its own
-      // "+ Origin" ("Add Origin") and "− Origin" ("Remove Origin"): add
-      // first, a press of the first button never removes; the icon and the
-      // noun, the words for assistive technology (user, 2026-10-01).
+      // "+ Origin 1.1." ("Add Origin 1.1.") and "− Origin 1." ("Remove
+      // Origin 1."): add first, a press of the first button never removes;
+      // the icon, the noun and the step's number, as a testament's controls
+      // name theirs (`OutlinerView.numberedControl`).
       let first = rows.first
       try await expect(first.locator(".origin-record-field-view")).toHaveCount(1)
       try await expect(first.locator(".origin-field-actions")).toHaveCount(0)
       let actions = controls(items.first)
-      try await expect(actions.locator(".origin-add-own-btn")).toHaveAttribute("aria-label", "Add Origin")
-      try await expect(actions.locator(".origin-add-own-btn")).toHaveText("Origin")
+      try await expect(actions.locator(".origin-add-own-btn")).toHaveAttribute("aria-label", "Add Origin 1.1.")
+      try await expect(actions.locator(".origin-add-own-btn")).toHaveText("Origin 1.1.")
       try await expect(actions.locator(".origin-add-own-btn svg.plus-icon-view")).toHaveCount(1)
-      try await expect(actions.locator(".origin-remove-btn")).toHaveAttribute("aria-label", "Remove Origin")
+      try await expect(actions.locator(".origin-remove-btn")).toHaveAttribute("aria-label", "Remove Origin 1.")
       try await expect(actions.locator(".origin-remove-btn svg.minus-icon-view")).toHaveCount(1)
       // The form keeps one step at least (user, 2026-09-29): a lone step
       // has no "− Origin", so the box can never go.
@@ -260,7 +261,7 @@ struct OriginTests {
       try await expect(relation.locator(".dropdown-menu")).toHaveAttribute("data-open", "true")
       try await relation.locator(".dropdown-trigger").click()
       try await expect(relation.locator(".dropdown-menu")).toHaveAttribute("data-open", "false")
-      try await expect(relation.locator(".dropdown-selected-text")).toHaveText("Translation, Abridgment")
+      try await expect(relation.locator(".dropdown-selected-text")).toHaveText("Translation and Abridgment")
       // The tooltip now says what each means.
       #expect(try await tooltip() == "A rendering of the work in another language. A shortened version of the work.")
       // How sure it is: optional, certain unless said.
@@ -288,8 +289,10 @@ struct OriginTests {
       try await expect(actions.locator(".origin-add-own-btn")).toBeHidden()
       let node = first.locator(".origin-record-field-view .dropdown-view").nth(1)
       try await expect(first.locator(".origin-record-field-view")).toContainText("Testament")
-      let edition = node.locator(".dropdown-option[data-value^='edition-']")
+      // The record's nodes, valued by their ids, named by their labels.
+      let edition = node.locator(".dropdown-option").filter(hasText: "First edition")
       try await expect(edition).toHaveCount(1)
+      let editionID = try await edition.getAttribute("data-value") ?? ""
       try await node.locator(".dropdown-trigger").click()
       try await edition.click()
 
@@ -309,13 +312,15 @@ struct OriginTests {
       // 2026-09-30). The form's own list-end "+ Origin" too.
       try await expect(actions.locator(".origin-remove-btn")).toBeVisible()
       let secondActions = controls(items.nth(1))
-      try await expect(secondActions.locator(".origin-remove-btn")).toHaveText("Origin")
+      try await expect(secondActions.locator(".origin-remove-btn")).toHaveText("Origin 2.")
       try await expect(secondActions.locator(".origin-remove-btn svg.minus-icon-view")).toHaveCount(1)
       let named = try await secondActions.evaluate(
         "(a) => [...a.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')).join('|')"
       ).string
-      #expect(named == "Add Origin|Remove Origin", "add first, then remove: \(named ?? "")")
-      try await expect(block.locator(".origin-field-add .origin-add-btn")).toHaveText("Origin")
+      #expect(named == "Add Origin 2.1.|Remove Origin 2.", "add first, then remove: \(named ?? "")")
+      // The form's own + names the next top number, renamed as steps come.
+      try await expect(block.locator(".origin-field-add .origin-add-btn")).toHaveText("Origin 3.")
+      try await expect(block.locator(".origin-field-add .origin-add-btn")).toHaveAttribute("aria-label", "Add Origin 3.")
       if viewport.width < 768 {
         let stacked = try await secondActions.evaluate(
           "(a) => { const [x, y] = a.querySelectorAll('button'); const r = (b) => b.getBoundingClientRect(); const cs = getComputedStyle(a); const w = a.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight); return r(x).bottom <= r(y).top && Math.abs(r(x).width - w) < 2 && Math.abs(r(y).width - w) < 2 }"
@@ -390,6 +395,12 @@ struct OriginTests {
       #expect(indent == 17, "a step under a step stands inside its card (17px in), not \(String(describing: indent))")
       try await expect(nested.first.locator(".origin-record-field-view")).toHaveCount(1)
       try await expect(nested.first.locator(".record-row-number")).toHaveText("2.1")
+      // Its controls name it, and its parent's + the next number under it.
+      let nestedItem = secondItem.locator(":scope > .outliner-list > .outliner-item").first
+      try await expect(controls(nestedItem).locator(".origin-remove-btn")).toHaveAttribute(
+        "aria-label", "Remove Origin 2.1.")
+      try await expect(controls(nestedItem).locator(".origin-add-own-btn")).toHaveText("Origin 2.1.1.")
+      try await expect(controls(secondItem).locator(".origin-add-own-btn")).toHaveText("Origin 2.2.")
       let nestedRelation = nested.first.locator(".dropdown-view").first
       try await nestedRelation.locator(".dropdown-trigger").click()
       try await nestedRelation.locator(".dropdown-option[data-value='translation_of']").click()
@@ -413,7 +424,7 @@ struct OriginTests {
       #expect(json.first?["relations"] as? [String] == ["translation_of", "abridgment_of"], "\(posted)")
       #expect(json.first?["certainty"] as? String == "probable")
       #expect(json.first?["record"] as? String == original.recordID)
-      #expect((json.first?["node"] as? String)?.hasPrefix("edition-") == true, "\(posted)")
+      #expect(json.first?["node"] as? String == editionID, "\(posted)")
       let secondPosted = json.count > 1 ? json[1] : [:]
       #expect(secondPosted["relations"] as? [String] == ["adaptation_of"])
       let secondTyped = secondPosted["typed"] as? [String: Any] ?? [:]
@@ -444,9 +455,9 @@ struct OriginTests {
       // A step with a step under it asks before it goes: Cancel keeps both.
       let removeDialog = block.locator(".origin-field-remove-dialog")
       try await controls(secondItem).locator(".origin-remove-btn").click()
-      try await expect(removeDialog).toHaveAttribute("data-open", "true")
+      try await expect(removeDialog).toHaveAttribute("open")
       try await removeDialog.locator(".dialog-default-button button").click()
-      try await expect(removeDialog).toHaveAttribute("data-open", "false")
+      try await expect(removeDialog).not.toHaveAttribute("open")
       try await expect(rows).toHaveCount(2)
       try await expect(nested).toHaveCount(1)
       // Remove confirms it: the step goes with the one under it.
