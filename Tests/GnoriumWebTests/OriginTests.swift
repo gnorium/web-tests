@@ -547,7 +547,7 @@ struct OriginTests {
       let typedStep = steps.first
       try await expect(typedStep.locator(".datum-label")).toHaveTexts(["Relation", "Date", "Certainty", "Voices"])
       try await expect(typedStep.locator(".datum-value")).toHaveTexts([
-        "Translation, Abridgment", "c. AD 890", "Certain", "—",
+        "Translation, Abridgment", "circa AD 890", "Certain", "—",
       ])
       try await expect(typedStep.locator(".breadcrumb-label-context")).toHaveText("Old English")
       try await expect(typedStep.locator(".breadcrumb-label-text")).toHaveText(typed)
@@ -569,7 +569,7 @@ struct OriginTests {
       // after ", ".
       let sentence = page.locator("#origin .origin-sentence-view")
       try await expect(sentence).toHaveText(
-        "A translation and abridgment of the Old English \(typed) (treatise, c. AD 890), a translation of "
+        "A translation and abridgment of the Old English \(typed) (treatise, circa AD 890), a translation of "
           + "\(original.author)'s English \(original.title) (report, AD 1958).")
       try await expect(sentence.locator(".origin-sentence-language")).toHaveTexts(["Old English", "English"])
       try await expect(sentence.locator("a[href='\(original.path)'] .origin-sentence-term")).toHaveText(original.title)
