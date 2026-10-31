@@ -977,18 +977,21 @@ struct ArtifactOverlayTests {
         }
       }
       // A word's gloss covers the text pane exactly, never the image's
-      // (user, 2026-10-14), side by side (1440) and stacked (440).
+      // (user, 2026-10-14), stacked (440); side by side (1440), a wide
+      // screen, it is a popover beside the word instead (user, 2026-11-01),
+      // at least 320×320 and on the screen.
       if canvas == 5 {
         let gloss = try await page.evaluate(#"""
           (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),R=e=>e.getBoundingClientRect(),p=document.querySelector('.artifact-markup'),o=document.querySelector('.artifact-object');
             document.querySelector('.tei-view').dataset.gloss='/gloss';const before=R(o);
             const w=[...p.querySelectorAll('.tei-word')].find(w=>{const b=R(w),r=R(p);return b.top>r.top&&b.bottom<r.bottom&&b.left>r.left&&b.right<r.right});
             w.click();await wait(500);const s=R(document.querySelector('.gloss-sheet .sheet-panel')),q=R(p),a=R(o);
-            const covers=Math.abs(s.left-q.left)<=1&&Math.abs(s.top-q.top)<=1&&Math.abs(s.width-q.width)<=1&&Math.abs(s.height-q.height)<=1;
-            const apart=s.right<=a.left+1||s.bottom<=a.top+1,still=Math.abs(a.left-before.left)<1&&Math.abs(a.top-before.top)<1&&Math.abs(a.width-before.width)<1&&Math.abs(a.height-before.height)<1;
+            const pop=document.querySelector('.gloss-sheet').dataset.placement==='popover';
+            const covers=pop?(innerWidth>=769&&s.width>=320&&s.height>=320&&s.left>=0&&s.right<=innerWidth):(innerWidth<769&&Math.abs(s.left-q.left)<=1&&Math.abs(s.top-q.top)<=1&&Math.abs(s.width-q.width)<=1&&Math.abs(s.height-q.height)<=1);
+            const apart=pop||s.right<=a.left+1||s.bottom<=a.top+1,still=Math.abs(a.left-before.left)<1&&Math.abs(a.top-before.top)<1&&Math.abs(a.width-before.width)<1&&Math.abs(a.height-before.height)<1;
             (document.activeElement||document.body).dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await wait(500);return JSON.stringify([covers,apart,still,[s.left,s.top,s.width,s.height],[q.left,q.top,q.width,q.height],[a.left,a.top,a.width,a.height]])})()
           """#, as: String.self)
-        #expect(gloss.hasPrefix("[true,true,true"), "the gloss at \(width): covers the text pane, clear of the image, the image unmoved: \(gloss)")
+        #expect(gloss.hasPrefix("[true,true,true"), "the gloss at \(width): a popover beside the word on a wide screen, else covers the text pane clear of the image; the image unmoved: \(gloss)")
         // A click on a word's band on the scan does what a click on the word
         // does (user, 2026-10-18): its gloss opens over the text pane, the
         // pane brought to the word first; a press that moved (a pan) opens

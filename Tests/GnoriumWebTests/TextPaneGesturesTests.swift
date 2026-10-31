@@ -96,21 +96,21 @@ struct TextPaneGesturesTests {
         _ = try await page.evaluate("(() => { window.getSelection().removeAllRanges(); return 1 })()")
         let word = pane.locator(".tei-word").filter(hasText: "word2").first
         try await word.click()
-        try await expect(page.locator(".artifact-markup-frame .gloss-sheet")).toHaveAttribute("data-state", "open")
-        // The gloss covers the pane's box at the screen's scale, the pane
-        // scrolled sideways or not (user, 2026-10-14): its frame holds it,
-        // which neither scrolls nor zooms. At its actual size, then zoomed
-        // (the page's transform scaled) and scrolled.
+        try await expect(page.locator(".gloss-sheet")).toHaveAttribute("data-state", "open")
+        // On a wide screen the gloss is a popover beside the word (user,
+        // 2026-11-01), at least 320×320 and on the screen, the pane scrolled
+        // sideways or not. At its actual size, then zoomed (the page's
+        // transform scaled) and scrolled.
         let covers = """
           (async () => { await new Promise((r) => setTimeout(r, 400));
-            const m = document.querySelector('.artifact-markup'), p = m.getBoundingClientRect(),
-              s = document.querySelector('.artifact-markup-frame .gloss-sheet .sheet-panel').getBoundingClientRect();
-            return { left: m.scrollLeft, covers: Math.abs(s.left - p.left) <= 1 && Math.abs(s.top - p.top) <= 1
-              && Math.abs(s.width - p.width) <= 1 && Math.abs(s.height - p.height) <= 1 } })()
+            const m = document.querySelector('.artifact-markup'), sheet = document.querySelector('.gloss-sheet'),
+              s = sheet.querySelector('.sheet-panel').getBoundingClientRect();
+            return { left: m.scrollLeft, covers: sheet.dataset.placement === 'popover' && s.width >= 320
+              && s.height >= 320 && s.left >= 0 && s.right <= innerWidth && s.top >= 0 && s.bottom <= innerHeight } })()
           """
         struct Cover: Decodable { let left: Double; let covers: Bool }
         let actual = try await page.evaluate(covers, as: Cover.self)
-        #expect(actual.covers, "at its actual size, scrolled \(actual.left): the gloss is off the pane")
+        #expect(actual.covers, "at its actual size, scrolled \(actual.left): the gloss popover is not beside the word on the screen")
         try await page.keyboard.press("Escape")
         _ = try await page.evaluate(
           """
@@ -123,7 +123,7 @@ struct TextPaneGesturesTests {
         let zoomedIn = try await page.evaluate(Self.state, as: Pane.self)
         #expect(Double(zoomedIn.zoom ?? "1") ?? 1 < 1, "the wheel did not zoom the text: \(zoomedIn.zoom ?? "—")")
         let zoomedCover = try await page.evaluate(covers, as: Cover.self)
-        #expect(zoomedCover.left > 0 && zoomedCover.covers, "zoomed, scrolled \(zoomedCover.left): the gloss is off the pane")
+        #expect(zoomedCover.left > 0 && zoomedCover.covers, "zoomed, scrolled \(zoomedCover.left): the gloss popover is not beside the word on the screen")
         try await page.expectNoErrors()
       }
       testament?.remove()

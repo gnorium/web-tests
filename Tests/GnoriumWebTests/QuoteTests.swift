@@ -129,7 +129,9 @@ struct QuoteTests {
         // book-length), the date, the page as printed (its pb n)—then its
         // words, the one clicked expanded.
         try await quote.locator(".tei-word").filter(hasText: "begins").first.click()
-        let gloss = quote.locator(".gloss-sheet[data-state='open']")
+        // A popover over the page on a wide screen, the sheet over the
+        // quote's pane on a narrow one (user, 2026-11-01).
+        let gloss = page.locator(".gloss-sheet[data-state='open']")
         try await expect(gloss).toHaveCount(1)
         try await expect(gloss.locator(".gloss-sheet-title .record-label-title")).toHaveText("scratchword")
         try await expect(gloss.locator(".gloss-sheet-title .record-label-meta")).toHaveCount(0)
@@ -149,7 +151,7 @@ struct QuoteTests {
         // Its title opens the testament's page at the quote's page.
         let landed = try await page.evaluate(
           """
-          fetch(document.querySelector('#record-row-\(scratchWord.leaf) .gloss-sheet .chicago-citation-view a').href)
+          fetch(document.querySelector('.gloss-sheet[data-state=open] .chicago-citation-view a').href)
             .then(r => (r.ok ? '' : 'HTTP ' + r.status + ' ') + new URL(r.url).pathname + new URL(r.url).search)
           """)
         #expect(landed == .string("\(scratch.reading.work.path)/vignettes/\(scratch.versionID)?image=2"))
@@ -175,7 +177,7 @@ struct QuoteTests {
           objectAddress.string?.hasPrefix(objectPath + "/quotes/") == true,
           "the object's gloss is at \(objectAddress)")
         try await objectQuote.locator(".tei-word").filter(hasText: "begins").first.click()
-        let objectGloss = objectQuote.locator(".gloss-sheet[data-state='open']")
+        let objectGloss = page.locator(".gloss-sheet[data-state='open']")
         try await expect(objectGloss.locator(".chicago-citation-view")).toHaveText(
           "\(work.author), \(work.title) (1958), 3.")
         try await expect(objectGloss.locator(".gloss-word-row").filter(hasText: "begins")).toHaveCount(1)

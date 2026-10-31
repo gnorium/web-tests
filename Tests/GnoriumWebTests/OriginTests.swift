@@ -120,7 +120,7 @@ struct OriginTests {
         let repeated = steps.last
         try await expect(repeated.locator("a[href='\(first.path)'] .breadcrumb-label-text")).toHaveText(first.title)
         try await expect(repeated.locator(".datum-value")).toHaveTexts([
-          "Derivation", "—", "Certain", "\(first.author) (Author)",
+          "Derivation", "AD 1958", "Certain", "\(first.author) (Author)",
         ])
         let shape = try await tree.evaluate(
           """
@@ -167,6 +167,59 @@ struct OriginTests {
     }
     second.remove()
     first.remove()
+    try await admin.remove()
+  }
+
+  /// The Submit forms say their origin in one sentence above the tree, as
+  /// the record page does (user, 2026-11-01), rebuilt as any origin field
+  /// changes: hidden while no step names anything, then the relation, the
+  /// language as a sentence names it, the term and its class, never a date.
+  /// A work's form and a word's alike.
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func theFormSaysItsOriginInOneSentence(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
+        for (url, field, term, type, said) in [
+          (Self.form, "title", "Gesta Danorum", "chronicle", "A translation of the Latin Gesta Danorum (chronicle)."),
+          ("/mission-control/submit/lexicographic/sentiment", "form", "ancora", "noun", "Borrowed from Latin ancora (noun)."),
+        ] {
+          try await page.openHydrated(url)
+          let block = page.locator(".origin-field-view").first
+          let sentence = block.locator(".origin-sentence-view")
+          try await expect(sentence).toHaveCount(1)
+          try await expect(sentence).toBeHidden()
+          let row = block.locator("[data-origin-row='true']").first
+          let key = try await row.getAttribute("data-origin-key") ?? ""
+          // Typed: the sentence appears and follows each keystroke.
+          try await row.locator("#\(key)-\(field)").fill(term)
+          try await expect(sentence).toBeVisible()
+          try await expect(sentence).toHaveText("\(term).")
+          let relation = row.locator(".dropdown-view").first
+          try await relation.locator(".dropdown-trigger").click()
+          try await relation
+            .locator(".dropdown-option[data-value='\(field == "title" ? "translation_of" : "borrowed_from")']").click()
+          try await page.keyboard.press("Escape")
+          for (suffix, value, name) in [("language", "lat", "Latin"), ("type", type, type)] {
+            let dropdown = row.locator(".dropdown-view:has(#\(key)-\(suffix))")
+            try await dropdown.locator(".dropdown-trigger").click()
+            // A long list is searched first.
+            let search = dropdown.locator(".dropdown-search-input .search-input")
+            if try await search.count() > 0 { try await search.fill(name) }
+            try await dropdown.locator(".dropdown-option[data-value='\(value)']").filter(visible: true).first.click()
+          }
+          try await expect(sentence).toHaveText(said)
+          try await expect(sentence.locator(".origin-sentence-language")).toHaveText("Latin")
+          try await expect(sentence.locator(".origin-sentence-term")).toHaveAttribute("lang", "lat")
+          // A date is data, never said.
+          try await row.locator("#\(key)-year").fill("1200")
+          try await expect(sentence).toHaveText(said)
+        }
+      }
+    } catch {
+      try await admin.remove(after: error)
+    }
     try await admin.remove()
   }
 
@@ -565,12 +618,12 @@ struct OriginTests {
       ])
       // Above the tree, the tree in one sentence: each step's relations,
       // its voice's, its language (semibold), its title (linked where it is
-      // a record, never italic) and its class and date; a step's own origin
-      // after ", ".
+      // a record, never italic) and its class, never a date (an etymology
+      // has none, user 2026-11-01); a step's own origin after ", ".
       let sentence = page.locator("#origin .origin-sentence-view")
       try await expect(sentence).toHaveText(
-        "A translation and abridgment of the Old English \(typed) (treatise, circa AD 890), a translation of "
-          + "\(original.author)'s English \(original.title) (report, AD 1958).")
+        "A translation and abridgment of the Old English \(typed) (treatise), a translation of "
+          + "\(original.author)'s English \(original.title) (report).")
       try await expect(sentence.locator(".origin-sentence-language")).toHaveTexts(["Old English", "English"])
       try await expect(sentence.locator("a[href='\(original.path)'] .origin-sentence-term")).toHaveText(original.title)
       let look = try await page.evaluate(
@@ -592,6 +645,51 @@ struct OriginTests {
       #expect(look["weight"].string == "600", "\(look)")
       #expect(look["style"].string == "normal", "\(look)")
       #expect(look["lang"].string == "ang", "\(look)")
+
+      // A record's term previews it in the gloss sheet (user, 2026-11-01):
+      // its title and class, and a link to the record. On a wide screen a
+      // hover opens it as a popover beside the term, at least 320×320, the
+      // page staying where it is; on a narrow one a tap opens the sheet
+      // over the screen. Esc closes either.
+      let term = sentence.locator("a[data-gloss-preview]")
+      try await expect(term).toHaveCount(1)
+      try await expect(term).toHaveAttribute("aria-haspopup", "dialog")
+      let sheet = page.locator(".gloss-sheet")
+      let wide = try await page.evaluate("innerWidth >= 769").bool == true
+      if wide {
+        try await term.hover()
+        try await expect(sheet).toHaveAttribute("data-state", "open")
+        try await expect(sheet).toHaveAttribute("data-placement", "popover")
+      } else {
+        try await term.click()
+        try await expect(sheet).toHaveAttribute("data-state", "open")
+        try await expect(sheet).toHaveAttribute("data-placement", "viewport")
+      }
+      try await expect(term).toHaveAttribute("aria-expanded", "true")
+      try await expect(sheet.locator(".gloss-sheet-title")).toContainText(original.title)
+      try await expect(sheet.locator(".gloss-sheet-title")).toContainText("Report")
+      try await expect(sheet.locator(".record-preview-link")).toHaveAttribute("href", original.path)
+      let popover = try await sheet.evaluate(
+        """
+        (sheet) => {
+          const panel = sheet.querySelector('.sheet-panel').getBoundingClientRect();
+          const term = document.querySelector('#origin .origin-sentence-view a[data-gloss-preview]').getBoundingClientRect();
+          return {
+            width: panel.width, height: panel.height,
+            beside: panel.top >= term.bottom || panel.bottom <= term.top,
+            inside: panel.left >= 0 && panel.right <= innerWidth,
+            path: location.pathname,
+          };
+        }
+        """)
+      #expect(popover["path"].string == translation.path, "a preview never navigates: \(popover)")
+      if wide {
+        #expect((popover["width"].double ?? 0) >= 320 && (popover["height"].double ?? 0) >= 320, "\(popover)")
+        #expect(popover["beside"].bool == true && popover["inside"].bool == true, "\(popover)")
+      }
+      try await page.keyboard.press("Escape")
+      try await expect(sheet).toHaveAttribute("data-state", "closed")
+      try await expect(term).toHaveAttribute("aria-expanded", "false")
 
       // The original lists it under "Translated into", as "Contains"
       // answers "Contained in".
