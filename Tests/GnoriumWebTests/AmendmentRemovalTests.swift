@@ -7,9 +7,11 @@ import WebTestsTesting
 /// testament of the Submit Amendment form's tree can be removed, every
 /// testament under it with it, once the dialog confirms it; a removed one is
 /// framed red, leaves the tree the amendment posts, and can be restored.
-/// Submitted, the reopened object carries the tree without it, and its page
-/// draws it where it stood, removed. The scratch work's tree is an edition
-/// and its digitization.
+/// Submitted (an amendment is about one digitization), the reopened object
+/// carries the tree without it, and its page draws it where it stood,
+/// removed; while that object is open, another amendment can neither move
+/// nor remove the digitization, nor remove a testament above it. The
+/// scratch work's tree is an edition and its digitization.
 @Suite("Amendment removal", .serialized)
 struct AmendmentRemovalTests {
   @Test(arguments: gnorium.engines, Layout.allCases)
@@ -63,21 +65,21 @@ struct AmendmentRemovalTests {
         // Cancelled: nothing removed. Its "− Testament" is its card's last
         // row, after the testaments under it, never in its header.
         try await reveal(manifest)
-        try await expect(own(manifest, ".testament-outliner-remove")).toHaveText("Testament")
+        try await expect(own(manifest, ".testament-outliner-remove")).toHaveText("Testament 1.1.")
         try await expect(edition.locator(".accordion-summary .testament-outliner-remove")).toHaveCount(0)
         let last = try await edition.evaluate(
           "(item) => item.lastElementChild.classList.contains('outliner-footer') && item.querySelector(':scope > .outliner-footer').getBoundingClientRect().top >= item.querySelector(':scope > .outliner-list').getBoundingClientRect().bottom"
         ).bool
         #expect(last == true, "an edition's controls come after the testaments under it")
         try await own(manifest, ".testament-outliner-remove").click()
-        try await expect(dialog).toHaveAttribute("data-open", "true")
-        try await dialog.locator(".dialog-default-button button").click()
-        try await expect(dialog).toHaveAttribute("data-open", "false")
+        try await expect(dialog).toHaveAttribute("open")
+        try await dialog.locator("button").filter(hasText: "Cancel").first.click()
+        try await expect(dialog).not.toHaveAttribute("open")
         try await expect(manifest).not.toHaveAttribute("data-outliner-removed", "true")
 
         // Removed, then restored.
         try await own(manifest, ".testament-outliner-remove").click()
-        try await dialog.locator(".dialog-primary-button button").click()
+        try await dialog.locator("button").filter(hasText: "Remove").first.click()
         try await expect(manifest).toHaveAttribute("data-outline-state", "removed")
         #expect(!(try await shape()).contains("manifest-"))
         // Its card ringed as a field is: the card's border—the outline
@@ -103,8 +105,8 @@ struct AmendmentRemovalTests {
         // The edition removed, its digitization with it.
         try await reveal(edition)
         try await own(edition, ".testament-outliner-remove").click()
-        try await expect(dialog).toHaveAttribute("data-open", "true")
-        try await dialog.locator(".dialog-primary-button button").click()
+        try await expect(dialog).toHaveAttribute("open")
+        try await dialog.locator("button").filter(hasText: "Remove").first.click()
         try await expect(edition).toHaveAttribute("data-outline-state", "removed")
         let posted = try await shape()
         #expect(!posted.contains("edition-") && !posted.contains("manifest-"), "\(posted)")
@@ -116,6 +118,15 @@ struct AmendmentRemovalTests {
         try await expect(own(edition, ".testament-outliner-restore")).toHaveAttribute("aria-label", "Restore Testament 1.")
         try await expect(own(edition, ".testament-outliner-remove")).toHaveAttribute("aria-label", "Remove Testament 1.")
 
+        // An amendment is about one digitization: the edition restored, the
+        // digitization removed is what it submits.
+        try await own(edition, ".testament-outliner-restore").click()
+        try await expect(edition).not.toHaveAttribute("data-outline-state", "removed")
+        try await own(manifest, ".testament-outliner-remove").click()
+        try await expect(dialog).toHaveAttribute("open")
+        try await dialog.locator("button").filter(hasText: "Remove").first.click()
+        try await expect(manifest).toHaveAttribute("data-outline-state", "removed")
+
         try await page.locator(".record-actions button[type='submit']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the reopened madrigal") {
           $0.path.hasPrefix("/mission-control/madrigals/bibliographic/")
@@ -126,11 +137,24 @@ struct AmendmentRemovalTests {
             WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())';
           """
         ).trimmingCharacters(in: .whitespacesAndNewlines)
-        #expect(stored.contains("\"work\"") && !stored.contains("edition-") && !stored.contains("manifest-"), "\(stored)")
-        // Its page draws the removed testaments where they stood.
-        try await expect(page.locator(".testament-tree-diff-node[data-tree-change='removed']")).toHaveCount(2)
+        #expect(stored.contains("\"work\"") && stored.contains("edition-") && !stored.contains("manifest-"), "\(stored)")
+        // Its page draws the removed testament where it stood.
+        try await expect(page.locator(".testament-tree-diff-node[data-tree-change='removed']")).toHaveCount(1)
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
+
+        // While that object is open its digitization keeps its place in
+        // another amendment: its handle disabled, and neither it nor the
+        // edition above it removable—drawn so, not hidden.
+        try await page.openHydrated("\(work.path)/amendments/new")
+        // Drawn so, and kept so by the outline's every pass (a click runs one).
+        try await page.locator(".testament-outliner-hint").first.evaluate("(hint) => document.body.click()")
+        try await expect(manifest.locator(":scope > .outliner-row .outliner-handle").first).toBeDisabled()
+        try await expect(edition.locator(":scope > .outliner-row .outliner-handle").first).toBeEnabled()
+        for item in [manifest, edition] {
+          try await expect(own(item, ".testament-outliner-remove")).toBeDisabled()
+          try await expect(own(item, ".testament-outliner-remove")).toBeAttached()
+        }
       }
     } catch {
       clean()

@@ -64,7 +64,7 @@ struct ScratchWork {
     self.ids = ids
     let figurant = ids["figurant"]!.uppercased()
     let metadata = """
-      {"sourceUrl":"https://example.org/web-tests","sourceKind":"iiif-manifest","title":"\(title)",\
+      {"sourceUrl":"https://example.org/web-tests","sourceKind":"iiif-manifest","provider":"Example Library","title":"\(title)",\
       "voices":[{"name":"\(author)","role":"author"}],\
       "language":"eng","category":"report","edition":"First edition","year":1958,"genres":[],"isTranslation":false,\
       "translationChain":[],"activityStatements":[],"citations":[]}
