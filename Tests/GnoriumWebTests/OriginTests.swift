@@ -15,8 +15,9 @@ import WebTestsTesting
 /// dispatched by hand, which runs the form's script but never posts). On a
 /// record page, the Origin section after the Metadata is the same tree, each
 /// step its relations, what it came from (Language › Title, linked where it
-/// is a record; its type), date, certainty and voices, "—" where unknown;
-/// and the source record lists its translations. A throwaway admin owns two
+/// is a record; its type), date, certainty and voices, "—" where unknown,
+/// with the tree in one sentence above it; and the source record lists its
+/// translations. A throwaway admin owns two
 /// scratch works, removed after.
 @Suite("Origin", .serialized)
 struct OriginTests {
@@ -560,8 +561,37 @@ struct OriginTests {
       try await expect(recordStep.locator("a[href='\(original.path)'] .breadcrumb-label-text")).toHaveText(original.title)
       try await expect(recordStep.locator(".record-type-view")).toHaveText("report")
       try await expect(recordStep.locator(".datum-value")).toHaveTexts([
-        "Translation", "—", "Certain", "\(original.author) (Author)",
+        "Translation", "AD 1958", "Certain", "\(original.author) (Author)",
       ])
+      // Above the tree, the tree in one sentence: each step's relations,
+      // its voice's, its language (semibold), its title (linked where it is
+      // a record, never italic) and its class and date; a step's own origin
+      // after ", ".
+      let sentence = page.locator("#origin .origin-sentence-view")
+      try await expect(sentence).toHaveText(
+        "A translation and abridgment of the Old English \(typed) (treatise, c. AD 890), a translation of "
+          + "\(original.author)'s English \(original.title) (report, AD 1958).")
+      try await expect(sentence.locator(".origin-sentence-language")).toHaveTexts(["Old English", "English"])
+      try await expect(sentence.locator("a[href='\(original.path)'] .origin-sentence-term")).toHaveText(original.title)
+      let look = try await page.evaluate(
+        """
+        (() => {
+          const s = document.querySelector('#origin .origin-sentence-view');
+          const tree = document.querySelector('#origin .origin-view');
+          const language = s.querySelector('.origin-sentence-language');
+          const term = s.querySelector('.origin-sentence-term');
+          return {
+            above: !!(s.compareDocumentPosition(tree) & Node.DOCUMENT_POSITION_FOLLOWING),
+            weight: getComputedStyle(language).fontWeight,
+            style: getComputedStyle(term).fontStyle,
+            lang: term.getAttribute('lang'),
+          };
+        })()
+        """)
+      #expect(look["above"].bool == true, "\(look)")
+      #expect(look["weight"].string == "600", "\(look)")
+      #expect(look["style"].string == "normal", "\(look)")
+      #expect(look["lang"].string == "ang", "\(look)")
 
       // The original lists it under "Translated into", as "Contains"
       // answers "Contained in".
