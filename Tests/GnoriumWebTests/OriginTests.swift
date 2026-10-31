@@ -245,7 +245,21 @@ struct OriginTests {
       try await relation.locator(".dropdown-option[data-value='abridgment_of']").click()
       try await expect(relation.locator(".dropdown-menu")).toHaveAttribute("data-open", "true")
       try await expect(relation.locator(".dropdown-option.is-selected")).toHaveCount(2)
+      // Each option's checkbox says whether it is chosen, under the pointer
+      // too: a second click on one takes it out, the menu still open.
+      try await expect(relation.locator(".dropdown-option .dropdown-option-checkbox")).toHaveCount(9)
+      try await expect(relation.locator(".dropdown-option-checkmark").filter(visible: true)).toHaveCount(2)
+      try await relation.locator(".dropdown-option[data-value='abridgment_of']").click()
+      try await expect(relation.locator(".dropdown-option-checkmark").filter(visible: true)).toHaveCount(1)
+      try await expect(relation.locator(".dropdown-menu")).toHaveAttribute("data-open", "true")
+      try await relation.locator(".dropdown-option[data-value='abridgment_of']").click()
+      // Escape closes it, as a click on the field or outside does.
+      try await page.keyboard.press("Escape")
+      try await expect(relation.locator(".dropdown-menu")).toHaveAttribute("data-open", "false")
       try await relation.locator(".dropdown-trigger").click()
+      try await expect(relation.locator(".dropdown-menu")).toHaveAttribute("data-open", "true")
+      try await relation.locator(".dropdown-trigger").click()
+      try await expect(relation.locator(".dropdown-menu")).toHaveAttribute("data-open", "false")
       try await expect(relation.locator(".dropdown-selected-text")).toHaveText("Translation, Abridgment")
       // The tooltip now says what each means.
       #expect(try await tooltip() == "A rendering of the work in another language. A shortened version of the work.")
@@ -284,6 +298,8 @@ struct OriginTests {
       try await block.locator(".origin-field-add .origin-add-btn").click()
       try await expect(rows).toHaveCount(2)
       let second = rows.nth(1)
+      // Numbered as the first is: "2." before its title.
+      try await expect(second.locator(".record-row-number")).toHaveText("2")
       // Its record field is asked for once it is on the page: settled, the
       // row stops moving what is under it.
       try await expect(second.locator(".origin-record-field-view")).toHaveCount(1)
@@ -373,6 +389,7 @@ struct OriginTests {
       // Inside its card: the card's 1px border and 16px padding in.
       #expect(indent == 17, "a step under a step stands inside its card (17px in), not \(String(describing: indent))")
       try await expect(nested.first.locator(".origin-record-field-view")).toHaveCount(1)
+      try await expect(nested.first.locator(".record-row-number")).toHaveText("2.1")
       let nestedRelation = nested.first.locator(".dropdown-view").first
       try await nestedRelation.locator(".dropdown-trigger").click()
       try await nestedRelation.locator(".dropdown-option[data-value='translation_of']").click()
