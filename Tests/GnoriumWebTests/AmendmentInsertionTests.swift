@@ -10,8 +10,10 @@ import WebTestsTesting
 /// Testament" takes it out again. Left empty it stops the amendment with
 /// Submit Testament's words; filled, it names its row, and the reopened
 /// object carries the tree with the impression over the copy, named for it,
-/// and files its fields. The scratch work's tree is made an edition › copy
-/// › digitization.
+/// its fields the palinode's (the object's first state, no revision), and
+/// its Permit publishes that tree. An amendment is one node's act (user,
+/// 2026-10-22). The scratch work's tree is made an edition › copy ›
+/// digitization.
 @Suite("Amendment insertion", .serialized)
 struct AmendmentInsertionTests {
   @Test(arguments: gnorium.engines, Layout.allCases)
@@ -127,29 +129,8 @@ struct AmendmentInsertionTests {
         try await impression.locator("[name='impression']").first.fill("Second impression")
         try await expect(impression.locator(":scope > .outliner-row .record-row-title").first)
           .toHaveText("Second impression")
-        // A second ancestor and a move/deletion belong to this same review.
-        let issue = page.locator(".outliner-item[data-outliner-id='issue-new']")
-        try await impression.locator(":scope > .outliner-footer .testament-draft-add-level").first.click()
-        try await expect(issue).toBeVisible()
-        try await issue.locator("[name='issue']").first.fill("Library issue")
-        try await grip.click()
-        try await grip.press("ArrowDown")
-        try await grip.press("ArrowRight")
-        try await grip.press("Enter")
-        try await expect(issue.locator(":scope > .outliner-list > .outliner-item[data-outliner-id^='copy-']")).toHaveCount(1)
-        let impressionGrip = impression.locator(":scope > .outliner-row .outliner-handle").first
-        try await impressionGrip.click()
-        try await impressionGrip.press("ArrowLeft")
-        try await impressionGrip.press("Enter")
-        let editionRemoval = edition.locator(":scope > .outliner-footer .testament-outliner-remove").first
-        try await expect(editionRemoval).toBeVisible()
-        #expect(try await editionRemoval.getAttribute("inert") == nil)
-        try await editionRemoval.click()
-        try await page.locator(".testament-outliner-remove-dialog button").filter(hasText: "Remove").first.click()
-        let atomic = try await shape()
-        #expect(!atomic.contains("\"edition-\(witness)\""), "\(atomic)")
-        #expect(atomic.contains("\"manifest-\(witness)\""), "The existing leaf keeps its identity")
-        #expect(atomic.contains("\"issue-new\""))
+        // Its one act: no other testament changed (user, 2026-10-22: one
+        // node per object).
         try await page.expectNoHorizontalOverflow()
         try await page.locator(".record-actions button[type='submit']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the reopened madrigal") {
@@ -161,26 +142,29 @@ struct AmendmentInsertionTests {
             WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())';
           """
         ).trimmingCharacters(in: .whitespacesAndNewlines)
-        #expect(stored.contains("\"impression-\(witness)\":{\"parent\":\"work\""), "\(stored)")
-        #expect(stored.contains("\"issue-\(witness)\":{\"parent\":\"impression-\(witness)\""), "\(stored)")
-        #expect(stored.contains("\"copy-\(witness)\":{\"parent\":\"issue-\(witness)\""), "\(stored)")
-        #expect(!stored.contains("\"edition-\(witness)\""))
+        #expect(stored.contains("\"impression-\(witness)\":{\"parent\":\"edition-\(witness)\""), "\(stored)")
+        #expect(stored.contains("\"copy-\(witness)\":{\"parent\":\"impression-\(witness)\""), "\(stored)")
+        #expect(stored.contains("\"edition-\(witness)\""))
+        // Its fields are the palinode's, the object's first state: no
+        // revision is filed for them (user, 2026-10-31).
         let filed = try TestAdmin.query(
-          """
-          SELECT content_json FROM revisions WHERE revisable_id IN
-            (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');
-          """)
+          "SELECT metadata_json FROM bibliographic_palinodes WHERE biblio_record_id = '\(record)';")
         #expect(filed.contains("\"impression\":\"Second impression\""), "\(filed)")
-        #expect(filed.contains("\"issue\":\"Library issue\""), "\(filed)")
-        let revision = try TestAdmin.query("SELECT upper(id::text) FROM revisions WHERE revisable_id IN (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');").trimmingCharacters(in: .whitespacesAndNewlines)
-        try await page.locator(".thread-view form[action$='/revisions/\(revision)/accept'] button").first.click()
-        try await page.waitForLoadState()
+        let revisions = try TestAdmin.query("SELECT count(*) FROM revisions WHERE revisable_id IN (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');").trimmingCharacters(in: .whitespacesAndNewlines)
+        #expect(revisions == "0", "the fields are the object's first state")
         try await page.locator("button[form='madrigal-permit']").click()
         try await expect(page.locator(".mission-control-object-header-status-chip"), timeout: .seconds(15)).toHaveText("Permitted")
         let published = try TestAdmin.query("SELECT shape_json FROM biblio_record_versions WHERE biblio_record_id = '\(record)' ORDER BY created_at DESC LIMIT 1;").trimmingCharacters(in: .whitespacesAndNewlines)
-        let publishedShape = try JSONSerialization.jsonObject(with: Data(published.utf8)) as? NSDictionary
-        let reviewedShape = try JSONSerialization.jsonObject(with: Data(stored.utf8)) as? NSDictionary
-        #expect(publishedShape == reviewedShape, "One Permit publishes the complete reviewed tree")
+        // One Permit publishes the reviewed tree: its every node in the
+        // place the object holds it, each parent node now keeping its own
+        // fields (seeded from its witness, the inserted impression's its
+        // own: gnorium-server 4de37a73).
+        func places(_ json: String) throws -> [String: NSDictionary] {
+          let nodes = try #require(try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: [String: Any]])
+          return nodes.mapValues { node in node.filter { $0.key != "fields" } as NSDictionary }
+        }
+        #expect(try places(published) == places(stored), "\(published) vs \(stored)")
+        #expect(published.contains("\"impression\":\"Second impression\""), "\(published)")
         let count = try TestAdmin.query("SELECT count(*) FROM biblio_record_versions WHERE biblio_record_id = '\(record)';").trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(count == "2", "The amendment has one new published version")
         try await page.expectNoErrors()
