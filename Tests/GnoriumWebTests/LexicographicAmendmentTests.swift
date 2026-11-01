@@ -309,10 +309,10 @@ struct LexicographicAmendmentTests {
   }
 
   /// A sentiment an open palinode holds (user, 2026-11-01): on the next
-  /// amendment form it is frozen and stays where it is, and its own action
-  /// is a link to that palinode instead of its removal; nothing else on the
-  /// page changes. A second palinode on it, posted anyway, is refused (the
-  /// form drawn again) naming and linking the open one.
+  /// amendment form it is frozen and stays where it is, its removal
+  /// disabled with the palinode's UUID linked in its tooltip, as a held
+  /// testament's radio. A second palinode on it, posted anyway, is refused
+  /// (the form drawn again) naming and linking the open one.
   @Test(arguments: [BrowserEngine.chrome])
   func aSentimentAnOpenPalinodeHoldsLinksItsPalinode(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -347,15 +347,17 @@ struct LexicographicAmendmentTests {
         }
 
         // Drawn again: the held sentiment is frozen, its handle still, and
-        // its action links the open palinode; no removal, no notice.
+        // its removal disabled, the open palinode in its tooltip.
         try await page.openHydrated("\(word.path)/amendments/new")
         let item = form.locator(".outliner-item[data-outliner-id='s-1-1']")
         try await expect(item).toHaveAttribute("data-sentiment-held", "true")
         try await expect(item).toHaveAttribute("data-sentiment-frozen", "true")
         try await expect(item.locator(".outliner-handle").first).toBeDisabled()
-        try await expect(leaf.locator(".sentiment-outliner-remove")).toHaveCount(0)
-        let link = leaf.locator("a.sentiment-outliner-palinode")
-        try await expect(link).toHaveText("Palinode")
+        let tooltip = leaf.locator(".button-tooltip")
+        try await expect(tooltip.locator(".sentiment-outliner-remove")).toBeDisabled()
+        try await tooltip.hover()
+        let link = page.locator(".tooltip-content a[href*='/mission-control/palinodes/lexicographic/']").first
+        try await expect(link).toBeVisible()
         let href = try await link.getAttribute("href") ?? ""
         #expect(href.hasPrefix("/mission-control/palinodes/lexicographic/"), "\(href)")
         let palinode = String(href.split(separator: "/").last ?? "").lowercased()
@@ -381,6 +383,7 @@ struct LexicographicAmendmentTests {
         #expect(answer.contains("is held by open palinode \(palinode)"), "the refusal names the palinode")
 
         // The link opens the palinode.
+        try await tooltip.hover()
         try await link.click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the palinode's page") {
           $0.path.lowercased() == "/mission-control/palinodes/lexicographic/\(palinode)"
