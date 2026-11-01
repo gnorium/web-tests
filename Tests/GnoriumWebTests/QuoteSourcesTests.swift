@@ -72,4 +72,27 @@ struct QuoteSourcesTests {
       try await page.expectNoErrors()
     }
   }
+
+  /// A testament's digitization has the same Source box: its Source URL,
+  /// then the Images it covers (empty: all of them), and no Quote.
+  @Test(arguments: gnorium.engines)
+  func aTestamentsDigitizationHasASourceBox(engine: BrowserEngine) async throws {
+    try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine)) { page in
+      try await page.openHydrated("/mission-control/submit/bibliographic/testament")
+      let box = page.locator(".testament-source")
+      try await expect(box).toHaveCount(1)
+      try await expect(box.locator(".form-item-legend").first).toHaveText("Source")
+      let shape = try await box.evaluate(
+        """
+        (b) => {
+          const url = b.querySelector("[name='source-url']"), images = b.querySelector("[name='images']");
+          return !!url && !!images && !b.querySelector("textarea")
+            && !!(url.compareDocumentPosition(images) & Node.DOCUMENT_POSITION_FOLLOWING) && images.value === '';
+        }
+        """
+      ).bool
+      #expect(shape == true, "Source URL, then empty Images, and no Quote")
+      try await page.expectNoErrors()
+    }
+  }
 }

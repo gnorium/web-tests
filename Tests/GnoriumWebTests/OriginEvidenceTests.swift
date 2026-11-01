@@ -4,11 +4,11 @@ import WebTests
 import WebTestsTesting
 
 /// An origin's evidence (design-notes/origin-evidence.md, user 2026-11-01):
-/// on an overture's Revise page an origin's "+ Quote" asks for a quote box,
-/// filled with the quote's words, the image they are on and its
-/// testament's Source URL, and what it attests; Suggest reads it into an
-/// anchor in that permitted testament (the quotes service), and the
-/// thread's line names it "Origin 2 › Quote 1", and the revision's page
+/// on an overture's Revise page an origin's "+ Source" asks for a Source box,
+/// filled with its testament's Source URL, the image the quote is on and
+/// its sentence, and what it attests; Suggest reads it into an anchor in
+/// that permitted testament (the quotes service), and the thread's line
+/// names it "Origin 2 › Source 1", and the revision's page
 /// draws the quote under its origin. A madrigal carrying that origin:
 /// Permit refuses it while its quote names no permitted testament's page;
 /// with the quote in place it publishes it, and the record's page draws
@@ -93,6 +93,13 @@ struct OriginEvidenceTests {
           """)
         reading.remove()
       }
+      if let testament {
+        _ = try? TestAdmin.query(
+          """
+          DELETE FROM survey_images WHERE witness_id = (SELECT bibliographic_figurant_id FROM bibliographic_overtures
+            WHERE id = '\(testament.reading.work.overtureID)');
+          """)
+      }
       testament?.remove()
     }
     do {
@@ -113,6 +120,19 @@ struct OriginEvidenceTests {
         try Test.cancel("No quotes service answers at \(Self.quotesURL) (GNORIUM_QUOTES_URL).")
       }
       #expect(indexed.0 == 200, "\(String(decoding: indexed.1, as: UTF8.self))")
+      // Its image 1, as its survey numbers it, read in its permitted
+      // version: what a quote's image number is found on.
+      let witness = try TestAdmin.query(
+        "SELECT bibliographic_figurant_id FROM bibliographic_overtures WHERE id = '\(quoted.reading.work.overtureID)';"
+      ).trimmingCharacters(in: .whitespacesAndNewlines)
+      _ = try TestAdmin.query(
+        """
+        BEGIN;
+        INSERT INTO survey_images (id, witness_id, ordinal, label, image_url)
+          VALUES (gen_random_uuid(), '\(witness)', 1, '1', '\(image)/full/1300,/0/default.jpg');
+        UPDATE biblio_record_versions SET page_readings_json = '{"\(image)": "web-tests"}' WHERE id = '\(quoted.versionID)';
+        COMMIT;
+        """)
 
       // The overture revised: two typed origins, the second to be quoted.
       let scratch = try ScratchOverture(owner: admin, sealed: false)
@@ -139,11 +159,17 @@ struct OriginEvidenceTests {
         try await add.click()
         let card = second.locator(".origin-quote-field-view")
         try await expect(card).toHaveCount(1)
+        // Its record field in place (it is asked for as the box comes),
+        // so nothing moves under the next press.
+        try await expect(card.locator(".quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
+          .toHaveCount(1)
         // Removed by its own −, added again.
         try await card.locator(".origin-quote-remove-btn").click()
         try await expect(card).toHaveCount(0)
         try await add.click()
         try await expect(card).toHaveCount(1)
+        try await expect(card.locator(".quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
+          .toHaveCount(1)
         try await expect(rows.nth(0).locator(".origin-quote-field-view")).toHaveCount(0)
         // Its Source box: Source URL, Images, Quote.
         try await expect(card.locator("legend").first).toHaveText("Source")
