@@ -75,20 +75,26 @@ struct QuoteTests {
         try await expect(row).toHaveAttribute("data-open-finished", "true")
         let quote = attestation.locator(".testament-view")
         try await expect(quote).toHaveCount(1)
-        // Headed by its testament's Chicago note, above the reader, nothing
-        // else: no breadcrumb, no header box.
-        let heading = attestation.locator(".attestation-quote > .chicago-citation-view")
+        // Headed by its Source box (user, 2026-11-01), the form's fields
+        // read-only, above the reader, nothing else: no citation line, no
+        // breadcrumb, no header box.
+        try await expect(attestation.locator(".chicago-citation-view")).toHaveCount(0)
+        let heading = attestation.locator(".attestation-quote > .quote-source-view")
         try await expect(heading).toHaveCount(1)
         let work = scratch.reading.work
-        try await expect(heading).toHaveText("\(work.author), \(work.title) (1958), 3.")
+        try await expect(heading.locator(".accordion-title").first).toHaveText("Source")
+        try await heading.locator(".accordion-summary").first.click()
+        try await expect(heading.locator(".quote-source-fields .datum-view")).toHaveCount(3)
+        try await expect(heading.locator(".quote-source-fields")).toContainText(work.title)
+        try await expect(heading.locator(".quote-source-fields")).toContainText("Images start")
         let headingAbove = try await attestation.evaluate(
-          "(view) => { const h = view.querySelector('.chicago-citation-view').getBoundingClientRect(); const q = view.querySelector('.testament-view').getBoundingClientRect(); return h.bottom <= q.top }")
-        #expect(headingAbove == .bool(true), "the citation is not above the quote")
+          "(view) => { const h = view.querySelector('.quote-source-view').getBoundingClientRect(); const q = view.querySelector('.testament-view').getBoundingClientRect(); return h.bottom <= q.top }")
+        #expect(headingAbove == .bool(true), "the Source box is not above the quote")
         try await expect(attestation.locator(".breadcrumb-view")).toHaveCount(0)
         try await expect(attestation.locator(".header-view")).toHaveCount(0)
-        // Its title links to the testament's leaf row on the record's page,
+        // Its Source links to the testament's leaf row on the record's page,
         // its reader on the quote's page.
-        let headingLink = heading.locator("cite a")
+        let headingLink = heading.locator(".quote-source-fields a")
         try await expect(headingLink).toHaveCount(1)
         let leafUUID = try TestAdmin.query(
           "SELECT shape_json::jsonb -> ('manifest-' || upper(f.id::text)) ->> 'uuid' FROM biblio_record_versions v, bibliographic_figurants f WHERE v.id = '\(scratch.versionID)' AND f.id = (SELECT bibliographic_figurant_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())');"

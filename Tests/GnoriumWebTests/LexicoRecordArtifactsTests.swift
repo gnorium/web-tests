@@ -78,8 +78,9 @@ struct LexicoRecordArtifactsTests {
         let attestation = row.locator(".attestation-view")
         let viewer = attestation.locator(".artifact-view")
         try await expect(viewer).toHaveCount(1)
-        // Headed by its testament's Chicago note.
-        try await expect(attestation.locator(".attestation-quote > .chicago-citation-view")).toHaveCount(1)
+        // Headed by its Source box, no citation line (user, 2026-11-01).
+        try await expect(attestation.locator(".attestation-quote > .quote-source-view")).toHaveCount(1)
+        try await expect(attestation.locator(".attestation-quote > .chicago-citation-view")).toHaveCount(0)
         // Opened at the quote's page, the quote highlighted.
         try await expect(
           attestation.locator(".tei-page[data-service-id='\(Self.service)'] mark[data-highlight='title']")
