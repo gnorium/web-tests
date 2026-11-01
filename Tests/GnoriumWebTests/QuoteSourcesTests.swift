@@ -40,6 +40,12 @@ struct QuoteSourcesTests {
         """
       ).bool
       #expect(order == true, "the Source box reads its source, then what the reader fills")
+      // A source Gnorium does not have yet asks for its Title, Language and
+      // Class (user, 2026-11-02): hidden until its URL is read as one.
+      for suffix in ["title", "language", "class"] {
+        try await expect(first.locator("[name='quote-s1-source-url-\(suffix)']")).toHaveCount(1)
+      }
+      try await expect(first.locator(".quote-passage-identity")).toBeHidden()
       let text = try await sources.evaluate("(el) => el.textContent.toLowerCase()").string ?? ""
       #expect(!text.contains("range"), "the Source box says range")
       // One box: no "− Source".
@@ -107,6 +113,51 @@ struct QuoteSourcesTests {
     <w xml:id="w1.3" lemma="stand" class="verb">stood</w><pc>.</pc></s></p></body></text></TEI>
     """
 
+  /// A pending quote (by a URL Gnorium does not have yet) reads as any
+  /// quote item (user, 2026-11-02): its Source box, its URL, then its
+  /// sentence in the text-only reader's text pane; no chip, no Images, no
+  /// sentence field.
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func aPendingQuoteReadsAsAnyQuote(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    var holder: ScratchOverture?
+    do {
+      let overture = try ScratchOverture(owner: admin, sealed: false)
+      holder = overture
+      let source = "https://web-tests.invalid/pending-shape.json"
+      let origins =
+        #"[{"id":"\#(UUID().uuidString)","relations":["based_on"],"typed":{"title":"Web tests source","voices":[]},"origins":[],"#
+        + #""evidence":[{"id":"\#(UUID().uuidString)","anchors":[],"roles":["existence"],"#
+        + #""pending":{"sourceURL":"\#(source)","images":[1,2],"text":"The pendingword stood fast"}}]}]"#
+      _ = try TestAdmin.query(
+        "UPDATE bibliographic_overtures SET origins_json = '\(origins)' WHERE id = '\(overture.overtureID)';")
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated(overture.path)
+        let pending = page.locator(".pending-quote-view").first
+        try await expect(pending, timeout: .seconds(15)).toBeAttached()
+        try await expect(pending.locator(".quote-source-view")).toHaveCount(1)
+        try await expect(pending.locator(".quote-source-fields .datum-label")).toHaveTexts(["URL"])
+        try await expect(pending.locator(".quote-source-fields a")).toHaveAttribute("href", source)
+        try await expect(pending.locator(".testament-view")).toHaveCount(1)
+        try await expect(pending.locator(".testament-view .artifact-markup")).toContainText("pendingword")
+        let text = try await pending.evaluate(
+          "(v) => [...v.children].filter((n) => !n.matches('.quote-source-view, .testament-view')).length + (v.textContent.trim().length > 0 && [...v.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) ? 1 : 0)"
+        ).int
+        #expect(text == 0, "a pending quote shows only its Source box and its reader")
+        try await expect(pending.locator(".info-chip-text")).toHaveCount(0)
+        try await expect(pending).not.toContainText("Images")
+        try await expect(pending).not.toContainText("Pending")
+      }
+    } catch {
+      holder?.remove()
+      try await admin.remove(after: error)
+    }
+    holder?.remove()
+    try await admin.remove()
+  }
+
   /// A Source box holds only what is not in the artifact (user,
   /// 2026-11-02): a permitted record's leaf opens under it with its text
   /// pane, its URL filled in and frozen; selecting the sentence there fills
@@ -159,6 +210,29 @@ struct QuoteSourcesTests {
           """
         ).bool
         #expect(leaves == true, "each leaf reads its numbered description, then its UUID")
+        // Picked, the closed field reads the same: its description, then
+        // its whole UUID, on one line inside the box.
+        let node = box.locator(".dropdown-view:has([name='quote-s1-record-node'])")
+        try await node.locator(".dropdown-trigger").click()
+        let option = node.locator(".dropdown-option").first
+        let uuid = try await option.getAttribute("data-display") ?? ""
+        let described = try await option.getAttribute("data-context") ?? ""
+        try await option.click()
+        let closed = box.locator(".dropdown-view:has([name='quote-s1-record-node']) .dropdown-selected-text")
+        try await expect(closed, timeout: .seconds(10)).toContainText(uuid)
+        try await expect(closed).toContainText(described)
+        let fits = try await box.evaluate(
+          """
+          (b) => { const field = b.querySelector("[name='quote-s1-record-node']").closest('.dropdown-view');
+            const text = field.querySelector('.dropdown-selected-text');
+            const trigger = field.querySelector('.dropdown-trigger').getBoundingClientRect();
+            const own = b.getBoundingClientRect();
+            return trigger.right <= own.right + 0.5 && trigger.left >= own.left - 0.5
+              && text.getBoundingClientRect().height < 40
+              && document.documentElement.scrollWidth <= document.documentElement.clientWidth; }
+          """
+        ).bool
+        #expect(fits == true, "the closed Testament UUID overflows its box")
         // The sentence selected in its text pane fills the quote.
         _ = try await box.evaluate(
           """
