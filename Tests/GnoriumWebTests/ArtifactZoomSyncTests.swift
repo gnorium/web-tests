@@ -142,8 +142,13 @@ struct ArtifactZoomSyncTests {
       }
       #expect(abs(results.wordingWins[0] - results.expectedTextZoom) < 0.001, "latest wording gesture wins")
       #expect(abs(results.imageWins[5] - results.expectedImageZoom) < 0.001, "latest image gesture wins")
+      // Past the fit, the text and the image show the same share of the
+      // text block (ArtifactView.imageTerms, 2026-10-31): their scales
+      // over their fits stand in one ratio, whichever pane led, not 1 (the
+      // photograph holds more than the leaf).
+      let ratios = [results.wordingWins, results.imageWins].map { ($0[0] / results.pairedFit) / ($0[5] / 0.2) }
+      #expect(abs(ratios[0] - ratios[1]) < 0.01, "zoom stays synchronized with the stable page frame: \(ratios)")
       for state in [results.wordingWins, results.imageWins] {
-        #expect(abs(state[0] / results.pairedFit - state[5] / 0.2) < 0.01, "zoom stays synchronized with the stable page frame")
         #expect(abs(state[4] - state[7]) < 0.005, "vertical position stays synchronized")
       }
       let modes = try await page.evaluate(#"""
