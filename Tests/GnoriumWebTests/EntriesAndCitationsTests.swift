@@ -311,13 +311,17 @@ struct EntriesAndCitationsTests {
         // medium too, its text 16px; its buttons 40, their icons alone in
         // their boxes as tall as the 22px line, as every icon-only control.
         // Medium, a step down under the phone step on a phone, the find
-        // field with them.
+        // field with them; the page pager stays medium there, 40 and 16px,
+        // the least a thumb is asked to hit (PaginationView, Option B).
         let control = try await page.controlHeight("medium")
         let type = try await page.controlFontSize("medium")
         let icon = try await page.controlIconSize()
         let row = try await page.length("calc(\(control) + 2 * var(--spacing-8))")
+        let pagerControl = try await page.length(
+          "calc(2 * var(--spacing-8) + var(--line-height-small-22) + 2 * var(--border-width-base))")
+        let pagerType = try await page.length("var(--font-size-medium-16)")
         let px = { (length: String) in Int(Double(length.replacingOccurrences(of: "px", with: "")) ?? -1) }
-        let small = try await viewer.evaluate(
+        let off = try await viewer.evaluate(
           """
           (viewer) => { const bar = viewer.querySelector('.testament-find-view');
             const el = bar.querySelector('.search-input'), css = getComputedStyle(el);
@@ -325,15 +329,22 @@ struct EntriesAndCitationsTests {
             const pager = viewer.querySelector('.artifact-page-nav');
             const buttons = [...bar.querySelectorAll('.testament-find-steps button')];
             const h = (e) => Math.round(e.getBoundingClientRect().height);
-            return h(row) === \(px(row)) && pager.classList.contains('pagination-size-medium')
-              && h(pager.querySelector('.pagination-prev')) === \(px(control))
-              && getComputedStyle(pager.querySelector('.page-box')).fontSize === '\(type)'
-              && el.closest('.search-input-view').dataset.size === 'medium'
-              && h(el) === \(px(control)) && css.fontSize === '\(type)'
-              && buttons.length === 2 && buttons.every(b => h(b) === \(px(control)))
-              && buttons.every(b => h(b.querySelector('svg')) === \(px(icon))); }
-          """).bool == true
-        #expect(small, "The header and its find bar are rows of medium controls, their text 16px, their icons 22px")
+            const out = [];
+            if (h(row) !== \(px(row))) out.push('header row ' + h(row));
+            if (!pager.classList.contains('pagination-size-medium')) out.push('pager ' + pager.className);
+            if (h(pager.querySelector('.pagination-prev')) !== \(px(pagerControl))) out.push('pager button ' + h(pager.querySelector('.pagination-prev')));
+            if (getComputedStyle(pager.querySelector('.page-box')).fontSize !== '\(pagerType)') out.push('page box ' + getComputedStyle(pager.querySelector('.page-box')).fontSize);
+            if (el.closest('.search-input-view').dataset.size !== 'medium') out.push('field size ' + el.closest('.search-input-view').dataset.size);
+            if (h(el) !== \(px(control))) out.push('field ' + h(el));
+            if (css.fontSize !== '\(type)') out.push('field text ' + css.fontSize);
+            if (buttons.length !== 2) out.push('buttons ' + buttons.length);
+            for (const b of buttons) {
+              if (h(b) !== \(px(control))) out.push('button ' + h(b));
+              if (h(b.querySelector('svg')) !== \(px(icon))) out.push('icon ' + h(b.querySelector('svg')));
+            }
+            return out.join('; '); }
+          """).string ?? "not evaluated"
+        #expect(off.isEmpty, "The header and its find bar are rows of medium controls, their text 16px, their icons 22px: \(off)")
         try await bar.locator("input").fill("scratchfind")
         let count = bar.locator(".testament-find-count")
         // The word broken over two lines is found whole.

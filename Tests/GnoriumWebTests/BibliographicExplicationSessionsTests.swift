@@ -138,15 +138,17 @@ struct BibliographicExplicationSessionsTests {
           """, as: String.self)
         #expect(proseOff.isEmpty, "Formatted text at 16px on 26px: \(proseOff)")
         // The legend's (i) names the template; its bubble, portaled to
-        // <body> once hydrated (TooltipView, 2026-10-13), links its process's
-        // prompts with the vignette's UUID.
+        // <body> once hydrated (TooltipView, 2026-10-13), links the
+        // vignette's own page with its UUID (PromptVignetteTooltipView,
+        // user, 2026-10-21).
         try await expect(page.locator(".computorium-session-compaction-prompt-fieldset .computorium-session-prompt-legend-vignette")).toHaveCount(1)
-        let legend = page.locator(".tooltip-view[data-portal='true'] .tooltip-content a[href='/mission-control/prompts/bibliographic/explication']")
+        let vignettePage = "/mission-control/prompts/vignettes/\(autoID)"
+        let legend = page.locator(".tooltip-view[data-portal='true'] .tooltip-content a[href='\(vignettePage)']")
         try await expect(legend).toHaveCount(1)
         try await expect(legend).toHaveText(autoID)
         // Only the UUID, linked and whole (user, 2026-10-21): no words
         // around it.
-        try await expect(page.locator(".tooltip-view[data-portal='true'] .tooltip-content:has(a[href='/mission-control/prompts/bibliographic/explication'])"))
+        try await expect(page.locator(".tooltip-view[data-portal='true'] .tooltip-content:has(a[href='\(vignettePage)'])"))
           .toHaveText(autoID)
         // The autocompaction card is white; the instruction the summarizer
         // was given (the one message after the session's own) is a gray box
@@ -497,28 +499,35 @@ struct BibliographicExplicationSessionsTests {
             const label = r('.computorium-session-header .computorium-session-title-image');
             const raw = r('.computorium-session-controls-start .computorium-session-markdown-toggle');
             const info = r('.computorium-session-controls-start .computorium-session-byline');
+            const bar = r('.computorium-session-controls-start .session-context-bar-view');
             const instances = r('.computorium-session-controls-start .computorium-session-instance-nav');
             const out = [];
-            if (!card || !pager || !label || !raw || !info || !instances) return 'missing';
+            if (!card || !pager || !label || !raw || !info || !bar || !instances) return 'missing';
             // The evidence pager right after the label, in the title block.
             const labelEl = document.querySelector('.computorium-session-title-image');
             if (!labelEl.nextElementSibling?.classList.contains('computorium-session-page-nav')) out.push('evidence pager not after the label');
             if (pager.left < label.right) out.push('evidence pager overlaps the label');
             if (Math.abs((label.top + label.bottom) / 2 - (pager.top + pager.bottom) / 2) > 4) out.push('label and evidence pager not on one line');
-            // The row is the session's last: under everything it controls.
+            // The row is the session's last: under everything it controls,
+            // followed only by its replay's bar, drawn hidden until Replay
+            // moves it to the viewport's foot (user, 2026-10-21).
             const session = document.querySelector('.computorium-session-view');
-            if (!session.lastElementChild?.classList.contains('computorium-session-controls')) out.push('controls not at the foot');
+            const foot = session.lastElementChild?.classList.contains('replay-seek-view')
+              ? session.lastElementChild.previousElementSibling : session.lastElementChild;
+            if (!foot?.classList.contains('computorium-session-controls')) out.push('controls not at the foot');
             if (Math.abs(raw.left - card.left) > 1) out.push('raw not at the start: ' + (raw.left - card.left));
-            // The instances' pager next to the info icon, a gap apart, not at the end edge.
-            if (Math.abs(instances.left - info.right - 8) > 1) out.push('instance pager ' + (instances.left - info.right) + ' from the info icon');
+            // The instances' pager right after the context bar, a gap apart,
+            // not at the end edge (user, 2026-10-21).
+            if (Math.abs(instances.left - bar.right - 8) > 1) out.push('instance pager ' + (instances.left - bar.right) + ' from the context bar');
             if (Math.abs((info.top + info.bottom) / 2 - (instances.top + instances.bottom) / 2) > 1) out.push('info and instance pager not on one line');
             if (instances.right > card.right - 16) out.push('instance pager at the end edge');
-            // Raw, then the info icon, then the instances' pager.
+            // Raw, then the info icon, its context bar, then the instances' pager.
             const start = document.querySelector('.computorium-session-controls-start');
             const kinds = [...start.children].map(e => e.classList.contains('computorium-session-markdown-toggle') ? 'raw'
               : e.classList.contains('computorium-session-byline') ? 'info'
+              : e.classList.contains('session-context-bar-view') ? 'bar'
               : e.classList.contains('computorium-session-instance-nav') ? 'instances' : 'other').join(' ');
-            if (kinds !== 'raw info instances') out.push('controls ' + kinds);
+            if (kinds !== 'raw info bar instances') out.push('controls ' + kinds);
             // A prompt's legend: its title, then its vignette's id, no Raw of
             // its own (the session's one is in the controls row).
             const inset = (e) => { const s = getComputedStyle(e); return s.paddingTop + ' ' + s.paddingBottom; };
@@ -714,6 +723,10 @@ struct BibliographicExplicationSessionsTests {
         try await expect(session).toHaveAttribute("data-computorium-session-status", "succeeded")
         let streamed = try await page.evaluate(check, as: String.self)
         #expect(streamed.isEmpty, "live: \(streamed)")
+        // The replay's bar stays, sticking over the transcript's foot (user,
+        // 2026-10-29): scrolled past the session's end, it rests in the flow
+        // below the controls row, which a reader then reaches.
+        _ = try await page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
         try await toggle.click()
         try await expect(session).toHaveAttribute("data-raw-view", "true")
         try await expect(page.locator(".computorium-session-continuation-prompt pre.computorium-session-prompt-body")).toBeVisible()
