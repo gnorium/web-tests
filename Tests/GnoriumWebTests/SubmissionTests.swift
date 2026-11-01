@@ -593,7 +593,7 @@ struct SubmissionTests {
     try await form.locator("textarea[name='value']").fill("What the web tests word means")
     let box = form.locator(".quote-sources-view .quote-source").first
     try await box.locator("input[name='quote-s1-source-url']").fill(source)
-    try await box.locator("input[name='quote-s1-image']").fill("1")
+    try await box.locator("input[name='quote-s1-start-image']").fill("1")
     try await box.locator("textarea[name='quote-s1-quote']").fill("A web tests quote.")
     try await set(page, [("quote-s1-rights-statement", "noc_us")])
     try await form.locator(".record-actions button[type='submit']").click()

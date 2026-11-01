@@ -174,7 +174,7 @@ struct OriginEvidenceTests {
         // Its Source box: Source URL, Images, Quote.
         try await expect(card.locator("legend").first).toHaveText("Source")
         try await card.locator("input[name$='-source-url']").fill(source)
-        try await card.locator("input[name$='-image']").fill("1")
+        try await card.locator("input[name$='-start-image']").fill("1")
         try await card.locator("textarea[name$='-quote']").fill(Self.words)
         let role = card.locator(".dropdown-view:has(input[name$='-role'])")
         try await role.locator(".dropdown-trigger").click()

@@ -6,8 +6,8 @@ import WebTestsTesting
 /// A sentiment's quotes sit in Source boxes (user, 2026-11-01), the same
 /// pattern as the Voice and Agent boxes: each legended "Source", its fields
 /// in order Source (a permitted record › testament, asked for as the page
-/// opens, or a Source URL), Images (the image number, and whether the
-/// sentence runs onto the next), Quote (one sentence). "+ Source" stamps
+/// opens, or a Source URL), its Images start and optional Images end (the
+/// start or the next), Quote (one sentence). "+ Source" stamps
 /// another from the page's template, each "− Source" shown while there is
 /// more than one; the boxes' keys post in order. No Image URL field, and
 /// no "range" anywhere in the form.
@@ -33,8 +33,8 @@ struct QuoteSourcesTests {
       try await expect(sources.locator("[name$='image-url']")).toHaveCount(0)
       let order = try await first.evaluate(
         """
-        (box) => ['.quote-passage-record', "[name='quote-s1-source-url']", "[name='quote-s1-image']",
-          "[name='quote-s1-image-next']", "[name='quote-s1-quote']"]
+        (box) => ['.quote-passage-record', "[name='quote-s1-source-url']", "[name='quote-s1-start-image']",
+          "[name='quote-s1-end-image']", "[name='quote-s1-quote']"]
           .map((s) => box.querySelector(s))
           .every((el, i, all) => el && (i === 0 || (all[i - 1].compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)))
         """
@@ -74,7 +74,8 @@ struct QuoteSourcesTests {
   }
 
   /// A testament's digitization has the same Source box: its Source URL,
-  /// then the Images it covers (empty: all of them), and no Quote.
+  /// then its Images start and Images end, frozen (its source's first and
+  /// last, filled once the Source URL is read), and no Quote.
   @Test(arguments: gnorium.engines)
   func aTestamentsDigitizationHasASourceBox(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine)) { page in
@@ -85,13 +86,15 @@ struct QuoteSourcesTests {
       let shape = try await box.evaluate(
         """
         (b) => {
-          const url = b.querySelector("[name='source-url']"), images = b.querySelector("[name='images']");
-          return !!url && !!images && !b.querySelector("textarea")
-            && !!(url.compareDocumentPosition(images) & Node.DOCUMENT_POSITION_FOLLOWING) && images.value === '';
+          const url = b.querySelector("[name='source-url']"), start = b.querySelector("[name='testament-start-image']"),
+            end = b.querySelector("[name='testament-end-image']");
+          return !!url && !!start && !!end && !b.querySelector("textarea") && start.disabled && end.disabled
+            && !!(url.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING)
+            && !!(start.compareDocumentPosition(end) & Node.DOCUMENT_POSITION_FOLLOWING) && start.value === '';
         }
         """
       ).bool
-      #expect(shape == true, "Source URL, then empty Images, and no Quote")
+      #expect(shape == true, "Source URL, then Images start and Images end frozen and empty until it is read, and no Quote")
       try await page.expectNoErrors()
     }
   }
