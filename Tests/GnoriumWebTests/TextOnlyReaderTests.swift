@@ -6,9 +6,10 @@ import WebTestsTesting
 /// A quote in a record with no source (a provisional quote, user
 /// 2026-11-01) is read in the text-only reader, on its submission's page as
 /// any quote is: its sentence the text, named by its page as printed (its
-/// `<biblScope unit="page">`), and only what text alone needs—Reflow at the
-/// footer's start, fullscreen at its end, Find at the header's end; no XML,
-/// Header, Detach, Overlay, Image switch or pager.
+/// `<biblScope unit="page">`), and only what text alone needs—XML (the body
+/// of the TEI its reader builds in memory, never a header: user, 2026-11-02)
+/// and Reflow at the footer's start, fullscreen at its end, Find at the
+/// header's end; no Header, Detach, Overlay, Image switch or pager.
 @Suite("Text-only reader")
 struct TextOnlyReaderTests {
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
@@ -53,12 +54,14 @@ struct TextOnlyReaderTests {
         try await expect(viewer.locator(".artifact-markup .tei-page-text").first).toHaveText("Hamlet, revenge.")
         // Named by its page as printed.
         try await expect(viewer.locator(".artifact-canvas-label"), timeout: .seconds(10)).toHaveText("sig. B2r")
-        // Reflow and fullscreen in the footer, Find in the header; nothing else.
+        // XML, Reflow and fullscreen in the footer, Find in the header;
+        // nothing else.
         let footer = viewer.locator(".artifact-footer")
+        try await expect(footer.locator(".artifact-xml-toggle")).toHaveCount(1)
         try await expect(footer.locator(".artifact-reflow-toggle")).toHaveCount(1)
         try await expect(footer.locator(".artifact-fullscreen-button")).toHaveCount(1)
         for absent in [
-          ".artifact-xml-toggle", ".artifact-header-toggle", ".artifact-detach-toggle", ".artifact-overlay-toggle",
+          ".artifact-header-toggle", ".artifact-detach-toggle", ".artifact-overlay-toggle",
           ".artifact-page-nav", ".artifact-canvas-toggle", ".artifact-english-toggle",
         ] {
           try await expect(viewer.locator(absent)).toHaveCount(0)
@@ -91,6 +94,16 @@ struct TextOnlyReaderTests {
         try await expect(viewer).toHaveAttribute("data-reflow", "true")
         let wrapped = try await markup.locator(".tei-line").first.evaluate("(l) => getComputedStyle(l).whiteSpace").string ?? ""
         #expect(!wrapped.hasPrefix("nowrap"), "reflowed, it wraps: \(wrapped)")
+        // XML: the sentence's page as the TEI in memory holds it, its body
+        // alone, no header.
+        try await footer.locator(".artifact-xml-toggle button").click()
+        let code = markup.locator(".tei-page-raw .code-code").first
+        try await expect(code, timeout: .seconds(5)).toBeVisible()
+        try await expect(code).toContainText("<text><body>")
+        try await expect(code).toContainText("<p>Hamlet, revenge.</p>")
+        try await expect(code).toContainText("</body></text>")
+        try await expect(code).not.toContainText("teiHeader")
+        try await expect(markup.locator(".tei-page-text").first).toBeHidden()
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }
