@@ -6,8 +6,8 @@ import WebTestsTesting
 /// The lexico-record page (SENSES-DESIGN 8.4, W4): a leaf's selected quote is
 /// read in its testament—the testament reader (an artifact), fetched as it
 /// comes into view, opened at the quote's page with its image off, its Header
-/// switch present and off, its XML switch its own (the record's definition
-/// boxes keep theirs: neither follows the other)—and the leaf ends with "View
+/// switch present and off (its document declares a header), its XML switch
+/// its own—and the leaf ends with "View
 /// all (n)", n its live assigned quotes, leading to the biblio-records'
 /// quotes filtered by its UUID, the filter shown in the filter bar. The
 /// sidebar counts the sentiments per level, with their marks, as visible
@@ -30,7 +30,11 @@ struct LexicoRecordArtifactsTests {
     func lines(_ number: Int) -> String {
       (1...10).map { "<s>Page \(number), line \($0).</s><lb/>" }.joined()
     }
-    return "<TEI><teiHeader><fileDesc><titleStmt><title>Web tests artifact</title></titleStmt></fileDesc></teiHeader>"
+    // A header the document declares (`TEIRenderer.declaredHeader`: one
+    // that declares its renditions), which the reader's Header switch shows.
+    return "<TEI><teiHeader><fileDesc><titleStmt><title>Web tests artifact</title></titleStmt></fileDesc>"
+      + #"<encodingDesc><tagsDecl><rendition xml:id="size-1" scheme="css">font-size:1rem</rendition></tagsDecl></encodingDesc>"#
+      + "</teiHeader>"
       + "<text><body>"
       + page(1, "<p>\(lines(1))</p>")
       + page(2, "<p>\(lines(2))</p>")
@@ -91,17 +95,11 @@ struct LexicoRecordArtifactsTests {
         try await expect(viewer.locator(".artifact-header-toggle")).toHaveCount(1)
         try await expect(viewer).toHaveAttribute("data-header", "false")
 
-        // Its XML switch is its own: the definition box keeps its rendering.
-        let definition = row.locator(".sentiment-definition-view").first
-        try await expect(definition).toHaveAttribute("data-raw", "false")
+        // Its XML switch is its own (a sentiment's value is its header, no
+        // box of its own to switch: 2026-10-28).
         try await viewer.locator(".artifact-xml-toggle button").click()
         try await expect(viewer).toHaveAttribute("data-raw", "true")
-        try await expect(definition).toHaveAttribute("data-raw", "false")
-        // And the definition's XML switch leaves the artifact as it is.
         try await viewer.locator(".artifact-xml-toggle button").click()
-        try await expect(viewer).toHaveAttribute("data-raw", "false")
-        try await definition.locator(".sentiment-definition-xml-toggle button").click()
-        try await expect(definition).toHaveAttribute("data-raw", "true")
         try await expect(viewer).toHaveAttribute("data-raw", "false")
         // The Header and XML switches are exclusive: the header on, the
         // XML off.
