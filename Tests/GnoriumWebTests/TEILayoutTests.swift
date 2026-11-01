@@ -221,6 +221,94 @@ struct TEILayoutTests {
     try await admin.remove()
   }
 
+  /// A two-line drop initial (Hamlet Q1 p. 3, user 2026-11-01): the S of
+  /// "1. STand: who is that?" is its line's letter alone, its zone covering
+  /// the line below too, so the reader drops it through both: the letter in
+  /// the text's face, its cap from the first line's cap height to the
+  /// second's baseline, and "2. Tis I." begins after it, under "Tand",
+  /// never repeating it. Neither line grows; the line below the drop is a
+  /// line of its own.
+  static let dropInitialTEI = #"""
+    <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader>
+    <facsimile><surface n="1" ulx="0" uly="0" lrx="1000" lry="1000"><graphic url="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/>
+    <zone xml:id="p1-z-L1" ulx="320" uly="444" lrx="480" lry="463"/><zone xml:id="p1-z-L2" ulx="320" uly="461" lrx="400" lry="477"/>
+    <zone xml:id="p1-z-L3" ulx="320" uly="478" lrx="600" lry="494"/><zone xml:id="p1-z-fig-1" type="initial" ulx="344" uly="446" lrx="363" lry="474"/></surface></facsimile>
+    <text><body>
+    <pb n="1" facs="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/>
+    <ab><lb facs="#p1-z-L1"/>1. <w lemma="stand" class="verb"><hi rend="initial" facs="#p1-z-fig-1">S</hi>Tand</w>: <w lemma="who" class="pronoun">who</w> <w lemma="be" class="verb">is</w> <w lemma="that" class="pronoun">that</w>?<lb facs="#p1-z-L2"/>2. <w lemma="it" class="pronoun">Tis</w> <w lemma="I" class="pronoun">I</w>.<lb facs="#p1-z-L3"/>1. <w lemma="you" class="pronoun">O</w> <w lemma="you" class="pronoun">you</w> <w lemma="come" class="verb">come</w></ab>
+    </body></text></TEI>
+    """#
+
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func aTwoLineInitialDropsBesideTheLineBelow(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let reading = try ScratchReading(owner: admin, tei: Self.dropInitialTEI)
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+        try await page.openHydrated(reading.path)
+        let text = page.locator(".tei-page-text").first
+        let lines = text.locator(".tei-line")
+        try await expect(lines).toHaveCount(3)
+        // The letter once, its line's, in the text's face: never a crop.
+        let initial = text.locator(".tei-drop-initial")
+        try await expect(initial).toHaveCount(1)
+        try await expect(initial).toHaveAttribute("data-drop", "2")
+        try await expect(initial.locator("img")).toHaveCount(0)
+        try await expect(lines.nth(0)).toHaveText("1. STand: who is that?")
+        try await expect(lines.nth(1)).toHaveText("2. Tis I.")
+        try await expect(lines.nth(2)).toHaveText("1. O you come")
+        // The line beside it holds its room, no text.
+        let hang = lines.nth(1).locator(".tei-drop-hang")
+        try await expect(hang).toHaveCount(1)
+        try await expect(hang).toHaveAttribute("data-letter", "S")
+        try await expect(lines.nth(0).locator(".tei-drop-hang")).toHaveCount(0)
+        try await expect(lines.nth(2).locator(".tei-drop-hang")).toHaveCount(0)
+        let first = try #require(try await lines.nth(0).boundingBox())
+        let second = try #require(try await lines.nth(1).boundingBox())
+        let third = try #require(try await lines.nth(2).boundingBox())
+        // No line grows: each as tall as the line below the drop.
+        #expect(abs(first.height - third.height) < 1)
+        #expect(abs(second.height - third.height) < 1)
+        // The letter's ink, as the overlay reads a glyph's (its range's font box less the font's ascent, plus
+        // the glyph's own): its baseline the second line's ("Tis"), its cap the first line's ("Tand"'s T),
+        // and "Tis" begins where "Tand" does, after the letter's room. In em of the line's type.
+        let measured = try await page.evaluate(
+          """
+          (() => {
+            const text = document.querySelector('.tei-page-text');
+            const context = document.createElement('canvas').getContext('2d');
+            const ink = node => {
+              const range = document.createRange();
+              range.setStart(node, 0); range.setEnd(node, 1);
+              const rect = range.getBoundingClientRect(), style = getComputedStyle(node.parentElement);
+              context.font = style.fontStyle + ' ' + style.fontWeight + ' ' + style.fontSize + ' ' + style.fontFamily;
+              const metrics = context.measureText(node.data.slice(0, 1));
+              const scale = rect.height / (metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent);
+              const base = rect.top + metrics.fontBoundingBoxAscent * scale;
+              return {left: rect.left, top: base - metrics.actualBoundingBoxAscent * scale, base};
+            };
+            const runs = [...text.querySelectorAll('.tei-run')];
+            const letter = ink(text.querySelector('.tei-drop-letter').firstChild);
+            const tand = ink(runs.find(run => run.textContent === 'Tand').firstChild);
+            const tis = ink(runs.find(run => run.textContent === 'Tis').firstChild);
+            const em = parseFloat(getComputedStyle(runs.find(run => run.textContent === 'Tis')).fontSize);
+            return [Math.abs(letter.base - tis.base) / em, Math.abs(letter.top - tand.top) / em,
+              Math.abs(tis.left - tand.left) / em];
+          })()
+          """, as: [Double].self)
+        #expect(measured.count == 3 && measured.allSatisfy { $0 < 0.15 }, "baseline, cap and start apart, em: \(measured)")
+        try await page.expectNoHorizontalOverflow()
+      }
+    } catch {
+      reading.remove()
+      try await admin.remove(after: error)
+    }
+    reading.remove()
+    try await admin.remove()
+  }
+
   /// A figure keeps its box through submission (user, 2026-09-29; FIGURES.md
   /// phase 2): a zone of the document's facsimile, named by the figure's
   /// facs, cut from the page's IIIF image as a crop in the madrigal's
