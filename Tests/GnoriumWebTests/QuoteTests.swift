@@ -75,18 +75,19 @@ struct QuoteTests {
         try await expect(row).toHaveAttribute("data-open-finished", "true")
         let quote = attestation.locator(".testament-view")
         try await expect(quote).toHaveCount(1)
-        // Headed by its Source box (user, 2026-11-01), the form's fields
-        // read-only, above the reader, nothing else: no citation line, no
-        // breadcrumb, no header box.
+        // Headed by its Source box (user, 2026-11-02), only what the
+        // artifact does not hold: its source, read-only, above the reader;
+        // no citation line, no breadcrumb, no header box, no Images or
+        // Quote field.
         try await expect(attestation.locator(".chicago-citation-view")).toHaveCount(0)
         let heading = attestation.locator(".attestation-quote > .quote-source-view")
         try await expect(heading).toHaveCount(1)
         let work = scratch.reading.work
         try await expect(heading.locator(".accordion-title").first).toHaveText("Source")
         try await heading.locator(".accordion-summary").first.click()
-        try await expect(heading.locator(".quote-source-fields .datum-view")).toHaveCount(3)
+        try await expect(heading.locator(".quote-source-fields .datum-view")).toHaveCount(1)
         try await expect(heading.locator(".quote-source-fields")).toContainText(work.title)
-        try await expect(heading.locator(".quote-source-fields")).toContainText("Images start")
+        try await expect(heading.locator(".quote-source-fields")).not.toContainText("Images start")
         let headingAbove = try await attestation.evaluate(
           "(view) => { const h = view.querySelector('.quote-source-view').getBoundingClientRect(); const q = view.querySelector('.testament-view').getBoundingClientRect(); return h.bottom <= q.top }")
         #expect(headingAbove == .bool(true), "the Source box is not above the quote")
