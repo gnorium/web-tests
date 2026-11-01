@@ -157,7 +157,7 @@ struct GlossTests {
         let translation = details.locator(".lexicographic-equivalents-view a").filter(hasText: german.title)
         try await expect(translation).toBeVisible()
         try await expect(translation).toHaveAttribute("href", "\(german.path)#record-row-\(german.leaf)")
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectArtifactsUnclipped()
 
         // Closed by a click, the word has the focus again, with no focus
         // ring; the reader under it where it was.
@@ -250,7 +250,7 @@ struct GlossTests {
         #expect(open == .bool(true), "the word clicked is not expanded")
         try await expect(opened.locator(".gloss-word")).toContainText("scratchword")
         try await expect(opened.locator(".gloss-word")).toContainText(english.title)
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectArtifactsUnclipped()
         try await page.keyboard.press("Escape")
         try await expect(page.locator(".gloss-sheet[data-state='open']")).toHaveCount(0)
         try await page.expectNoErrors(ignoring: ["Failed to fetch"])

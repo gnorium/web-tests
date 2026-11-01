@@ -332,6 +332,9 @@ struct OriginTests {
 
       // Pick the original's record: the typed fields go; its testaments
       // follow, to name one by.
+      // The pointer off the Title's info icon the closing menu left it on, so
+      // its bubble covers nothing the test clicks next.
+      try await certainty.locator(".dropdown-label-text").hover()
       let picker = record.locator(".dropdown-view").first
       try await picker.locator(".dropdown-trigger").click()
       try await picker.locator(".dropdown-search-input .search-input").fill(original.suffix)
@@ -348,6 +351,7 @@ struct OriginTests {
       let edition = node.locator(".dropdown-option").filter(hasText: "First edition")
       try await expect(edition).toHaveCount(1)
       let editionID = try await edition.getAttribute("data-value") ?? ""
+      try await certainty.locator(".dropdown-label-text").hover()
       try await node.locator(".dropdown-trigger").click()
       try await edition.click()
       // The form's sentence names the record, its term previewing it (and

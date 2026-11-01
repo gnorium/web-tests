@@ -153,7 +153,7 @@ struct ReaderHeaderTests {
         try await expect(page.locator(".artifact-view .artifact-canvas-label").first).toHaveText("p1")
         check(try await Self.header(page), "madrigal", control: control, icon: icon)
         try await shoot(page, "madrigal")
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectArtifactsUnclipped()
 
         // The record page's reader, fetched into its row.
         try await page.openHydrated(work.path)
@@ -165,7 +165,7 @@ struct ReaderHeaderTests {
         try await expect(page.locator(".artifact-view .artifact-canvas-label").first).toHaveText("p1")
         check(try await Self.header(page), "record page", control: control, icon: icon)
         try await shoot(page, "record")
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectArtifactsUnclipped()
 
         // The overture's reader: the work's testament, its markup the
         // newest its line has made.
@@ -174,7 +174,7 @@ struct ReaderHeaderTests {
         try await expect(page.locator(".artifact-view .artifact-canvas-label").first).toHaveText("p1")
         check(try await Self.header(page), "overture", control: control, icon: icon)
         try await shoot(page, "overture")
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectArtifactsUnclipped()
 
         // No page image (a source no manifest answers for): Raw and Find,
         // which need the markup, and no image switch, which needs a
