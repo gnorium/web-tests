@@ -27,9 +27,10 @@ struct DerivedMetadataModesTests {
         let submit = page.locator(".submit-sentiment-form .lexico-record-metadata-view")
         try await expect(submit).toHaveCount(1)
         try await expect(submit.locator("input[name='title']")).toBeVisible()
-        try await expect(submit.locator(".derived-forms-view")).toHaveCount(1)
-        // No forms yet: one frozen "Forms" field, never an empty Form row.
-        try await expect(submit.locator(".derived-forms-view input[disabled][placeholder='Forms']")).toHaveCount(1)
+        try await expect(submit.locator(".variant-forms-field-view")).toHaveCount(1)
+        // No forms yet: one frozen "Forms" field, never an empty Form row;
+        // "+ Form" adds one (user, 2026-11-01: forms are submitted too).
+        try await expect(submit.locator(".variant-forms-field-view input[disabled][placeholder='Forms']")).toHaveCount(1)
         try await expect(submit.locator(".derived-forms-card")).toHaveCount(0)
         for label in Self.derived {
           try await expect(submit.locator("input[disabled][placeholder='\(label)']")).toHaveCount(1)
@@ -43,7 +44,8 @@ struct DerivedMetadataModesTests {
         // An amendment: every derived field frozen, its placeholder.
         try await page.openHydrated("\(word.path)/amendments/new")
         let amendment = page.locator(".lexico-record-metadata-view").first
-        try await expect(amendment.locator(".derived-forms-view")).toHaveCount(1)
+        try await expect(amendment.locator(".variant-forms-field-view")).toHaveCount(1)
+        try await expect(amendment.locator(".variant-forms-add-btn")).toHaveCount(1)
         // Each field shows: its value as a datum, or empty, its placeholder.
         let labels = Self.derived.map { "'\($0)'" }.joined(separator: ", ")
         let missing = try await amendment.evaluate(
