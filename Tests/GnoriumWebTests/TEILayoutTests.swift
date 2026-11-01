@@ -385,9 +385,11 @@ struct TEILayoutTests {
               .closest('.tei-block').getBoundingClientRect();
             const gap = (a, b) => Math.round(line(b).top - line(a).bottom);
             const spaces = [...text.querySelectorAll('.tei-space')];
+            // In the layout's own pixels: the page is drawn scaled to its pane, and a
+            // client rect is the scaled box while a computed line height is not.
             const lh = parseFloat(getComputedStyle(text.querySelector('.tei-line')).lineHeight);
             return [gap('First', 'Second'), gap('Verse one', 'Verse two'), gap('Second', 'Verse one'),
-              spaces.length, ...spaces.map(s => Math.round(s.getBoundingClientRect().height / lh * 10) / 10)].join(' ');
+              spaces.length, ...spaces.map(s => Math.round(s.offsetHeight / lh * 10) / 10)].join(' ');
           })()
           """, as: String.self)
         #expect(measured == "0 0 0 2 2 1", "paragraph gap, verse gap, stanza gap, spaces and their heights in lines: \(measured)")
