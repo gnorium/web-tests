@@ -311,15 +311,11 @@ struct EntriesAndCitationsTests {
         // medium too, its text 16px; its buttons 40, their icons alone in
         // their boxes as tall as the 22px line, as every icon-only control.
         // Medium, a step down under the phone step on a phone, the find
-        // field with them; the page pager stays medium there, 40 and 16px,
-        // the least a thumb is asked to hit (PaginationView, Option B).
+        // field and the page pager with them.
         let control = try await page.controlHeight("medium")
         let type = try await page.controlFontSize("medium")
         let icon = try await page.controlIconSize()
         let row = try await page.length("calc(\(control) + 2 * var(--spacing-8))")
-        let pagerControl = try await page.length(
-          "calc(2 * var(--spacing-8) + var(--line-height-small-22) + 2 * var(--border-width-base))")
-        let pagerType = try await page.length("var(--font-size-medium-16)")
         let px = { (length: String) in Int(Double(length.replacingOccurrences(of: "px", with: "")) ?? -1) }
         let off = try await viewer.evaluate(
           """
@@ -332,8 +328,8 @@ struct EntriesAndCitationsTests {
             const out = [];
             if (h(row) !== \(px(row))) out.push('header row ' + h(row));
             if (!pager.classList.contains('pagination-size-medium')) out.push('pager ' + pager.className);
-            if (h(pager.querySelector('.pagination-prev')) !== \(px(pagerControl))) out.push('pager button ' + h(pager.querySelector('.pagination-prev')));
-            if (getComputedStyle(pager.querySelector('.page-box')).fontSize !== '\(pagerType)') out.push('page box ' + getComputedStyle(pager.querySelector('.page-box')).fontSize);
+            if (h(pager.querySelector('.pagination-prev')) !== \(px(control))) out.push('pager button ' + h(pager.querySelector('.pagination-prev')));
+            if (getComputedStyle(pager.querySelector('.page-box')).fontSize !== '\(type)') out.push('page box ' + getComputedStyle(pager.querySelector('.page-box')).fontSize);
             if (el.closest('.search-input-view').dataset.size !== 'medium') out.push('field size ' + el.closest('.search-input-view').dataset.size);
             if (h(el) !== \(px(control))) out.push('field ' + h(el));
             if (css.fontSize !== '\(type)') out.push('field text ' + css.fontSize);
