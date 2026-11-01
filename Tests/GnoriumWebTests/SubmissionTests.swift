@@ -371,7 +371,7 @@ struct SubmissionTests {
     try await expect(number).toHaveText("1.2")
     try await expect(row(tree, "manifest").locator(".record-row-number").first).toHaveText("1.2.1")
     try await expect(copy.locator(".testament-metadata-acquisition")).toBeVisible()
-    try await expect(row(tree, "manifest").locator(".activity-statement-view[data-as-namespace='digitization']"))
+    try await expect(row(tree, "manifest").locator(".activity-statement-view[data-as-namespace='reproduction']"))
       .toBeVisible()
     try await expect(tree.locator("#new-testament-carrier")).toBeDisabled()
     // Named by its copy label as it is typed.
