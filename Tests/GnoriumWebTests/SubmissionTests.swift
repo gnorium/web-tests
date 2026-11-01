@@ -593,8 +593,13 @@ struct SubmissionTests {
     try await form.locator("textarea[name='value']").fill("What the web tests word means")
     let box = form.locator(".quote-sources-view .quote-source").first
     try await box.locator("input[name='quote-s1-source-url']").fill(source)
-    try await box.locator("input[name='quote-s1-start-image']").fill("1")
-    try await box.locator("textarea[name='quote-s1-quote']").fill("A web tests quote.")
+    // The image on screen and the sentence typed in its reader's text pane
+    // (user, 2026-11-02), as the reader fills them.
+    _ = try await box.evaluate(
+      """
+      (b) => { b.querySelector("input[name='quote-s1-start-image']").value = '1';
+        b.querySelector("input[name='quote-s1-quote']").value = 'A web tests quote.'; return true; }
+      """)
     try await set(page, [("quote-s1-rights-statement", "noc_us")])
     try await form.locator(".record-actions button[type='submit']").click()
     try await expect(page, timeout: .seconds(15)).toHaveURL("its overture's page") {

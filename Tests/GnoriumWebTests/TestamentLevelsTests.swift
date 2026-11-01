@@ -63,7 +63,7 @@ struct TestamentLevelsTests {
       // agents and date, then its place (its Forms are derived, never typed); a copy's Acquisition, then
       // its Production as an imprint gives it (place, agents, date); a
       // digitization's provider, agents and date, then its place and its own
-      // fields.
+      // fields; its URL in its Source accordion after them.
       let order = try await form.evaluate(
         """
         (form) => {
@@ -75,8 +75,10 @@ struct TestamentLevelsTests {
             "[data-item-list='as-publication']", "[name='as-publication-year']", "[name='as-publication-place']",
             '#testament-copy-label', ".activity-statement-view[data-as-namespace='production']",
             ".activity-statement-view[data-as-namespace='reproduction']", "[name='provider-dropdown']",
-            "[data-item-list='as-reproduction']", "[name='as-reproduction-place']", '#testament-source-url',
-            '#testament-digitization-license',
+            "[data-item-list='as-reproduction']", "[name='as-reproduction-place']",
+            // The leaf's URL in its Source accordion, under its Metadata and
+            // its Note (user, 2026-11-02).
+            '#testament-digitization-license', '#testament-source-url',
           ];
           for (let i = 1; i < chain.length; i++) {
             const a = at(chain[i - 1]), b = at(chain[i]);

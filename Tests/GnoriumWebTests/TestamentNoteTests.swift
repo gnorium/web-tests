@@ -32,7 +32,8 @@ struct TestamentNoteTests {
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(work.path)
-        // A testament's: frozen, labeled, above its row's Metadata.
+        // A testament's: frozen, labeled, under its row's Metadata (user,
+        // 2026-11-02: Metadata › Note › Source).
         let note = page.locator(".record-row-view textarea[name='edition_note']")
         try await expect(note).toHaveCount(1)
         try await expect(note).toHaveValue(Self.note)
@@ -47,13 +48,13 @@ struct TestamentNoteTests {
         try await expect(metadata.locator("textarea[name='edition_note']")).toHaveCount(0)
         let box = try #require(try await field.boundingBox())
         let fields = try #require(try await metadata.boundingBox())
-        #expect(box.y + box.height <= fields.y)
-        // The root's: the work's Note above the record's Metadata.
+        #expect(fields.y + fields.height <= box.y)
+        // The root's: the work's Note under the record's Metadata.
         let root = page.locator("textarea[name='work_note']")
         try await expect(root).toHaveValue(Self.workNote)
         let rootBox = try #require(try await root.boundingBox())
         let rootMetadata = try #require(try await page.locator("#metadata .metadata-accordion-view").first.boundingBox())
-        #expect(rootBox.y + rootBox.height <= rootMetadata.y)
+        #expect(rootMetadata.y + rootMetadata.height <= rootBox.y)
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
 
@@ -151,11 +152,13 @@ struct TestamentNoteTests {
         try await expect(digitizationNote).toBeEnabled()
         try await expect(digitizationNote).toHaveAttribute("placeholder", "Note")
         try await digitizationNote.fill(Self.note)
-        // Above its node's Metadata.
+        // Under its node's Metadata, above its Source.
         let noteBox = try #require(try await digitizationNote.boundingBox())
         let metadataBox = try #require(
           try await manifest.locator(".metadata-accordion-view").first.boundingBox())
-        #expect(noteBox.y + noteBox.height <= metadataBox.y)
+        #expect(metadataBox.y + metadataBox.height <= noteBox.y)
+        let sourceBox = try #require(try await manifest.locator(".testament-source-view").first.boundingBox())
+        #expect(noteBox.y + noteBox.height <= sourceBox.y)
         try await expect(form.locator(".record-choice-field-view .record-choice-field-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         try await expect(form.locator(".testament-draft-reader .artifact-view"), timeout: .seconds(20)).toBeVisible()

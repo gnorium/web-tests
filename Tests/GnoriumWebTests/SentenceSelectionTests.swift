@@ -17,9 +17,9 @@ struct SentenceSelectionTests {
   static let service = "https://example.org/iiif/webtests-sentence-selection"
   static let tei = """
     <TEI><text><body><pb n="1" facs="\(service)/full/1300,/0/default.jpg"/>\
-    <p><s><w lemma="the" class="article">The</w> <w lemma="scratchword" class="noun">scratchwords</w> \
-    <w lemma="stand" class="verb">stood</w><pc>.</pc></s> \
-    <s><w lemma="they" class="pronoun">They</w> <w lemma="fall" class="verb"><choice><abbr>fel</abbr>\
+    <p><s><w xml:id="w1.1" lemma="the" class="article">The</w> <w xml:id="w1.2" lemma="scratchword" class="noun">scratchwords</w> \
+    <w xml:id="w1.3" lemma="stand" class="verb">stood</w><pc>.</pc></s> \
+    <s><w xml:id="w1.4" lemma="they" class="pronoun">They</w> <w xml:id="w1.5" lemma="fall" class="verb"><choice><abbr>fel</abbr>\
     <expan>fell</expan></choice></w><pc>.</pc></s></p></body></text></TEI>
     """
 
@@ -72,10 +72,10 @@ struct SentenceSelectionTests {
           #expect(color == "pointer", "the hand over a word: \(color)")
         }
 
-        // A tap selects it: the Quote filled, its words marked, its lemma
-        // magenta, no gloss.
+        // A tap selects it: the quote filled, its words marked, its lemma
+        // magenta (picked to begin with), no gloss.
         try await words.nth(2).click()
-        let quote = box.locator("textarea[name='quote-s1-quote']")
+        let quote = box.locator("input[name='quote-s1-quote']")
         try await expect(box.locator(".quote-passage-reader .tei-word.tei-highlight"), timeout: .seconds(5))
           .toHaveCount(3)
         let taken = try await quote.evaluate("(q) => q.value").string ?? ""
@@ -86,6 +86,19 @@ struct SentenceSelectionTests {
         try await expect(page.locator(".gloss-sheet[data-state='open']")).toHaveCount(0)
         let collapsed = try await page.evaluate("getSelection().isCollapsed").bool
         #expect(collapsed == true, "the selection let go once taken")
+        let picked = box.locator("input[name='quote-s1-words']")
+        try await expect(picked).toHaveValue("w1.2")
+
+        // The second step (user, 2026-11-02): a tap on another of its words
+        // picks it too; on a picked one lets it go, never the last.
+        try await words.nth(0).click()
+        try await expect(picked).toHaveValue("w1.1,w1.2")
+        try await words.nth(1).click()
+        try await expect(picked).toHaveValue("w1.1")
+        try await words.nth(0).click()
+        try await expect(picked).toHaveValue("w1.1")
+        let still = try await quote.evaluate("(q) => q.value").string ?? ""
+        #expect(still == "The scratchwords stood.", "the sentence stays taken: \(still)")
 
         // The next sentence replaces it.
         try await words.nth(3).click()

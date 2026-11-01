@@ -4,10 +4,9 @@ import WebTests
 import WebTestsTesting
 
 /// A sentiment's quotes sit in Source boxes (user, 2026-11-01), the same
-/// pattern as the Voice and Agent boxes: each legended "Source", its fields
-/// in order Source (a permitted record › testament, asked for as the page
-/// opens, or a Source URL), its Images start and optional Images end (the
-/// start or the next), Quote (one sentence). "+ Source" stamps
+/// pattern as the Voice and Agent boxes: each legended "Source", holding
+/// only what the artifact does not (user, 2026-11-02): its source (a
+/// permitted record › leaf, or a URL) and a sourceless record's Pages. "+ Source" stamps
 /// another from the page's template, each "− Source" shown while there is
 /// more than one; the boxes' keys post in order. No Image URL field, and
 /// no "range" anywhere in the form.
@@ -29,7 +28,8 @@ struct QuoteSourcesTests {
       try await expect(first.locator(".quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
         .toHaveCount(1)
       try await expect(first.locator(".quote-passage-record input[name='quote-s1-record']")).toHaveCount(1)
-      // No Image URL; Source, Images, Quote in that order.
+      // No Image URL; its source, then the hidden quote and images the
+      // reader fills, in that order.
       try await expect(sources.locator("[name$='image-url']")).toHaveCount(0)
       let order = try await first.evaluate(
         """
@@ -39,7 +39,7 @@ struct QuoteSourcesTests {
           .every((el, i, all) => el && (i === 0 || (all[i - 1].compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)))
         """
       ).bool
-      #expect(order == true, "the Source box reads Source, Images, Quote")
+      #expect(order == true, "the Source box reads its source, then what the reader fills")
       let text = try await sources.evaluate("(el) => el.textContent.toLowerCase()").string ?? ""
       #expect(!text.contains("range"), "the Source box says range")
       // One box: no "− Source".
@@ -73,28 +73,29 @@ struct QuoteSourcesTests {
     }
   }
 
-  /// A testament's digitization has the same Source box: its Source URL,
-  /// then its Images start and Images end, frozen (its source's first and
-  /// last, filled once the Source URL is read), and no Quote.
+  /// A testament leaf's Source accordion holds only its URL (user,
+  /// 2026-11-02): no Images start or end (its images are all of its
+  /// source's), no Quote; open on Submit, under the leaf's Metadata and Note.
   @Test(arguments: gnorium.engines)
   func aTestamentsDigitizationHasASourceBox(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine)) { page in
       try await page.openHydrated("/mission-control/submit/bibliographic/testament")
-      let box = page.locator(".testament-source")
+      let box = page.locator(".testament-source-view")
       try await expect(box).toHaveCount(1)
-      try await expect(box.locator(".form-item-legend").first).toHaveText("Source")
+      try await expect(box.locator(".accordion-title").first).toHaveText("Source")
+      let url = box.locator("input[name='source-url']")
+      try await expect(url).toBeVisible()
+      try await expect(url).toHaveAttribute("placeholder", "URL")
       let shape = try await box.evaluate(
         """
         (b) => {
-          const url = b.querySelector("[name='source-url']"), start = b.querySelector("[name='testament-start-image']"),
-            end = b.querySelector("[name='testament-end-image']");
-          return !!url && !!start && !!end && !b.querySelector("textarea") && start.disabled && end.disabled
-            && !!(url.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING)
-            && !!(start.compareDocumentPosition(end) & Node.DOCUMENT_POSITION_FOLLOWING) && start.value === '';
+          const note = document.querySelector("textarea[name='digitization_note']");
+          return !b.querySelector("[name='testament-start-image'], [name='testament-end-image'], textarea")
+            && !!note && !!(note.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
         }
         """
       ).bool
-      #expect(shape == true, "Source URL, then Images start and Images end frozen and empty until it is read, and no Quote")
+      #expect(shape == true, "its URL alone, after the leaf's Note")
       try await page.expectNoErrors()
     }
   }
@@ -102,15 +103,16 @@ struct QuoteSourcesTests {
   static let service = "https://example.org/iiif/webtests-source-box"
   static let tei = """
     <TEI><text><body><pb n="1" facs="\(service)/full/1300,/0/default.jpg"/>\
-    <p><s><w lemma="the" class="article">The</w> <w lemma="scratchword" class="noun">scratchwords</w> \
-    <w lemma="stand" class="verb">stood</w><pc>.</pc></s></p></body></text></TEI>
+    <p><s><w xml:id="w1.1" lemma="the" class="article">The</w> <w xml:id="w1.2" lemma="scratchword" class="noun">scratchwords</w> \
+    <w xml:id="w1.3" lemma="stand" class="verb">stood</w><pc>.</pc></s></p></body></text></TEI>
     """
 
-  /// A Source box shows only what is needed (user, 2026-11-01): a
-  /// permitted record's testament opens under it with its text pane, and
-  /// no Images or Quote; selecting the sentence there fills them (the
-  /// image it is on) and marks its words. A Source URL alone shows them,
-  /// as typed, where its source cannot be read.
+  /// A Source box holds only what is not in the artifact (user,
+  /// 2026-11-02): a permitted record's leaf opens under it with its text
+  /// pane, its URL filled in and frozen; selecting the sentence there fills
+  /// the hidden quote and image (the image it is on) and marks its words,
+  /// then a tap picks the quote's own word (magenta), posted by its
+  /// xml:id. With no record, the URL is typed, the record left empty.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aRecordsTextPaneTakesTheQuote(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -130,9 +132,9 @@ struct QuoteSourcesTests {
         try await expect(box.locator(".quote-passage-record input[name='quote-s1-record']"), timeout: .seconds(15))
           .toHaveCount(1)
         let typed = box.locator(".quote-passage-typed")
-        try await expect(typed).toBeVisible()
-        // The record picked: its testament read under the box, no Images
-        // or Quote.
+        try await expect(typed).toBeHidden()
+        try await expect(box.locator("textarea")).toHaveCount(0)
+        // The record picked: its leaf read under the box.
         _ = try await box.evaluate(
           """
           (b) => { const input = b.querySelector("input[name='quote-s1-record']");
@@ -141,7 +143,7 @@ struct QuoteSourcesTests {
           """)
         let words = box.locator(".quote-passage-reader .artifact-markup .tei-word")
         try await expect(words.first, timeout: .seconds(20)).toBeAttached()
-        try await expect(typed).toBeHidden()
+        try await expect(box.locator("input[name='quote-s1-source-url']")).toBeDisabled()
         // The sentence selected in its text pane fills the quote.
         _ = try await box.evaluate(
           """
@@ -151,24 +153,33 @@ struct QuoteSourcesTests {
             b.querySelector('.quote-passage-reader').dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
             return true; }
           """)
-        try await expect(box.locator("textarea[name='quote-s1-quote']")).toHaveValue("The scratchwords stood")
+        try await expect(box.locator("input[name='quote-s1-quote']")).toHaveValue("The scratchwords stood")
         try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1")
         try await expect(box.locator("input[name='quote-s1-end-image']")).toHaveValue("")
         try await expect(box.locator(".quote-passage-reader .tei-word.tei-highlight")).toHaveCount(3)
+        // The second step: a tap on its form word picks it, magenta.
+        _ = try await box.evaluate(
+          """
+          (b) => { getSelection().removeAllRanges();
+            const word = b.querySelector(".quote-passage-reader .artifact-markup .tei-word[data-word-id='w1.2']");
+            word.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); return true; }
+          """)
+        try await expect(box.locator(".quote-passage-reader .tei-word[data-highlight='title']")).toHaveCount(1)
+        try await expect(box.locator("input[name='quote-s1-words']")).toHaveValue("w1.2")
         try await page.expectNoHorizontalOverflow()
 
-        // No record, a Source URL that cannot be read: the fields as typed.
+        // No record: the URL typed, the record and its leaf empty.
         _ = try await box.evaluate(
           """
           (b) => { const input = b.querySelector("input[name='quote-s1-record']"); input.value = '';
             input.dispatchEvent(new Event('change', { bubbles: true })); return true; }
           """)
-        try await expect(typed, timeout: .seconds(10)).toBeVisible()
-        try await box.locator("input[name='quote-s1-source-url']").fill("https://web-tests.invalid/source-box.json")
+        let url = box.locator("input[name='quote-s1-source-url']")
+        try await expect(url, timeout: .seconds(10)).toBeEnabled()
+        try await url.fill("https://web-tests.invalid/source-box.json")
         try await Task.sleep(for: .milliseconds(1500))
-        try await expect(typed).toBeVisible()
-        try await expect(box.locator("input[name='quote-s1-start-image']")).toBeEnabled()
-        try await expect(box.locator("textarea[name='quote-s1-quote']")).toBeEnabled()
+        try await expect(typed).toBeHidden()
+        try await expect(box.locator("input[name='quote-s1-record']")).toHaveValue("")
       }
     } catch {
       testament?.remove()

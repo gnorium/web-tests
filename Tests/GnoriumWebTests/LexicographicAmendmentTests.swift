@@ -194,12 +194,17 @@ struct LexicographicAmendmentTests {
         let item = outline.locator(".outliner-item[data-outliner-id='s-1-1']")
         let dialog = page.locator(".sentiment-outliner-remove-dialog")
         let value = form.locator("textarea[name='new-sentiment-value']")
-        let quote = form.locator("textarea[name='new-sentiment-quote-s1-quote']")
+        let quote = form.locator("input[name='new-sentiment-quote-s1-quote']")
 
         // A new sentiment with its quote but no source nor image: it is
         // the amendment's one sentiment, and the others freeze.
         try await value.fill("A slope beside water.")
-        try await quote.fill("upon the bank, \"where the wild thyme\" grows")
+        // Its sentence as its reader's text pane fills it (user, 2026-11-02).
+        _ = try await quote.evaluate(
+          """
+          (input) => { input.value = 'upon the bank, "where the wild thyme" grows';
+            input.dispatchEvent(new Event('input', { bubbles: true })); return true; }
+          """)
         try await expect(item).toHaveAttribute("data-sentiment-frozen", "true")
         try await expect(outline.locator(".sentiment-outliner-hint[data-hint='add']")).toHaveAttribute(
           "data-visible", "true")
@@ -210,7 +215,7 @@ struct LexicographicAmendmentTests {
         // Submit.
         let refusal = page.locator(".submit-lexicographic-amendment-refusal")
         try await expect(refusal, timeout: .seconds(15)).toContainText(
-          "Give the quote's source: a permitted record, or the Source URL of a testament Gnorium does not have yet.")
+          "Give the quote's source: a permitted record, or the URL of a testament Gnorium does not have yet.")
         try await expect(page).toHaveURL("the form, not the error page") { $0.path.hasSuffix("/amendments") }
         try await expect(page.locator("form.submit-lexicographic-amendment-form")).toHaveCount(1)
         let above = try await page.evaluate(
@@ -237,7 +242,8 @@ struct LexicographicAmendmentTests {
         // Corrected—the new sentiment left out, so every sentiment is open
         // again, and a leaf removed instead—it files.
         try await value.fill("")
-        try await quote.fill("")
+        _ = try await quote.evaluate(
+          "(input) => { input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true })); return true; }")
         try await expect(item).toHaveAttribute("data-sentiment-frozen", "false")
         try await leaf.locator(".sentiment-outliner-remove").click()
         try await dialog.locator("button").filter(hasText: "Remove").first.click()
