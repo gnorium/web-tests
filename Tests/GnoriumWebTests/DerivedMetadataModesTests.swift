@@ -28,6 +28,9 @@ struct DerivedMetadataModesTests {
         try await expect(submit).toHaveCount(1)
         try await expect(submit.locator("input[name='title']")).toBeVisible()
         try await expect(submit.locator(".derived-forms-view")).toHaveCount(1)
+        // No forms yet: one frozen "Forms" field, never an empty Form row.
+        try await expect(submit.locator(".derived-forms-view input[disabled][placeholder='Forms']")).toHaveCount(1)
+        try await expect(submit.locator(".derived-forms-card")).toHaveCount(0)
         for label in Self.derived {
           try await expect(submit.locator("input[disabled][placeholder='\(label)']")).toHaveCount(1)
         }
