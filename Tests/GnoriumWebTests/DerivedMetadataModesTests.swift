@@ -5,8 +5,8 @@ import WebTestsTesting
 
 /// A lexico-record's derived Metadata (First attestation, Forms,
 /// Pronunciation, Use, Related words) by form (user, 2026-11-01): Submit
-/// Sentiment shows none of it, only what the submitter fills in; an
-/// amendment, a frozen form, shows every field, an empty one its
+/// Sentiment has the shape of the record it submits, its derived fields
+/// frozen; on it and an amendment every field shows, an empty one its
 /// placeholder (= its label), never "—". The record's own page, which
 /// hides an empty one, is covered by the server's render tests.
 @Suite("Derived metadata modes", .serialized)
@@ -14,21 +14,22 @@ struct DerivedMetadataModesTests {
   static let derived = ["Testament", "Place", "First user", "Date", "Hyphenation", "Rhymes", "Inflections"]
 
   @Test(arguments: gnorium.engines)
-  func submitHidesFrozenFormsShowPlaceholders(engine: BrowserEngine) async throws {
+  func formsShowFrozenPlaceholders(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let word = try ScratchWord(owner: admin)
     do {
       try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine), cookies: [admin.cookie]) {
         page in
-        // Submit Sentiment: the typed identity only.
+        // Submit Sentiment: the record's shape, its identity typed, every
+        // derived field frozen, its placeholder.
         try await page.openHydrated(SentimentFormTests.path)
         let submit = page.locator(".submit-sentiment-form .lexico-record-metadata-view")
         try await expect(submit).toHaveCount(1)
         try await expect(submit.locator("input[name='title']")).toBeVisible()
-        try await expect(submit.locator(".metadata-group-view, .datum-view, .derived-forms-view")).toHaveCount(0)
+        try await expect(submit.locator(".derived-forms-view")).toHaveCount(1)
         for label in Self.derived {
-          try await expect(submit.locator("[placeholder='\(label)']")).toHaveCount(0)
+          try await expect(submit.locator("input[disabled][placeholder='\(label)']")).toHaveCount(1)
         }
         // No dash in its fields (its Origin rows are their own field).
         let dashed = try await submit.evaluate(
