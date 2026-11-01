@@ -181,12 +181,13 @@ struct ComboboxTests {
     try await page.expectNoHorizontalOverflow()
     try await page.keyboard.press("Escape")
 
-    // MARK: Submitted, the typed values are stored as typed.
+    // MARK: Submitted, the typed values are stored as typed. An open work:
+    // Gnorium takes no other (TestamentRights).
     try await providerField.fill(typedProvider)
     _ = try await page.evaluate(
       """
       (() => {
-        for (const [id, value] of [['work-language', 'eng'], ['work-type', 'report']]) {
+        for (const [id, value] of [['work-language', 'eng'], ['work-type', 'report'], ['testament-rights-statement', 'noc_us']]) {
           const input = document.getElementById(id);
           input.value = value;
           input.dispatchEvent(new Event('change'));
@@ -279,11 +280,11 @@ struct ComboboxTests {
         try await page.expectNoHorizontalOverflow()
 
         // Submitted, the voice is its name and role: no record, no
-        // sentiment.
+        // sentiment. An open work: Gnorium takes no other (TestamentRights).
         _ = try await page.evaluate(
           """
           (() => {
-            for (const [id, value] of [['work-language', 'eng'], ['work-type', 'report']]) {
+            for (const [id, value] of [['work-language', 'eng'], ['work-type', 'report'], ['testament-rights-statement', 'noc_us']]) {
               const input = document.getElementById(id);
               input.value = value;
               input.dispatchEvent(new Event('change'));
