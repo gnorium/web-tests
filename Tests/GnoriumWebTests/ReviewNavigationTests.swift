@@ -150,7 +150,7 @@ struct ReviewNavigationTests {
           })()
           """)
         let source = page.locator(".submit-testament-form input[name='source-url']")
-        let reader = page.locator(".submit-testament-reader")
+        let reader = page.locator(".testament-draft-reader")
         for index in 0..<3 {
           // Distinct URLs produce distinct reader storage keys; the local
           // fixture serves the same manifest for each query.
@@ -162,7 +162,7 @@ struct ReviewNavigationTests {
           if index < 2 {
             _ = try await page.evaluate("""
               (() => {
-                const root = document.querySelector('.submit-testament-reader .artifact-view');
+                const root = document.querySelector('.testament-draft-reader .artifact-view');
                 const key = 'gnorium:artifact-canvas:' + root.dataset.manifestUrl;
                 window.webTestsOldReaders.push({root, key, page: root.querySelector('#artifact-page-input').value,
                   saved: localStorage.getItem(key), changes: 0});
@@ -184,7 +184,7 @@ struct ReviewNavigationTests {
           """, as: Bool.self))
         // Clearing the last URL also releases its listener without a
         // replacement load to happen to trigger cleanup.
-        _ = try await page.evaluate("window.webTestsClearedReader = document.querySelector('.submit-testament-reader .artifact-view')")
+        _ = try await page.evaluate("window.webTestsClearedReader = document.querySelector('.testament-draft-reader .artifact-view')")
         try await source.fill("")
         try await expect(reader.locator(".artifact-view")).toHaveCount(0)
         _ = try await page.evaluate("document.activeElement.blur()")

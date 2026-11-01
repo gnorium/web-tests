@@ -223,7 +223,7 @@ struct SubmissionTests {
     try await expect(field.locator(".record-choice-field-slot"), timeout: .seconds(20))
       .toHaveAttribute("aria-busy", "false")
     try await expect(form.locator(".record-choice-note")).toHaveCount(1)
-    try await expect(form.locator(".submit-testament-reader .artifact-view"), timeout: .seconds(20)).toBeVisible()
+    try await expect(form.locator(".testament-draft-reader .artifact-view"), timeout: .seconds(20)).toBeVisible()
 
     // Printed again, the impression and issue the manuscript took come back
     // in their places; each is taken out by its own −, the nodes under it

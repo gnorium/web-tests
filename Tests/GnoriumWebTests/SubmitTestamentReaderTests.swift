@@ -51,10 +51,10 @@ struct SubmitTestamentReaderTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(Self.form)
         let form = page.locator(".submit-testament-form")
-        let reader = form.locator(".submit-testament-reader")
+        let reader = form.locator(".testament-draft-reader")
         let source = form.locator("input[name='source-url']")
         let message = form.locator("#testament-source-url-validation-message .field-validation-message-text")
-        let alert = form.locator(".submit-testament-alert, .submit-testament-reader .alert-view")
+        let alert = form.locator(".submit-testament-alert, .testament-draft-reader .alert-view")
 
         // No URL: no viewer.
         try await expect(reader).toBeHidden()
@@ -74,6 +74,17 @@ struct SubmitTestamentReaderTests {
         try await expect(viewer.locator(".artifact-xml-toggle, .testament-find-button")).toHaveCount(0)
         try await expect(message).toHaveCount(0)
         try await expect(alert).toHaveCount(0)
+        // In the digitization node, below its Metadata, where the record
+        // page reads a digitization (user, 2026-11-01).
+        let placed = try await reader.evaluate(
+          """
+          (el) => {
+            const node = el.closest(".submission-tree-node[data-draft-level='5']");
+            const metadata = node && node.querySelector(".metadata-accordion-view");
+            return !!metadata && !!(metadata.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+          }
+          """)
+        #expect(placed == .bool(true), "the reader is not below the digitization node's Metadata")
 
         // Not a manifest: the viewer goes, and the field says why, an error
         // that blocks the form for this URL. Each answer is the server's

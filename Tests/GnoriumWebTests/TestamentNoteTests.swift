@@ -158,7 +158,7 @@ struct TestamentNoteTests {
         #expect(noteBox.y + noteBox.height <= metadataBox.y)
         try await expect(form.locator(".record-choice-field-view .record-choice-field-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
-        try await expect(form.locator(".submit-testament-reader .artifact-view"), timeout: .seconds(20)).toBeVisible()
+        try await expect(form.locator(".testament-draft-reader .artifact-view"), timeout: .seconds(20)).toBeVisible()
         try await Self.shoot(page, "notes-submit-\(layout)")
         _ = try await page.evaluate(
           "Promise.all(document.getAnimations().filter(a => a.effect?.getTiming().iterations !== Infinity).map(a => a.finished.catch(() => null))).then(() => 1)",
