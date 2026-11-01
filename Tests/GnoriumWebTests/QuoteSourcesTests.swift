@@ -98,4 +98,82 @@ struct QuoteSourcesTests {
       try await page.expectNoErrors()
     }
   }
+
+  static let service = "https://example.org/iiif/webtests-source-box"
+  static let tei = """
+    <TEI><text><body><pb n="1" facs="\(service)/full/1300,/0/default.jpg"/>\
+    <p><s><w lemma="the" class="article">The</w> <w lemma="scratchword" class="noun">scratchwords</w> \
+    <w lemma="stand" class="verb">stood</w><pc>.</pc></s></p></body></text></TEI>
+    """
+
+  /// A Source box shows only what is needed (user, 2026-11-01): a
+  /// permitted record's testament opens under it with its text pane, and
+  /// no Images or Quote; selecting the sentence there fills them (the
+  /// image it is on) and marks its words. A Source URL alone shows them,
+  /// as typed, where its source cannot be read.
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func aRecordsTextPaneTakesTheQuote(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    var testament: ScratchTestament?
+    func clean() async throws {
+      testament?.remove()
+      try await admin.remove()
+    }
+    do {
+      let scratch = try ScratchTestament(owner: admin, tei: Self.tei)
+      testament = scratch
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated(Self.sentimentForm)
+        let box = page.locator(".submit-sentiment-form .quote-source").first
+        try await expect(box.locator(".quote-passage-record input[name='quote-s1-record']"), timeout: .seconds(15))
+          .toHaveCount(1)
+        let typed = box.locator(".quote-passage-typed")
+        try await expect(typed).toBeVisible()
+        // The record picked: its testament read under the box, no Images
+        // or Quote.
+        _ = try await box.evaluate(
+          """
+          (b) => { const input = b.querySelector("input[name='quote-s1-record']");
+            input.value = '\(scratch.reading.work.recordID.lowercased())';
+            input.dispatchEvent(new Event('change', { bubbles: true })); return true; }
+          """)
+        let words = box.locator(".quote-passage-reader .artifact-markup .tei-word")
+        try await expect(words.first, timeout: .seconds(20)).toBeAttached()
+        try await expect(typed).toBeHidden()
+        // The sentence selected in its text pane fills the quote.
+        _ = try await box.evaluate(
+          """
+          (b) => { const words = b.querySelectorAll('.quote-passage-reader .artifact-markup .tei-word');
+            const range = document.createRange(); range.setStartBefore(words[0]); range.setEndAfter(words[2]);
+            const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range);
+            b.querySelector('.quote-passage-reader').dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+            return true; }
+          """)
+        try await expect(box.locator("textarea[name='quote-s1-quote']")).toHaveValue("The scratchwords stood")
+        try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1")
+        try await expect(box.locator("input[name='quote-s1-end-image']")).toHaveValue("")
+        try await expect(box.locator(".quote-passage-reader .tei-word.tei-highlight")).toHaveCount(3)
+        try await page.expectNoHorizontalOverflow()
+
+        // No record, a Source URL that cannot be read: the fields as typed.
+        _ = try await box.evaluate(
+          """
+          (b) => { const input = b.querySelector("input[name='quote-s1-record']"); input.value = '';
+            input.dispatchEvent(new Event('change', { bubbles: true })); return true; }
+          """)
+        try await expect(typed, timeout: .seconds(10)).toBeVisible()
+        try await box.locator("input[name='quote-s1-source-url']").fill("https://web-tests.invalid/source-box.json")
+        try await Task.sleep(for: .milliseconds(1500))
+        try await expect(typed).toBeVisible()
+        try await expect(box.locator("input[name='quote-s1-start-image']")).toBeEnabled()
+        try await expect(box.locator("textarea[name='quote-s1-quote']")).toBeEnabled()
+      }
+    } catch {
+      testament?.remove()
+      try await admin.remove(after: error)
+    }
+    try await clean()
+  }
 }

@@ -3,11 +3,10 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A testament's Forms are derived from the citations of it in the corpus,
-/// shown read-only on the record page and frozen in an amendment. A work's
-/// Forms are submitted with their quotes too (user, 2026-11-01): Submit
-/// Testament has the work's "+ Form" (`VariantFormsTests`) and no Form rows
-/// until one is added. Nothing is submitted.
+/// Forms are never typed (user, 2026-10-03): a testament's are derived
+/// from the citations of it in the corpus, shown read-only on the record
+/// page and frozen in an amendment. Submit Testament has no Form rows, at
+/// any level, nor the work. Nothing is submitted.
 @Suite("Testament forms")
 struct TestamentFormsTests {
   static let form = "/mission-control/submit/bibliographic/testament"
@@ -25,10 +24,9 @@ struct TestamentFormsTests {
         try await carrier.locator(".dropdown-option[data-value='print']").click()
         try await expect(form.locator("[data-item-list='title-form'], .title-form-json")).toHaveCount(0)
         try await expect(form.locator("button[aria-label='Add Form']")).toHaveCount(0)
-        try await expect(form.locator(".variant-form")).toHaveCount(0)
-        try await expect(form.locator("button[aria-label='Add form']")).toHaveCount(1)
-        // A new testament has no citations yet: no Forms list either.
-        try await expect(form.locator(".derived-forms-view")).toHaveCount(0)
+        // A new testament has no citations yet: its Forms one frozen field,
+        // the record's shape kept (derived, never typed).
+        try await expect(form.locator(".derived-forms-view input[name='derived-forms']").first).toBeDisabled()
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
       }
