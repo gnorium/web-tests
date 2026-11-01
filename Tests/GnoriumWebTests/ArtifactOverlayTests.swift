@@ -903,7 +903,10 @@ struct ArtifactOverlayTests {
             word.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await wait(100);
             const band=[...document.querySelectorAll('.image-word')].find(b=>!b.hidden);if(!band)return 'noband';
             const b=R(band),x=b.x+b.width/2,y=b.y+b.height/2;
-            o.dispatchEvent(new MouseEvent('mouseleave',{bubbles:true}));await wait(50);p.scrollTop=0;p.scrollLeft=0;await wait(50);
+            o.dispatchEvent(new MouseEvent('mouseleave',{bubbles:true}));
+            // The pointer off the word before its hover's preview opens (a wide screen's gloss, GlossSheetView.hoverDelay):
+            // what opens after the pan is the pan's alone.
+            o.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await wait(50);p.scrollTop=0;p.scrollLeft=0;await wait(50);
             const press=(down,up)=>{o.dispatchEvent(new MouseEvent('mousedown',{clientX:down[0],clientY:down[1],bubbles:true}));o.dispatchEvent(new MouseEvent('mouseup',{clientX:up[0],clientY:up[1],bubbles:true}));o.dispatchEvent(new MouseEvent('click',{clientX:up[0],clientY:up[1],bubbles:true}))};
             press([x,y],[x+20,y]);await wait(500);const open=()=>[...document.querySelectorAll('.gloss-sheet .sheet-panel')].some(e=>R(e).width>0),panned=!open();
             o.dispatchEvent(new MouseEvent('mouseleave',{bubbles:true}));press([x,y],[x,y]);await wait(600);
