@@ -83,7 +83,7 @@ struct RecordRowHeaderTests {
 
   /// A compact (minimal) header—none on a page yet, so a row's Metadata
   /// header is set compact: on one line its title centered in the pointer's
-  /// target, as before; wrapped, the same space above and below; the
+  /// target, as before; wrapped, its 4px padding above and below; the
   /// chevron on the title's first line either way.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aCompactHeadersOneLineStaysCentered(engine: BrowserEngine, layout: Layout) async throws {
@@ -133,6 +133,8 @@ struct RecordRowHeaderTests {
               "its title stands \(compact.above) down")
           } else {
             #expect(compact.height > compact.target, "the compact title does not wrap")
+            // Its padding alone above and below: 4px, never more.
+            #expect(abs(compact.above - 4) < 0.5, "a wrapped compact title stands \(compact.above) down")
           }
           #expect(abs(compact.above - compact.below) < 0.5, "wrapped \(wrapped): above \(compact.above) vs below \(compact.below)")
           #expect(abs(compact.chevron) < 0.5, "wrapped \(wrapped): its chevron stands \(compact.chevron) off its title")
