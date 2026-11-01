@@ -165,7 +165,7 @@ struct LexicoRecordArtifactsTests {
         }
         let counts = page.locator(".record-sidebar-view .record-level-counts-view").filter(visible: true).first
         try await expect(counts).toBeVisible()
-        try await expect(counts.locator(".record-level-counts-level")).toHaveTexts(["2 explicated"])
+        try await expect(counts.locator(".record-level-counts-level")).toHaveTexts(["\(width.depth) explicated"])
         try await expect(counts.locator(".record-level-counts-level .icon-view")).toHaveCount(1)
         try await expect(page.locator(".record-sidebar-view .record-level-view")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
