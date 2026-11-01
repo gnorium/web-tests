@@ -52,6 +52,9 @@ struct GlossPhraseTests {
           (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-row')
             .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
           """)
+        // Its words are clicked once it has opened: while it grows, what
+        // it holds moves under the pointer.
+        try await expect(page.locator(".accordion-details[data-motion='enter-to']")).toHaveCount(0)
         let reader = page.locator(".artifact-view .tei-view").first
         try await reader.locator(".tei-word[data-line='1'][data-word='3']").click()
         // A popover on a wide screen, the sheet over the pane on a narrow one (user, 2026-11-01).
@@ -62,10 +65,9 @@ struct GlossPhraseTests {
         try await expect(title.locator("a.record-label-title")).toHaveAttribute("href", word.path)
         let details = sheet.locator(".gloss-view")
         let term = details.locator(".metadata-group-view").first
-        try await expect(term.locator(".datum-label")).toHaveTexts(["Language", "Lemma", "Class"])
-        try await expect(term.locator(".datum-value")).toHaveTexts([
-          "English", "kick the bucket", "Idiom",
-        ])
+        // Its language and class are the header's, not rows again (user, 2026-11-01).
+        try await expect(term.locator(".datum-label")).toHaveTexts(["Lemma"])
+        try await expect(term.locator(".datum-value")).toHaveTexts(["kick the bucket"])
         try await expect(details.locator(".record-row-title[data-current='true']")).toHaveText("A leaf sense.")
         // Its words, the one opened expanded, each with its own gloss.
         let rows = details.locator(".gloss-word-row")

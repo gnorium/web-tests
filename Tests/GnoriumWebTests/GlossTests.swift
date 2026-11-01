@@ -77,6 +77,9 @@ struct GlossTests {
           (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-row')
             .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
           """)
+        // Its words are clicked once it has opened: while it grows, what
+        // it holds moves under the pointer.
+        try await expect(page.locator(".accordion-details[data-motion='enter-to']")).toHaveCount(0)
         let reader = page.locator(".artifact-view .tei-view").first
         let linked = reader.locator(".tei-word[data-line='1'][data-word='2']")
         try await expect(linked).toHaveText("scratchwords")
@@ -126,13 +129,14 @@ struct GlossTests {
         let term = details.locator(".metadata-group-view").first
         try await expect(term.locator(".metadata-group-title")).toHaveCount(0)
         // Its xml:id last: what its sentiment's assignment names it by.
+        // Its language and class are the header's, not rows again.
         try await expect(term.locator(".datum-label")).toHaveTexts([
-          "Language", "Lemma", "Class", "Number", "Identifier",
+          "Lemma", "Number", "Identifier",
         ])
         try await expect(term.locator(".datum-value")).toHaveTexts([
-          "English", "scratchword", "Noun", "Plural", "webtests-scratchwords",
+          "scratchword", "Plural", "webtests-scratchwords",
         ])
-        // Only the lemma links, to the record; class and language are plain.
+        // Only the lemma links, to the record.
         try await expect(term.locator(".datum-value a")).toHaveCount(1)
         try await expect(term.locator(".datum-value a")).toHaveAttribute("href", english.path)
         let rows = try await term.locator(".datum-view").first.evaluate(
@@ -179,7 +183,7 @@ struct GlossTests {
         try await expect(title.locator(".record-label-meta")).toHaveText("Verb")
         try await expect(title.locator("a")).toHaveCount(0)
         try await expect(details.locator(".metadata-group-view").first.locator(".datum-value")).toHaveTexts([
-          "English", "stand", "Verb", "Past",
+          "stand", "Past",
         ])
         try await expect(details.locator(".record-view")).toHaveCount(0)
         try await expect(details.locator(".metadata-group-title").filter(hasText: "Lexico-record")).toHaveCount(0)
