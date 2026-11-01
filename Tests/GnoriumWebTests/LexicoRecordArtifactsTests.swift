@@ -46,8 +46,24 @@ struct LexicoRecordArtifactsTests {
       + "</body></text></TEI>"
   }()
 
-  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aLeafReadsItsQuoteAsATestamentArtifact(engine: BrowserEngine, layout: Layout) async throws {
+  /// Where it is read: a 320 and a 375 phone, and a desktop; on the
+  /// smallest, a leaf five levels deep too.
+  enum Width: String, CaseIterable, Sendable, CustomStringConvertible {
+    case phone320, phone375, desktop, deepTree320
+    var viewport: Viewport {
+      switch self {
+      case .phone320, .deepTree320: return Viewport(width: 320, height: 700, deviceScaleFactor: 3, touch: true)
+      case .phone375: return .phone
+      case .desktop: return .desktop
+      }
+    }
+    var isPhone: Bool { self != .desktop }
+    var depth: Int { self == .deepTree320 ? 5 : 2 }
+    var description: String { rawValue }
+  }
+
+  @Test(arguments: [BrowserEngine.chrome], Width.allCases)
+  func aLeafReadsItsQuoteAsATestamentArtifact(engine: BrowserEngine, width: Width) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -67,13 +83,13 @@ struct LexicoRecordArtifactsTests {
         owner: admin,
         anchor: .init(
           recordID: scratch.reading.work.recordID, versionID: scratch.versionID, imageID: Self.service, page: 3,
-          line: 3, word: 3, surface: "scratchword"))
+          line: 3, word: 3, surface: "scratchword"), depth: width.depth)
       word = scratchWord
       assignment = try ScratchAssignment(
         owner: admin, testament: scratch, word: scratchWord, image: Self.service, wordID: "webtests-artifact-word",
         surface: "scratchword", lemma: "scratchword", wordClass: "noun")
       let leaf = scratchWord.leaf.lowercased()
-      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      try await withPage(engine, gnorium, viewport: width.viewport) { page in
         try await page.openHydrated(scratchWord.path)
 
         let row = page.locator("#record-row-\(scratchWord.leaf)")
@@ -94,6 +110,19 @@ struct LexicoRecordArtifactsTests {
         // Its Header switch present, off at first.
         try await expect(viewer.locator(".artifact-header-toggle")).toHaveCount(1)
         try await expect(viewer).toHaveAttribute("data-header", "false")
+        // Its footer one row, never scrolling on its own, the viewer as wide
+        // as it; on a plain page it fits, in a deep tree the tree scrolls.
+        let footer = try await viewer.evaluate(
+          """
+          (v) => { const f = v.querySelector('.artifact-footer');
+            const items = [...f.children].filter((c) => c.getClientRects().length > 0);
+            const top = items[0].getBoundingClientRect().top;
+            return [items.every((c) => Math.abs(c.getBoundingClientRect().top - top) < 2),
+              f.scrollWidth <= f.clientWidth + 1, v.getBoundingClientRect().width + 1 >= f.scrollWidth,
+              !!v.closest('.outliner-scroll'), Math.round(v.getBoundingClientRect().width)].join(' '); }
+          """
+        ).string ?? ""
+        #expect(footer.hasPrefix("true true true"), "the footer one row, the viewer as wide: \(footer)")
 
         // Its XML switch is its own (a sentiment's value is its header, no
         // box of its own to switch: 2026-10-28).
@@ -131,7 +160,7 @@ struct LexicoRecordArtifactsTests {
         // Its sentiments counted per level in the record's sidebar, as text:
         // both explicated, a disc beside the count; no single level.
         try await page.openHydrated(scratchWord.path)
-        if layout == .phone {
+        if width.isPhone {
           try await page.locator("[aria-label='Open menu']").filter(visible: true).first.click()
         }
         let counts = page.locator(".record-sidebar-view .record-level-counts-view").filter(visible: true).first

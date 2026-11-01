@@ -67,6 +67,30 @@ struct TextOnlyReaderTests {
           "(a) => [...a.querySelectorAll('button')].filter((b) => b.getClientRects().length).length"
         ).int
         #expect(actions == 1, "Find alone at the header's end: \(String(describing: actions))")
+        // A text pane: its lines as printed, one line each, never wrapped
+        // until Reflow; zoomed by the wheel as any text pane is.
+        let markup = viewer.locator(".artifact-markup")
+        try await expect(markup.locator(".tei-line")).toHaveCount(1)
+        let unwrapped = try await markup.locator(".tei-line").first.evaluate("(l) => getComputedStyle(l).whiteSpace").string ?? ""
+        #expect(unwrapped.hasPrefix("nowrap") || unwrapped.hasPrefix("pre"), "a line as printed: \(unwrapped)")
+        let zoom = """
+          (m) => { const l = m.querySelector('.tei-line'); const z = [...m.querySelectorAll('[style*=zoom], [style*=transform]')].map((e) => e.className.split(' ')[0] + '=' + (e.style.zoom || '') + (e.style.transform || '')).join(';');
+            return Math.round(l.getBoundingClientRect().width) + ' ' + z; }
+          """
+        let before = try await markup.evaluate(zoom).string ?? ""
+        _ = try await markup.evaluate(
+          """
+          (m) => { const b = m.getBoundingClientRect();
+            m.dispatchEvent(new WheelEvent('wheel', { deltaY: -400, ctrlKey: true, clientX: b.x + 20, clientY: b.y + 20, bubbles: true, cancelable: true }));
+            return true; }
+          """)
+        try await Task.sleep(for: .milliseconds(600))
+        let after = try await markup.evaluate(zoom).string ?? ""
+        #expect(before != after, "the wheel zooms the text: \(before) → \(after)")
+        try await footer.locator(".artifact-reflow-toggle button").click()
+        try await expect(viewer).toHaveAttribute("data-reflow", "true")
+        let wrapped = try await markup.locator(".tei-line").first.evaluate("(l) => getComputedStyle(l).whiteSpace").string ?? ""
+        #expect(!wrapped.hasPrefix("nowrap"), "reflowed, it wraps: \(wrapped)")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }

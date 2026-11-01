@@ -51,7 +51,7 @@ struct ScratchWord {
   /// script with its `romanizedTitle`, as explication writes one).
   init(
     owner: TestAdmin, distinction: String? = nil, anchor: Anchor? = nil, language: String = "eng",
-    submitted: Bool = false, title: String? = nil, romanizedTitle: String? = nil
+    submitted: Bool = false, title: String? = nil, romanizedTitle: String? = nil, depth: Int = 2
   ) throws {
     let user = try owner.column("id")
     var ids: [String: String] = [:]
@@ -80,14 +80,26 @@ struct ScratchWord {
         #"["u-1"]"#,
         #","chronology":[{"testamentTitle":"Web tests testament","text":"The scratch word stood in a sentence.","quoteID":"u-1","year":1901,"yearEnd":1901}]"#)
     } ?? ("[]", "[]", "")
+    // Branches between the branch sense and the leaf, where the tree is
+    // deeper than two (`depth`, up to five levels): s-1-1, s-1-1-1…
+    var middle = ""
+    var parentID = "s-1"
+    for level in 1..<max(max(depth, 2) - 1, 1) {
+      let id = parentID + "-1"
+      middle += #"{"id":"\#(id)","uuid":"\#(UUID().uuidString)","isLeaf":false,"label":"A branch sense.","usage":{"domain":[],"grammar":[],"region":[],"register":[]},"parentID":"\#(parentID)","position":0,"quoteIDs":[],"rank":\#(level),"relations":[],"selectionRunID":"run","tei":"<sense><def>A branch sense.</def></sense>"},"#
+      parentID = id
+    }
+    let leafID = parentID + "-1"
+    let leafParent = parentID
     let vignette = """
       {"lemmaForm":{"title":"\(title)"\(romanized),"inflections":[],"languageCode":"\(language)","origin":{"citations":[],"derivation":"","etymons":[]},\
       "class":"noun","sources":[{"locator":"s.v.","title":"Web tests dictionary","url":"https://dictionary.example.org/web-tests"}],\
       "spellings":[]},"quotes":\(quotes.0),"selectionRunIDs":["run"]\(quotes.2),"senses":[\
       {"id":"s-1","uuid":"\(branch)","isLeaf":false,"label":"A branch sense.","usage":{"domain":[],"grammar":[],"region":[],"register":[]},\
       "position":0,"quoteIDs":[],"rank":0,"relations":[],"selectionRunID":"run","tei":"<sense><def>A branch sense.</def></sense>"},\
-      {"id":"s-1-1","uuid":"\(leaf)","isLeaf":true,"label":"A leaf sense.","usage":{"domain":[],"grammar":[],"region":[],"register":[]},\
-      "parentID":"s-1","position":0,"quoteIDs":\(quotes.1),"rank":1,"relations":[],"selectionRunID":"run",\
+      \(middle)\
+      {"id":"\(leafID)","uuid":"\(leaf)","isLeaf":true,"label":"A leaf sense.","usage":{"domain":[],"grammar":[],"region":[],"register":[]},\
+      "parentID":"\(leafParent)","position":0,"quoteIDs":\(quotes.1),"rank":\(max(depth, 2) - 1),"relations":[],"selectionRunID":"run",\
       "sources":[{"locator":"sense 2","title":"Web tests senses","url":"https://senses.example.org/web-tests"}],\
       "tei":"<sense><def>A leaf sense.</def>\(note)</sense>"}]}
       """
