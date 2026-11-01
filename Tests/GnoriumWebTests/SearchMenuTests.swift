@@ -60,10 +60,27 @@ struct SearchMenuTests {
         // The title in the link's color, as LinkView's.
         try await Self.expectColor(title, "--color-link", "the title is not in the link's color")
         // The chevron as quiet as the language it follows (user, 2026-10-08),
-        // on the text's middle.
+        // centered on its lowercase letters' middle (user, 2026-11-01).
         let chevron = row.locator(".breadcrumb-separator-view")
         try await Self.expectColor(chevron, "--color-subtle", "the chevron is not in the subtle color")
-        try await expect(chevron).toHaveCSS("vertical-align", "baseline")
+        let centered = try await row.evaluate(
+          """
+          (row) => {
+            const context = row.querySelector('.breadcrumb-label-context');
+            const icon = row.querySelector('.breadcrumb-separator-view svg').getBoundingClientRect();
+            const probe = document.createElement('span');
+            probe.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline';
+            context.appendChild(probe);
+            const baseline = probe.getBoundingClientRect().top;
+            probe.remove();
+            const style = getComputedStyle(context);
+            const ctx = document.createElement('canvas').getContext('2d');
+            ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+            const middle = baseline - ctx.measureText('x').actualBoundingBoxAscent / 2;
+            return Math.abs((icon.top + icon.bottom) / 2 - middle) <= 0.5;
+          }
+          """)
+        #expect(centered.bool == true, "the chevron is off its language's lowercase middle")
         // Hovered: a link's hover, no fill, not the active row; the pointer
         // gone, nothing stays.
         try await row.hover()

@@ -318,6 +318,12 @@ enum InjectedScript {
         if (!sameBox(second, third) || !sameBox(first, second)) {
           return { status: 'notStable', detail: describe(el) + ' is still moving (from ' + JSON.stringify(first) + ' to ' + JSON.stringify(third) + ')' };
         }
+        // Text set in a web font still loading moves once it arrives, the
+        // fallback's metrics swapped for its own: a small target (a word in
+        // a reader scaled to fit a phone) is missed by a click aimed before.
+        if (document.fonts && document.fonts.status === 'loading') {
+          return { status: 'notStable', detail: describe(el) + ' may still move: fonts are loading' };
+        }
         if (options.enabled && isDisabled(el)) return { status: 'notEnabled', detail: describe(el) + ' is disabled' };
         if (options.editable && !isEditable(el)) return { status: 'notEditable', detail: describe(el) + ' is not editable (disabled or read-only)' };
         const x = third.x + third.width / 2;

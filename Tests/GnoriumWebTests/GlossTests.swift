@@ -84,8 +84,8 @@ struct GlossTests {
         try await expect(reader.locator(".tei-word[tabindex='0']")).toHaveTexts(["The"])
 
         try await linked.click()
-        // A popover beside the word on a wide screen, at least 320×320 and on
-        // the screen; on a narrow one the sheet over the markup pane only
+        // A popover beside the word on a wide screen, at least 320 wide, at
+        // most 320 tall and on the screen; on a narrow one the sheet over the markup pane only
         // (user, 2026-11-01).
         let sheet = page.locator(".gloss-sheet")
         try await expect(sheet).toHaveCount(1)
@@ -106,7 +106,7 @@ struct GlossTests {
             await new Promise((r) => setTimeout(r, 400));
             const sheet = document.querySelector('.gloss-sheet[data-state=open]'), s = sheet.querySelector('.sheet-panel').getBoundingClientRect();
             if (sheet.dataset.placement === 'popover')
-              return innerWidth >= 769 && s.width >= 320 && s.height >= 320 && s.left >= 0 && s.right <= innerWidth && s.top >= 0 && s.bottom <= innerHeight;
+              return innerWidth >= 769 && s.width >= 320 && s.height <= 320 && s.left >= 0 && s.right <= innerWidth && s.top >= 0 && s.bottom <= innerHeight;
             const p = el.querySelector('.artifact-markup-box').getBoundingClientRect();
             return innerWidth < 769 && Math.abs(s.top - p.top) <= 1 && Math.abs(s.left - p.left) <= 1
               && Math.abs(s.height - p.height) <= 1 && Math.abs(s.width - p.width) <= 1;
@@ -121,9 +121,10 @@ struct GlossTests {
         try await expect(title.locator(".record-label-meta")).toHaveText("Noun")
         let details = sheet.locator(".gloss-view")
         try await expect(details.locator("a").filter(hasText: "View English")).toHaveCount(0)
-        // The Term, full width, one datum a row, its values linked.
+        // The Term, full width, one datum a row, its values linked; no
+        // heading, the header names it (user, 2026-11-01).
         let term = details.locator(".metadata-group-view").first
-        try await expect(term.locator(".metadata-group-title")).toHaveText("Term")
+        try await expect(term.locator(".metadata-group-title")).toHaveCount(0)
         // Its xml:id last: what its sentiment's assignment names it by.
         try await expect(term.locator(".datum-label")).toHaveTexts([
           "Language", "Lemma", "Class", "Number", "Identifier",
@@ -171,7 +172,10 @@ struct GlossTests {
         try await expect(stood).toHaveAttribute("tabindex", "0")
         try await page.keyboard.press("Enter")
         try await expect(sheet).toHaveAttribute("data-state", "open")
-        try await expect(title.locator(".record-label-title")).toHaveText("stood")
+        // As a search result row reads: its language › what was printed,
+        // its class under it (user, 2026-11-01).
+        try await expect(title.locator(".breadcrumb-label-context")).toHaveText("English")
+        try await expect(title.locator(".breadcrumb-label-text")).toHaveText("stood")
         try await expect(title.locator(".record-label-meta")).toHaveText("Verb")
         try await expect(title.locator("a")).toHaveCount(0)
         try await expect(details.locator(".metadata-group-view").first.locator(".datum-value")).toHaveTexts([

@@ -665,10 +665,11 @@ struct OriginTests {
 
       // A record's term previews it in the gloss sheet (user, 2026-11-01):
       // its heading—language, title and class—the link to the record. On a
-      // wide screen a hover opens it as a popover beside the term, at least
-      // 320×320, the page staying where it is, and a click pins it: it stays
-      // as the pointer leaves, until a click outside. On a narrow one a tap
-      // opens the sheet over the screen. Esc closes either.
+      // wide screen a click opens it as a popover beside the term, at least
+      // 320 wide and at most 320 tall, the page staying where it is, open
+      // until a click outside; a hover opens nothing (user, 2026-11-01). On
+      // a narrow one a tap opens the sheet over the screen. Esc closes
+      // either.
       let term = sentence.locator("button[data-gloss-preview]")
       try await expect(term).toHaveCount(1)
       try await expect(term).toHaveAttribute("aria-haspopup", "dialog")
@@ -676,14 +677,13 @@ struct OriginTests {
       let sheet = page.locator(".gloss-sheet")
       let wide = try await page.evaluate("innerWidth >= 769").bool == true
       if wide {
+        // A hover alone opens nothing.
         try await term.hover()
-        try await expect(sheet).toHaveAttribute("data-state", "open")
-        try await expect(sheet).toHaveAttribute("data-placement", "popover")
-      } else {
-        try await term.click()
-        try await expect(sheet).toHaveAttribute("data-state", "open")
-        try await expect(sheet).toHaveAttribute("data-placement", "viewport")
+        try await expect(sheet).toHaveAttribute("data-state", "closed")
       }
+      try await term.click()
+      try await expect(sheet).toHaveAttribute("data-state", "open")
+      try await expect(sheet).toHaveAttribute("data-placement", wide ? "popover" : "viewport")
       try await expect(term).toHaveAttribute("aria-expanded", "true")
       try await expect(sheet.locator(".gloss-sheet-title")).toContainText(original.title)
       try await expect(sheet.locator(".gloss-sheet-title")).toContainText("Report")
@@ -704,7 +704,7 @@ struct OriginTests {
         """)
       #expect(popover["path"].string == translation.path, "a preview never navigates: \(popover)")
       if wide {
-        #expect((popover["width"].double ?? 0) >= 320 && (popover["height"].double ?? 0) >= 320, "\(popover)")
+        #expect((popover["width"].double ?? 0) >= 320 && (popover["height"].double ?? 0) <= 320, "\(popover)")
         #expect(popover["beside"].bool == true && popover["inside"].bool == true, "\(popover)")
         // Its cursors: the question mark over its ground, the hand over its
         // link, its words too.
@@ -715,17 +715,15 @@ struct OriginTests {
             getComputedStyle(sheet.querySelector('a.record-preview-heading .record-label-meta')).cursor].join('|')
           """)
         #expect(cursors.string == "help|pointer|pointer", "\(cursors)")
-        // A click pins it: the pointer leaving keeps it open, the page
-        // where it was; a click outside closes it.
-        try await term.click()
+        // The pointer leaving keeps it open, the page where it was; a click
+        // outside closes it, and a click opens it again.
         let outside = sentence.locator(".origin-sentence-language").first
         try await outside.hover()
-        try await Task.sleep(for: .milliseconds(700))
         try await expect(sheet).toHaveAttribute("data-state", "open")
         #expect(try await page.evaluate("location.pathname").string == translation.path)
         try await outside.click()
         try await expect(sheet).toHaveAttribute("data-state", "closed")
-        try await term.hover()
+        try await term.click()
         try await expect(sheet).toHaveAttribute("data-state", "open")
       }
       try await page.keyboard.press("Escape")
