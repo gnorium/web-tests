@@ -62,7 +62,7 @@ struct QuoteSourcesTests {
       try await expect(first.locator(".quote-source-remove-btn")).toBeVisible()
       try await expect(second.locator(".quote-source-remove-btn")).toBeVisible()
       try await expect(second.locator(".quote-source-remove-btn")).toHaveAttribute("aria-label", "Remove source")
-      try await page.expectNoHorizontalOverflow()
+      try await page.expectArtifactsUnclipped()
 
       // "− Source": the first goes, the second stays, alone again.
       try await first.locator(".quote-source-remove-btn").click()
@@ -166,7 +166,7 @@ struct QuoteSourcesTests {
           """)
         try await expect(box.locator(".quote-passage-reader .tei-word[data-highlight='title']")).toHaveCount(1)
         try await expect(box.locator("input[name='quote-s1-words']")).toHaveValue("w1.2")
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectArtifactsUnclipped()
 
         // No record: the URL typed, the record and its leaf empty.
         _ = try await box.evaluate(

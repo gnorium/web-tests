@@ -11,7 +11,7 @@ import WebTestsTesting
 /// all (n)", n its live assigned quotes, leading to the biblio-records'
 /// quotes filtered by its UUID, the filter shown in the filter bar. The
 /// sidebar counts the sentiments per level, with their marks, as visible
-/// text. Phone and desktop, nothing scrolling sideways. A throwaway admin
+/// text. Phone and desktop: past the screen the page widens, nothing clipped. A throwaway admin
 /// owns a scratch work with a permitted testament, a scratch word attested
 /// in it and the word's assignment, made by SQL and removed after. Chrome
 /// headless.
@@ -111,7 +111,7 @@ struct LexicoRecordArtifactsTests {
         try await expect(viewer.locator(".artifact-header-toggle")).toHaveCount(1)
         try await expect(viewer).toHaveAttribute("data-header", "false")
         // Its footer one row, never scrolling on its own, the viewer as wide
-        // as it; on a plain page it fits, in a deep tree the tree scrolls.
+        // as it; past the screen the page widens, nothing clipped.
         let footer = try await viewer.evaluate(
           """
           (v) => { const f = v.querySelector('.artifact-footer');
@@ -140,7 +140,7 @@ struct LexicoRecordArtifactsTests {
         let all = row.locator(".sentiment-quotes-link")
         try await expect(all).toHaveText("View all (1)")
         try await expect(all).toHaveAttribute("href", "/biblio-records/quotes?sentiment=\(leaf)")
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectArtifactsUnclipped()
         try await page.expectNoErrors()
 
         // The quotes page, filtered by the sentiment: the filter in its bar,
@@ -154,7 +154,7 @@ struct LexicoRecordArtifactsTests {
         _ = try await quote.evaluate("(el) => { el.scrollIntoView({ block: 'center' }); return true }")
         try await expect(quote.locator(".artifact-view")).toHaveCount(1)
         try await expect(quote.locator("mark[data-highlight='title']").first).toHaveText("scratchword")
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectArtifactsUnclipped()
         try await page.expectNoErrors()
 
         // Its sentiments counted per level in the record's sidebar, as text:
@@ -168,7 +168,7 @@ struct LexicoRecordArtifactsTests {
         try await expect(counts.locator(".record-level-counts-level")).toHaveTexts(["\(width.depth) explicated"])
         try await expect(counts.locator(".record-level-counts-level .icon-view")).toHaveCount(1)
         try await expect(page.locator(".record-sidebar-view .record-level-view")).toHaveCount(0)
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectArtifactsUnclipped()
       }
     } catch {
       do { try await clean() } catch let removal {

@@ -129,7 +129,7 @@ struct SubmitTestamentReaderTests {
 
         // The fixture's images are not served: their requests fail.
         try await page.expectNoErrors(ignoring: ["/web-tests-iiif/"])
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectArtifactsUnclipped()
       }
     } catch {
       try await admin.remove(after: error)

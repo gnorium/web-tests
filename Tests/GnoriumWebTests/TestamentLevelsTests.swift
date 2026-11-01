@@ -181,7 +181,7 @@ struct TestamentLevelsTests {
       #expect(statements.allSatisfy { $0["type"] == nil }, "No creation, no provision tag.")
 
       try await page.expectNoErrors()
-      try await page.expectNoHorizontalOverflow()
+      try await page.expectArtifactsUnclipped()
     }
   }
 

@@ -116,7 +116,7 @@ struct SentenceSelectionTests {
           """
         ).bool
         #expect(oneRow == true, "the reader's footer on one row")
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectArtifactsUnclipped()
         try await page.expectNoErrors()
       }
     } catch {

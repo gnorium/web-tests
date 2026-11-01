@@ -198,7 +198,7 @@ struct QuoteTests {
         try await expect(objectGloss.locator(".gloss-word-row").filter(hasText: "begins")).toHaveCount(1)
         try await page.keyboard.press("Escape")
 
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectArtifactsUnclipped()
         try await page.expectNoErrors()
       }
     } catch {

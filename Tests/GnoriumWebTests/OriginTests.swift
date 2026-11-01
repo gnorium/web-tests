@@ -132,17 +132,18 @@ struct OriginTests {
               leaf: !last.querySelector('.outliner-list .outliner-item'),
               ellipsis: tree.textContent.includes('…'),
               cut: tree.querySelectorAll('.origin-cut').length,
-              scrolls: scroll.scrollWidth > scroll.clientWidth,
+              scrolls: getComputedStyle(scroll).overflowX !== 'visible',
               page: document.documentElement.scrollWidth > window.innerWidth,
+              reach: Math.max(...[...tree.querySelectorAll('.outliner-node')].map((n) => n.getBoundingClientRect().right + scrollX)) > window.innerWidth,
             };
           }
           """)
         #expect(shape["leaf"].bool == true, "the repeated record has no steps under it: \(shape)")
         #expect(shape["ellipsis"].bool == false && shape["cut"].int == 0, "no cut: \(shape)")
-        #expect(shape["page"].bool == false, "the page never scrolls sideways: \(shape)")
-        if layout == .phone {
-          #expect(shape["scrolls"].bool == true, "a sixteen-step chain scrolls sideways on a phone: \(shape)")
-        }
+        // The tree never scrolls on its own; past the screen the page widens
+        // (user, 2026-11-02: a phone pinches out to see it whole).
+        #expect(shape["scrolls"].bool == false, "the tree has no scrollport of its own: \(shape)")
+        #expect(shape["page"] == shape["reach"], "the page as wide as the chain, nothing clipped: \(shape)")
 
         // The record field a form draws for the second work, filing for the
         // first: its error under the field; filing for nothing, none.
@@ -542,8 +543,9 @@ struct OriginTests {
       #expect(overflow == false)
 
       // A deep origin, six steps each under the last (user, 2026-09-30):
-      // every step keeps the tree's least node width (14rem), the tree's
-      // scrollport scrolls sideways on a phone, and the page never does.
+      // every step keeps the tree's least node width (14rem), and on a phone
+      // the page widens to hold it, the tree no scrollport of its own (user,
+      // 2026-11-02).
       for depth in 1..<6 {
         // The deepest step's node is the last in the page's order.
         try await controls(block.locator(".outliner-item[data-origin-step]").last)
@@ -560,16 +562,16 @@ struct OriginTests {
           const least = parseFloat(getComputedStyle(document.documentElement).fontSize) * 14;
           return {
             narrowest: Math.round(Math.min(...widths)), least: Math.round(least),
-            scrolls: scroll.scrollWidth > scroll.clientWidth,
+            scrolls: getComputedStyle(scroll).overflowX !== 'visible',
             page: document.documentElement.scrollWidth > window.innerWidth,
+            reach: Math.max(...[...block.querySelectorAll('.outliner-node')].map((n) => n.getBoundingClientRect().right + scrollX)) > window.innerWidth,
           };
         }
         """)
       #expect((deep["narrowest"].int ?? 0) >= (deep["least"].int ?? 0), "a deep step keeps the least node width: \(deep)")
-      #expect(deep["page"].bool == false, "the page never scrolls sideways")
-      if viewport.width < 768 { #expect(deep["scrolls"].bool == true, "the tree scrolls sideways on a phone") }
-      // A menu opened in the deepest step stands over the page by its
-      // field, not cut off at the scrollport's edge.
+      #expect(deep["scrolls"].bool == false, "the tree has no scrollport of its own")
+      #expect(deep["page"] == deep["reach"], "the page as wide as the tree, nothing clipped: \(deep)")
+      // A menu opened in the deepest step stands by its field, on screen.
       let deepest = block.locator("[data-origin-row='true']").last
       _ = try await deepest.evaluate("(row) => row.scrollIntoView({ block: 'center' })")
       let deepRelation = deepest.locator(".dropdown-view").first
@@ -588,7 +590,7 @@ struct OriginTests {
           };
         }
         """)
-      #expect(placed["fixed"].bool == true && placed["start"].bool == true && placed["under"].bool == true, "\(placed)")
+      #expect(placed["start"].bool == true && placed["under"].bool == true, "\(placed)")
       #expect(placed["inside"].bool == true, "the deep step's menu stays on the screen: \(placed)")
       try await deepRelation.locator(".dropdown-trigger").click()
 

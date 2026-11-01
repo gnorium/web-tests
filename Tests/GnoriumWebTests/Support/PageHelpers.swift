@@ -2,6 +2,59 @@ import Foundation
 import WebTests
 
 extension Page {
+  /// Fails where a reader is clipped (user, 2026-11-02: past the screen the
+  /// page widens, so a phone pinches out to see it whole): its footer one
+  /// row, never scrolling on its own; no ancestor of an
+  /// artifact that hides or scrolls overflow is narrower than it, the
+  /// document is as wide as every artifact, and the page's fixed and sticky
+  /// chrome stays on screen scrolled fully sideways.
+  func expectArtifactsUnclipped(file: String = #fileID, filePath: String = #filePath, line: Int = #line) async throws {
+    let problems = try await evaluate(
+      """
+      (() => {
+        const out = [];
+        const docRight = document.documentElement.scrollWidth;
+        for (const v of document.querySelectorAll('.artifact-view')) {
+          if (!v.getClientRects().length) continue;
+          const r = v.getBoundingClientRect();
+          if (r.right + scrollX > docRight + 1) out.push('document narrower than a reader');
+          const footer = v.querySelector('.artifact-footer');
+          const items = footer ? [...footer.children].filter((c) => c.getClientRects().length > 0) : [];
+          if (items.length && !items.every((c) => Math.abs(c.getBoundingClientRect().top - items[0].getBoundingClientRect().top) < 2))
+            out.push('a footer on two rows');
+          if (footer && footer.scrollWidth > footer.clientWidth + 1) out.push('a footer scrolling on its own');
+          for (let e = v.parentElement; e && e !== document.body; e = e.parentElement) {
+            const ox = getComputedStyle(e).overflowX;
+            if (ox === 'visible') continue;
+            const b = e.getBoundingClientRect();
+            if (b.left > r.left + 1 || b.right < r.right - 1)
+              out.push(ox + ' ' + (e.className || e.tagName).toString().split(' ')[0] + ' ' + Math.round(b.width) + ' < ' + Math.round(r.width));
+          }
+        }
+        // Fixed and sticky chrome on screen at the start stays on screen
+        // scrolled fully sideways.
+        const x = scrollX;
+        scrollTo(0, scrollY);
+        const onScreen = (e) => { const b = e.getBoundingClientRect();
+          return b.width > 0 && b.height > 0 && b.right > 0 && b.left < innerWidth && b.bottom > 0 && b.top < innerHeight; };
+        const chrome = [...document.querySelectorAll('body *')].filter((e) => {
+          const p = getComputedStyle(e).position; return (p === 'fixed' || p === 'sticky') && onScreen(e); });
+        scrollTo(document.documentElement.scrollWidth, scrollY);
+        for (const e of chrome) {
+          if (!onScreen(e)) out.push(getComputedStyle(e).position + ' ' + (e.className || e.tagName).toString().split(' ')[0] + ' off screen');
+        }
+        scrollTo(x, scrollY);
+        return [...new Set(out)].join('; ');
+      })()
+      """
+    ).string ?? ""
+    if !problems.isEmpty {
+      throw WebTestError(
+        "Clipped on \((try? await url()) ?? "the page"): \(problems)",
+        location: CodeLocation(fileID: file, filePath: filePath, line: line, column: 1))
+    }
+  }
+
   /// Loads a Gnorium page and waits for the client to hydrate it: the load
   /// event, then the WebAssembly client started
   /// (`<html data-wasm-status="started">`, set by loader.js). Not
