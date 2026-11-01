@@ -110,7 +110,7 @@ struct TestamentLevelsTests {
       try await choose("manuscript", "Manuscript", in: carrier)
       try await expect(block("production")).toBeVisible()
       try await expect(block("publication")).toBeHidden()
-      try await choose("printed", "Printed", in: carrier)
+      try await choose("printed", "Print", in: carrier)
       try await expect(block("publication")).toBeVisible()
       try await expect(block("production")).toBeHidden()
       try await expect(block("digitization")).toBeVisible()

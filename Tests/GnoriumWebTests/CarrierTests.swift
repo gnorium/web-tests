@@ -64,7 +64,7 @@ struct CarrierTests {
       try await expect(publication).toBeHidden()
       try await expect(production).toBeHidden()
       try await expect(carrier.locator(".dropdown-option .dropdown-option-display-text")).toHaveTexts([
-        "Manuscript", "Typescript", "Inscription", "Printed", "Audio Recording", "Video Recording", "Digital",
+        "Manuscript", "Typescript", "Inscription", "Print", "Audio Recording", "Video Recording", "Digital Text",
       ])
 
       func choose(_ value: String) async throws {
