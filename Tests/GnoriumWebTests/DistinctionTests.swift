@@ -31,7 +31,7 @@ struct DistinctionTests {
         let row = page.locator("#record-row-\(word.leaf)")
         try await page.locator("#record-row-\(word.leaf) > .accordion-summary").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
-        let note = row.locator(".lexicographic-explication-note-text")
+        let note = row.locator(".node-notes-text")
         try await expect(note).toHaveCount(1)
         try await expect(note).toHaveText("Unlike sense 1, a leaf sense grows no further senses.")
         // Rendered once on the page: not in the Metadata or elsewhere; the
