@@ -152,13 +152,34 @@ struct ArtifactOverlayTests {
   /// `blankCanvas`, a second page with markup whose canvas the manifest
   /// shows with no image (`"blank":true`: changed at its source, no copy of
   /// what was sent kept).
-  static func structureServer(blankPage: Bool = false, blankCanvas: Bool = false, imageSwitch: Bool = false) async throws -> FixtureServer {
+  static func structureServer(
+    blankPage: Bool = false, blankCanvas: Bool = false, imageSwitch: Bool = false, words: Bool = false
+  ) async throws -> FixtureServer {
     let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let assets = root.appendingPathComponent("gnorium-web/Public")
     let css = try ["layout-view.css", "tei-view.css", "artifact-view.css", "image-view.css"].map {
       try String(contentsOf: assets.appendingPathComponent("style-sheets/" + $0), encoding: .utf8)
     }.joined(separator: "\n")
-    let lines = (1...30).map { #"<span class="tei-line">Line \#($0) of the page.</span>"# }.joined()
+    // With `words`, the page as the tools write it before the reader reads it (`data-scan-layout`,
+    // `data-word-zones`, each word's span): "OF" letter-spaced on line 1 (a zone a letter), "bro-ken"
+    // broken over lines 1 and 2, and "gypsy" with descenders.
+    let wordLines = [
+      #"<span class="tei-line"><span class="tei-word" data-line="1" data-word="1">OF</span> <span class="tei-word" data-line="1" data-word="2">bro-</span> <span class="tei-word" data-line="1" data-word="4">gypsy</span></span>"#,
+      #"<span class="tei-line"><span class="tei-word" data-line="1" data-word="2">ken</span></span>"#,
+    ]
+    let lines = (1...30).map { words && $0 <= 2 ? wordLines[$0 - 1] : #"<span class="tei-line">Line \#($0) of the page.</span>"# }.joined()
+    func zone(_ type: String, _ id: String, _ box: [Int]) -> String {
+      let (l, t, r, b) = (box[0], box[1], box[2], box[3])
+      return [type, type == "block" ? "main" : "-", id, "\(l)", "\(t)", "\(r)", "\(t)", "\(r)", "\(b)", "\(l)", "\(b)"].joined(separator: " ")
+    }
+    let wordData =
+      words
+      ? #" data-scan-layout=""# + [
+        zone("block", "-", [300, 300, 400, 350]), zone("line", "-", [300, 300, 400, 320]), zone("word", "a1", [300, 300, 310, 320]),
+        zone("word", "a2", [330, 300, 340, 320]), zone("word", "a3", [360, 300, 370, 320]), zone("word", "b1", [380, 300, 400, 320]),
+        zone("line", "-", [300, 330, 400, 350]), zone("word", "b2", [300, 330, 330, 350]), zone("word", "d1", [340, 330, 370, 350]),
+      ].joined(separator: ";") + #"" data-word-zones="1:1 a1 a2 a3;1:2 b1 b2;1:4 d1""#
+      : ""
     let blank: String =
       if blankPage {
         #"<div class="tei-page" data-service-id="/blank" data-active="false" data-has-markup="false"><div class="tei-page-text" data-layer="rendering" data-framed="false"></div></div>"#
@@ -179,7 +200,7 @@ struct ArtifactOverlayTests {
     let html = "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>" + css + #"""
       body{margin:0}.artifact-view{width:100%;height:600px}.artifact-viewer-container{height:560px;flex:none}.tei-line{display:block;font-family:serif!important;white-space:nowrap;letter-spacing:0.3em}</style><link rel="icon" href="data:,"></head><body><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest">
       """# + (imageSwitch ? #"<header><div class="artifact-canvas-toggle"><button>Image</button></div></header>"# : "") + #"""
-      <div class="artifact-viewer-container"><div class="artifact-markup-frame"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan" data-active="true" data-has-markup="true" data-text-block="300,240 700,248 694,700 294,692"><div class="tei-page-text" data-layer="rendering" data-framed="true" style="--tei-frame-measure: 30; --tei-frame-height: 40; --tei-frame-margin: 5; --tei-page-width: 0; --tei-page-height: 0"><div class="tei-text-block">
+      <div class="artifact-viewer-container"><div class="artifact-markup-frame"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan" data-active="true" data-has-markup="true" data-text-block="300,240 700,248 694,700 294,692"\#(wordData)><div class="tei-page-text" data-layer="rendering" data-framed="true" style="--tei-frame-measure: 30; --tei-frame-height: 40; --tei-frame-margin: 5; --tei-page-width: 0; --tei-page-height: 0"><div class="tei-text-block">
       """# + lines + "</div></div></div>" + blank + #"""
       </div></div></div><div class="artifact-object"><div class="image-view" data-service-id="/scan"><div class="image-viewport"><div class="image-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
       """#
@@ -601,7 +622,7 @@ struct ArtifactOverlayTests {
   /// tools write them (`data-scan-layout`, `data-word-zones`).
   @Test(arguments: [1440, 440])
   func aLetterSpacedWordIsBandedAsOneBox(width: Int) async throws {
-    let server = try await Self.structureServer()
+    let server = try await Self.structureServer(words: true)
     defer { server.stop() }
     let config = BrowserTestConfiguration(baseURL: URL(string: server.baseURL)!, engines: [.chrome], defaultTimeout: .seconds(30))
     try await withPage(.chrome, config, viewport: .init(width: width, height: 600)) { page in
@@ -610,15 +631,8 @@ struct ArtifactOverlayTests {
       try await page.evaluate("new Promise(resolve=>setTimeout(resolve,700))")
       let checks = try await page.evaluate(#"""
         (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),r=document.querySelector('.artifact-view');
-          const page=r.querySelector('.tei-page'),lines=[...page.querySelectorAll('.tei-line')];
-          // "OF" letter-spaced on line 1 (a zone a letter), "bro-ken" broken over lines 1 and 2, and "gypsy" with descenders.
-          lines[0].innerHTML='<span class="tei-word" data-line="1" data-word="1">OF</span> <span class="tei-word" data-line="1" data-word="2">bro-</span> <span class="tei-word" data-line="1" data-word="4">gypsy</span>';
-          lines[1].innerHTML='<span class="tei-word" data-line="1" data-word="2">ken</span>';
-          const zone=(type,id,[l,t,r,b])=>[type,type==='block'?'main':'-',id,l,t,r,t,r,b,l,b].join(' ');
-          page.dataset.scanLayout=[zone('block','-',[300,300,400,350]),zone('line','-',[300,300,400,320]),
-            zone('word','a1',[300,300,310,320]),zone('word','a2',[330,300,340,320]),zone('word','a3',[360,300,370,320]),
-            zone('word','b1',[380,300,400,320]),zone('line','-',[300,330,400,350]),zone('word','b2',[300,330,330,350]),zone('word','d1',[340,330,370,350])].join(';');
-          page.dataset.wordZones='1:1 a1 a2 a3;1:2 b1 b2;1:4 d1';
+          const page=r.querySelector('.tei-page');
+          // Planted before the reader read the page (`structureServer(words:)`).
           const bands=()=>[...document.querySelectorAll('.image-word')].filter(b=>!b.hidden).map(b=>b.getBoundingClientRect());
           const words=[...page.querySelectorAll('.tei-word')],object=r.querySelector('.artifact-object');
           words[0].dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await wait(100);
@@ -679,17 +693,17 @@ struct ArtifactOverlayTests {
           await leave();
           words[1].dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await wait(100);
           const broken=bands().length===2&&words[3].dataset.corresponding==='true';
-          // The pair: the marked word and the scan's band wear one yellow at one opacity (user, 2026-10-18).
+          // The pair: the marked word and the scan's band wear one blue at one opacity (user, 2026-10-29: yellow is Find's alone).
           const probe=document.createElement('div');document.body.appendChild(probe);
-          probe.style.backgroundColor='color-mix(in srgb, var(--color-yellow) calc(var(--opacity-low) * 100%), transparent)';
+          probe.style.backgroundColor='color-mix(in srgb, var(--color-blue) calc(var(--opacity-low) * 100%), transparent)';
           const mixed=getComputedStyle(probe).backgroundColor;
-          probe.style.backgroundColor='var(--color-yellow)';const solid=getComputedStyle(probe).backgroundColor;probe.remove();
+          probe.style.backgroundColor='var(--color-blue)';const solid=getComputedStyle(probe).backgroundColor;probe.remove();
           const scanBand=[...document.querySelectorAll('.image-word')].find(b=>!b.hidden),scanStyle=getComputedStyle(scanBand);
           const lowOpacity=getComputedStyle(document.documentElement).getPropertyValue('--opacity-low').trim();
           const marked=page.querySelector('.tei-word[data-corresponding="true"]');
-          const yellow=!!scanBand&&scanStyle.backgroundColor===solid&&Math.abs(parseFloat(scanStyle.opacity)-parseFloat(lowOpacity))<0.001
+          const blue=!!scanBand&&scanStyle.backgroundColor===solid&&Math.abs(parseFloat(scanStyle.opacity)-parseFloat(lowOpacity))<0.001
             &&!!marked&&marked.dataset.band==='true'&&getComputedStyle(marked).backgroundImage.split(mixed).length===3;
-          return [one,gap,hug,caps,zoomed,descends,smaller,broken,yellow].map(Number)})()
+          return [one,gap,hug,caps,zoomed,descends,smaller,broken,blue].map(Number)})()
         """#, as: [Int].self)
       let named = [
         "the letter-spaced word: one band, the union of its zones",
@@ -700,7 +714,7 @@ struct ArtifactOverlayTests {
         "a word with descenders: its band is no taller than its neighbor's and reaches below the baseline",
         "a smaller span's band is proportionally smaller",
         "the word broken over lines: a band a line, its other part marked",
-        "the marked word and the scan's band wear one yellow at one opacity",
+        "the marked word and the scan's band wear one blue at one opacity",
       ]
       for (check, name) in zip(checks, named) { #expect(check == 1, "\(name) (width \(width))") }
       try await page.expectNoErrors()
@@ -724,136 +738,21 @@ struct ArtifactOverlayTests {
       const state=()=>[Number(layer().dataset.zoom),pane.scrollHeight,pane.clientHeight,pane.scrollWidth,pane.clientWidth,sessionStorage.getItem('gnorium:artifact-zoom:rendering')==='fit'?1:0];
     """#
 
-  /// The structure overlay's scene, worked out apart from the reader (the
-  /// rule of `StructurePairing` and gnorium-python's structure image, step
-  /// for step): the edition's rows (each line's ink, side by side one row),
-  /// main text and marginalia apart, and the scan's lines (`data-scan-layout`)
-  /// laid in the layer by the registration, paired by dynamic programming,
-  /// each row's state; `{edition: [...], scan: [...], main: [top, bottom] of
-  /// the scan's main blocks laid, target: [top, bottom] of the laid ink box}`
-  /// in the window's pixels.
-  static let structureScript = Self.shared + #"""
-    // Beside a row, not under it (artifact-core `StructurePairing.beside`): on its baseline (7) where both have one,
-    // within half the taller's height; else overlapping down the page by more than half the shorter's height.
-    const beside=(row,line)=>row[7]!=null&&line[7]!=null?Math.abs(row[7]-line[7])<Math.max(row[3]-row[1],line[3]-line[1])/2
-      :Math.min(row[3],line[3])-Math.max(row[1],line[1])>Math.min(row[3]-row[1],line[3]-line[1])/2;
-    const structureOf=()=>{
-      const r=document.querySelector('.artifact-view'),page=r.querySelector('.tei-page[data-active=true]'),layer=page.querySelector('[data-layer=rendering]'),frame=layer.querySelector('.tei-text-block')||layer;
-      const b=layer.getBoundingClientRect(),z=Number(layer.dataset.zoom),toLayer=([x,y])=>[(x-b.x)/z,(y-b.y)/z];
-      const context=document.createElement('canvas').getContext('2d'),range=document.createRange();
-      const rectOf=(node,start,end)=>{range.setStart(node,start);range.setEnd(node,end);return range.getBoundingClientRect()};
-      const rowsOf=roots=>{const lines=[];for(const root of roots){const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
-        for(let node=walker.nextNode();node;node=walker.nextNode()){const text=node.data;if(!/[^ \t\n\r]/.test(text))continue;
-          const style=getComputedStyle(node.parentElement);context.font=style.fontStyle+' '+style.fontWeight+' '+style.fontSize+' '+style.fontFamily;context.fontVariantCaps=style.fontVariantCaps;context.fontKerning=style.fontKerning;
-          // Its setting across (the edges the print aligns) and its type's em in the window's pixels.
-          const ta=style.textAlign,rtl=style.direction==='rtl',setting=ta==='justify'?'justified':ta==='center'?'center':(ta==='right'||(ta==='end'&&!rtl)||(ta==='start'&&rtl))?'right':'left';
-          const lineEm=parseFloat(style.fontSize)*z,blockEl=node.parentElement.closest('.tei-block');
-          const found=[];for(let at=0;at<text.length;){const end=at+(text.codePointAt(at)>0xffff?2:1);if(!/[ \t\n\r]/.test(text[at])){const rect=rectOf(node,at,end);if(rect.height>0){const last=found[found.length-1];
-            if(last&&rect.top<last.bottom&&last.top<rect.bottom){last.end=end;last.glyphs[1]=[at,end,rect]}else found.push({start:at,end,top:rect.top,bottom:rect.bottom,glyphs:[[at,end,rect],[at,end,rect]]})}}at=end}
-          for(const line of found){const drawn=rectOf(node,line.start,line.end),m=context.measureText(text.slice(line.start,line.end)),s=drawn.height/(m.fontBoundingBoxAscent+m.fontBoundingBoxDescent);
-            const top=drawn.top+(m.fontBoundingBoxAscent-m.actualBoundingBoxAscent)*s,bottom=drawn.bottom-(m.fontBoundingBoxDescent-m.actualBoundingBoxDescent)*s;
-            let left=Infinity,right=-Infinity;for(const [st,en,rect] of line.glyphs){const g=context.measureText(text.slice(st,en));left=Math.min(left,rect.left-g.actualBoundingBoxLeft*s);right=Math.max(right,rect.left+g.actualBoundingBoxRight*s)}
-            // Its baseline (7): the font box's top plus the font's ascent; (8) the em of the line it is of.
-            if(right>left&&bottom>top)lines.push([left,top,right,bottom,setting,lineEm,blockEl,drawn.top+m.fontBoundingBoxAscent*s,lineEm])}}}
-        lines.sort((a,c)=>a[1]-c[1]);const rows=[];for(const l of lines){const last=rows[rows.length-1];if(last&&beside(last,l)){
-          // A left-set line beside a right-set one: both edges judged, no block's last line.
-          if((last[4]==='left'&&l[4]==='right')||(last[4]==='right'&&l[4]==='left')){last[4]='justified';last[6]=null}
-          last[0]=Math.min(last[0],l[0]);last[1]=Math.min(last[1],l[1]);last[2]=Math.max(last[2],l[2]);last[3]=Math.max(last[3],l[3]);
-          // A row's baseline its largest type's, the lower of equal ones.
-          if(l[8]>last[8]||(l[8]===last[8]&&l[7]>last[7])){last[7]=l[7];last[8]=l[8]}}else rows.push([...l])}
-        // A justified block's last line is set from its start alone.
-        rows.forEach((row,k)=>{if(row[4]==='justified'&&row[6]&&!rows.slice(k+1).some(o=>o[6]===row[6]))row[4]='left'});return rows};
-      const editionMain=rowsOf([frame]);
-      // The edition's notes: each child of a margin area, its rows, box and sides.
-      const notes=[];for(const margin of layer.querySelectorAll('.tei-margin')){const place=margin.dataset.place||'',sides=[];
-        if(place.startsWith('top'))sides.push('top');if(place.startsWith('bottom'))sides.push('bottom');if(place.endsWith('left'))sides.push('margin-left');if(place.endsWith('right'))sides.push('margin-right');
-        for(const note of margin.querySelectorAll(':scope > *')){const rows=rowsOf([note]);if(!rows.length)continue;
-          notes.push({rows,sides,box:[Math.min(...rows.map(r=>r[0])),Math.min(...rows.map(r=>r[1])),Math.max(...rows.map(r=>r[2])),Math.max(...rows.map(r=>r[3]))]})}}
-      const img=JSON.parse(document.querySelector('#manifest-size').textContent),W=img[0],H=img[1];
-      const zone=page.dataset.textBlock.split(' ').map(p=>p.split(',').map(Number)).map(([x,y])=>[x/1000*W,y/1000*H]);
-      // Laid as the reader lays it: a derived block on the frame whole; a block spanning the frame's
-      // measure (its ink at both sides within a word space of the frame's face) by its ink's width, from its
-      // left, its proportions kept; any other by its height, centered.
-      const ink=inkBox(layer),edges=frame.getBoundingClientRect(),fs=getComputedStyle(frame);
-      context.font=fs.fontStyle+' '+fs.fontWeight+' '+fs.fontSize+' '+fs.fontFamily;const space=context.measureText(' ').width*z;
-      const spans=!!ink&&frame!==layer&&ink[0]-edges.left<=space&&edges.right-ink[2]<=space;
-      // Where the work's frame is declared (`data-scan-em`), always at the type's scale (user, 2026-10-17): the rendered em over
-      // the work's em on the scan, the scan at its own size from the block's top, centered across it (artifact-core
-      // `OverlayRegistration.laid`); else by the block, a derived one the frame whole.
-      const scanEm=Number(page.dataset.scanEm)/1000*W,renderedEm=parseFloat(fs.fontSize)*z,typeScale=scanEm>0&&renderedEm>0?renderedEm/scanEm:0;
-      // Across by the edge the block is set from (`OverlayRegistration.anchor`): more than half its lines left, from its
-      // left; right, from its right; else centered.
-      const settings=[];{const w=document.createTreeWalker(frame,NodeFilter.SHOW_TEXT);for(let n=w.nextNode();n;n=w.nextNode()){const st=getComputedStyle(n.parentElement),ta=st.textAlign,rtl=st.direction==='rtl';
-        const set=ta==='justify'?'justified':ta==='center'?'center':(ta==='right'||(ta==='end'&&!rtl)||(ta==='start'&&rtl))?'right':'left';
-        for(const rect of (()=>{range.selectNodeContents(n);return [...range.getClientRects()]})())if(rect.height>0)settings.push(set)}}
-      const anchor=settings.filter(x=>x==='left').length*2>settings.length?'left':settings.filter(x=>x==='right').length*2>settings.length?'right':'center';
-      const typedOn=([L,T,R],s)=>{const across=Math.hypot(zone[1][0]-zone[0][0],zone[1][1]-zone[0][1]),down=Math.hypot(zone[3][0]-zone[0][0],zone[3][1]-zone[0][1]),w=across*s,left=anchor==='left'?L:anchor==='right'?R-w:(L+R)/2-w/2;return [left,T,left+w,T+down*s]};
-      const derived=page.dataset.textBlockDerived==='true',laid=typeScale>0?typedOn(derived?[edges.left,edges.top,edges.right]:ink,typeScale):derived?[edges.left,edges.top,edges.right,edges.bottom]:spans?(()=>{const across=Math.hypot(zone[1][0]-zone[0][0],zone[1][1]-zone[0][1]),down=Math.hypot(zone[3][0]-zone[0][0],zone[3][1]-zone[0][1]),sc=(ink[2]-ink[0])/across;return [ink[0],ink[1],ink[2],ink[1]+down*sc]})():laidOn(zone,ink);
-      const h=homography(zone,[[laid[0],laid[1]],[laid[2],laid[1]],[laid[2],laid[3]],[laid[0],laid[3]]]);
-      const quads=[],marginBlocks=[];let main=true;
-      for(const entry of page.dataset.scanLayout.split(';')){const p=entry.split(' ');const pts=p.slice(3).map(Number);const q=[0,1,2,3].map(i=>apply(h,[pts[2*i]/1000*W,pts[2*i+1]/1000*H]));
-        const box=[Math.min(...q.map(v=>v[0])),Math.min(...q.map(v=>v[1])),Math.max(...q.map(v=>v[0])),Math.max(...q.map(v=>v[1]))];
-        // A line's baseline (7): the middle of its <path type="baseline">'s two ends, laid as its corners are.
-        if(pts.length===12){const a=apply(h,[pts[8]/1000*W,pts[9]/1000*H]),c2=apply(h,[pts[10]/1000*W,pts[11]/1000*H]);box[7]=(a[1]+c2[1])/2}
-        if(p[0]==='block'){main=p[1]!=='marginalia';quads.push({kind:'block',main,box});if(!main)marginBlocks.push({box,lines:[]})}
-        else if(p[0]==='line'){quads.push({kind:'line',main,box});if(!main&&marginBlocks.length)marginBlocks[marginBlocks.length-1].lines.push(box)}}
-      const rowsFrom=lines=>{lines.sort((a,c)=>a[1]-c[1]);const rows=[];for(const l of lines){const last=rows[rows.length-1];if(last&&beside(last,l)){last[0]=Math.min(last[0],l[0]);last[1]=Math.min(last[1],l[1]);last[2]=Math.max(last[2],l[2]);last[3]=Math.max(last[3],l[3]);
-        if(l[7]!=null&&(last[7]==null||l[7]>last[7]))last[7]=l[7]}else rows.push([...l])}return rows};
-      // Where a row's letters sit: its baseline, else its ink's bottom (typeface is not parity).
-      const seat=r=>r[7]!=null?r[7]:r[3];
-      const scanMain=rowsFrom(quads.filter(q=>q.kind==='line'&&q.main).map(q=>q.box));
-      // Each scan block of marginalia to the nearest note on its side of the frame.
-      const F=(()=>{const e=frame.getBoundingClientRect();return [e.left,e.top,e.right,e.bottom]})();
-      const sidesOf=([l,t,r2,b])=>{const beyond=[['top',F[1]-b],['bottom',t-F[3]],['margin-left',F[0]-r2],['margin-right',l-F[2]]],clear=beyond.filter(x=>x[1]>=0).map(x=>x[0]);
-        if(clear.length)return clear;const m=(t+b)/2,c=(l+r2)/2,near=[['top',m-F[1]],['bottom',F[3]-m],['margin-left',c-F[0]],['margin-right',F[2]-c]];return [near.reduce((a,x)=>x[1]<a[1]?x:a)[0]]};
-      const dist=(a,c)=>Math.abs(a[0]-c[0])+Math.abs(a[1]-c[1])+Math.abs(a[2]-c[2])+Math.abs(a[3]-c[3]);
-      const gathered=notes.map(()=>[]),alone=[];
-      for(const block of marginBlocks){const sides=sidesOf(block.box);let best=-1,far=Infinity;
-        notes.forEach((note,i)=>{if(note.sides.some(x=>sides.includes(x))){const d=dist(note.box,block.box);if(d<far){far=d;best=i}}});
-        if(best>=0)gathered[best].push(...block.lines);else alone.push(...block.lines)}
-      const L=Number(page.dataset.bodyLeading)*parseFloat(getComputedStyle(frame).fontSize)*z;
-      // Across: the edges the edition's line is set by, past an em of its type.
-      const across=(e,s)=>{const em=e[5],set=e[4];if(!(em>0)||!set)return true;const l=Math.abs(e[0]-s[0])<=em,r=Math.abs(e[2]-s[2])<=em;
-        return set==='left'?l:set==='right'?r:set==='center'?Math.abs((e[0]+e[2])/2-(s[0]+s[2])/2)<=em:l&&r};
-      // Its size (`StructurePairing.sized`): its width against the print line's by the page's ratio of the two (the
-      // median over the main text's pairs), within an em of its type or a sixth of the width.
-      let ratio=0;const sized=(e,s)=>{const want=(s[2]-s[0])*ratio;return !(ratio>0&&want>0)||Math.abs((e[2]-e[0])-want)<=Math.max(e[5]||0,want*0.15)};
-      // Paired on e and s (each from its own box for a note), judged where each stands (E, S), by L.
-      const pair=(e,s,L,E=e,S=s)=>{const n=e.length,m=s.length,c=[...Array(n+1)].map(()=>Array(m+1).fill(0)),st=[...Array(n+1)].map(()=>Array(m+1).fill(0));
-        for(let i=0;i<=n;i++)for(let j=0;j<=m;j++){if(!i&&!j)continue;let best=Infinity,mv=0;if(i&&j)best=c[i-1][j-1]+2*Math.abs(seat(e[i-1])-seat(s[j-1]));
-          if(i&&c[i-1][j]+L<best){best=c[i-1][j]+L;mv=1}if(j&&c[i][j-1]+L<best){best=c[i][j-1]+L;mv=2}c[i][j]=best;st[i][j]=mv}
-        const es=Array(n).fill('within'),ss=Array(m).fill('within'),pairs=[];let i=n,j=m;
-        while(i||j){const mv=st[i][j];if(mv===0){const ok=Math.abs(seat(E[i-1])-seat(S[j-1]))<=L/4&&across(E[i-1],S[j-1])&&sized(E[i-1],S[j-1]);es[i-1]=ss[j-1]=ok?'within':'off';pairs.push([i-1,j-1]);i--;j--}else if(mv===1){es[i-1]='extra';i--}else{ss[j-1]='missing';j--}}
-        return [es,ss,pairs]};
-      // Down the page by its lines (`OverlayRegistration.baselineShift`): the median distance from the scan's paired
-      // baselines to the edition's, three pairs at least; the whole scan moved by it (a margin block's lines are its quads').
-      // Across by the median distance between their set edges (`OverlayRegistration.edgeShift`).
-      {const median=d=>{d.sort((a,c)=>a-c);return d.length<3?0:d.length%2?d[(d.length-1)/2]:(d[d.length/2-1]+d[d.length/2])/2};
-        const pairs=pair(editionMain,scanMain,L)[2];
-        const dy=median(pairs.map(([e,k])=>seat(editionMain[e])-seat(scanMain[k])));
-        const dx=median(pairs.map(([e,k])=>{const a=editionMain[e],b=scanMain[k];return a[4]==='left'?a[0]-b[0]:a[4]==='right'?a[2]-b[2]:a[4]==='center'?(a[0]+a[2])/2-(b[0]+b[2])/2:a[4]==='justified'?(a[0]-b[0]+a[2]-b[2])/2:null}).filter(x=>x!=null));
-        if(dx||dy){const move=r=>{r[0]+=dx;r[2]+=dx;r[1]+=dy;r[3]+=dy;if(r[7]!=null)r[7]+=dy};scanMain.forEach(move);quads.forEach(q=>move(q.box));laid[0]+=dx;laid[2]+=dx;laid[1]+=dy;laid[3]+=dy}}
-      const moved=(rows,[x,y])=>rows.map(r=>{const m=[r[0]-x,r[1]-y,r[2]-x,r[3]-y];if(r[7]!=null)m[7]=r[7]-y;return m});
-      {const r=pair(editionMain,scanMain,L)[2].filter(([e,k])=>scanMain[k][2]>scanMain[k][0]).map(([e,k])=>(editionMain[e][2]-editionMain[e][0])/(scanMain[k][2]-scanMain[k][0])).sort((a,c)=>a-c);
-        ratio=r.length?(r.length%2?r[(r.length-1)/2]:(r[r.length/2-1]+r[r.length/2])/2):0}
-      const [em,sm]=pair(editionMain,scanMain,L);const eg=[],sg=[];
-      // A note's own L: its scan rows' median pitch, else its edition rows', else the body's.
-      const pitch=rows=>{if(rows.length<2)return null;const d=rows.slice(1).map((r,k)=>r[1]-rows[k][1]).sort((a,c)=>a-c);return d[Math.floor(d.length/2)]};
-      notes.forEach((note,i)=>{const rows=rowsFrom(gathered[i]);const reach=rows.length?[Math.min(...rows.map(r=>r[0])),Math.min(...rows.map(r=>r[1]))]:[note.box[0],note.box[1]];
-        const own=pitch(rows)||pitch(note.rows)||L;
-        const [e,s2]=pair(moved(note.rows,[note.box[0],note.box[1]]),moved(rows,reach),own,note.rows,rows);eg.push(...e);sg.push(...s2)});
-      sg.push(...pair([],rowsFrom(alone),L)[1]);
-      const mainBlocks=quads.filter(q=>q.kind==='block'&&q.main).map(q=>q.box);
-      return {edition:em.concat(eg),scan:sm.concat(sg),main:mainBlocks.length?[Math.min(...mainBlocks.map(q=>q[1])),Math.max(...mainBlocks.map(q=>q[3]))]:[],target:[laid[1],laid[3]]}};
+  /// What the reader's structure overlay draws (`.artifact-structure`):
+  /// each side's line rows by state (a row drawn once, whatever its lines),
+  /// and the scan's main blocks' corners as drawn, in the layer's own pixels.
+  static let drawnScript = #"""
     const drawnStates=side=>[...new Map([...document.querySelectorAll('.artifact-structure [data-side='+side+'][data-kind=line]')].map(e=>[e.dataset.row,e.dataset.state])).values()];
+    const tally=list=>list.reduce((t,s)=>(t[s]=(t[s]||0)+1,t),{});
+    const blocks=[...document.querySelectorAll('.artifact-structure polygon[data-kind=block]')].map(e=>e.getAttribute('points').split(/[ ,]/).map(Number));
+    return {drawn:{edition:tally(drawnStates('edition')),scan:tally(drawnStates('scan'))},blocks};
     """#
 
-  /// What the scene counts: each state's lines, each side.
+  /// What the scene counts: each state's rows, each side, and the scan's
+  /// blocks as drawn.
   struct Scene: Decodable {
-    let expected: [String: [String: Int]]
     let drawn: [String: [String: Int]]
-    let main: [Double]
-    let target: [Double]
+    let blocks: [[Double]]
   }
 
   /// Skeat's first ten canvases with a text block zone and the tools'
@@ -865,11 +764,12 @@ struct ArtifactOverlayTests {
   /// the edition bands its zones on the scan, as the tools linked them
   /// (each `<w>`'s `@facs`, user, 2026-10-15), and a band's zone on the scan
   /// marks the edition's word; a word broken over lines is one: either part
-  /// bands both its zones and marks the other part. Overlay on draws the structure: the scan's main
-  /// blocks laid on the rendered main text's ink box by its height, and
-  /// every line's state as the pairing rule gives it, worked out apart;
-  /// zoomed to twice the fit, the registration holds. Each canvas's marked
-  /// lines are reported.
+  /// bands both its zones and marks the other part. Overlay on draws the structure: every
+  /// line's state as the reader's own rule gives it, held to the model's
+  /// structure image (gnorium-python `test_structure_skeat`, both against
+  /// `structure.json`), never to a copy of the rule here; zoomed to twice
+  /// the fit, the registration holds: the same states and the scan's blocks
+  /// where they were in the layer. Each canvas's marked lines are reported.
   @Test(arguments: [2, 3, 4, 5, 6, 7, 9, 10], [1440, 440])
   func structureOverlayAndWordsOfSkeat(canvas: Int, width: Int) async throws {
     let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -1017,20 +917,12 @@ struct ArtifactOverlayTests {
       try await page.evaluate("document.querySelector('.artifact-overlay-toggle').dispatchEvent(new CustomEvent('toggle-button-update',{detail:'true'}))")
       // At rest: the motion and the panes' move done.
       try await page.evaluate("new Promise(resolve=>setTimeout(resolve,1200))")
-      let read = "(()=>{" + Self.structureScript + #"""
-        const tally=list=>list.reduce((t,s)=>(t[s]=(t[s]||0)+1,t),{});
-        // Read unturned: the overlay turns the edition onto the image as it is photographed, and the rule reads the
-        // layout's own rows (a turned line's box is its bounds); its states are the same wherever the page lies.
-        const turned=[...document.querySelectorAll('.artifact-markup [data-page-scale=true]')],kept=turned.map(f=>f.style.transform);
-        turned.forEach(f=>f.style.transform='none');const s=structureOf();turned.forEach((f,i)=>f.style.transform=kept[i]);
-        return {expected:{edition:tally(s.edition),scan:tally(s.scan)},drawn:{edition:tally(drawnStates('edition')),scan:tally(drawnStates('scan'))},main:s.main,target:s.target}})()
-        """#
+      let read = "(()=>{" + Self.drawnScript + "})()"
       let scene = try await page.evaluate(read, as: Scene.self)
       if let directory = ProcessInfo.processInfo.environment["GNORIUM_SCREENSHOT_DIR"] {
         try await page.screenshot(to: URL(fileURLWithPath: directory).appendingPathComponent("skeat-canvas-\(canvas)-structure-\(width).png"))
       }
       print("canvas \(canvas) at \(width): \(scene.drawn)")
-      #expect(scene.drawn == scene.expected, "canvas \(canvas): drawn \(scene.drawn), the rule gives \(scene.expected)")
       // The model's structure image judges the canvas alike (gnorium-python
       // `test_structure_skeat`): both held to the same counts.
       let shared = try JSONDecoder().decode(
@@ -1040,23 +932,18 @@ struct ArtifactOverlayTests {
       // the scan's alone: copy evidence never joins the edition (user,
       // 2026-10-26).
       #expect(!scene.drawn.values.allSatisfy { $0.isEmpty }, "canvas \(canvas): no structure drawn")
-      if scene.main.count == 2 {
-        let off = zip(scene.main, scene.target).map { abs($0 - $1) }
-        #expect(off.allSatisfy { $0 <= Self.landing }, "canvas \(canvas): the scan's main blocks laid \(scene.main), the ink box \(scene.target)")
-      }
       // Zoomed to twice the fit about the page's middle: the registration
       // holds, the scene as it was.
-      let zoomed = try await page.evaluate(#"""
+      _ = try await page.evaluate(#"""
         (async()=>{const p=document.querySelector('.artifact-markup'),l=document.querySelector('.tei-page[data-active=true] [data-layer=rendering]'),b=p.getBoundingClientRect(),fit=Number(l.dataset.zoom);
           for(let i=0;i<80&&Number(l.dataset.zoom)<2*fit;i++){p.dispatchEvent(new WheelEvent('wheel',{deltaY:-40,clientX:b.x+b.width/2,clientY:b.y+b.height/2,bubbles:true,cancelable:true}));await new Promise(r=>setTimeout(r,16))}
           await new Promise(r=>setTimeout(r,300));return Number(l.dataset.zoom)/fit})()
         """#, as: Double.self)
       let twice = try await page.evaluate(read, as: Scene.self)
       #expect(twice.drawn == scene.drawn)
-      if twice.main.count == 2 {
-        let off = zip(twice.main, twice.target).map { abs($0 - $1) }
-        #expect(off.allSatisfy { $0 <= Self.landing * zoomed }, "canvas \(canvas) at \(zoomed)× the fit: \(off)")
-      }
+      let held = twice.blocks.count == scene.blocks.count
+        && zip(twice.blocks, scene.blocks).allSatisfy { a, b in a.count == b.count && zip(a, b).allSatisfy { abs($0 - $1) <= Self.landing } }
+      #expect(held, "canvas \(canvas) at twice the fit: the scan's blocks \(twice.blocks), at the fit \(scene.blocks)")
       try await page.expectNoErrors()
     }
   }
