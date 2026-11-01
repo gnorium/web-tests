@@ -32,7 +32,7 @@ struct TextOnlyReaderTests {
       let form = #"{"title":"webtestsprovisional","languageCode":"eng","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
       let sentiment =
         #"{"usage":{"domain":[],"region":[],"grammar":[],"register":[]},"value":"<sense><def>A web tests word</def></sense>","#
-        + #""quotes":[{"text":"Hamlet, revenge.","pending":{"record":"\#(UUID().uuidString)","images":[],"printedPage":"sig. B2r","text":"Hamlet, revenge."}}]}"#
+        + #""quotes":[{"text":"Hamlet, revenge.","pending":{"record":"\#(UUID().uuidString)","images":[],"pages":["sig. B2r"],"text":"Hamlet, revenge."}}]}"#
       _ = try TestAdmin.query(
         """
         BEGIN;
