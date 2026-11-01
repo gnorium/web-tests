@@ -105,6 +105,11 @@ struct AmendmentInsertionTests {
         try await add.click()
         try await expect(number(impression)).toHaveText("1.2")
         let grip = copy.locator(":scope > .outliner-row .outliner-handle").first
+        // The grip a medium button's target, a size down on a phone (user,
+        // 2026-11-01): 40 wide, 32 on a phone.
+        let gripSize = try await grip.evaluate(
+          "el => { const r = el.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height); }")
+        #expect(gripSize.string == (layout == .phone ? "32x32" : "40x40"), "\(gripSize)")
         try await grip.click()
         try await grip.press("ArrowDown")
         try await grip.press("ArrowRight")

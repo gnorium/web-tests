@@ -82,6 +82,26 @@ struct GlossPhraseTests {
         try await expect(rows.nth(1).locator(".datum-value")).toHaveTexts([
           "English", "the", "Article", "—", "kicked the bucket", "Idiom", "kick the bucket", "webtests-phrase", "—",
         ])
+        // A popover at most 320 tall (user, 2026-11-01): its body scrolls,
+        // its header with its close button stays.
+        if layout == .desktop {
+          let fits = try await sheet.evaluate(
+            """
+            sheet => {
+              const panel = sheet.querySelector('.sheet-panel');
+              const body = sheet.querySelector('.dialog-sheet-body');
+              const close = sheet.querySelector('.dialog-sheet-close');
+              const height = panel.getBoundingClientRect().height;
+              const top = close.getBoundingClientRect().top;
+              body.scrollTop = body.scrollHeight;
+              const scrolled = body.scrollTop > 0;
+              const still = close.getBoundingClientRect().top === top;
+              const wide = panel.getBoundingClientRect().width >= 320;
+              return [height <= 320, scrolled, still, wide].join(',');
+            }
+            """)
+          #expect(fits.string == "true,true,true,true", "\(fits)")
+        }
         try await page.expectNoHorizontalOverflow()
         try await page.keyboard.press("Escape")
         try await expect(sheet).toHaveAttribute("data-state", "closed")
