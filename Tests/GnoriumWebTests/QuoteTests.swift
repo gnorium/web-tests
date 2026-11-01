@@ -5,8 +5,8 @@ import WebTestsTesting
 
 /// A quote is shown in its testament (user, 2026-09-27): a sentiment's
 /// quote is read in its testament's reader (SENSES-DESIGN 8.4), fetched
-/// only once it comes into view, opened at its page with the page either
-/// side drawn and its sentence (split across a page break here) in view,
+/// only once it comes into view, the whole testament opened at its page
+/// (user, 2026-10-31) and its sentence (split across a page break here) in view,
 /// the sentence and, more strongly, the word marked; its image off. It is
 /// headed by its testament's Chicago note (user, 2026-10-18), its title a
 /// link to the testament's row on its record's page at the quote's
@@ -94,11 +94,12 @@ struct QuoteTests {
           "SELECT shape_json::jsonb -> ('manifest-' || upper(f.id::text)) ->> 'uuid' FROM biblio_record_versions v, bibliographic_figurants f WHERE v.id = '\(scratch.versionID)' AND f.id = (SELECT bibliographic_figurant_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())');"
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         try await expect(headingLink).toHaveAttribute("href", "\(work.path)?image=2#record-row-\(leafUUID)")
-        // The page and the page either side drawn; the rest wait to be
-        // turned to.
-        try await expect(quote.locator(".artifact-markup .tei-page")).toHaveCount(3)
-        try await expect(quote).not.toContainText("Page 1,")
-        try await expect(quote).not.toContainText("Page 5,")
+        // The whole testament (user, 2026-10-31), opened at the quote's
+        // page: drawn with the page either side, the windowed reader then
+        // fetches the four either side ahead—here all five.
+        try await expect(quote.locator(".artifact-markup .tei-page")).toHaveCount(5)
+        try await expect(quote.locator(".artifact-markup .tei-page[data-active='true']")).toHaveAttribute(
+          "data-service-id", "https://example.org/iiif/webtests-p3")
         // The sentence on both sides of the page break; the word more strongly.
         let third = quote.locator(".tei-page[data-service-id='https://example.org/iiif/webtests-p3']")
         try await expect(third.locator("mark[data-highlight='sentence']")).toHaveTexts(["Here the", "begins"])
@@ -111,9 +112,16 @@ struct QuoteTests {
         let weights = try await quote.evaluate(
           "box => [...box.querySelectorAll('mark')].map(m => getComputedStyle(m).fontWeight).join(' ')")
         #expect(weights == .string("400 400 400 400"))
-        // The word boxed as the OED boxes it; the sentence unboxed.
-        try await expect(title).toHaveCSS("border-top-style", "solid")
+        // The quote violet, its word magenta (user, 2026-10-31): a tint of
+        // its own, neither boxed.
+        try await expect(title).toHaveCSS("border-top-style", "none")
         try await expect(quote.locator("mark[data-highlight='sentence']").first).toHaveCSS("border-top-style", "none")
+        let tints = try await quote.evaluate(
+          """
+          box => { const tint = s => getComputedStyle(box.querySelector(`mark[data-highlight='${s}']`)).backgroundColor;
+            return tint('title') !== tint('sentence') && tint('title') !== 'rgba(0, 0, 0, 0)' }
+          """)
+        #expect(tints == .bool(true), "the word is not tinted apart from its sentence")
         // One reader, its image off at first.
         try await expect(attestation.locator(".artifact-view")).toHaveCount(1)
         try await expect(attestation.locator(".artifact-canvas-toggle button")).toHaveAttribute("aria-pressed", "false")

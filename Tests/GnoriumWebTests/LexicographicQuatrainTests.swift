@@ -79,7 +79,7 @@ struct LexicographicQuatrainTests {
           VALUES ('\(overtureID)', '\(figurantID)', '\(form)', '[]', '\(user)', now(), now());
         INSERT INTO sentiment_inventories (language_code, lemma, class, version) VALUES ('eng', '\(title)', 'noun', 1);
         INSERT INTO sentiments (uuid, lexicographic_overture_id, language_code, lemma, class, inventory_version,
-          definition_text, definition_key, provisional)
+          value_text, value_key, provisional)
           VALUES ('\(sentimentID)', '\(overtureID)', 'eng', '\(title)', 'noun', 1,
             'The land alongside a web test.', 'the land alongside a web test', true);
         INSERT INTO lexicographic_quatrains (id, lexicographic_overture_id, requested_by_user_id, sentiment_uuids_json,

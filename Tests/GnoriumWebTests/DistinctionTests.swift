@@ -7,7 +7,7 @@ import WebTestsTesting
 /// `<note type="usage" subtype="distinction">` is plain prose in its
 /// definition's box, under its label and above its Metadata (user,
 /// 2026-10-10, `SentimentDefinitionView`), its quotes below, rendered
-/// once (the box's Raw holds its XML), with no heading; a pointer to another
+/// once (its <sense> under Verbose holds its XML), with no heading; a pointer to another
 /// sentiment reads as its number. A throwaway admin owns
 /// a scratch word made by SQL and removed after.
 @Suite("Distinction", .serialized)
@@ -35,11 +35,11 @@ struct DistinctionTests {
         try await expect(note).toHaveCount(1)
         try await expect(note).toHaveText("Unlike sense 1, a leaf sense grows no further senses.")
         // Rendered once on the page: not in the Metadata or elsewhere; the
-        // definition box's Raw holds it only as XML.
+        // header's <sense>, shown only under Verbose, holds it only as XML.
         let rendered = try await page.evaluate(
           """
           (() => { const main = document.querySelector('main').cloneNode(true);
-            main.querySelectorAll("[data-definition-layer='raw']").forEach(e => e.remove());
+            main.querySelectorAll('.sentiment-sense-xml').forEach(e => e.remove());
             return main.textContent.split('grows no further senses').length - 1; })()
           """, as: Int.self)
         #expect(rendered == 1)

@@ -3,8 +3,8 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// The text pane is handled as the image pane is (user, 2026-10-12): the
-/// wheel zooms it about the pointer and never scrolls the page; a drag from
+/// The text pane is handled as the image pane is (user, 2026-10-12): it
+/// opens at its fit (user, 2026-10-31), the wheel zooms it about the pointer and never scrolls the page; a drag from
 /// blank space pans it, a drag from its text selects it, and a click on a
 /// word still opens its gloss. A throwaway admin owns a scratch testament with one long line,
 /// wider than the pane, made by SQL and removed after.
@@ -52,18 +52,21 @@ struct TextPaneGesturesTests {
         try await Task.sleep(for: .milliseconds(400))
         let box = try #require(try await pane.boundingBox())
         let before = try await page.evaluate(Self.state, as: Pane.self)
-        #expect(before.zoom == "1", "the text opens at its actual size")
+        // A leaf no zoom was set for opens at its fit (user, 2026-10-31): the
+        // line, wider than the pane, smaller than its actual size.
+        let fit = Double(before.zoom ?? "") ?? 1
+        #expect(fit < 1, "the text does not open at its fit: \(before.zoom ?? "—")")
 
-        // A plain wheel zooms out, about the pointer, and the page stays put.
+        // A plain wheel zooms in, about the pointer, and the page stays put.
         _ = try await page.evaluate(
           """
           (() => { const m = document.querySelector('.artifact-markup'); const r = m.getBoundingClientRect();
-            for (let i = 0; i < 3; i++) m.dispatchEvent(new WheelEvent('wheel', {deltaY: 40, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2, bubbles: true, cancelable: true}));
+            for (let i = 0; i < 3; i++) m.dispatchEvent(new WheelEvent('wheel', {deltaY: -40, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2, bubbles: true, cancelable: true}));
             return 1 })()
           """)
         try await Task.sleep(for: .milliseconds(300))
         let zoomed = try await page.evaluate(Self.state, as: Pane.self)
-        #expect(Double(zoomed.zoom ?? "1") ?? 1 < 1, "the wheel did not zoom the text: \(zoomed.zoom ?? "—")")
+        #expect(Double(zoomed.zoom ?? "0") ?? 0 > fit, "the wheel did not zoom the text: \(zoomed.zoom ?? "—")")
         #expect(zoomed.pageY == before.pageY, "the wheel scrolled the page")
 
         // Back at its actual size it overflows: a drag from the blank space

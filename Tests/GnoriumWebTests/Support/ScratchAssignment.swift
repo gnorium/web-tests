@@ -35,7 +35,7 @@ struct ScratchAssignment {
       INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
       VALUES ('\(nocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), 1200, now());
       INSERT INTO sentiment_inventories (language_code, lemma, class, version) VALUES ('eng', '\(word.title)', '\(wordClass)', 1);
-      INSERT INTO sentiments (uuid, lexico_record_id, language_code, lemma, class, inventory_version, definition_text, definition_key, provisional)
+      INSERT INTO sentiments (uuid, lexico_record_id, language_code, lemma, class, inventory_version, value_text, value_key, provisional)
         VALUES ('\(leaf)', '\(word.recordID.lowercased())', 'eng', '\(word.title)', '\(wordClass)', 1,
           'A leaf sense.', 'a leaf sense', false);
       INSERT INTO sentiment_assignments (reading_id, image, word_id, surface, language_code, lemma, class, sentiment_uuid, assigned_by)

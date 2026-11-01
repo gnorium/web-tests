@@ -54,7 +54,8 @@ struct GlossPhraseTests {
           """)
         let reader = page.locator(".artifact-view .tei-view").first
         try await reader.locator(".tei-word[data-line='1'][data-word='3']").click()
-        let sheet = page.locator(".artifact-markup-frame .gloss-sheet")
+        // A popover on a wide screen, the sheet over the pane on a narrow one (user, 2026-11-01).
+        let sheet = page.locator(".gloss-sheet")
         try await expect(sheet).toHaveAttribute("data-state", "open")
         let title = sheet.locator(".gloss-sheet-title")
         try await expect(title.locator(".breadcrumb-label-text")).toHaveText(word.title)

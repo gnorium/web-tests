@@ -52,7 +52,7 @@ struct ScratchFirstPass {
         VALUES ('\(overtureID)', '\(figurantID)', '\(form)', '[]', now());
       INSERT INTO sentiment_inventories (language_code, lemma, class, version) VALUES ('eng', '\(title)', 'noun', 1);
       INSERT INTO sentiments (uuid, lexicographic_overture_id, language_code, lemma, class, inventory_version,
-        definition_text, definition_key, provisional)
+        value_text, value_key, provisional)
         VALUES ('\(sentimentID)', '\(overtureID)', 'eng', '\(title)', 'noun', 1,
           'A scratch sense of the web tests.', 'a scratch sense of the web tests', true);
       COMMIT;

@@ -84,26 +84,35 @@ struct GlossTests {
         try await expect(reader.locator(".tei-word[tabindex='0']")).toHaveTexts(["The"])
 
         try await linked.click()
-        let sheet = page.locator(".artifact-markup-frame .gloss-sheet")
+        // A popover beside the word on a wide screen, at least 320×320 and on
+        // the screen; on a narrow one the sheet over the markup pane only
+        // (user, 2026-11-01).
+        let sheet = page.locator(".gloss-sheet")
+        try await expect(sheet).toHaveCount(1)
         try await expect(sheet).toHaveAttribute("data-state", "open")
-        // Over the markup pane only: the pane's frame holds it (which
-        // neither scrolls nor zooms), the image and the page's chrome
-        // stay outside it.
         let pane = page.locator(".artifact-markup-frame").first
-        try await expect(pane.locator(".gloss-sheet")).toHaveCount(1)
+        if layout == .phone {
+          // The pane's frame holds it (which neither scrolls nor zooms), the
+          // image and the page's chrome stay outside it.
+          try await expect(pane.locator(".gloss-sheet[data-state='open']")).toHaveCount(1)
+        }
         // Once the panel has slid in (the ellipsis menu's motion), it is the
         // pane's box (`.artifact-markup-box`, with its 1px edge the state
-        // ring is drawn on; the text inside it is inset by that edge).
+        // ring is drawn on; the text inside it is inset by that edge), or the
+        // popover on the screen.
         let covers = try await pane.evaluate(
           """
           async (el) => {
             await new Promise((r) => setTimeout(r, 400));
-            const p = el.querySelector('.artifact-markup-box').getBoundingClientRect(), s = el.querySelector('.gloss-sheet .sheet-panel').getBoundingClientRect();
-            return Math.abs(s.top - p.top) <= 1 && Math.abs(s.left - p.left) <= 1
+            const sheet = document.querySelector('.gloss-sheet[data-state=open]'), s = sheet.querySelector('.sheet-panel').getBoundingClientRect();
+            if (sheet.dataset.placement === 'popover')
+              return innerWidth >= 769 && s.width >= 320 && s.height >= 320 && s.left >= 0 && s.right <= innerWidth && s.top >= 0 && s.bottom <= innerHeight;
+            const p = el.querySelector('.artifact-markup-box').getBoundingClientRect();
+            return innerWidth < 769 && Math.abs(s.top - p.top) <= 1 && Math.abs(s.left - p.left) <= 1
               && Math.abs(s.height - p.height) <= 1 && Math.abs(s.width - p.width) <= 1;
           }
           """)
-        #expect(covers.bool == true, "the gloss does not cover the markup pane")
+        #expect(covers.bool == true, "the gloss is neither a popover on a wide screen nor over the markup pane on a narrow one")
         // The title is the record, as the search menu offers one, linked.
         let title = sheet.locator(".gloss-sheet-title")
         try await expect(title.locator(".breadcrumb-label-context")).toHaveText("English")
@@ -170,8 +179,11 @@ struct GlossTests {
         ])
         try await expect(details.locator(".record-view")).toHaveCount(0)
         try await expect(details.locator(".metadata-group-title").filter(hasText: "Lexico-record")).toHaveCount(0)
-        // Tab stays inside while it is open.
-        for _ in 0..<3 { try await page.keyboard.press("Tab") }
+        // The focus moves into it; a sheet (a narrow screen) keeps Tab inside
+        // while it is open, a popover (a wide one) may let it leave.
+        if layout == .phone {
+          for _ in 0..<3 { try await page.keyboard.press("Tab") }
+        }
         let inside = try await page.evaluate(
           "!!document.activeElement.closest('.dialog-sheet-content')")
         #expect(inside == .bool(true))
@@ -214,7 +226,9 @@ struct GlossTests {
         let word = quote.locator(".tei-word").filter(hasText: "scratchwords")
         try await expect(word).toHaveCount(1)
         try await word.click()
-        let again = quote.locator(".gloss-sheet[data-state='open']")
+        // A popover over the page on a wide screen, the sheet over the
+        // quote's pane on a narrow one (user, 2026-11-01).
+        let again = page.locator(".gloss-sheet[data-state='open']")
         try await expect(again).toHaveCount(1)
         // Headed by the quote's words alone: no meta row.
         try await expect(again.locator(".gloss-sheet-title .record-label-title")).toHaveText("scratchwords")
