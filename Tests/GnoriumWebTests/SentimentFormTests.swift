@@ -116,7 +116,7 @@ struct SentimentFormTests {
       // record's.
       try await dropdown.locator(".dropdown-trigger").click()
       try await dropdown.locator(".dropdown-option.is-selected").first.click()
-      try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("New record")
+      try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("Lexico-record")
       try await expect(form.locator("input[name='title']")).toHaveValue("\(word.title)s")
       try await expect(form.locator("#language")).toHaveValue("eng")
       try await expect(frozen).toHaveCount(0)

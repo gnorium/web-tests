@@ -4,8 +4,8 @@ import WebTests
 import WebTestsTesting
 
 /// Submit Testament and Submit Sentiment are the record page in edit mode
-/// (user, 2026-09-28): the record field at the head ("New record" until one
-/// is chosen), the record's fields, then the chronicle tree with the new
+/// (user, 2026-09-28): the record field at the head (its placeholder, its
+/// label, until one is chosen), the record's fields, then the chronicle tree with the new
 /// nodes, open, their fields in their Metadata, each row named by its own
 /// fields as they are typed ("—" until then; no level name). A new
 /// testament is drawn as the nodes it will become (user, 2026-10-01): a
@@ -156,10 +156,10 @@ struct SubmissionTests {
     let form = page.locator(".submit-testament-form")
     try await expect(page).toHaveTitle("Submit Testament | Mission Control | Gnorium")
     // The record page's column: the header, its rule, the record field
-    // "New record", the fields, then the tree.
+    // reading its label, the fields, then the tree.
     try await expect(form.locator(".record-view .record-identity .form-header-view")).toHaveCount(1)
     let field = form.locator(".record-choice-field-view")
-    try await expect(field.locator(".dropdown-selected-text")).toHaveText("New record")
+    try await expect(field.locator(".dropdown-selected-text")).toHaveText("Biblio-record")
     let apparatus = form.locator("#metadata")
     try await expect(apparatus.locator("input[name='title']")).toBeEnabled()
     let tree = form.locator(".submit-testament-tree")
@@ -220,12 +220,13 @@ struct SubmissionTests {
     try await manifest.locator("input[name='source-url']").fill("\(source)/new")
     // An open work: Gnorium takes no other (TestamentRights).
     try await set(page, [("testament-rights-statement", "noc_us")])
-    // Clicked once the page has stopped growing: the record field's answer
-    // to the work typed adds its note over the tree, and the testament the
-    // Source URL names opens over Submit, each moving what is under them.
+    // Clicked once the page has stopped growing: the record field has
+    // answered the work typed (no record matches it, so no note: the
+    // empty field says it), and the testament the Source URL
+    // names opens over Submit, moving what is under it.
     try await expect(field.locator(".record-choice-field-slot"), timeout: .seconds(20))
       .toHaveAttribute("aria-busy", "false")
-    try await expect(form.locator(".record-choice-note")).toHaveCount(1)
+    try await expect(form.locator(".record-choice-note")).toHaveCount(0)
     try await expect(form.locator(".testament-draft-reader .artifact-view"), timeout: .seconds(20)).toBeVisible()
 
     // Printed again, the impression and issue the manuscript took come back
@@ -572,7 +573,7 @@ struct SubmissionTests {
     try await page.openHydrated(Self.sentimentForm)
     try await expect(page).toHaveTitle("Submit Sentiment | Mission Control | Gnorium")
     let form = page.locator(".submit-sentiment-form")
-    try await expect(form.locator(".record-choice-field-view .dropdown-selected-text")).toHaveText("New record")
+    try await expect(form.locator(".record-choice-field-view .dropdown-selected-text")).toHaveText("Lexico-record")
     let tree = form.locator(".submit-sentiment-tree")
     try await expect(tree.locator(".record-row-view")).toHaveCount(1)
     let draft = tree.locator("[data-submission-draft='true']")

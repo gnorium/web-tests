@@ -4,9 +4,9 @@ import WebTests
 import WebTestsTesting
 
 /// The Biblio-record field of Submit Testament: a searchable dropdown of
-/// every record from the start, "New record" until one is chosen, each in
+/// every record from the start, its label until one is chosen, each in
 /// two rows (its language › its title, a breadcrumb with BreadcrumbView's
-/// own chevron; its voices and type), a note ending a list cut at 50; the
+/// own chevron; its voices and class), a note ending a list cut at 50; the
 /// closed dropdown names the chosen record so too. Once the work's
 /// language, title, author and type are filled, the match is offered
 /// first and chosen for the submitter (Submit Testament makes records: a
@@ -50,7 +50,7 @@ struct RecordChoiceTests {
       try await expect(field.locator("legend")).toContainText("Biblio-record")
       // A dropdown of every record from the start, none chosen: a new record.
       let dropdown = field.locator(".dropdown-view")
-      try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("New record")
+      try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("Biblio-record")
       // Cut at 50 records, the list says so after its last option, and
       // only then; the note is no option. The list is in title order, so
       // the scratch work is among the options only when nothing was cut:
@@ -153,7 +153,7 @@ struct RecordChoiceTests {
 
       // Afresh: found by typing, picked, and its amendment offered.
       try await page.openHydrated(Self.form)
-      try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("New record")
+      try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("Biblio-record")
       try await dropdown.locator(".dropdown-trigger").click()
       try await dropdown.locator(".dropdown-search-input .search-input").fill(work.suffix)
       let results = dropdown.locator(".dropdown-options-list[data-dropdown-results='true']")
