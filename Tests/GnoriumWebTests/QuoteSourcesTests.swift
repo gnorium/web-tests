@@ -144,6 +144,9 @@ struct QuoteSourcesTests {
         let words = box.locator(".quote-passage-reader .artifact-markup .tei-word")
         try await expect(words.first, timeout: .seconds(20)).toBeAttached()
         try await expect(box.locator("input[name='quote-s1-source-url']")).toBeDisabled()
+        // Its leaf named by the Testament UUID field (user, 2026-11-02).
+        try await expect(box.locator(".quote-passage-record [data-placeholder='Testament UUID']"), timeout: .seconds(10)).toHaveCount(1)
+        try await expect(box.locator(".quote-passage-record")).toContainText("Testament UUID")
         // The sentence selected in its text pane fills the quote.
         _ = try await box.evaluate(
           """

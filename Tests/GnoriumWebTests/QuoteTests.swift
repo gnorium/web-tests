@@ -85,22 +85,30 @@ struct QuoteTests {
         let work = scratch.reading.work
         try await expect(heading.locator(".accordion-title").first).toHaveText("Source")
         try await heading.locator(".accordion-summary").first.click()
-        try await expect(heading.locator(".quote-source-fields .datum-view")).toHaveCount(1)
+        // The form's fields (user, 2026-11-02): Record › Testament UUID, no
+        // Quote.
+        try await expect(heading.locator(".quote-source-fields .datum-view .datum-label")).toHaveTexts([
+          "Record", "Testament UUID",
+        ])
         try await expect(heading.locator(".quote-source-fields")).toContainText(work.title)
+        try await expect(heading.locator(".quote-source-fields")).not.toContainText("Quote")
         try await expect(heading.locator(".quote-source-fields")).not.toContainText("Images start")
         let headingAbove = try await attestation.evaluate(
           "(view) => { const h = view.querySelector('.quote-source-view').getBoundingClientRect(); const q = view.querySelector('.testament-view').getBoundingClientRect(); return h.bottom <= q.top }")
         #expect(headingAbove == .bool(true), "the Source box is not above the quote")
         try await expect(attestation.locator(".breadcrumb-view")).toHaveCount(0)
         try await expect(attestation.locator(".header-view")).toHaveCount(0)
-        // Its Source links to the testament's leaf row on the record's page,
-        // its reader on the quote's page.
-        let headingLink = heading.locator(".quote-source-fields a")
-        try await expect(headingLink).toHaveCount(1)
+        // Its Record links to the record's page, its Testament UUID to the
+        // testament's leaf row there, its reader on the quote's page.
+        let links = heading.locator(".quote-source-fields a")
+        try await expect(links).toHaveCount(2)
+        try await expect(links.first).toHaveAttribute("href", work.path)
+        let headingLink = links.nth(1)
         let leafUUID = try TestAdmin.query(
           "SELECT shape_json::jsonb -> ('manifest-' || upper(f.id::text)) ->> 'uuid' FROM biblio_record_versions v, bibliographic_figurants f WHERE v.id = '\(scratch.versionID)' AND f.id = (SELECT bibliographic_figurant_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())');"
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         try await expect(headingLink).toHaveAttribute("href", "\(work.path)?image=2#record-row-\(leafUUID)")
+        try await expect(headingLink).toHaveText(leafUUID.lowercased())
         // The whole testament (user, 2026-10-31), opened at the quote's
         // page: drawn with the page either side, the windowed reader then
         // fetches the four either side ahead—here all five.
