@@ -178,7 +178,8 @@ struct ReaderHeaderTests {
 
         // No page image (a source no manifest answers for): Raw and Find,
         // which need the markup, and no image switch, which needs a
-        // image; the page named by its place.
+        // image; the page named by the label printed on it (its pb n, "iv":
+        // no canvas labels, and its one page has one).
         _ = try TestAdmin.query(
           """
           UPDATE biblio_record_versions SET metadata_json = jsonb_set(metadata_json::jsonb, '{sourceUrl}', '"https://example.org/web-tests-none"')::text
@@ -190,7 +191,7 @@ struct ReaderHeaderTests {
           (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-row')
             .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
           """)
-        try await expect(page.locator(".artifact-view .artifact-canvas-label").first).toHaveText("1")
+        try await expect(page.locator(".artifact-view .artifact-canvas-label").first).toHaveText("iv")
         let bare = try await Self.header(page)
         #expect(bare.raw && bare.find, "no page image: Raw and Find need only the markup")
         #expect(bare.rawAtFooterStart && bare.labelAtHeaderStart, "no page image: the bars still hold their places")
