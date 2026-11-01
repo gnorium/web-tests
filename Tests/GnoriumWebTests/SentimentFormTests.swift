@@ -5,14 +5,13 @@ import WebTestsTesting
 
 /// Submit Sentiment, the parallel of Submit Testament, the record page in
 /// edit mode: the record first (Lexico-record, Language, Script, Title,
-/// Type), then the tree with the new sentiment alone, open, its fields in
+/// Class), then the tree with the new sentiment alone, open, its fields in
 /// its Metadata (its Form rows, Label, the Grammar, Register, Domain,
 /// Region and Currency usage). No card, no placement widget. No quote
 /// is cited, nothing is derived and no passage coins the word: the process
 /// finds the quotes by the title and the forms. A region is offered
-/// under its language. A picked lexico-record stands with its own fields,
-/// its tree in the tree section, and stays chosen; unset, the typed fields
-/// come back as they were left. Nothing is submitted (`SubmissionTests`
+/// under its language. A picked lexico-record offers its amendment and
+/// stays chosen; unset, the typed fields are as they were left. Nothing is submitted (`SubmissionTests`
 /// submits).
 @Suite("Sentiment form", .serialized)
 struct SentimentFormTests {
@@ -100,27 +99,27 @@ struct SentimentFormTests {
       try await expect(found, timeout: .seconds(20)).toBeVisible()
       try await found.click()
       try await expect(field.locator("input[name='lexico-record']")).toHaveValue(word.recordID)
+      // Chosen: a record that exists takes the sentiment by its amendment
+      // (user, 2026-10-20), offered in the field, the form's Submit
+      // waiting; the tree is still the new sentiment's alone.
+      let amendment = field.locator("[data-record-choice-amendment] .record-choice-amendment-button")
+      try await expect(amendment, timeout: .seconds(15)).toBeVisible()
+      try await expect(form.locator(".record-actions button[type='submit']")).toBeDisabled()
       let tree = form.locator(".submit-sentiment-tree")
-      try await expect(tree.locator(".outliner-view"), timeout: .seconds(15)).toHaveCount(1)
-      let frozen = form.locator(".submit-sentiment-apparatus .record-choice-apparatus")
-      try await expect(frozen).toContainText(word.title)
-      try await expect(form.locator("input[name='title']")).toHaveCount(0)
-      try await expect(field.locator(".submission-tree-view")).toHaveCount(0)
-      try await expect(form.locator("input[name='placement-version']")).toHaveCount(1)
+      try await expect(tree.locator("[data-submission-draft='true']")).toHaveCount(1)
+      try await expect(form.locator("input[name='placement-version']")).toHaveCount(0)
       try await shoot(page, "picked", layout)
       try await Task.sleep(for: .milliseconds(900))
       try await expect(field.locator("input[name='lexico-record']")).toHaveValue(word.recordID)
-      try await expect(tree.locator(".outliner-view")).toHaveCount(1)
 
-      // Unset: the typed fields back as they were left, the tree a new
-      // record's.
+      // Unset: no amendment, the typed fields as they were left, the tree
+      // a new record's.
       try await dropdown.locator(".dropdown-trigger").click()
       try await dropdown.locator(".dropdown-option.is-selected").first.click()
       try await expect(dropdown.locator(".dropdown-selected-text")).toHaveText("Lexico-record")
+      try await expect(amendment, timeout: .seconds(15)).toHaveCount(0)
       try await expect(form.locator("input[name='title']")).toHaveValue("\(word.title)s")
       try await expect(form.locator("#language")).toHaveValue("eng")
-      try await expect(frozen).toHaveCount(0)
-      try await expect(tree.locator(".outliner-view"), timeout: .seconds(15)).toHaveCount(0)
       try await expect(tree.locator("[data-submission-draft='true']")).toHaveCount(1)
       try await expect(form.locator("input[name='placement-version']")).toHaveCount(0)
     }
