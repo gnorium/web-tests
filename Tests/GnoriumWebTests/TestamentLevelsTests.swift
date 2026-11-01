@@ -74,8 +74,8 @@ struct TestamentLevelsTests {
             ".activity-statement-view[data-as-namespace='publication']", '#work-edition',
             "[data-item-list='as-publication']", "[name='as-publication-year']", "[name='as-publication-place']",
             '#testament-copy-label', ".activity-statement-view[data-as-namespace='production']",
-            ".activity-statement-view[data-as-namespace='digitization']", "[name='provider-dropdown']",
-            "[data-item-list='as-digitization']", "[name='as-digitization-place']", '#testament-source-url',
+            ".activity-statement-view[data-as-namespace='reproduction']", "[name='provider-dropdown']",
+            "[data-item-list='as-reproduction']", "[name='as-reproduction-place']", '#testament-source-url',
             '#testament-digitization-license',
           ];
           for (let i = 1; i < chain.length; i++) {
@@ -83,7 +83,7 @@ struct TestamentLevelsTests {
             if (!a || !b) return 'missing ' + (a ? chain[i] : chain[i - 1]);
             if (!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)) return chain[i] + ' before ' + chain[i - 1];
           }
-          for (const kind of ['publication', 'production', 'digitization']) {
+          for (const kind of ['publication', 'production', 'reproduction']) {
             const block = at(`.activity-statement-view[data-as-namespace='${kind}']`);
             const place = `[name='as-${kind}-place']`, agents = `[data-item-list='as-${kind}']`;
             const year = `[name='as-${kind}-year']`;
@@ -113,7 +113,7 @@ struct TestamentLevelsTests {
       try await choose("printed", "Print", in: carrier)
       try await expect(block("publication")).toBeVisible()
       try await expect(block("production")).toBeHidden()
-      try await expect(block("digitization")).toBeVisible()
+      try await expect(block("reproduction")).toBeVisible()
       // No group is headed: the fields say what they are.
       try await expect(draft.locator(".metadata-group-title")).toHaveCount(0)
       try await expect(form.locator("[data-as-namespace='creation']")).toHaveCount(0)
@@ -174,7 +174,7 @@ struct TestamentLevelsTests {
       let statements = try JSONSerialization.jsonObject(with: Data(posted.utf8)) as? [[String: Any]] ?? []
       #expect(
         statements.map { $0["kind"] as? String }
-          == ["publication", "impressionPublication", "issuePublication", "production", "digitization"])
+          == ["publication", "manufacture", "distribution", "production", "reproduction"])
       #expect(statements.first?["year"] as? Int == 1610)
       #expect(statements.allSatisfy { $0["type"] == nil }, "No creation, no provision tag.")
 
