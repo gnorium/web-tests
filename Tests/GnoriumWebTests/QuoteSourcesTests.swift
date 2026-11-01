@@ -130,7 +130,7 @@ struct QuoteSourcesTests {
       let origins =
         #"[{"id":"\#(UUID().uuidString)","relations":["based_on"],"typed":{"title":"Web tests source","voices":[]},"origins":[],"#
         + #""evidence":[{"id":"\#(UUID().uuidString)","anchors":[],"roles":["existence"],"#
-        + #""pending":{"sourceURL":"\#(source)","images":[1,2],"text":"The pendingword stood fast"}}]}]"#
+        + #""pending":{"sourceURL":"\#(source)","images":[1,2],"text":"The pendingword stood fast","title":"Pending shape","language":"eng","class":"play"}}]}]"#
       _ = try TestAdmin.query(
         "UPDATE bibliographic_overtures SET origins_json = '\(origins)' WHERE id = '\(overture.overtureID)';")
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -138,7 +138,10 @@ struct QuoteSourcesTests {
         let pending = page.locator(".pending-quote-view").first
         try await expect(pending, timeout: .seconds(15)).toBeAttached()
         try await expect(pending.locator(".quote-source-view")).toHaveCount(1)
-        try await expect(pending.locator(".quote-source-fields .datum-label")).toHaveTexts(["URL"])
+        try await expect(pending.locator(".quote-source-fields .datum-label")).toHaveTexts(["URL", "Title", "Language", "Class"])
+        try await expect(pending.locator(".quote-source-fields")).toContainText("Pending shape")
+        try await expect(pending.locator(".quote-source-fields")).toContainText("English")
+        try await expect(pending.locator(".quote-source-fields")).toContainText("Play")
         try await expect(pending.locator(".quote-source-fields a")).toHaveAttribute("href", source)
         try await expect(pending.locator(".testament-view")).toHaveCount(1)
         try await expect(pending.locator(".testament-view .artifact-markup")).toContainText("pendingword")
@@ -148,7 +151,7 @@ struct QuoteSourcesTests {
         #expect(text == 0, "a pending quote shows only its Source box and its reader")
         try await expect(pending.locator(".info-chip-text")).toHaveCount(0)
         try await expect(pending).not.toContainText("Images")
-        try await expect(pending).not.toContainText("Pending")
+        try await expect(pending.locator(".pending-quote-status")).toHaveCount(0)
       }
     } catch {
       holder?.remove()
@@ -221,18 +224,22 @@ struct QuoteSourcesTests {
         let closed = box.locator(".dropdown-view:has([name='quote-s1-record-node']) .dropdown-selected-text")
         try await expect(closed, timeout: .seconds(10)).toContainText(uuid)
         try await expect(closed).toContainText(described)
+        // One line inside the box, its tail edge-faded where it runs past
+        // (the closed value fades without expand), as the Record's does.
         let fits = try await box.evaluate(
           """
           (b) => { const field = b.querySelector("[name='quote-s1-record-node']").closest('.dropdown-view');
             const text = field.querySelector('.dropdown-selected-text');
+            const t = text.getBoundingClientRect();
             const trigger = field.querySelector('.dropdown-trigger').getBoundingClientRect();
             const own = b.getBoundingClientRect();
             return trigger.right <= own.right + 0.5 && trigger.left >= own.left - 0.5
-              && text.getBoundingClientRect().height < 40
-              && document.documentElement.scrollWidth <= document.documentElement.clientWidth; }
+              && t.left >= trigger.left && t.right <= trigger.right && t.height < 40
+              && getComputedStyle(text).overflowX !== 'visible'
+              && (text.scrollWidth <= text.clientWidth || text.dataset.edgeFadeView === 'true'); }
           """
         ).bool
-        #expect(fits == true, "the closed Testament UUID overflows its box")
+        #expect(fits == true, "the closed Testament UUID runs out of its box")
         // The sentence selected in its text pane fills the quote.
         _ = try await box.evaluate(
           """
