@@ -138,8 +138,11 @@ struct LexicographicAmendmentTests {
         try await page.expectNoHorizontalOverflow()
 
         // The palinode its Pedigree names is frozen: submitted, with no
-        // Revise, no Permit and no thread.
-        try await page.locator("a[href^='/mission-control/palinodes/lexicographic/']").first.click()
+        // Revise, no Permit and no thread. The Pedigree is closed by
+        // default (a reader came for the object): opened first.
+        let pedigree = page.locator(".pedigree-accordion")
+        try await pedigree.locator(".accordion-summary").first.click()
+        try await pedigree.locator("a[href^='/mission-control/palinodes/lexicographic/']").first.click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the palinode's page") {
           $0.path.hasPrefix("/mission-control/palinodes/lexicographic/")
         }
@@ -227,7 +230,8 @@ struct LexicographicAmendmentTests {
         let filed = try TestAdmin.query(
           "SELECT count(*) FROM lexicographic_palinodes WHERE lexico_record_id = '\(record)'")
         #expect(filed.trimmingCharacters(in: .whitespacesAndNewlines) == "0", "nothing refused is filed")
-        try await page.expectNoErrors(ignoring: ["status of 422"])
+        // The refusal answers 422, as the console and the request log say it.
+        try await page.expectNoErrors(ignoring: ["status of 422", "HTTP 422"])
         try await page.expectNoHorizontalOverflow()
 
         // Corrected—the new sentiment left out, so every sentiment is open
