@@ -19,8 +19,9 @@ import WebTestsTesting
 /// was typed into that record's amendment, the new nodes added to its tree:
 /// under an edition a copy and its digitization, the edition's carrier
 /// taken, its own edition node out and unposted; nothing goes under a
-/// digitization. A chosen lexico-record's fields are frozen and its tree is
-/// its own, the new sentiment placed in it. A manuscript's citations are its
+/// digitization. A new sentiment is founded on a quote, its image and its
+/// testament's Source URL; a chosen lexico-record takes it by its
+/// amendment, as a chosen biblio-record does. A manuscript's citations are its
 /// copy's. A work's page offers its amendment; a word's, its submission
 /// with the record chosen; signed out, each says so in an alert. Each case
 /// is submitted, and its evidence and overture read back from the database.
@@ -188,7 +189,7 @@ struct SubmissionTests {
     // the carrier and its making there, not removable; its citations its
     // copy's.
     let carrier = tree.locator(".dropdown-view:has(#testament-carrier)")
-    let citations = "fieldset:has([data-item-list='citation-number'])"
+    let citations = "[data-item-list='citation-number']"
     try await choose(carrier, "manuscript")
     try await expect(node(tree, "edition")).toHaveAttribute("data-outliner-removed", "true")
     try await expect(node(tree, "impression")).toHaveAttribute("data-outliner-removed", "true")
@@ -217,6 +218,8 @@ struct SubmissionTests {
     try await manifest.locator(".combobox-view:has(input[name='provider-dropdown']) .text-input-input")
       .fill("British Library")
     try await manifest.locator("input[name='source-url']").fill("\(source)/new")
+    // An open work: Gnorium takes no other (TestamentRights).
+    try await set(page, [("testament-rights-statement", "noc_us")])
     // Clicked once the page has stopped growing: the record field's answer
     // to the work typed adds its note over the tree, and the testament the
     // Source URL names opens over Submit, each moving what is under them.
@@ -387,6 +390,20 @@ struct SubmissionTests {
     try await manifest.locator(".combobox-view:has(input[name='provider-dropdown']) .text-input-input")
       .fill("British Library")
     try await manifest.locator("input[name='source-url']").fill("\(source)/placed")
+    try await set(page, [("new-testament-rights-statement", "noc_us")])
+    // The testament it names read in its own node, below its Metadata, as
+    // on Submit Testament (user, 2026-11-01).
+    let reader = manifest.locator(".testament-draft-reader")
+    try await expect(reader.locator(".artifact-view"), timeout: .seconds(20)).toBeVisible()
+    let placed = try await reader.evaluate(
+      """
+      (el) => {
+        const metadata = el.closest(".submission-tree-node").querySelector(".metadata-accordion-view");
+        return !!(metadata.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+      }
+      """)
+    #expect(placed == .bool(true), "the amendment's reader is not below its digitization's Metadata")
+    try await expect(page.locator(".testament-draft-reader")).toHaveCount(1)
     try await page.locator("button[type='submit'][form='amendment-new']").click()
     try await expect(page, timeout: .seconds(15)).toHaveURL("the Mission Control page") {
       $0.path == "/mission-control"
@@ -474,6 +491,11 @@ struct SubmissionTests {
           $0.path == "\(work.path)/amendments/new"
         }
         try await expect(page.locator(".testament-outliner-view")).toHaveCount(1)
+        // Pressed once the gate holds the Submit: reached by a link, the page
+        // is not waited on as `openHydrated` waits, and a press before the
+        // client binds posts the form natively (a 401 still in flight, which
+        // aborted the next navigation).
+        try await expect(page.locator(".action-gate-view[data-gate-bound='true']")).toHaveCount(1)
         try await page.locator(".action-gate-view button[type='submit']").click()
         try await expect(page.locator(".action-gate-view .alert-content")).toContainText("Signing in is needed")
         #expect(URL(string: try await page.url())?.path == "\(work.path)/amendments/new")
@@ -507,6 +529,10 @@ struct SubmissionTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let word = try ScratchWord(owner: admin)
     let suffix = String(UUID().uuidString.prefix(8)).lowercased()
+    // The testament its quote is on: a manifest the server can read.
+    let fixtures = try await FixtureServer.threePageManifest()
+    defer { fixtures.stop() }
+    let source = fixtures.baseURL + "/manifest.json"
     func clean() {
       _ = try? TestAdmin.query(
         """
@@ -514,12 +540,16 @@ struct SubmissionTests {
         DELETE FROM lexicographic_overtures WHERE lexicographic_figurant_id IN
           (SELECT id FROM lexicographic_figurants WHERE title_form_json::json ->> 'title' = 'webtestsnew\(suffix)'
             OR chosen_lexico_record_id = '\(word.recordID.lowercased())');
+        DELETE FROM bibliographic_overtures WHERE bibliographic_figurant_id IN
+          (SELECT id FROM bibliographic_figurants WHERE source_url = '\(source)');
+        UPDATE bibliographic_figurants SET discarded_at = now(), discarded_by = '\(admin.username)'
+          WHERE source_url = '\(source)' AND discarded_at IS NULL;
         COMMIT;
         """)
     }
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        try await newSentiment(page, suffix: suffix)
+        try await newSentiment(page, suffix: suffix, source: source)
         try await placedSentiment(page, word: word)
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
@@ -538,7 +568,7 @@ struct SubmissionTests {
   /// sentiment alone, "—": its description is the machine's, never typed
   /// (user, 2026-10-09); a label chosen; submitted, an evidence and its
   /// overture with no record chosen.
-  private func newSentiment(_ page: Page, suffix: String) async throws {
+  private func newSentiment(_ page: Page, suffix: String, source: String) async throws {
     try await page.openHydrated(Self.sentimentForm)
     try await expect(page).toHaveTitle("Submit Sentiment | Mission Control | Gnorium")
     let form = page.locator(".submit-sentiment-form")
@@ -556,6 +586,13 @@ struct SubmissionTests {
     try await expect(draft.locator("#description, textarea[name='description']")).toHaveCount(0)
     try await set(page, [("usage-register", "formal")])
     try await expect(title).toHaveText("—")
+    // Its value, founded on a quote, the image it is on and its
+    // testament's Source URL, an open work (SubmitSentimentController).
+    try await form.locator("textarea[name='value']").fill("What the web tests word means")
+    try await form.locator("textarea[name='quote']").fill("A web tests quote")
+    try await form.locator("input[name='quote-image-url']").fill(source.replacingOccurrences(of: "/manifest.json", with: "/page-1/full/max/0/default.jpg"))
+    try await form.locator("input[name='source-url']").fill(source)
+    try await set(page, [("sentiment-rights-statement", "noc_us")])
     try await form.locator(".record-actions button[type='submit']").click()
     try await expect(page, timeout: .seconds(15)).toHaveURL("its overture's page") {
       $0.path.hasPrefix("/mission-control/overtures/lexicographic/")
@@ -584,7 +621,6 @@ struct SubmissionTests {
     let form = page.locator(".submit-sentiment-form")
     let field = form.locator(".record-choice-field-view")
     let dropdown = field.locator(".dropdown-view")
-    let tree = form.locator(".submit-sentiment-tree")
     // Picked once the field's first answer has redrawn it.
     try await expect(field.locator(".record-choice-field-slot"), timeout: .seconds(20))
       .toHaveAttribute("aria-busy", "false")
@@ -595,41 +631,20 @@ struct SubmissionTests {
     try await expect(found, timeout: .seconds(20)).toBeVisible()
     try await found.click()
     try await expect(field.locator("input[name='lexico-record']")).toHaveValue(word.recordID)
-    try await expect(tree.locator(".outliner-view"), timeout: .seconds(15)).toHaveCount(1)
-    let apparatus = form.locator(".submit-sentiment-apparatus")
-    try await expect(apparatus.locator(".record-choice-apparatus")).toContainText(word.title)
-    try await expect(apparatus.locator("input[name='title']")).toHaveCount(0)
-
-    let draft = tree.locator(".outliner-item[data-outliner-id='new']")
-    let number = draft.locator(".record-row-number").first
-    try await expect(number).toHaveText("2")
-    let handle = draft.locator(".outliner-handle").first
-    try await handle.click()
-    try await page.locator(".outliner-toolbar [data-outliner-action='indent']").click()
-    try await page.locator(".outliner-toolbar [data-outliner-action='done']").click()
-    try await expect(number).toHaveText("1.2")
-    try await handle.click()
-    try await handle.press("ArrowRight")
-    try await expect(tree.locator(".outliner-feedback .alert-content"))
-      .toHaveText("A more abstract sentiment can't go under a more concrete one.")
-    try await handle.press("Escape")
-    try await expect(number).toHaveText("1.2")
-
-    try await expect(draft.locator(".record-row-title").first).toHaveText("—")
-    try await form.locator(".record-actions button[type='submit']").click()
-    try await expect(page, timeout: .seconds(15)).toHaveURL("its overture's page") {
-      $0.path.hasPrefix("/mission-control/overtures/lexicographic/")
+    try await form.locator("textarea[name='value']").fill("What the placed word means")
+    // A record that exists takes the sentiment by its amendment: the
+    // form's Submit waits, disabled, and "Submit Amendment" carries what was
+    // typed there (Submit Sentiment makes new records only).
+    let amend = field.locator("[data-record-choice-amendment] .record-choice-amendment-button")
+    try await expect(amend, timeout: .seconds(15)).toBeVisible()
+    try await expect(form.locator(".record-actions button[type='submit']")).toBeDisabled()
+    try await amend.click()
+    try await expect(page, timeout: .seconds(15)).toHaveURL("the word's amendment") {
+      $0.path == "\(word.path)/amendments/new"
     }
-    let row = try TestAdmin.query(
-      """
-      SELECT (e.title_form_json::json ->> 'title') || '|' || e.chosen_lexico_record_id::text || '|'
-        || o.chosen_lexico_record_id::text || '|' || e.placement_json
-        FROM lexicographic_figurants e JOIN lexicographic_overtures o ON o.lexicographic_figurant_id = e.id
-        WHERE e.chosen_lexico_record_id = '\(word.recordID.lowercased())';
-      """
-    ).trimmingCharacters(in: .whitespacesAndNewlines)
-    let record = word.recordID.lowercased()
-    #expect(row.hasPrefix("\(word.title)|\(record)|\(record)|"), "\(row)")
-    #expect(row.contains(#""parent":"s-1""#) && row.contains(#""position":1"#), "\(row)")
+    // What was typed carried into the new sentiment's fields; nothing
+    // refused.
+    try await expect(page.locator("textarea[name='new-sentiment-value']")).toHaveValue("What the placed word means")
+    try await expect(page.locator(".submit-lexicographic-amendment-refusal .alert-view")).toHaveCount(0)
   }
 }
