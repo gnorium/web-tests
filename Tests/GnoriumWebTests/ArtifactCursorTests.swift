@@ -46,9 +46,9 @@ struct ArtifactCursorTests {
         try await page.mouse.up(x: pane.x + pane.width - 60, y: pane.y + 50)
         // A gloss word keeps its own pointer.
         let word = try await page.evaluate(
-          "(() => { const w = document.querySelector('.artifact-markup .tei-word'); return w ? getComputedStyle(w).cursor : 'pointer' })()",
+          "(() => { const w = document.querySelector('.artifact-markup .tei-word'); return w ? getComputedStyle(w).cursor : 'help' })()",
           as: String.self)
-        #expect(word == "pointer", "\(url): a word's own cursor")
+        #expect(word == "help", "\(url): a word's own cursor, the question mark of what opens a gloss")
       }
       try await page.expectNoErrors()
     }

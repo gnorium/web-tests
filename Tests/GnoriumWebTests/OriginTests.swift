@@ -120,7 +120,7 @@ struct OriginTests {
         let repeated = steps.last
         try await expect(repeated.locator("a[href='\(first.path)'] .breadcrumb-label-text")).toHaveText(first.title)
         try await expect(repeated.locator(".datum-value")).toHaveTexts([
-          "Derivation", "AD 1958", "Certain", "\(first.author) (Author)",
+          "Derivation", "AD 1958", "Certain", "\(first.author) (Author)", "—",
         ])
         let shape = try await tree.evaluate(
           """
@@ -349,6 +349,21 @@ struct OriginTests {
       let editionID = try await edition.getAttribute("data-value") ?? ""
       try await node.locator(".dropdown-trigger").click()
       try await edition.click()
+      // The form's sentence names the record, its term previewing it (and
+      // the node named) without leaving the form (user, 2026-11-01).
+      let formTerm = block.locator(".origin-sentence-view button[data-gloss-preview]")
+      try await expect(formTerm).toHaveText(original.title)
+      try await expect(formTerm).toHaveAttribute("data-gloss-preview", "\(original.path)/preview?node=\(editionID)")
+      try await formTerm.click()
+      let formSheet = page.locator(".gloss-sheet")
+      try await expect(formSheet).toHaveAttribute("data-state", "open")
+      let heading = formSheet.locator(".gloss-sheet-title a.record-preview-heading")
+      try await expect(heading).toHaveCount(1)
+      let href = try await heading.getAttribute("href") ?? ""
+      #expect(href.hasPrefix("\(original.path)#record-row-"), "the node's row: \(href)")
+      #expect(try await page.evaluate("location.pathname").string == Self.form)
+      try await page.keyboard.press("Escape")
+      try await expect(formSheet).toHaveAttribute("data-state", "closed")
 
       // A second row, typed: its own "+ Origin" gives it an origin of its
       // own.
@@ -598,9 +613,9 @@ struct OriginTests {
       let steps = tree.locator(".origin-step-view")
       try await expect(steps).toHaveCount(2)
       let typedStep = steps.first
-      try await expect(typedStep.locator(".datum-label")).toHaveTexts(["Relation", "Date", "Certainty", "Voices"])
+      try await expect(typedStep.locator(".datum-label")).toHaveTexts(["Relation", "Date", "Certainty", "Voices", "Evidence"])
       try await expect(typedStep.locator(".datum-value")).toHaveTexts([
-        "Translation, Abridgment", "circa AD 890", "Certain", "—",
+        "Translation, Abridgment", "circa AD 890", "Certain", "—", "—",
       ])
       try await expect(typedStep.locator(".breadcrumb-label-context")).toHaveText("Old English")
       try await expect(typedStep.locator(".breadcrumb-label-text")).toHaveText(typed)
@@ -614,7 +629,7 @@ struct OriginTests {
       try await expect(recordStep.locator("a[href='\(original.path)'] .breadcrumb-label-text")).toHaveText(original.title)
       try await expect(recordStep.locator(".record-type-view")).toHaveText("report")
       try await expect(recordStep.locator(".datum-value")).toHaveTexts([
-        "Translation", "AD 1958", "Certain", "\(original.author) (Author)",
+        "Translation", "AD 1958", "Certain", "\(original.author) (Author)", "—",
       ])
       // Above the tree, the tree in one sentence: each step's relations,
       // its voice's, its language (semibold), its title (linked where it is
@@ -625,7 +640,9 @@ struct OriginTests {
         "A translation and abridgment of the Old English \(typed) (treatise), a translation of "
           + "\(original.author)'s English \(original.title) (report).")
       try await expect(sentence.locator(".origin-sentence-language")).toHaveTexts(["Old English", "English"])
-      try await expect(sentence.locator("a[href='\(original.path)'] .origin-sentence-term")).toHaveText(original.title)
+      // A term never navigates (user, 2026-11-01): a control that previews.
+      try await expect(sentence.locator("a")).toHaveCount(0)
+      try await expect(sentence.locator("button[data-gloss-preview] .origin-sentence-term")).toHaveText(original.title)
       let look = try await page.evaluate(
         """
         (() => {
@@ -647,13 +664,15 @@ struct OriginTests {
       #expect(look["lang"].string == "ang", "\(look)")
 
       // A record's term previews it in the gloss sheet (user, 2026-11-01):
-      // its title and class, and a link to the record. On a wide screen a
-      // hover opens it as a popover beside the term, at least 320×320, the
-      // page staying where it is; on a narrow one a tap opens the sheet
-      // over the screen. Esc closes either.
-      let term = sentence.locator("a[data-gloss-preview]")
+      // its heading—language, title and class—the link to the record. On a
+      // wide screen a hover opens it as a popover beside the term, at least
+      // 320×320, the page staying where it is, and a click pins it: it stays
+      // as the pointer leaves, until a click outside. On a narrow one a tap
+      // opens the sheet over the screen. Esc closes either.
+      let term = sentence.locator("button[data-gloss-preview]")
       try await expect(term).toHaveCount(1)
       try await expect(term).toHaveAttribute("aria-haspopup", "dialog")
+      try await expect(term).toHaveCSS("cursor", "help")
       let sheet = page.locator(".gloss-sheet")
       let wide = try await page.evaluate("innerWidth >= 769").bool == true
       if wide {
@@ -668,12 +687,13 @@ struct OriginTests {
       try await expect(term).toHaveAttribute("aria-expanded", "true")
       try await expect(sheet.locator(".gloss-sheet-title")).toContainText(original.title)
       try await expect(sheet.locator(".gloss-sheet-title")).toContainText("Report")
-      try await expect(sheet.locator(".record-preview-link")).toHaveAttribute("href", original.path)
+      try await expect(sheet.locator(".gloss-sheet-title a.record-preview-heading")).toHaveAttribute("href", original.path)
+      try await expect(sheet.locator(".record-preview-link")).toHaveCount(0)
       let popover = try await sheet.evaluate(
         """
         (sheet) => {
           const panel = sheet.querySelector('.sheet-panel').getBoundingClientRect();
-          const term = document.querySelector('#origin .origin-sentence-view a[data-gloss-preview]').getBoundingClientRect();
+          const term = document.querySelector('#origin .origin-sentence-view button[data-gloss-preview]').getBoundingClientRect();
           return {
             width: panel.width, height: panel.height,
             beside: panel.top >= term.bottom || panel.bottom <= term.top,
@@ -686,6 +706,27 @@ struct OriginTests {
       if wide {
         #expect((popover["width"].double ?? 0) >= 320 && (popover["height"].double ?? 0) >= 320, "\(popover)")
         #expect(popover["beside"].bool == true && popover["inside"].bool == true, "\(popover)")
+        // Its cursors: the question mark over its ground, the hand over its
+        // link, its words too.
+        let cursors = try await sheet.evaluate(
+          """
+          (sheet) => [getComputedStyle(sheet.querySelector('.sheet-panel')).cursor,
+            getComputedStyle(sheet.querySelector('a.record-preview-heading')).cursor,
+            getComputedStyle(sheet.querySelector('a.record-preview-heading .record-label-meta')).cursor].join('|')
+          """)
+        #expect(cursors.string == "help|pointer|pointer", "\(cursors)")
+        // A click pins it: the pointer leaving keeps it open, the page
+        // where it was; a click outside closes it.
+        try await term.click()
+        let outside = sentence.locator(".origin-sentence-language").first
+        try await outside.hover()
+        try await Task.sleep(for: .milliseconds(700))
+        try await expect(sheet).toHaveAttribute("data-state", "open")
+        #expect(try await page.evaluate("location.pathname").string == translation.path)
+        try await outside.click()
+        try await expect(sheet).toHaveAttribute("data-state", "closed")
+        try await term.hover()
+        try await expect(sheet).toHaveAttribute("data-state", "open")
       }
       try await page.keyboard.press("Escape")
       try await expect(sheet).toHaveAttribute("data-state", "closed")
@@ -714,7 +755,8 @@ struct OriginTests {
       // Unchosen, and another chosen: the fields come back.
       try await wordRelation.locator(".dropdown-option[data-value='coinage']").click()
       try await wordRelation.locator(".dropdown-option[data-value='eponym_of']").click()
-      try await wordRelation.locator(".dropdown-trigger").click()
+      // Closed by Esc: its search field stands over its trigger while open.
+      try await page.keyboard.press("Escape")
       try await expect(wordRow.locator(".origin-field-record")).toBeVisible()
       try await expect(wordRow.locator(".origin-field-typed")).toBeVisible()
       // A word's typed step: its word class from the closed list, and its

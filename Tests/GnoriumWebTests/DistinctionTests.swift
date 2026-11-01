@@ -31,9 +31,11 @@ struct DistinctionTests {
         let row = page.locator("#record-row-\(word.leaf)")
         try await page.locator("#record-row-\(word.leaf) > .accordion-summary").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
-        let note = row.locator(".node-notes-text")
+        // Its one Note, frozen, above its Metadata (user, 2026-11-01).
+        let note = row.locator(".note-field-view textarea")
         try await expect(note).toHaveCount(1)
-        try await expect(note).toHaveText("Unlike sense 1, a leaf sense grows no further senses.")
+        try await expect(note).toHaveValue("Unlike sense 1, a leaf sense grows no further senses.")
+        try await expect(note).toBeDisabled()
         // Rendered once on the page: not in the Metadata or elsewhere; the
         // header's <sense>, shown only under Verbose, holds it only as XML.
         let rendered = try await page.evaluate(
