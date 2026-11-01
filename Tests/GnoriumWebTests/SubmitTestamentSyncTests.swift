@@ -46,7 +46,7 @@ struct SubmitTestamentSyncTests {
         // Opening a combobox by its arrow chooses nothing.
         let carrier = form.locator(".dropdown-view:has(#testament-carrier)")
         try await carrier.locator(".dropdown-trigger").click()
-        try await carrier.locator(".dropdown-option[data-value='printed']").click()
+        try await carrier.locator(".dropdown-option[data-value='print']").click()
         let provider = form.locator(".combobox-view:has(input[name='provider-dropdown'])")
         try await provider.locator(".combobox-toggle").click()
         try await expect(provider.getByRole(.combobox, name: "Provider")).toHaveAttribute("aria-expanded", "true")

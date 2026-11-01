@@ -132,7 +132,7 @@ struct TestamentNoteTests {
         ).first.fill("Web Tests Author \(suffix)")
         let carrier = tree.locator(".dropdown-view:has(#testament-carrier)")
         try await carrier.locator(".dropdown-trigger").click()
-        try await carrier.locator(".dropdown-option[data-value='printed']").filter(visible: true).first.click()
+        try await carrier.locator(".dropdown-option[data-value='print']").filter(visible: true).first.click()
         for level in ["impression", "issue", "copy"] {
           try await node(level).locator(":scope > .outliner-footer .testament-draft-remove-level").click()
           try await expect(node(level)).toHaveAttribute("data-outliner-removed", "true")

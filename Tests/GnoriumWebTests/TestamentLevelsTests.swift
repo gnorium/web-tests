@@ -102,7 +102,7 @@ struct TestamentLevelsTests {
       try await expect(form.locator(".framed-accordion-view, .bibliographic-level-divider, .accordion-divider"))
         .toHaveCount(0)
       let draft = form.locator("[data-submission-draft='true']")
-      // The carrier shows the one event it calls for: printed its
+      // The carrier shows the one event it calls for: a print its
       // Publication, a manuscript its Production; a Digitization always.
       let carrier = form.locator(".dropdown-view:has(#testament-carrier)")
       let block = { (kind: String) in draft.locator(".activity-statement-view[data-as-namespace='\(kind)']") }
@@ -110,7 +110,7 @@ struct TestamentLevelsTests {
       try await choose("manuscript", "Manuscript", in: carrier)
       try await expect(block("production")).toBeVisible()
       try await expect(block("publication")).toBeHidden()
-      try await choose("printed", "Print", in: carrier)
+      try await choose("print", "Print", in: carrier)
       try await expect(block("publication")).toBeVisible()
       try await expect(block("production")).toBeHidden()
       try await expect(block("reproduction")).toBeVisible()

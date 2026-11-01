@@ -47,7 +47,7 @@ struct AmendmentInsertionTests {
       _ = try TestAdmin.query(
         """
         UPDATE biblio_record_versions
-          SET metadata_json = replace(replace(metadata_json, 'https://example.org/web-tests', '\(fixture.baseURL)/manifest.json'), '"category":"report"', '"category":"report","carrier":"printed","copyLabel":"Copy 1"'),
+          SET metadata_json = replace(replace(metadata_json, 'https://example.org/web-tests', '\(fixture.baseURL)/manifest.json'), '"category":"report"', '"category":"report","carrier":"print","copyLabel":"Copy 1"'),
             -- A copy node of its own UUID over the manifest; every node
             -- it had keeps its own.
             shape_json = jsonb_set(

@@ -133,7 +133,7 @@ struct ComboboxTests {
     // MARK: The provider, by the pointer: the toggle shows every suggestion.
     let carrier = form.locator(".dropdown-view:has(#testament-carrier)")
     try await carrier.locator(".dropdown-trigger").click()
-    try await carrier.locator(".dropdown-option[data-value='printed']").click()
+    try await carrier.locator(".dropdown-option[data-value='print']").click()
     let provider = form.locator(".combobox-view:has(input[name='provider-dropdown'])")
     let providerField = provider.getByRole(.combobox, name: "Provider")
     try await provider.locator(".combobox-toggle").click()
@@ -292,7 +292,7 @@ struct ComboboxTests {
           """)
         let carrier = form.locator(".dropdown-view:has(#testament-carrier)")
         try await carrier.locator(".dropdown-trigger").click()
-        try await carrier.locator(".dropdown-option[data-value='printed']").click()
+        try await carrier.locator(".dropdown-option[data-value='print']").click()
         try await form.locator("#metadata input[name='title']").fill("Web tests voice \(work.suffix)")
         // No impression, issue or copy to say: their nodes removed, as an
         // empty one is refused.

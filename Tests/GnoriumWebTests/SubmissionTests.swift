@@ -88,11 +88,11 @@ struct SubmissionTests {
         """)
     }
     do {
-      // The scratch work's testament is printed, as a permit writes it.
+      // The scratch work's testament is a print, as a permit writes it.
       _ = try TestAdmin.query(
         """
         UPDATE biblio_record_versions
-          SET metadata_json = replace(metadata_json, '"edition":"First edition"', '"edition":"First edition","carrier":"printed"')
+          SET metadata_json = replace(metadata_json, '"edition":"First edition"', '"edition":"First edition","carrier":"print"')
           WHERE id = '\(work.versionID.lowercased())';
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -202,7 +202,7 @@ struct SubmissionTests {
     ).toBeVisible()
     // Printed: its edition back, the carrier and publication there; the
     // copy's making gone; the edition named as it is typed.
-    try await choose(carrier, "printed")
+    try await choose(carrier, "print")
     try await expect(node(tree, "edition")).toHaveAttribute("data-outliner-removed", "false")
     let edition = row(tree, "edition")
     try await expect(edition.locator("#testament-carrier")).toHaveCount(1)
@@ -302,7 +302,7 @@ struct SubmissionTests {
         WHERE e.source_url = '\(source)/new' GROUP BY e.id;
       """
     ).trimmingCharacters(in: .whitespacesAndNewlines)
-    #expect(row == "\(name)|printed|Second edition|||1", "\(row)")
+    #expect(row == "\(name)|print|Second edition|||1", "\(row)")
   }
 
   /// A chosen record: the form's Submit waits, disabled, and the record's
@@ -319,7 +319,7 @@ struct SubmissionTests {
     let field = form.locator(".record-choice-field-view")
     let dropdown = field.locator(".dropdown-view")
     let typed = form.locator(".submit-testament-tree")
-    try await choose(typed.locator(".dropdown-view:has(#testament-carrier)"), "printed")
+    try await choose(typed.locator(".dropdown-view:has(#testament-carrier)"), "print")
     try await row(typed, "edition").locator("input[name='edition']").fill("Kept aside")
 
     try await dropdown.locator(".dropdown-trigger").click()
@@ -422,7 +422,7 @@ struct SubmissionTests {
       """
     ).trimmingCharacters(in: .whitespacesAndNewlines)
     let record = work.recordID.lowercased()
-    #expect(row == "\(work.title)|printed|Copy 2||\(record)|\(record)", "\(row)")
+    #expect(row == "\(work.title)|print|Copy 2||\(record)|\(record)", "\(row)")
     let placement = try TestAdmin.query(
       "SELECT placement_json FROM bibliographic_figurants WHERE source_url = '\(source)/placed';")
     let shape = try JSONSerialization.jsonObject(with: Data(placement.utf8)) as? [String: [String: Any]] ?? [:]

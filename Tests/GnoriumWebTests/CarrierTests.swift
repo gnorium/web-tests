@@ -34,7 +34,7 @@ struct CarrierTests {
         """
         UPDATE biblio_record_versions
           SET metadata_json = replace(metadata_json, '"edition":"First edition"',
-            '"edition":"First edition","carrier":"printed","container":{"record":"\(host.recordID)","title":"\(host.title)","volume":"1","pages":"3-5"}')
+            '"edition":"First edition","carrier":"print","container":{"record":"\(host.recordID)","title":"\(host.title)","volume":"1","pages":"3-5"}')
           WHERE id = '\(article.versionID.lowercased())';
         """)
       try await run(engine: engine, layout: layout, admin: admin, host: host, article: article)
@@ -73,11 +73,11 @@ struct CarrierTests {
       }
       // Each carrier shows exactly its card, and switching swaps them: a
       // manuscript, a typescript or an inscription its Production; a
-      // printed testament, a recording or a born-digital text its
+      // print, a recording or a born-digital text its
       // Publication.
       for (value, madeByProduction) in [
-        ("manuscript", true), ("printed", false), ("typescript", true), ("audio_recording", false),
-        ("inscription", true), ("video_recording", false), ("digital", false),
+        ("manuscript", true), ("print", false), ("typescript", true), ("audio_recording", false),
+        ("inscription", true), ("video_recording", false), ("digital_text", false),
       ] {
         try await choose(value)
         if madeByProduction {
@@ -88,7 +88,7 @@ struct CarrierTests {
           try await expect(production).toBeHidden()
         }
       }
-      try await choose("printed")
+      try await choose("print")
 
       // The Origin step's fields, in its row's Metadata, end with its last
       // typed field: no empty slot after it.

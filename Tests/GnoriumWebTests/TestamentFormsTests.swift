@@ -21,7 +21,7 @@ struct TestamentFormsTests {
         let form = page.locator(".submit-testament-form")
         let carrier = form.locator(".dropdown-view:has(#testament-carrier)")
         try await carrier.locator(".dropdown-trigger").click()
-        try await carrier.locator(".dropdown-option[data-value='printed']").click()
+        try await carrier.locator(".dropdown-option[data-value='print']").click()
         try await expect(form.locator("[data-item-list='title-form'], .title-form-json")).toHaveCount(0)
         try await expect(form.locator("button[aria-label='Add Form']")).toHaveCount(0)
         // A new testament has no citations yet: no Forms list either.
