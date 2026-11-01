@@ -139,4 +139,75 @@ struct SubmitTestamentDraftTests {
       _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
     }
   }
+
+  /// A Submit the server turns back draws the form again with every entry
+  /// posted, and the rows the page had added come back from them
+  /// (`DraftRows.carry`): the origins at every depth, numbered as left, the
+  /// voices, and the testament node taken out stays out. Signed out, the
+  /// server refuses the post ("Sign in…"); the form's own submit listeners
+  /// run as for a real Submit, then the form posts.
+  @Test(arguments: gnorium.engines)
+  func aRefusedSubmitPutsBackTheRows(engine: BrowserEngine) async throws {
+    try await withPage(engine, gnorium) { page in
+      try await page.openHydrated(Self.form)
+      _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
+      try await page.openHydrated(Self.form)
+
+      let field = page.locator(".origin-field-view")
+      let rows = field.locator("[data-origin-row='true']")
+      let title = { (key: String) in field.locator("input[name='\(key)-title']") }
+      let voices = page.locator("[data-item-list='work-voice'] > [data-item-section='true']")
+
+      try await voices.nth(0).locator(".combobox-view input[type='text']").first.fill("Web tests Voice One")
+      try await page.locator("[data-item-list='work-voice'] > [data-item-add-btn='true'] .item-add-btn").click()
+      try await expect(voices).toHaveCount(2)
+      try await voices.nth(1).locator(".combobox-view input[type='text']").first.fill("Web tests Voice Two")
+      try await title("origin-1").fill("Web tests origin one")
+      let addTop = field.locator(".origin-field-add .origin-add-btn")
+      try await addTop.click()
+      try await expect(rows).toHaveCount(2)
+      let second = try #require(try await rows.nth(1).getAttribute("data-origin-key"))
+      try await title(second).fill("Web tests origin two")
+      try await page.locator("button[aria-label='Add Origin 2.1.']").click()
+      try await expect(rows).toHaveCount(3)
+      let nested = try #require(try await rows.nth(2).getAttribute("data-origin-key"))
+      try await title(nested).fill("Web tests origin two one")
+      try await addTop.click()
+      try await expect(rows).toHaveCount(4)
+      let third = try #require(try await rows.nth(3).getAttribute("data-origin-key"))
+      try await title(third).fill("Web tests origin three")
+      try await page.locator("button.testament-draft-remove-level[aria-label='Remove Testament 1.1.']").click()
+      let impression = page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='2']")
+      try await expect(impression).toHaveAttribute("data-outliner-removed", "true")
+      // No kept draft to fall back on: only the post brings them back.
+      try await Task.sleep(for: .milliseconds(600))
+      _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
+
+      _ = try await page.evaluate(
+        """
+        (() => {
+          const form = document.querySelector('form.submit-testament-form');
+          form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+          HTMLFormElement.prototype.submit.call(form);
+          return true;
+        })()
+        """)
+      try await expect(page.locator(".submit-testament-posted"), timeout: .seconds(20)).toHaveCount(1)
+      try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
+      try await expect(page.locator(".alert-view").filter(hasText: "Sign in to submit a testament.")).toHaveCount(1)
+
+      try await expect(rows, timeout: .seconds(15)).toHaveCount(4)
+      try await expect(title("origin-1")).toHaveValue("Web tests origin one")
+      try await expect(title(second)).toHaveValue("Web tests origin two")
+      try await expect(title(nested)).toHaveValue("Web tests origin two one")
+      try await expect(title(third)).toHaveValue("Web tests origin three")
+      try await expect(field.locator(".origin-field-steps .record-row-number")).toHaveTexts(["1", "2", "2.1", "3"])
+      try await expect(addTop).toHaveAttribute("aria-label", "Add Origin 4.")
+      try await expect(voices).toHaveCount(2)
+      try await expect(page.locator("input[name='work-voice-item2-text-input']")).toHaveValue("Web tests Voice Two")
+      try await expect(impression).toHaveAttribute("data-outliner-removed", "true")
+
+      _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
+    }
+  }
 }
