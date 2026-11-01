@@ -39,6 +39,11 @@ struct ScratchWork {
   /// Its id, for a record's `corpus_id`.
   static let corpusID = "(SELECT id FROM corpora WHERE slug = 'uncategorized-sources')"
 
+  /// Its madrigal's document: one image, its page with markup, so its
+  /// version is explicated (`NodeLevels.testament`: every page has markup;
+  /// a document with no pages is only calibrated).
+  static let document = #"{"teiXml":"<TEI><text><body><pb n=\"1\" facs=\"https://web-tests.invalid/iiif/p1/full/1300,/0/default.jpg\"/><div><p>Web tests line</p></div></body></text></TEI>"}"#
+
   /// `sourceURL` is its Figurant's and overture's source URL, fixed at
   /// submission (a submitted Figurant can't be changed).
   init(owner: TestAdmin, sourceURL: String = "https://example.org/web-tests") throws {
@@ -96,7 +101,7 @@ struct ScratchWork {
       \(voice)
       \(chain.insert(overture: ids["overture"]!, user: user))
       INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, biblio_record_id, proposed_content_json, metadata_json, shape_json, processing_status, permitted_by_user_id, permitted_at, created_at, updated_at)
-        VALUES ('\(ids["madrigal"]!)', '\(ids["madrigal"]!)', '\(chain.antiphonID)', '\(ids["record"]!)', '{"teiXml":""}', '\(metadata)', '\(shape)', 'permitted', '\(user)', now(), now(), now());
+        VALUES ('\(ids["madrigal"]!)', '\(ids["madrigal"]!)', '\(chain.antiphonID)', '\(ids["record"]!)', '\(Self.document)', '\(metadata)', '\(shape)', 'permitted', '\(user)', now(), now(), now());
       INSERT INTO biblio_record_versions (id, biblio_record_id, bibliographic_madrigal_id, metadata_json, shape_json, status, created_at)
         VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["madrigal"]!)', '\(metadata)', '\(shape)', 1, now());
       COMMIT;
