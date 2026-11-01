@@ -147,6 +147,18 @@ struct QuoteSourcesTests {
         // Its leaf named by the Testament UUID field (user, 2026-11-02).
         try await expect(box.locator(".quote-passage-record [data-placeholder='Testament UUID']"), timeout: .seconds(10)).toHaveCount(1)
         try await expect(box.locator(".quote-passage-record")).toContainText("Testament UUID")
+        // Each leaf offered by its numbered description, then its whole UUID.
+        let leaves = try await box.evaluate(
+          """
+          (b) => { const field = b.querySelector("[name='quote-s1-record-node']").closest('.dropdown-view');
+            const options = [...field.querySelectorAll('[data-dropdown-option]')];
+            return options.length > 0 && options.every((o) =>
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(o.dataset.display)
+              && o.dataset.display === o.dataset.value.toLowerCase() && o.dataset.context.length > 0
+              && o.textContent.includes(o.dataset.display)); }
+          """
+        ).bool
+        #expect(leaves == true, "each leaf reads its numbered description, then its UUID")
         // The sentence selected in its text pane fills the quote.
         _ = try await box.evaluate(
           """
