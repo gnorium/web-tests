@@ -307,4 +307,89 @@ struct LexicographicAmendmentTests {
     }
     try await admin.remove()
   }
+
+  /// A sentiment an open palinode holds (user, 2026-11-01): on the next
+  /// amendment form it is frozen and stays where it is, and its own action
+  /// is a link to that palinode instead of its removal; nothing else on the
+  /// page changes. A second palinode on it, posted anyway, is refused (the
+  /// form drawn again) naming and linking the open one.
+  @Test(arguments: [BrowserEngine.chrome])
+  func aSentimentAnOpenPalinodeHoldsLinksItsPalinode(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let word = try ScratchWord(owner: admin)
+    let record = word.recordID.lowercased()
+    func clean() async throws {
+      _ = try? TestAdmin.query(
+        """
+        BEGIN;
+        DELETE FROM locutions WHERE locutable_id IN
+          (SELECT id FROM lexicographic_record_overtures WHERE lexico_record_id = '\(record)');
+        DELETE FROM lexicographic_record_overtures WHERE lexico_record_id = '\(record)';
+        DELETE FROM lexicographic_palinodes WHERE lexico_record_id = '\(record)';
+        COMMIT;
+        """)
+      word.remove()
+      try await admin.remove()
+    }
+    do {
+      try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
+        // The leaf removed and submitted: its palinode holds it.
+        try await page.openHydrated("\(word.path)/amendments/new")
+        let form = page.locator("form.submit-lexicographic-amendment-form")
+        let leaf = form.locator(".sentiment-outliner-controls[data-sentiment-id='s-1-1']")
+        try await leaf.locator(".sentiment-outliner-remove").click()
+        try await page.locator(".sentiment-outliner-remove-dialog button").filter(hasText: "Remove").first.click()
+        try await form.locator(".record-actions button[type='submit']").click()
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the overture's page") {
+          $0.path.hasPrefix("/mission-control/overtures/lexicographic/amendments/")
+        }
+
+        // Drawn again: the held sentiment is frozen, its handle still, and
+        // its action links the open palinode; no removal, no notice.
+        try await page.openHydrated("\(word.path)/amendments/new")
+        let item = form.locator(".outliner-item[data-outliner-id='s-1-1']")
+        try await expect(item).toHaveAttribute("data-sentiment-held", "true")
+        try await expect(item).toHaveAttribute("data-sentiment-frozen", "true")
+        try await expect(item.locator(".outliner-handle").first).toBeDisabled()
+        try await expect(leaf.locator(".sentiment-outliner-remove")).toHaveCount(0)
+        let link = leaf.locator("a.sentiment-outliner-palinode")
+        try await expect(link).toHaveText("Palinode")
+        let href = try await link.getAttribute("href") ?? ""
+        #expect(href.hasPrefix("/mission-control/palinodes/lexicographic/"), "\(href)")
+        let palinode = String(href.split(separator: "/").last ?? "").lowercased()
+        // The others stay open.
+        try await expect(form.locator(".outliner-item[data-outliner-id='s-1']")).toHaveAttribute(
+          "data-sentiment-frozen", "false")
+        try await page.expectNoErrors()
+        try await page.expectNoHorizontalOverflow()
+
+        // Posted anyway: refused, the form drawn again naming the palinode.
+        let answer = try await page.evaluate(
+          """
+          (async () => {
+            const form = document.querySelector('form.submit-lexicographic-amendment-form');
+            const value = document.querySelector(".outliner-item[data-outliner-id='s-1-1'] [name$='-value']");
+            const data = new FormData(form);
+            data.set(value.name.replace(/-value$/, '-remove'), 'true');
+            const response = await fetch(form.action, { method: 'POST', body: new URLSearchParams(data) });
+            return response.status + ' ' + await response.text();
+          })()
+          """, as: String.self)
+        #expect(answer.hasPrefix("422 "), "\(answer.prefix(80))")
+        #expect(answer.contains("is held by open palinode \(palinode)"), "the refusal names the palinode")
+
+        // The link opens the palinode.
+        try await link.click()
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the palinode's page") {
+          $0.path.lowercased() == "/mission-control/palinodes/lexicographic/\(palinode)"
+        }
+      }
+    } catch {
+      try await clean()
+      throw error
+    }
+    try await clean()
+  }
 }
