@@ -134,8 +134,8 @@ struct OriginEvidenceTests {
         try await expect(rows).toHaveCount(2)
         let second = rows.nth(1)
         let add = second.locator(".origin-field-add-quote .origin-add-quote-btn")
-        try await expect(add).toHaveText("Quote")
-        try await expect(add).toHaveAttribute("aria-label", "Add quote")
+        try await expect(add).toHaveText("Source")
+        try await expect(add).toHaveAttribute("aria-label", "Add source")
         try await add.click()
         let card = second.locator(".origin-quote-field-view")
         try await expect(card).toHaveCount(1)
@@ -145,9 +145,11 @@ struct OriginEvidenceTests {
         try await add.click()
         try await expect(card).toHaveCount(1)
         try await expect(rows.nth(0).locator(".origin-quote-field-view")).toHaveCount(0)
-        try await card.locator("textarea[name$='-quote']").fill(Self.words)
-        try await card.locator("input[name$='-image-url']").fill(image + "/full/1300,/0/default.jpg")
+        // Its Source box: Source URL, Images, Quote.
+        try await expect(card.locator("legend").first).toHaveText("Source")
         try await card.locator("input[name$='-source-url']").fill(source)
+        try await card.locator("input[name$='-image']").fill("1")
+        try await card.locator("textarea[name$='-quote']").fill(Self.words)
         let role = card.locator(".dropdown-view:has(input[name$='-role'])")
         try await role.locator(".dropdown-trigger").click()
         try await role.locator(".dropdown-option[data-value='existence']").filter(visible: true).first.click()
@@ -172,14 +174,14 @@ struct OriginEvidenceTests {
         #expect(content.lowercased().contains(quoted.versionID), "the quote is not anchored: \(content)")
         #expect(!content.contains(Self.words), "the typed words were kept: \(content)")
 
-        // The thread's line: "Origin 2 › Quote 1".
+        // The thread's line: "Origin 2 › Source 1".
         let line = page.locator(".thread-event-changed").last
         try await expect(line).toBeVisible()
         let text = try await line.evaluate("(el) => el.textContent.replace(/\\s+/g, ' ')")
         let said = text.string ?? ""
         #expect(
-          said.contains("Origin 2") && said.contains("Quote 1") && !said.contains("Origin 1"),
-          "the Changed line does not name Origin 2 › Quote 1: \(said)")
+          said.contains("Origin 2") && said.contains("Source 1") && !said.contains("Origin 1"),
+          "the Changed line does not name Origin 2 › Source 1: \(said)")
         if let folder = ProcessInfo.processInfo.environment["NOTE_SCREENSHOTS"] {
           _ = try await line.evaluate("(el) => el.scrollIntoView({ block: 'center' })")
           try await page.screenshot(

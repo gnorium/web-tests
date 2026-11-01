@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// The Origin field on Submit Testament: its date is the work date model (an
 /// exact date offers Month and Day, posted in `origins-json`); "+ Origin",
-/// "+ Origin 1.1" and "+ Quote" stamp their rows from the page's templates,
+/// "+ Origin 1.1" and "+ Source" stamp their rows from the page's templates,
 /// so each is there within one frame of the click, its own date with a Month
 /// and a Day; and a native name in another script never waits on Noto's
 /// symbol faces.
@@ -80,15 +80,18 @@ struct OriginFormStampTests {
       #expect(nested == 1)
       try await expect(rows).toHaveCount(3)
 
-      // No quotes yet: the empty list takes no gap above "+ Quote".
+      // No quotes yet: the empty list takes no gap above "+ Source".
       try await expect(row.locator(".origin-field-quotes")).toHaveCSS("display", "none")
-      // "+ Quote": its box, legended, at once.
+      // "+ Source": its Source box, legended, at once, its record field
+      // asked for.
       let quotes = try await page.evaluate(
         Self.addedWithinAFrame(
           "'.origin-field-view [data-origin-row=\"true\"] .origin-add-quote-btn'",
           "'.origin-field-view .origin-quote-field-view'"), as: Int.self)
       #expect(quotes == 1)
-      try await expect(field.locator(".origin-quote-field-view .form-item-legend").first).toHaveText("Quote")
+      try await expect(field.locator(".origin-quote-field-view .form-item-legend").first).toHaveText("Source")
+      try await expect(field.locator(".origin-quote-field-view .quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
+        .toHaveCount(1)
       try await expect(field.locator(".origin-quote-field-view .origin-quote-remove-btn")).toHaveCount(1)
     }
   }

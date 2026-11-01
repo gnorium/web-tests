@@ -80,7 +80,7 @@ struct LexicographicAmendmentTests {
         try await expect(outline.locator("input[name='sentiment-chosen']")).toHaveValue("")
         // One new sentiment, its fields always drawn.
         try await expect(form.locator("[name='new-sentiment-value']")).toHaveCount(1)
-        try await expect(form.locator("[name='new-sentiment-source-url']")).toHaveCount(1)
+        try await expect(form.locator("[name='new-sentiment-quote-s1-source-url']")).toHaveCount(1)
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
 
@@ -194,9 +194,9 @@ struct LexicographicAmendmentTests {
         let item = outline.locator(".outliner-item[data-outliner-id='s-1-1']")
         let dialog = page.locator(".sentiment-outliner-remove-dialog")
         let value = form.locator("textarea[name='new-sentiment-value']")
-        let quote = form.locator("textarea[name='new-sentiment-quote']")
+        let quote = form.locator("textarea[name='new-sentiment-quote-s1-quote']")
 
-        // A new sentiment with its quote but no image nor Source URL: it is
+        // A new sentiment with its quote but no source nor image: it is
         // the amendment's one sentiment, and the others freeze.
         try await value.fill("A slope beside water.")
         try await quote.fill("upon the bank, \"where the wild thyme\" grows")
@@ -210,7 +210,7 @@ struct LexicographicAmendmentTests {
         // Submit.
         let refusal = page.locator(".submit-lexicographic-amendment-refusal")
         try await expect(refusal, timeout: .seconds(15)).toContainText(
-          "Give the new sentiment's quote, the image it is on and its testament's Source URL.")
+          "Give the quote's source: a permitted record, or the Source URL of a testament Gnorium does not have yet.")
         try await expect(page).toHaveURL("the form, not the error page") { $0.path.hasSuffix("/amendments") }
         try await expect(page.locator("form.submit-lexicographic-amendment-form")).toHaveCount(1)
         let above = try await page.evaluate(

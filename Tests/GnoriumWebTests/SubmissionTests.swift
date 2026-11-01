@@ -19,8 +19,8 @@ import WebTestsTesting
 /// was typed into that record's amendment, the new nodes added to its tree:
 /// under an edition a copy and its digitization, the edition's carrier
 /// taken, its own edition node out and unposted; nothing goes under a
-/// digitization. A new sentiment is founded on a quote, its image and its
-/// testament's Source URL; a chosen lexico-record takes it by its
+/// digitization. A new sentiment is founded on a quote in its Source box (its
+/// testament's Source URL, its image number, its sentence); a chosen lexico-record takes it by its
 /// amendment, as a chosen biblio-record does. A manuscript's citations are its
 /// copy's. A work's page offers its amendment; a word's, its submission
 /// with the record chosen; signed out, each says so in an alert. Each case
@@ -587,13 +587,15 @@ struct SubmissionTests {
     try await expect(draft.locator("#description, textarea[name='description']")).toHaveCount(0)
     try await set(page, [("usage-register", "formal")])
     try await expect(title).toHaveText("—")
-    // Its value, founded on a quote, the image it is on and its
-    // testament's Source URL, an open work (SubmitSentimentController).
+    // Its value, founded on a quote in its Source box: its testament's
+    // Source URL (an open work), the image it is on and its sentence
+    // (SubmitSentimentController), pending until that testament is read.
     try await form.locator("textarea[name='value']").fill("What the web tests word means")
-    try await form.locator("textarea[name='quote']").fill("A web tests quote")
-    try await form.locator("input[name='quote-image-url']").fill(source.replacingOccurrences(of: "/manifest.json", with: "/page-1/full/max/0/default.jpg"))
-    try await form.locator("input[name='source-url']").fill(source)
-    try await set(page, [("sentiment-rights-statement", "noc_us")])
+    let box = form.locator(".quote-sources-view .quote-source").first
+    try await box.locator("input[name='quote-s1-source-url']").fill(source)
+    try await box.locator("input[name='quote-s1-image']").fill("1")
+    try await box.locator("textarea[name='quote-s1-quote']").fill("A web tests quote.")
+    try await set(page, [("quote-s1-rights-statement", "noc_us")])
     try await form.locator(".record-actions button[type='submit']").click()
     try await expect(page, timeout: .seconds(15)).toHaveURL("its overture's page") {
       $0.path.hasPrefix("/mission-control/overtures/lexicographic/")
@@ -610,6 +612,9 @@ struct SubmissionTests {
     let sentiment = try TestAdmin.query(
       "SELECT sentiment_json FROM lexicographic_figurants WHERE title_form_json::json ->> 'title' = 'webtestsnew\(suffix)'")
     #expect(sentiment.contains(#""register":["formal"]"#), "\(sentiment)")
+    // Its quote pending: its Source URL, image 1 and its sentence.
+    #expect(sentiment.contains(#""images":[1]"#) && sentiment.contains(#""pending""#), "\(sentiment)")
+    #expect(!sentiment.contains("default.jpg"), "an image URL was kept: \(sentiment)")
   }
 
   /// A chosen record: its fields as its page shows them, in place of the
