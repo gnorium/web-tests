@@ -10,7 +10,7 @@ struct SentimentUsageRoundTripTests {
     guard gnorium.engines.contains(.chrome) else { try Test.cancel("Chrome is not among the engines.") }
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let word = try ScratchWord(owner: admin, submitted: true)
+    let word = try ScratchWord(owner: admin, pending: true)
     let labels = ["chiefly US, informal", "100% colloquial; \"quoted\"", " rare, régional "]
     let labelsJSON = String(decoding: try JSONEncoder().encode(labels), as: UTF8.self)
     let path = "/mission-control/madrigals/lexicographic/\(word.madrigalID)"

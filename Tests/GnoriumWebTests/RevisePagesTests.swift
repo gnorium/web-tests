@@ -654,7 +654,7 @@ struct RevisePagesTests {
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let user = try contributor.column("id")
-    let word = try ScratchWord(owner: contributor, submitted: true)
+    let word = try ScratchWord(owner: contributor, pending: true)
     // Translation is only of a record not in English: the epilogue's.
     let french = try ScratchWord(owner: contributor, language: "fra")
     let epilogue = UUID().uuidString.lowercased()

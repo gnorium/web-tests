@@ -10,7 +10,7 @@ struct LocutionHeightTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let word = try ScratchWord(owner: admin, submitted: true)
+    let word = try ScratchWord(owner: admin, pending: true)
     let locution = UUID().uuidString.lowercased()
     func remove() {
       _ = try? TestAdmin.query("DELETE FROM locutions WHERE id = '\(locution)';")

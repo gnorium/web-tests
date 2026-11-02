@@ -45,13 +45,13 @@ struct ScratchWord {
   }
 
   /// `language` is the record's (ISO 639-3): English unless named.
-  /// `submitted` leaves its madrigal awaiting its verdict (submitted, not
-  /// yet permitted), as a Revise page needs it.
+  /// `pending` leaves its madrigal awaiting its verdict (pending, as its
+  /// explication makes it, not yet permitted), as a Revise page needs it.
   /// `title` names the word (a unique one by default; a title in another
   /// script with its `romanizedTitle`, as explication writes one).
   init(
     owner: TestAdmin, distinction: String? = nil, anchor: Anchor? = nil, language: String = "eng",
-    submitted: Bool = false, title: String? = nil, romanizedTitle: String? = nil, depth: Int = 2
+    pending: Bool = false, title: String? = nil, romanizedTitle: String? = nil, depth: Int = 2
   ) throws {
     let user = try owner.column("id")
     var ids: [String: String] = [:]
@@ -124,7 +124,7 @@ struct ScratchWord {
       INSERT INTO lexicographic_antiphons (id, lexicographic_figurant_id, lexicographic_overture_id, requested_by_user_id, processing_status, language, sentence, title_form_json, created_at, updated_at)
         VALUES ('\(ids["antiphon"]!)', '\(ids["figurant"]!)', '\(ids["overture"]!)', '\(user)', 'submitted', '\(language)', '\(title)', '\(titleForm)', now(), now());
       INSERT INTO lexicographic_madrigals (id, lexicographic_antiphon_id, lexico_record_id, proposed_content_json, processing_status, permitted_by_user_id, permitted_at, created_at, updated_at)
-        VALUES ('\(ids["madrigal"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"record":\(vignette),"homographFlags":[],"evidenceRequests":[],"reasoning":"Web tests."}', \(submitted ? "'submitted', NULL, NULL" : "'permitted', '\(user)', now()"), now(), now());
+        VALUES ('\(ids["madrigal"]!)', '\(ids["antiphon"]!)', '\(ids["record"]!)', '{"record":\(vignette),"homographFlags":[],"evidenceRequests":[],"reasoning":"Web tests."}', \(pending ? "'pending', NULL, NULL" : "'permitted', '\(user)', now()"), now(), now());
       INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_madrigal_id, status, record_json, created_at)
         VALUES ('\(ids["version"]!)', '\(ids["record"]!)', '\(ids["madrigal"]!)', 1, '\(vignette)', now());
       COMMIT;

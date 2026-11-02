@@ -26,7 +26,7 @@ struct FieldsetSpacingTests {
   func everyLabelSitsEightPixelsFromItsControl(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let word = try ScratchWord(owner: admin, submitted: true)
+    let word = try ScratchWord(owner: admin, pending: true)
     // A labeled text area: a sentiment's Label on its madrigal's Revise page.
     let forms = Self.forms + ["/mission-control/madrigals/lexicographic/\(word.madrigalID)/revise"]
     do {
