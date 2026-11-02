@@ -249,7 +249,8 @@ struct QuoteSourcesTests {
             b.querySelector('.quote-passage-reader').dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
             return true; }
           """)
-        try await expect(box.locator("input[name='quote-s1-quote']")).toHaveValue("The scratchwords stood")
+        // The whole sentence the selection touches (user, 2026-11-02).
+        try await expect(box.locator("input[name='quote-s1-quote']")).toHaveValue("The scratchwords stood.")
         try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1")
         try await expect(box.locator("input[name='quote-s1-end-image']")).toHaveValue("")
         try await expect(box.locator(".quote-passage-reader .tei-word.tei-highlight")).toHaveCount(3)

@@ -6,8 +6,9 @@ import WebTestsTesting
 /// A form's Source box selects its quote a sentence at a time (user,
 /// 2026-11-01): in its text pane no word opens a gloss nor turns blue; the
 /// sentence under the pointer is tinted violet and its lemma (the form's
-/// title) magenta; a tap selects the sentence, which fills the Quote and
-/// marks its words, its lemma as a quote's. The reader keeps its footer on
+/// title) magenta; a tap takes the sentence, or lets one taken go (a
+/// quote is a set of sentences, user 2026-11-02), which fills the Quote,
+/// a line a sentence, and marks its words, its lemma as a quote's. The reader keeps its footer on
 /// one row in the form's leaf node, the outline scrolling instead. A word
 /// that opens a gloss carries no tooltip of its own (a tap opens the
 /// gloss alone).
@@ -100,11 +101,21 @@ struct SentenceSelectionTests {
         let still = try await quote.evaluate("(q) => q.value").string ?? ""
         #expect(still == "The scratchwords stood.", "the sentence stays taken: \(still)")
 
-        // The next sentence replaces it.
+        // A quote is a set of sentences (user, 2026-11-02): a tap on
+        // another sentence takes it too, a line each, its picked words
+        // kept; a tap on a sentence taken before lets it go, its words
+        // with it.
         try await words.nth(3).click()
-        try await expect(box.locator(".quote-passage-reader .tei-word[data-highlight='title']")).toHaveCount(0)
+        try await expect(box.locator(".quote-passage-reader .tei-word.tei-highlight")).toHaveCount(5)
+        let both = try await quote.evaluate("(q) => q.value").string ?? ""
+        #expect(both == "The scratchwords stood.\nThey fel.", "both sentences, in order: \(both)")
+        try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1,1")
+        try await expect(picked).toHaveValue("w1.1")
+        try await words.nth(1).click()
+        try await expect(box.locator(".quote-passage-reader .tei-word.tei-highlight")).toHaveCount(2)
         let next = try await quote.evaluate("(q) => q.value").string ?? ""
-        #expect(next == "They fel.", "the next sentence: \(next)")
+        #expect(next == "They fel.", "the first let go: \(next)")
+        try await expect(picked).toHaveValue("")
 
         // In the form's leaf node the footer is one row; the outline
         // scrolls, never the page.
