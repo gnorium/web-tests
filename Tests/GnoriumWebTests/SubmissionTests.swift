@@ -249,6 +249,21 @@ struct SubmissionTests {
     try await controls(tree, "copy").locator(".testament-draft-remove-level").click()
     try await expect(node(tree, "copy")).toHaveAttribute("data-outliner-removed", "true")
     try await expect(manifest.locator(".record-row-number").first).toHaveText("1.1")
+    // The digitization is optional as the others are (user, 2026-11-02):
+    // taken out by its −, the edition its leaf. Each node's + puts back
+    // the next level out under it, the digitization last; the levels
+    // between taken out again, it stands where it stood.
+    try await controls(tree, "manifest").locator(".testament-draft-remove-level").click()
+    try await expect(node(tree, "manifest")).toHaveAttribute("data-outliner-removed", "true")
+    for (level, next) in [("edition", "impression"), ("impression", "issue"), ("issue", "copy"), ("copy", "manifest")] {
+      try await controls(tree, level).locator(".testament-draft-add-level").click()
+      try await expect(node(tree, next)).toHaveAttribute("data-outliner-removed", "false")
+    }
+    for level in ["impression", "issue", "copy"] {
+      try await controls(tree, level).locator(".testament-draft-remove-level").click()
+      try await expect(node(tree, level)).toHaveAttribute("data-outliner-removed", "true")
+    }
+    try await expect(manifest.locator(".record-row-number").first).toHaveText("1.1")
 
     // The edition's "+ Testament" adds a new child at the next level, after
     // the one it has: 1.2, never pushing 1.1 down (user, 2026-10-03). Every
@@ -272,7 +287,7 @@ struct SubmissionTests {
     try await expect(row(tree, "impression").locator(".record-row-heading .node-value-view textarea").first).toHaveValue("Second impression")
     try await submit.click()
     try await expect(row(tree, "impression").locator(".testament-draft-message"))
-      .toHaveText("The impression must have a digitization under it.")
+      .toHaveText("Shift the next testament under the impression, or remove the impression.")
     try await expect(page).toHaveURL("the form") { $0.path == Self.testamentForm }
 
     // Restructured by the outline's moves: the digitization picked up,
@@ -335,6 +350,13 @@ struct SubmissionTests {
     try await expect(page, timeout: .seconds(15)).toHaveURL("the record's amendment") {
       $0.path == "\(work.path)/amendments/new"
     }
+    // Reached by a click, not opened: its controls answer once the client
+    // has bound them. The node value boxes come drawn with their values,
+    // so wait for the hydration that marks them (the tree's controls are
+    // bound in the same pass).
+    try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
+    try await expect(page.locator(".testament-outliner-view .node-value-view").first, timeout: .seconds(20))
+      .toHaveAttribute("data-node-value-hydrated", "true")
 
     // Its edition fixed (1), the new testament's nodes after it (2),
     // carried in.

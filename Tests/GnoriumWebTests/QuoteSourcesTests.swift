@@ -40,12 +40,17 @@ struct QuoteSourcesTests {
         """
       ).bool
       #expect(order == true, "the Source box reads its source, then what the reader fills")
-      // A source Gnorium does not have yet asks for its Title, Language and
-      // Class (user, 2026-11-02): hidden until its URL is read as one.
-      for suffix in ["title", "language", "class"] {
-        try await expect(first.locator("[name='quote-s1-source-url-\(suffix)']")).toHaveCount(1)
+      // The box always shows the same fields (user, 2026-11-02): its
+      // Value too, frozen while no record is picked; with neither a record
+      // nor a URL (a sourceless work) its Title, Language, Class, rights
+      // and Pages typed, and the text-only reader open to type the quote.
+      try await expect(first.locator(".quote-passage-record input[name='quote-s1-record-node']")).toHaveCount(1)
+      for suffix in ["source-url-title", "source-url-language", "source-url-class", "rights-statement", "work-license"] {
+        try await expect(first.locator("[name='quote-s1-\(suffix)']")).toHaveCount(1)
       }
-      try await expect(first.locator(".quote-passage-identity")).toBeHidden()
+      try await expect(first.locator(".quote-passage-own")).toBeVisible()
+      try await expect(first.locator(".quote-passage-pages")).toBeVisible()
+      try await expect(first.locator(".quote-passage-reader .quote-passage-text"), timeout: .seconds(15)).toBeVisible()
       let text = try await sources.evaluate("(el) => el.textContent.toLowerCase()").string ?? ""
       #expect(!text.contains("range"), "the Source box says range")
       // One box: no "− Source".
