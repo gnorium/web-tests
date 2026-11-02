@@ -33,7 +33,7 @@ struct ScratchFirstPass {
     sentimentID = UUID().uuidString.lowercased()
     let submission = UUID().uuidString.lowercased()
     title = "webtestsfirstpass\(antiphonID.prefix(8))"
-    let form = #"{"title":"\#(title)","languageCode":"eng","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
+    let form = #"{"title":"\#(title)","languageCode":"eng","class":"noun","origin":{"etymons":[],"citations":[],"derivation":""}}"#
     _ = try TestAdmin.query(
       """
       BEGIN;

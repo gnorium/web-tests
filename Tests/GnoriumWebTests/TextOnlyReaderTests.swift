@@ -30,7 +30,7 @@ struct TextOnlyReaderTests {
       let user = try admin.column("id")
       // A submitted sentiment whose quote is provisional: in a record with
       // no source, located by its page as printed.
-      let form = #"{"title":"webtestsprovisional","languageCode":"eng","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
+      let form = #"{"title":"webtestsprovisional","languageCode":"eng","class":"noun","origin":{"etymons":[],"citations":[],"derivation":""}}"#
       let sentiment =
         #"{"usage":{"domain":[],"region":[],"grammar":[],"register":[]},"value":"<sense><def>A web tests word</def></sense>","#
         + #""quotes":[{"text":"Hamlet, revenge.","pending":{"record":"\#(UUID().uuidString)","images":[],"pages":["sig. B2r"],"text":"Hamlet, revenge."}}]}"#

@@ -6,8 +6,9 @@ import WebTestsTesting
 /// An edition's format and extent and a copy's dimension and former owners
 /// (user, 2026-11-01), on Submit Testament: the format a combobox of the
 /// listed formats, its units' options capitalized; "+ Former owner" adds a
-/// row, each its name and its date by year, posted as one list and kept
-/// with the draft across a reload. Activities nest by level: the edition's
+/// row, each its name, its Certainty (certain to start with) and its
+/// period, a Start and an End card each a whole date (user, 2026-11-03),
+/// posted as one list and kept with the draft across a reload. Activities nest by level: the edition's
 /// agents are offered the printer only once its impression and issue are
 /// taken out, their activities folding into it. Signed out: nothing is
 /// posted.
@@ -36,16 +37,22 @@ struct EditionsAndCopiesTests {
       try await expect(page.locator("[data-item-list='former-owner'] .item-add-btn").first)
         .toHaveAttribute("aria-label", "Add Former Owner")
       try await page.locator("input[name='former-owner-item1-text-input']").fill("Duke of Devonshire")
-      try await page.locator("input[name='former-owner-item1-date-year']").fill("1800")
+      let start = section.locator(".form-items-period-start .form-item-legend")
+      try await expect(start).toHaveCount(1)
+      try await expect(start).toContainText("Start")
+      try await expect(section.locator(".form-items-period-end .form-item-legend")).toContainText("End")
+      try await expect(page.locator("input[name='former-owner-item1-end-year']")).toHaveCount(1)
+      try await page.locator("input[name='former-owner-item1-start-year']").fill("1800")
       try await page.locator("[data-item-list='former-owner'] > [data-item-add-btn='true'] .item-add-btn").click()
       try await expect(section).toHaveCount(2)
       try await page.locator("input[name='former-owner-item2-text-input']").fill("Henry E. Huntington")
-      try await page.locator("input[name='former-owner-item2-date-year']").fill("1914")
-      // The added row's date stays optional.
-      try await expect(page.locator("input[name='former-owner-item2-date-year']")).not.toHaveAttribute("required", "")
+      try await page.locator("input[name='former-owner-item2-start-year']").fill("1914")
+      // The added row's dates stay optional.
+      try await expect(page.locator("input[name='former-owner-item2-start-year']")).not.toHaveAttribute("required", "")
       let json = page.locator("input[name='former-owner-json']")
       try await expect(json).toHaveValue(
-        #"[{"value":"Duke of Devonshire","era":"anno_domini","year":"1800"},{"value":"Henry E. Huntington","era":"anno_domini","year":"1914"}]"#)
+        #"[{"value":"Duke of Devonshire","certainty":"certain","start":{"era":"anno_domini","year":1800}},"#
+          + #"{"value":"Henry E. Huntington","certainty":"certain","start":{"era":"anno_domini","year":1914}}]"#)
 
       // Kept a moment after the last change, and back after a reload.
       var kept = ""
@@ -58,7 +65,7 @@ struct EditionsAndCopiesTests {
       try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
       try await expect(section, timeout: .seconds(15)).toHaveCount(2)
       try await expect(page.locator("input[name='former-owner-item2-text-input']")).toHaveValue("Henry E. Huntington")
-      try await expect(page.locator("input[name='former-owner-item2-date-year']")).toHaveValue("1914")
+      try await expect(page.locator("input[name='former-owner-item2-start-year']")).toHaveValue("1914")
       _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
       try await page.expectNoErrors()
     }

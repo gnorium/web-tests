@@ -30,7 +30,7 @@ struct LexicographicOvertureDiscardTests {
     }
     do {
       let user = try admin.column("id")
-      let form = #"{"title":"webtestsoverture","languageCode":"eng","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
+      let form = #"{"title":"webtestsoverture","languageCode":"eng","class":"noun","origin":{"etymons":[],"citations":[],"derivation":""}}"#
       _ = try TestAdmin.query(
         """
         BEGIN;

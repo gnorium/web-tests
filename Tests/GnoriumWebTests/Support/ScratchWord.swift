@@ -92,9 +92,8 @@ struct ScratchWord {
     let leafID = parentID + "-1"
     let leafParent = parentID
     let vignette = """
-      {"lemmaForm":{"title":"\(title)"\(romanized),"inflections":[],"languageCode":"\(language)","origin":{"citations":[],"derivation":"","etymons":[]},\
-      "class":"noun","sources":[{"locator":"s.v.","title":"Web tests dictionary","url":"https://dictionary.example.org/web-tests"}],\
-      "spellings":[]},"quotes":\(quotes.0),"selectionRunIDs":["run"]\(quotes.2),"senses":[\
+      {"lemmaForm":{"title":"\(title)"\(romanized),"languageCode":"\(language)","origin":{"citations":[],"derivation":"","etymons":[]},\
+      "class":"noun","sources":[{"locator":"s.v.","title":"Web tests dictionary","url":"https://dictionary.example.org/web-tests"}]},"quotes":\(quotes.0),"selectionRunIDs":["run"]\(quotes.2),"senses":[\
       {"id":"s-1","uuid":"\(branch)","isLeaf":false,"label":"A branch sense.","usage":{"domain":[],"grammar":[],"region":[],"register":[]},\
       "position":0,"quoteIDs":[],"rank":0,"relations":[],"selectionRunID":"run","tei":"<sense><def>A branch sense.</def></sense>"},\
       \(middle)\
@@ -106,7 +105,7 @@ struct ScratchWord {
     // Its title form as the Submit Sentiment form writes one: a submitted
     // Figurant is frozen and stays, so it must be one the Figurants list can
     // read (an empty form fails the whole list).
-    let titleForm = #"{"title":"\#(title)"\#(romanized),"languageCode":"\#(language)","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
+    let titleForm = #"{"title":"\#(title)"\#(romanized),"languageCode":"\#(language)","class":"noun","origin":{"etymons":[],"citations":[],"derivation":""}}"#
     let asciiForm = romanizedTitle ?? title
     let romanizedColumn = romanizedTitle.map { "'\($0)'" } ?? "NULL"
     _ = try TestAdmin.query(

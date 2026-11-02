@@ -11,7 +11,7 @@ import WebTestsTesting
 /// hides an empty one, is covered by the server's render tests.
 @Suite("Derived metadata modes", .serialized)
 struct DerivedMetadataModesTests {
-  static let derived = ["Testament", "Place", "First user", "Date", "Hyphenation", "Rhymes", "Inflections"]
+  static let derived = ["Voices", "Testament", "Place", "Date", "Hyphenation", "Rhymes"]
 
   @Test(arguments: gnorium.engines)
   func formsShowFrozenPlaceholders(engine: BrowserEngine) async throws {

@@ -86,7 +86,7 @@ struct FirstPassPermitTests {
         let submission = UUID().uuidString.lowercased()
         let figurant = UUID().uuidString.lowercased()
         let overture = UUID().uuidString.lowercased()
-        let form = #"{"title":"webtestsperson\#(overture.prefix(8))","languageCode":"eng","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
+        let form = #"{"title":"webtestsperson\#(overture.prefix(8))","languageCode":"eng","class":"noun","origin":{"etymons":[],"citations":[],"derivation":""}}"#
         _ = try TestAdmin.query(
           """
           BEGIN;

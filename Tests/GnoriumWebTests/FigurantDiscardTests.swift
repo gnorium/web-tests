@@ -31,7 +31,7 @@ struct FigurantDiscardTests {
       let user = try admin.column("id")
       // A whole title form, as Submit Sentiment writes one (ScratchWord):
       // the figurant page reads it.
-      let form = #"{"title":"webtestsdiscard","languageCode":"eng","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
+      let form = #"{"title":"webtestsdiscard","languageCode":"eng","class":"noun","origin":{"etymons":[],"citations":[],"derivation":""}}"#
       _ = try TestAdmin.query(
         """
         BEGIN;

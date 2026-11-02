@@ -35,7 +35,7 @@ struct LexicographicQuatrainTests {
       let nocturne = id()
       let version = id()
       title = "webtestsquatrain\(quatrainID.prefix(8))"
-      let form = #"{"title":"\#(title)","languageCode":"eng","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
+      let form = #"{"title":"\#(title)","languageCode":"eng","class":"noun","origin":{"etymons":[],"citations":[],"derivation":""}}"#
       let counts = [
         ("gated", 0, 1), ("duplicate", 0, 0), ("knowledge_rich", 0, 0), ("earliest", 1, 0), ("latest", 1, 0),
         ("informative", 0, 1),

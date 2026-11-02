@@ -54,7 +54,7 @@ struct OriginDiffTests {
     }
     do {
       let user = try admin.column("id")
-      let form = #"{"title":"webtestsorigindiff","languageCode":"eng","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
+      let form = #"{"title":"webtestsorigindiff","languageCode":"eng","class":"noun","origin":{"etymons":[],"citations":[],"derivation":""}}"#
       // Found: kept, removed, edited, moved. Proposed: moved (to the top),
       // kept, edited, added.
       let found = "[\(step("webtestskept", "lat")),\(step("webtestsremoved", "grc")),\(step("webtestsedited", "ine-pro", meaning: "bend")),\(step("webtestsmoved", "deu"))]"

@@ -353,7 +353,7 @@ struct TestamentNoteTests {
         try await expect(note).toHaveAttribute("placeholder", "Note")
         // An overture whose title form carries one: frozen on its page.
         let user = try admin.column("id")
-        let form = #"{"title":"\#(title)","languageCode":"eng","class":"noun","note":"\#(rootNote)","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
+        let form = #"{"title":"\#(title)","languageCode":"eng","class":"noun","note":"\#(rootNote)","origin":{"etymons":[],"citations":[],"derivation":""}}"#
         let submission = UUID().uuidString.lowercased()
         let figurant = UUID().uuidString.lowercased()
         let id = UUID().uuidString.lowercased()

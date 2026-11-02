@@ -35,7 +35,7 @@ struct OriginTargetIdentityTests {
     }
     do {
       let user = try admin.column("id")
-      let form = #"{"title":"webteststargetdiff","languageCode":"eng","class":"noun","spellings":[],"inflections":[],"origin":{"etymons":[],"citations":[],"derivation":""}}"#
+      let form = #"{"title":"webteststargetdiff","languageCode":"eng","class":"noun","origin":{"etymons":[],"citations":[],"derivation":""}}"#
       let before = origin(unnamed ? nil : source.branch)
       let after = origin(source.leaf)
       _ = try TestAdmin.query(

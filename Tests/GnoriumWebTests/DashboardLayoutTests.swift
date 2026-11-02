@@ -205,7 +205,7 @@ struct DashboardLayoutTests {
       try await expect(page.locator("#fixture-filled-day")).toHaveValue("3")
       try await expect(page.locator("#apparatus-metadata")).toHaveAttribute("data-expanded", "true")
       try await expect(page.locator("#apparatus-metadata")).toContainText("Pronunciation")
-      try await expect(page.locator("#apparatus-metadata")).toContainText("Inflections")
+      try await expect(page.locator("#apparatus-metadata")).toContainText("Voices")
       #expect(try await page.evaluate("""
         (()=>{const meta=document.querySelector('.record-metadata-change > .metadata-accordion-view > .accordion-view');
           const tree=document.querySelector('[data-tree-change=added] > .sentiment-view > .record-row-view > .accordion-view');
