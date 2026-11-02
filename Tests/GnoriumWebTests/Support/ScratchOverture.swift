@@ -3,8 +3,11 @@ import Foundation
 /// An overture of four pages at a stage of its chain (user, 2026-10-21),
 /// owned by the test's account and built by SQL (dev has no model): committed
 /// or not; when `calibrated` > 0, its Commit's quatrain (submitted) with the
-/// first `calibrated` pages filed and the halftone it submitted; when
-/// `explicationCommitted` (every page calibrated), that halftone committed
+/// first `calibrated` pages filed (structure and text, so none is stale) and
+/// the halftone it submitted; when `integrated` (every page calibrated), a
+/// done Integration of that quatrain whose fit was accepted over every page
+/// (user, 2026-10-24: the halftone's Commit is for explication only once its
+/// pages are integrated); when `explicationCommitted`, that halftone committed
 /// and the antiphon its Commit made, holding the frozen header. Every row by
 /// its own id, removed in the order the foreign keys allow—except its
 /// submission and Figurant, which are submitted input and frozen: the
@@ -24,6 +27,7 @@ struct ScratchOverture {
   private let figurantID: String
   private let layoutID: String
   private let nocturneIDs: [String]
+  private let integrationID: String
   private let owner: String
   private let images: [String]
 
@@ -34,8 +38,12 @@ struct ScratchOverture {
   /// The pages' image service ids, as the roster names them.
   var services: [String] { images.map { $0.components(separatedBy: "/full/")[0] } }
 
-  init(owner: TestAdmin, sealed: Bool = true, calibrated: Int = 0, explicationCommitted: Bool = false) throws {
-    precondition((0...4).contains(calibrated) && (!explicationCommitted || calibrated == 4))
+  init(
+    owner: TestAdmin, sealed: Bool = true, calibrated: Int = 0, integrated: Bool = false,
+    explicationCommitted: Bool = false
+  ) throws {
+    precondition(
+      (0...4).contains(calibrated) && (!integrated || calibrated == 4) && (!explicationCommitted || calibrated == 4))
     self.owner = owner.username
     let user = try owner.column("id")
     func id() -> String { UUID().uuidString.lowercased() }
@@ -47,6 +55,7 @@ struct ScratchOverture {
     antiphonID = id()
     layoutID = id()
     nocturneIDs = (0..<4).map { _ in id() }
+    integrationID = id()
     title = "Web tests overture \(figurantID.prefix(8))"
     let base = "https://web-tests.invalid/iiif/\(figurantID)"
     images = (1...4).map { "\(base)/p\($0)/full/1300,/0/default.jpg" }
@@ -85,8 +94,21 @@ struct ScratchOverture {
            ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_calibration_nocturnes.instance_count + 1;
           INSERT INTO bibliographic_calibration_nocturne_instances (id, nocturne_id, instance, provider, model, result, duration_ms, created_at, finished_at)
           VALUES ('\(nocturneIDs[index])', md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[index])')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'passed', 1500, now() - interval '1 minute', now() - interval '1 minute');
-          INSERT INTO calibration_pages (id, calibration_nocturne_instance_id, bibliographic_overture_id, image, ordinal, label, layout_id, measuring_version, em, judgment_json, tool_hashes_json, tei, facts_json, created_at)
-            VALUES (gen_random_uuid(), '\(nocturneIDs[index])', '\(overtureID)', '\(services[index])', \(index + 1), '\(index + 1)', '\(layoutID)', '\(String(repeating: "b", count: 64))', 20.5, '{}', '{}', '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><pb n="\(index + 1)"/></body></text></TEI>', '{"width":2000.0,"body":45.4,"measure":55.1,"height":76.4}', now() - interval '1 minute');
+          INSERT INTO calibration_pages (id, calibration_nocturne_instance_id, bibliographic_overture_id, image, ordinal, label, layout_id, measuring_version, em, judgment_json, tool_hashes_json, tei, facts_json, structure_json, transcription_json, created_at)
+            VALUES (gen_random_uuid(), '\(nocturneIDs[index])', '\(overtureID)', '\(services[index])', \(index + 1), '\(index + 1)', '\(layoutID)', '\(String(repeating: "b", count: 64))', 20.5, '{}', '{}', '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><pb n="\(index + 1)"/></body></text></TEI>', '{"width":2000.0,"body":45.4,"measure":55.1,"height":76.4}', '{"entries":[],"excluded":{}}', '{"gaps":[],"lines":{}}', now() - interval '1 minute');
+          """
+      }
+      if integrated {
+        // An Integration of the quatrain, done after every page was filed,
+        // its fit accepted: every page integrated.
+        statements += """
+
+          INSERT INTO bibliographic_integration_nocturnes (id, bibliographic_quatrain_id)
+            VALUES ('\(integrationID)', '\(quatrainID)');
+          INSERT INTO bibliographic_integration_nocturne_instances (id, nocturne_id, instance, provider, model, result, requested_by_id, image_ids_json, duration_ms, created_at, finished_at)
+            VALUES ('\(integrationID)', '\(integrationID)', 1, 'DeepSeek', 'deepseek-flash', 'passed', '\(user)', '\(scope)', 1500, now(), now());
+          UPDATE bibliographic_quatrains SET accepted_fit_json = '{}', accepted_fit_pages_json = '[]', accepted_fit_at = now(),
+            accepted_fit_by_id = '\(integrationID)' WHERE id = '\(quatrainID)';
           """
       }
       let closed = explicationCommitted ? "'\(user)', now()" : "NULL, NULL"
@@ -122,6 +144,9 @@ struct ScratchOverture {
       \(SessionTrace.delete(table: table, where: "nocturne_id IN (SELECT id FROM bibliographic_calibration_nocturnes WHERE bibliographic_quatrain_id = '\(quatrainID)')"))
       DELETE FROM calibration_observations WHERE calibration_nocturne_instance_id IN (SELECT id FROM \(table) WHERE nocturne_id IN (SELECT id FROM bibliographic_calibration_nocturnes WHERE bibliographic_quatrain_id = '\(quatrainID)'));
       DELETE FROM calibration_pages WHERE bibliographic_overture_id = '\(overtureID)';
+      UPDATE bibliographic_quatrains SET accepted_fit_json = NULL, accepted_fit_pages_json = NULL, accepted_fit_at = NULL,
+        accepted_fit_by_id = NULL WHERE id = '\(quatrainID)';
+      DELETE FROM bibliographic_integration_nocturnes WHERE id = '\(integrationID)';
       DELETE FROM model_calls WHERE bibliographic_calibration_nocturne_instance_id IN (SELECT id FROM \(table) WHERE nocturne_id IN (SELECT id FROM bibliographic_calibration_nocturnes WHERE bibliographic_quatrain_id = '\(quatrainID)'));
       DELETE FROM \(table) WHERE bibliographic_quatrain_id = '\(quatrainID)';
       DELETE FROM scan_layouts WHERE id = '\(layoutID)';

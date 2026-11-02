@@ -74,6 +74,33 @@ final class FixtureServer: @unchecked Sendable {
     return try await FixtureServer(files: files)
   }
 
+  /// A one-page IIIF v3 manifest at `path` whose page is served too: its
+  /// image service at `baseURL + path + "/page-1"` (absolute, as a reader's
+  /// `<pb facs>` names it: a relative one is fetched from Gnorium and is not
+  /// found), with its `info.json` and every size of its image.
+  static func imagedManifest(at path: String) async throws -> FixtureServer {
+    let server = try await FixtureServer(files: [:])
+    let service = server.baseURL + path + "/page-1"
+    server.files = [
+      path: .init(
+        contentType: "application/ld+json",
+        body: Data(
+          #"{"type":"Manifest","label":{"none":["Web tests"]},"items":[{"type":"Canvas","width":1000,"height":1400,"label":{"none":["p1"]},"items":[{"items":[{"body":{"id":"\#(service)/full/max/0/default.jpg","service":[{"id":"\#(service)","type":"ImageService3"}]}}]}]}]}"#
+            .utf8)),
+      "\(path)/page-1/info.json": .init(
+        contentType: "application/json",
+        body: Data(
+          #"{"@context":"http://iiif.io/api/image/3/context.json","id":"\#(service)","type":"ImageService3","protocol":"http://iiif.io/api/image","profile":"level0","width":1000,"height":1400}"#
+            .utf8)),
+      "\(path)/page-1/*": .init(
+        contentType: "image/svg+xml",
+        body: Data(
+          #"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1400"><rect width="1000" height="1400" fill="white"/><text x="80" y="100">Web tests</text></svg>"#
+            .utf8)),
+    ]
+    return server
+  }
+
   /// A locally served, identified three-page witness. Configured before any
   /// caller receives the server; no live data or external host is involved.
   static func threePageManifest() async throws -> FixtureServer {

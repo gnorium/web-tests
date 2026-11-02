@@ -5,13 +5,17 @@ import WebTestsTesting
 
 /// The Disputorium objects show where their level's work stands (user,
 /// 2026-10-21): a state chip (Pending, the object's own state—never the
-/// record's level reached), a line counting the
-/// pages, a roster that ticks the pages the next Commit sends, and a Commit
-/// that reads by state—an overture for calibration, once; a halftone for
-/// calibration while a page is missing, then for explication; a madrigal for
-/// explication, then for translation; an epilogue for translation—with
-/// Permit beside it at every level. Scratch rows built by SQL (dev has no
-/// model); every submission is stopped before it leaves the page.
+/// record's level reached), a roster whose boxes the next Commit sends, and a
+/// Commit that reads by state—an overture for calibration, once; a halftone
+/// for calibration while a page is missing, then for explication; a madrigal
+/// for explication, then for translation; an epilogue for translation—with
+/// Permit beside it at every level. Integration sits between the levels (user,
+/// 2026-10-24): a page processed in its level and not yet integrated is never
+/// locked, and while every page is processed but some are unintegrated the
+/// halftone's Commit is an Integration, as the madrigal's and epilogue's are
+/// once only Permit remains onward; an integrated page is locked. Scratch rows
+/// built by SQL (dev has no model); every submission is stopped before it
+/// leaves the page.
 @Suite("Level states", .serialized)
 struct LevelStatesTests {
   /// The status chip's words.
@@ -116,8 +120,9 @@ struct LevelStatesTests {
         // The machine's: revised, committed and permitted, never discarded.
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Commit", "Permit"])
-        // Its Commit is for calibration, over the pages it still misses,
-        // ticked to begin with; the page calibrated is locked.
+        // Its Commit is for calibration, over the pages it still misses;
+        // nothing is ticked at first, the select-all ticks every page open,
+        // and the page calibrated is locked.
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_calibration")
         let roster = page.locator(".halftone-evidence-items").first
         let rows = roster.locator(".roster-row")
@@ -125,8 +130,11 @@ struct LevelStatesTests {
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
         for index in 1...3 {
           try await expect(rows.nth(index)).toHaveAttribute("data-locked", "false")
-          try await expect(rows.nth(index).locator("input")).toBeChecked()
+          try await expect(rows.nth(index).locator("input")).toBeChecked(false)
         }
+        try await expect(page.locator(".commit-ticked")).toHaveAttribute("value", "")
+        try await EvidenceSelectAllTests.tap(page, ".evidence-header-view .evidence-select-all input")
+        for index in 1...3 { try await expect(rows.nth(index).locator("input")).toBeChecked() }
         try await expect(page.locator(".commit-ticked")).toHaveAttribute("value", "1-3")
         // A page calibrated is a plain ring; the ones missing a dotted ring.
         try await Self.expectShapes(
@@ -134,7 +142,7 @@ struct LevelStatesTests {
         // Nothing is frozen yet.
         try await expect(page.locator(".halftone-explication-note")).toHaveCount(0)
         // Commit posts calibration over those pages; with none ticked it is
-        // refused under the roster.
+        // disabled, its tooltip saying why (user, 2026-10-23).
         #expect(try await page.evaluate(CommitTests.interceptScript, as: Bool.self))
         try await page.locator(".commit-trigger").click()
         let sent = try #require(try await CommitTests.posted(page))
@@ -143,11 +151,12 @@ struct LevelStatesTests {
         _ = try await page.evaluate(
           "(() => { document.querySelectorAll(\".halftone-evidence-items .roster-row input[form='commit-form']\").forEach(box => { if (box.checked) box.click() }); return true })()",
           as: Bool.self)
-        _ = try await page.evaluate("(() => { window.__commit = null; return true })()", as: Bool.self)
-        try await page.locator(".commit-trigger").click()
-        try await expect(page.locator(".field-validation-message-view").first)
-          .toContainText("Tick the evidence items this commit sends to calibration.")
-        #expect(try await CommitTests.posted(page) == nil)
+        try await expect(page.locator(".commit-ticked")).toHaveAttribute("value", "")
+        try await expect(page.locator(".commit-trigger")).toBeDisabled()
+        // Its tooltip is on (its bubble, portaled, says "No evidence items ticked.").
+        let tooltipOff = try await page.evaluate(
+          "document.querySelector('.commit-trigger').closest('.tooltip-view').dataset.tooltipOff", as: String.self)
+        #expect(tooltipOff == "false")
         try await page.expectNoOverflowButTrees()
       }
     } catch {
@@ -158,13 +167,44 @@ struct LevelStatesTests {
     try await admin.remove()
   }
 
+  /// Every page calibrated and none integrated: its Commit is an
+  /// Integration over every page, each open.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func aCalibratedHalftonesCommitIsForExplication(engine: BrowserEngine, layout: Layout) async throws {
+  func aCalibratedHalftonesCommitIsAnIntegration(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let scratch: ScratchOverture
     do { scratch = try ScratchOverture(owner: admin, sealed: true, calibrated: 4) }
+    catch { try await admin.remove(after: error) }
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated(scratch.halftonePath)
+        try await expect(Self.chip(page)).toHaveText("Pending")
+        try await expect(page.locator(".level-progress-line-view")).toHaveCount(0)
+        try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_integration")
+        let rows = page.locator(".halftone-evidence-items").first.locator(".roster-row")
+        try await expect(rows).toHaveCount(4)
+        for index in 0..<4 { try await expect(rows.nth(index)).toHaveAttribute("data-locked", "false") }
+        try await expect(page.locator(".halftone-explication-note")).toHaveCount(0)
+        try await page.expectNoOverflowButTrees()
+      }
+    } catch {
+      scratch.remove()
+      try await admin.remove(after: error)
+    }
+    scratch.remove()
+    try await admin.remove()
+  }
+
+  /// Every page calibrated and integrated: its Commit is for explication.
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func anIntegratedHalftonesCommitIsForExplication(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let scratch: ScratchOverture
+    do { scratch = try ScratchOverture(owner: admin, sealed: true, calibrated: 4, integrated: true) }
     catch { try await admin.remove(after: error) }
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -192,7 +232,7 @@ struct LevelStatesTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let scratch: ScratchOverture
-    do { scratch = try ScratchOverture(owner: admin, sealed: true, calibrated: 4, explicationCommitted: true) }
+    do { scratch = try ScratchOverture(owner: admin, sealed: true, calibrated: 4, integrated: true, explicationCommitted: true) }
     catch { try await admin.remove(after: error) }
     do {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
@@ -202,9 +242,10 @@ struct LevelStatesTests {
         try await expect(page.locator(".thread-event-line a[href='\(scratch.antiphonPath)' i]")).toBeVisible()
         try await expect(page.locator(".commit-trigger")).toHaveCount(0)
         try await expect(page.locator(".thread-settled")).toContainText("has been committed; its locutions are closed.")
-        // Its Pedigree names its Commit, for explication.
+        // Its Pedigree carries its own Commit, its byline naming no process (2026-10-29).
         try await page.locator(".pedigree-accordion .accordion-summary").first.click()
-        try await expect(page.locator(".pedigree-rows")).toContainText("for explication")
+        try await expect(page.locator(".pedigree-rows")).toContainText("Halftone ID \(scratch.halftoneID.uppercased()) Committed By \(admin.username)")
+        try await expect(page.locator(".pedigree-rows")).not.toContainText("for explication")
       }
     } catch {
       scratch.remove()
@@ -229,8 +270,9 @@ struct LevelStatesTests {
     let source = fixture.baseURL + "/manifest.json"
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        // Two of three pages read: partly explicated, Commit for explication,
-        // the explicated pages locked and the page missing open.
+        // Two of three pages read, none integrated: partly explicated,
+        // Commit for explication, every page open (ticking an explicated
+        // page not integrated runs its Integration).
         _ = try TestAdmin.query("""
           UPDATE bibliographic_madrigals SET proposed_content_json = '\(CommitTests.madrigalTEI(fixture.baseURL, thirdRead: false))',
             metadata_json = (metadata_json::jsonb || '{"language":"ita"}'::jsonb)::text WHERE id = '\(scratch.madrigalID)'
@@ -240,7 +282,14 @@ struct LevelStatesTests {
         try await expect(page.locator(".level-progress-line-view")).toHaveCount(0)
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_explication")
         let rows = page.locator("#madrigal-images").first.locator(".roster-row")
+        for index in 0..<3 { try await expect(rows.nth(index)).toHaveAttribute("data-locked", "false") }
+
+        // The two read, integrated: locked, the page missing open.
+        try scratch.integrate(.explication, base: fixture.baseURL, pages: [1, 2])
+        try await page.openHydrated(scratch.madrigalPath)
+        try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_explication")
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
+        try await expect(rows.nth(1)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(2)).toHaveAttribute("data-locked", "false")
 
         // The first page changed at its source since it was read: stale, so
@@ -266,10 +315,16 @@ struct LevelStatesTests {
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_translation")
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Commit", "Permit"])
+        // The two integrated pages ticked, Commit posts their translation.
+        _ = try await page.evaluate(
+          "(() => { [...document.querySelectorAll(\"#madrigal-images .roster-row input[form='commit-form']\")].slice(0, 2).forEach(box => box.click()); return true })()",
+          as: Bool.self)
+        try await expect(page.locator(".commit-ticked")).toHaveAttribute("value", "0-1")
         #expect(try await page.evaluate(CommitTests.interceptScript, as: Bool.self))
         try await page.locator(".commit-trigger").click()
         let sent = try #require(try await CommitTests.posted(page))
         #expect(sent.process == "bibliographic_translation")
+        #expect(sent.ticked == "0-1")
         try await page.expectNoOverflowButTrees()
       }
       #expect(try scratch.stillPending(), "nothing was committed")
@@ -314,21 +369,35 @@ struct LevelStatesTests {
           .toHaveTexts(["Revise", "Commit", "Permit"])
         try await page.expectNoOverflowButTrees()
 
-        // One page translated, one of them stale after its wording changed.
+        // Two pages translated, the second stale after its wording changed,
+        // none integrated: the first, translated, is open for its Integration.
         try scratch.removeEpilogues()
         try scratch.addEpilogue(base: fixture.baseURL, translated: [1, 2], stale: [2])
         try await page.openHydrated(try scratch.epiloguePath())
         try await expect(Self.chip(page)).toHaveText("Pending")
         try await expect(page.locator(".level-progress-line-view")).toHaveCount(0)
+        for index in 0..<3 { try await expect(rows.nth(index)).toHaveAttribute("data-locked", "false") }
+
+        // The first integrated: locked; the stale one and the untranslated one open.
+        try scratch.integrate(.translation, base: fixture.baseURL, pages: [1])
+        try await page.openHydrated(try scratch.epiloguePath())
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(1)).toHaveAttribute("data-locked", "false")
         try await expect(rows.nth(2)).toHaveAttribute("data-locked", "false")
 
-        // Every page translated: only Permit remains.
+        // Every page translated, two not integrated: translation is done,
+        // and the Commit is their Integration.
         try scratch.removeEpilogues()
         try scratch.addEpilogue(base: fixture.baseURL, translated: [1, 2, 3])
         try await page.openHydrated(try scratch.epiloguePath())
         try await expect(Self.chip(page)).toHaveText("Pending")
+        try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_integration")
+        try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
+          .toHaveTexts(["Revise", "Commit", "Permit"])
+
+        // Every page integrated: only Permit remains.
+        try scratch.integrate(.translation, base: fixture.baseURL, pages: [1, 2, 3])
+        try await page.openHydrated(try scratch.epiloguePath())
         try await expect(page.locator(".commit-trigger")).toHaveCount(0)
         try await expect(page.locator(".mission-control-object-header-action-buttons > *")).toHaveTexts(["Revise", "Permit"])
       }

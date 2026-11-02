@@ -94,6 +94,34 @@ struct ScratchCommit {
       """)
   }
 
+  /// A done Integration over `pages` (the manifest's `page-N` services under
+  /// `base`; user, 2026-10-24): of the explication, by the antiphon that
+  /// submitted the madrigal, or of the translation, by the serenade that
+  /// submitted the epilogue. An integrated page is processed in its level and
+  /// locked; a processed page not integrated stays open, and ticking it runs
+  /// its Integration. It replaces the level's Integration made before.
+  func integrate(_ level: IntegratedLevel, base: String, pages: [Int]) throws {
+    let user = try TestAdmin.query("SELECT id FROM users WHERE username = '\(owner)'")
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let id = UUID().uuidString.lowercased()
+    let scope = "[" + pages.map { "\"\(base)/page-\($0)\"" }.joined(separator: ",") + "]"
+    let (table, column, row) = level == .explication
+      ? ("bibliographic_antiphons", "bibliographic_antiphon_id", chain.antiphonID)
+      : ("bibliographic_serenades", "bibliographic_serenade_id", serenadeID)
+    _ = try TestAdmin.query(
+      """
+      BEGIN;
+      DELETE FROM bibliographic_integration_nocturnes WHERE \(column) = '\(row)';
+      UPDATE \(table) SET integrates = true WHERE id = '\(row)';
+      INSERT INTO bibliographic_integration_nocturnes (id, \(column)) VALUES ('\(id)', '\(row)');
+      INSERT INTO bibliographic_integration_nocturne_instances (id, nocturne_id, instance, provider, model, result, requested_by_id, image_ids_json, duration_ms, created_at, finished_at)
+        VALUES ('\(id)', '\(id)', 1, 'DeepSeek', 'deepseek-flash', 'passed', '\(user)', '\(scope)', 1500, now(), now());
+      COMMIT;
+      """)
+  }
+
+  enum IntegratedLevel { case explication, translation }
+
   /// The epilogues `addEpilogue` made, gone, so the next is the serenade's one.
   func removeEpilogues() throws {
     _ = try TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE bibliographic_serenade_id = '\(serenadeID)'")
@@ -132,6 +160,8 @@ struct ScratchCommit {
       """
       BEGIN;
       DELETE FROM revisions WHERE revisable_id IN ('\(madrigalID)', '\(pendingOvertureID)');
+      DELETE FROM bibliographic_integration_nocturnes
+        WHERE bibliographic_antiphon_id = '\(chain.antiphonID)' OR bibliographic_serenade_id = '\(serenadeID)';
       DELETE FROM bibliographic_epilogues WHERE bibliographic_serenade_id = '\(serenadeID)';
       DELETE FROM bibliographic_serenades WHERE id = '\(serenadeID)';
       DELETE FROM bibliographic_madrigals WHERE id = '\(madrigalID)';

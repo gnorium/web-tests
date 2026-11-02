@@ -22,23 +22,39 @@ import WebTestsTesting
 @Suite("Testament header", .serialized)
 struct TestamentHeaderTests {
   static let manifestPath = "/testament-header-manifest.json"
-  static let service = "\(manifestPath)/page-1"
-  /// Its header as Calibration writes one: each declaration on a line.
+  /// The page's image service on the fixture server at `base`, which serves it.
+  static func service(_ base: String) -> String { base + manifestPath + "/page-1" }
+  /// Its header as Calibration writes one, laid out as the reader shows it
+  /// (`XMLFormatter.prettified`, user 2026-10-26): an element-only container's
+  /// children each on a line of its own, two spaces deeper; mixed content one
+  /// line.
   static let header = """
-    <teiHeader><fileDesc><titleStmt><title>Web tests header</title></titleStmt>
-    <extent><measure unit="image" quantity="1"/></extent></fileDesc>
-    <encodingDesc><tagsDecl>
-    <rendition xml:id="size-1" scheme="css">font-size:0.8251rem</rendition>
-    <rendition xml:id="size-2" scheme="css">font-size:1.0029rem</rendition>
-    <rendition xml:id="leading-1" scheme="css">line-height:1.2857rem</rendition>
-    </tagsDecl></encodingDesc>
-    <revisionDesc><change when="2026-10-20" who="#gnorium">Calibrated.</change></revisionDesc></teiHeader>
+    <teiHeader>
+      <fileDesc>
+        <titleStmt>
+          <title>Web tests header</title>
+        </titleStmt>
+        <extent><measure unit="image" quantity="1"/></extent>
+      </fileDesc>
+      <encodingDesc>
+        <tagsDecl>
+          <rendition xml:id="size-1" scheme="css">font-size:0.8251rem</rendition>
+          <rendition xml:id="size-2" scheme="css">font-size:1.0029rem</rendition>
+          <rendition xml:id="leading-1" scheme="css">line-height:1.2857rem</rendition>
+        </tagsDecl>
+      </encodingDesc>
+      <revisionDesc>
+        <change when="2026-10-20" who="#gnorium">Calibrated.</change>
+      </revisionDesc>
+    </teiHeader>
     """
   static var headerLines: Int { header.split(separator: "\n", omittingEmptySubsequences: false).count }
-  static let tei = """
-    <TEI xmlns="http://www.tei-c.org/ns/1.0">\(header)<text><body><pb n="1" facs="\(service)/full/1300,/0/default.jpg"/>\
+  static func tei(_ base: String) -> String {
+    """
+    <TEI xmlns="http://www.tei-c.org/ns/1.0">\(header)<text><body><pb n="1" facs="\(service(base))/full/1300,/0/default.jpg"/>\
     <p><s><w>The</w> <w>first</w> <w>page</w><pc>.</pc></s></p></body></text></TEI>
     """
+  }
   /// Calibrated, not yet explicated: the header, and no page read.
   static let calibrated = """
     <TEI xmlns="http://www.tei-c.org/ns/1.0">\(header)<text><body></body></text></TEI>
@@ -122,6 +138,17 @@ struct TestamentHeaderTests {
       """, as: State.self)
   }
 
+  /// The state once `done` holds, read again every 100 ms for up to 5 s;
+  /// the last read where it never does.
+  static func settled(_ page: Page, _ done: (State) -> Bool) async throws -> State {
+    var state = try await Self.state(page)
+    for _ in 0..<50 where !done(state) {
+      try await Task.sleep(for: .milliseconds(100))
+      state = try await Self.state(page)
+    }
+    return state
+  }
+
   /// The first reader's XML switched to `on` once it is hydrated (it wears
   /// `data-raw` then), whatever the session left it at.
   static func setXML(_ page: Page, _ on: Bool) async throws {
@@ -147,7 +174,7 @@ struct TestamentHeaderTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let fixture = try await FixtureServer.manifest(at: Self.manifestPath)
+    let fixture = try await FixtureServer.imagedManifest(at: Self.manifestPath)
     defer { fixture.stop() }
     let sourceURL = fixture.baseURL + Self.manifestPath
     var testament: ScratchTestament?
@@ -162,7 +189,7 @@ struct TestamentHeaderTests {
       try await admin.remove()
     }
     do {
-      let scratch = try ScratchTestament(owner: admin, tei: Self.tei, sourceURL: sourceURL)
+      let scratch = try ScratchTestament(owner: admin, tei: Self.tei(fixture.baseURL), sourceURL: sourceURL)
       testament = scratch
       let work = scratch.reading.work
       _ = try TestAdmin.query(
@@ -171,11 +198,10 @@ struct TestamentHeaderTests {
           WHERE biblio_record_id = '\(work.recordID.lowercased())';
         """)
       // A pending madrigal holding the same document, for its Revise page.
-      let revising = try ScratchCommit(owner: admin)
+      let revising = try ScratchCommit(owner: admin, sourceURL: sourceURL)
       commit = revising
       let content = try String(
-        decoding: JSONSerialization.data(
-          withJSONObject: ["teiXml": Self.tei.replacingOccurrences(of: Self.service, with: "https://web-tests.invalid/iiif/p1")]),
+        decoding: JSONSerialization.data(withJSONObject: ["teiXml": Self.tei(fixture.baseURL)]),
         as: UTF8.self
       ).replacingOccurrences(of: "'", with: "''")
       _ = try TestAdmin.query(
@@ -260,10 +286,9 @@ struct TestamentHeaderTests {
           "(() => document.querySelector(\".tei-page[data-active='true'] .tei-page-edit textarea\").value)()",
           as: String.self)
         #expect(!value.contains("teiHeader"), "the editor holds the header: \(value.prefix(80))")
-        let first = try await page.evaluate(
-          "(() => document.querySelector(\".tei-page[data-active='true'] .tei-page-edit .code-gutter-lines > span\")?.textContent ?? '')()",
-          as: String.self)
-        #expect(first == "1", "the editor's first number is \(first)")
+        // The editor numbers its lines once hydrated: its first is 1.
+        try await expect(page.locator(".tei-page[data-active='true'] .tei-page-edit .code-gutter-lines > span").first)
+          .toHaveText("1")
         try await reviseView.locator(".artifact-header-toggle button").click()
         try await expect(reviseView).toHaveAttribute("data-raw", "false")
         state = try await Self.state(page)
@@ -277,7 +302,7 @@ struct TestamentHeaderTests {
       // A document that declares no header: no switch.
       let plain = try ScratchTestament(
         owner: admin,
-        tei: #"<TEI><text><body><pb n="1" facs="\#(Self.service)/full/1300,/0/default.jpg"/><p>No header.</p></body></text></TEI>"#,
+        tei: #"<TEI><text><body><pb n="1" facs="\#(Self.service(fixture.baseURL))/full/1300,/0/default.jpg"/><p>No header.</p></body></text></TEI>"#,
         sourceURL: sourceURL)
       bare = plain
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
@@ -316,7 +341,8 @@ struct TestamentHeaderTests {
         try await toggle.click()
         try await expect(view).toHaveAttribute("data-header", "false")
         try await expect(frame).toBeHidden()
-        state = try await Self.state(page)
+        // The images widen back once the viewer has laid itself out again.
+        state = try await Self.settled(page) { $0.objectWidth >= $0.bodyWidth - 1 }
         #expect(state.objectWidth >= state.bodyWidth - 1, "the images are not the whole viewer again: \(state)")
         try await page.expectNoErrors()
       }
