@@ -77,6 +77,9 @@ struct CommitTests {
         try await expect(page.locator(".commit-view input[name='scope']")).toHaveCount(0)
         let roster = page.locator(".overture-evidence-items").first
         try await expect(roster.locator(".roster-row"), timeout: .seconds(20)).toHaveCount(3)
+        // Nothing is ticked at first (user, 2026-10-23); the select-all ticks every page.
+        try await expect(roster.locator(".roster-row input[form='commit-form']:checked")).toHaveCount(0)
+        try await EvidenceSelectAllTests.tap(page, ".evidence-header-view .evidence-select-all input")
         try await expect(roster.locator(".roster-row input[form='commit-form']:checked")).toHaveCount(3)
         #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
         // Commit posts the three ticked pages, in ranges (user, 2026-10-11).
@@ -84,13 +87,15 @@ struct CommitTests {
         let all = try #require(try await Self.posted(page))
         #expect(all.process == "bibliographic_calibration")
         #expect(all.ticked == "0-2")
-        // Nothing ticked: refused under the roster, never sent.
+        // Nothing ticked: Commit disabled, its tooltip saying why ("No
+        // evidence items ticked.", user 2026-10-23), never sent.
         _ = try await page.evaluate(
           "(() => { window.__commit = null; document.querySelector(\".overture-evidence-items\").querySelectorAll(\".roster-row input[form='commit-form']\").forEach(box => box.click()); return true })()",
           as: Bool.self)
-        try await page.locator(".commit-trigger").click()
-        try await expect(page.locator(".field-validation-message-view").first)
-          .toContainText("Tick the evidence items this commit sends to calibration.")
+        try await expect(page.locator(".commit-trigger")).toBeDisabled()
+        let tooltipOff = try await page.evaluate(
+          "document.querySelector('.commit-trigger').closest('.tooltip-view').dataset.tooltipOff", as: String.self)
+        #expect(tooltipOff == "false")
         #expect(try await Self.posted(page) == nil, "an empty commit was sent")
         // A tick clears it, and Commit posts that item.
         _ = try await page.evaluate(
@@ -105,11 +110,13 @@ struct CommitTests {
         try await page.expectNoErrors()
 
         // A madrigal with a page unexplicated: explication, its explicated
-        // pages locked, even where the witness is translated.
+        // and integrated pages locked (user, 2026-10-24), even where the
+        // witness is translated.
         _ = try TestAdmin.query("""
           UPDATE bibliographic_madrigals SET proposed_content_json = '\(Self.madrigalTEI(fixture.baseURL, thirdRead: false))',
             metadata_json = (metadata_json::jsonb || '{"language":"ita"}'::jsonb)::text WHERE id = '\(scratch.madrigalID)'
           """)
+        try scratch.integrate(.explication, base: fixture.baseURL, pages: [1, 2])
         try await page.openHydrated(scratch.madrigalPath)
         try await expect(page.locator(".process-toggle-view")).toHaveCount(0)
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
@@ -127,14 +134,18 @@ struct CommitTests {
           """)
         try await page.openHydrated(scratch.madrigalPath)
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_translation")
+        _ = try await page.evaluate(
+          "(() => { [...document.querySelectorAll(\"#madrigal-images .roster-row input[form='commit-form']\")].slice(0, 2).forEach(box => box.click()); return true })()",
+          as: Bool.self)
         #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
         try await page.locator(".commit-trigger").click()
         let translation = try #require(try await Self.posted(page))
         #expect(translation.process == "bibliographic_translation")
-        #expect(translation.ticked != nil, "the pages it sends to translation")
+        #expect(translation.ticked == "0-1", "the pages it sends to translation")
         try await expect(page.locator(".field-validation-message-view")).toHaveCount(0)
 
-        // English and every page explicated: nothing to commit for.
+        // English and every page explicated and integrated: nothing to commit for.
+        try scratch.integrate(.explication, base: fixture.baseURL, pages: [1, 2, 3])
         _ = try TestAdmin.query("""
           UPDATE bibliographic_madrigals SET metadata_json =
             (metadata_json::jsonb || '{"language":"eng"}'::jsonb)::text WHERE id = '\(scratch.madrigalID)'
@@ -143,7 +154,7 @@ struct CommitTests {
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Permit"])
         try await expect(page.locator(".commit-view")).toHaveCount(0)
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoOverflowButTrees()
         try await page.expectNoErrors()
       }
       #expect(try scratch.stillPending(), "nothing was committed")
@@ -155,10 +166,9 @@ struct CommitTests {
     try await admin.remove()
   }
 
-  /// A Commit for translation refused while a revision filed on the object is open
-  /// (user, 2026-10-20: nothing hover-only): Commit stays enabled, and
-  /// pressing it shows why in the header's alert—on a phone as on a
-  /// desktop—and sends nothing.
+  /// A Commit for translation refused while a revision filed on the object is open:
+  /// every refusal disables it with one tooltip reason (user, 2026-10-23),
+  /// the open revision named, on a phone as on a desktop; nothing is sent.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func refusedCommitSaysWhyWhenPressed(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -180,17 +190,22 @@ struct CommitTests {
         try await page.openHydrated(scratch.madrigalPath)
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_translation")
         let trigger = page.locator(".commit-trigger").first
-        try await expect(trigger).not.toBeDisabled()
-        let alert = page.locator(".action-gate-alert[data-gate-action='commit']").first
-        try await expect(alert).toBeHidden()
+        // Ticked or not, the open revision is the reason it is disabled.
+        _ = try await page.evaluate(
+          "(() => { document.querySelector(\"#madrigal-images .roster-row input[form='commit-form']\").click(); return true })()",
+          as: Bool.self)
+        try await expect(trigger).toBeDisabled()
+        let refusal = try await page.evaluate(
+          """
+          (() => { const form = document.querySelector('.commit-view');
+            return form.dataset.refused + '|' + document.querySelector('.commit-trigger').closest('.tooltip-view').dataset.tooltipOff })()
+          """, as: String.self)
+        #expect(refusal.hasPrefix("Accept or reject its open revision first: "), "the reason: \(refusal)")
+        #expect(refusal.lowercased().contains(revisionID), "The reason names the open revision: \(refusal)")
+        #expect(refusal.hasSuffix("|false"), "its tooltip is on: \(refusal)")
         #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
-        try await trigger.click()
-        try await expect(alert).toBeVisible()
-        try await expect(alert).toContainText("Accept or reject its open revision first")
-        let text = try await alert.innerText()
-        #expect(text.lowercased().contains(revisionID), "The reason names the open revision: \(text)")
         #expect(try await Self.posted(page) == nil, "a refused Commit was sent")
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoOverflowButTrees()
         try await page.expectNoErrors()
       }
       #expect(try scratch.stillPending(), "nothing was committed")

@@ -26,7 +26,7 @@ struct TranslationScopeTests {
     let epilogue = UUID().uuidString.lowercased()
     let serenade = UUID().uuidString.lowercased()
     defer {
-      _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';")
+      _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_integration_nocturnes WHERE id = '\(serenade)'; DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';")
       reading.remove()
     }
     do {
@@ -50,6 +50,11 @@ struct TranslationScopeTests {
         INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id, proposed_content_json, metadata_json, translation_json, processing_status)
           SELECT '\(epilogue)', '\(firstEpilogue)', '\(reading.work.overtureID.lowercased())', '\(serenade)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
           FROM bibliographic_madrigals p WHERE p.id = '\(reading.madrigalID)';
+        -- Page 2's translation integrated (user, 2026-10-24): locked.
+        UPDATE bibliographic_serenades SET integrates = true WHERE id = '\(serenade)';
+        INSERT INTO bibliographic_integration_nocturnes (id, bibliographic_serenade_id) VALUES ('\(serenade)', '\(serenade)');
+        INSERT INTO bibliographic_integration_nocturne_instances (id, nocturne_id, instance, provider, model, result, requested_by_id, image_ids_json, duration_ms, created_at, finished_at)
+          VALUES ('\(serenade)', '\(serenade)', 1, 'DeepSeek', 'deepseek-flash', 'passed', '\(user)', '["\(fixture.baseURL)/page-2"]', 1500, now(), now());
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -67,7 +72,10 @@ struct TranslationScopeTests {
         let task = page.locator("[data-process='Translation'] .prompt-preview-task .prompt-text-source").first
         try await expect(task, timeout: .seconds(20)).toContainText("Translate these pages from Italian into English: 1.")
         // Page 2's is fresh: nothing is sent for it, and translation has no
-        // accordion (user, 2026-10-17).
+        // accordion (user, 2026-10-17). The previews are fetched again on a
+        // turn only while one of their accordions is open (user, 2026-10-30):
+        // one opened, the turn redraws them.
+        try await page.locator(".prompt-previews-process[data-process='Arbitration'] .accordion-summary").first.click()
         try await page.locator("#artifact-page-input").fill("2")
         try await page.locator("#artifact-page-input").press("Enter")
         try await expect(page.locator("#artifact-page-input")).toHaveValue("2")
@@ -89,13 +97,16 @@ struct TranslationScopeTests {
         let submitted = { () async throws -> String in
           try await page.evaluate("JSON.stringify(window.__translationSubmit)", as: String.self)
         }
-        // Nothing ticked: refused under the roster, never sent.
-        try await commit.click()
-        try await expect(page.locator(".field-validation-message-view").first)
-          .toContainText("Tick the evidence items this commit sends to translation.")
+        // Nothing ticked: Commit disabled, its tooltip saying why ("No
+        // evidence items ticked.", user 2026-10-23), never sent.
+        try await expect(commit).toBeDisabled()
+        let tooltipOff = try await page.evaluate(
+          "document.querySelector('.commit-trigger').closest('.tooltip-view').dataset.tooltipOff", as: String.self)
+        #expect(tooltipOff == "false")
         #expect(try await submitted() == "null")
-        // Page 2's translation is fresh: locked against a commit, its
-        // checkbox gone (user, 2026-10-09); page 1's is stale, and ticks.
+        // Page 2's translation is fresh and integrated: locked against a
+        // commit, its checkbox gone (user, 2026-10-09); page 1's is stale,
+        // and ticks.
         // (The navbar clones the sidebar into its menu: the first roster.)
         let rows = page.locator("#epilogue-images").first.locator(".roster-row")
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "false")
@@ -109,17 +120,17 @@ struct TranslationScopeTests {
         #expect(payload.contains("\"process\":\"bibliographic_translation\""))
         // Its roster position, as the commit posts ticks (user, 2026-10-11).
         #expect(payload.contains("\"ticked\":\"0\""))
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoOverflowButTrees()
         try await page.expectNoErrors()
       }
       #expect(try TestAdmin.query("SELECT processing_status FROM bibliographic_epilogues WHERE id = '\(epilogue)'") == "pending")
     } catch {
       // Release the account only after its scratch foreign-key dependants.
-      _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';")
+      _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_integration_nocturnes WHERE id = '\(serenade)'; DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';")
       reading.remove()
       try await admin.remove(after: error)
     }
-    _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';")
+    _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_integration_nocturnes WHERE id = '\(serenade)'; DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';")
     reading.remove()
     try await admin.remove()
   }
@@ -146,7 +157,7 @@ struct TranslationScopeTests {
     let epilogue = UUID().uuidString.lowercased()
     let serenade = UUID().uuidString.lowercased()
     func clean() {
-      _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';")
+      _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_integration_nocturnes WHERE id = '\(serenade)'; DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';")
       reading.remove()
     }
     do {
@@ -170,6 +181,11 @@ struct TranslationScopeTests {
         INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id, proposed_content_json, metadata_json, translation_json, processing_status)
           SELECT '\(epilogue)', '\(firstEpilogue)', '\(reading.work.overtureID.lowercased())', '\(serenade)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
           FROM bibliographic_madrigals p WHERE p.id = '\(reading.madrigalID)';
+        -- Page 2's translation integrated (user, 2026-10-24): locked.
+        UPDATE bibliographic_serenades SET integrates = true WHERE id = '\(serenade)';
+        INSERT INTO bibliographic_integration_nocturnes (id, bibliographic_serenade_id) VALUES ('\(serenade)', '\(serenade)');
+        INSERT INTO bibliographic_integration_nocturne_instances (id, nocturne_id, instance, provider, model, result, requested_by_id, image_ids_json, duration_ms, created_at, finished_at)
+          VALUES ('\(serenade)', '\(serenade)', 1, 'DeepSeek', 'deepseek-flash', 'passed', '\(user)', '["\(fixture.baseURL)/page-2"]', 1500, now(), now());
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
