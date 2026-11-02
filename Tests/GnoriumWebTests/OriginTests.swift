@@ -188,6 +188,23 @@ struct OriginTests {
         ] {
           try await page.openHydrated(url)
           let block = page.locator(".origin-field-view").first
+          // Its own section, headed "Origin", between the Metadata and the
+          // tree, never a field in the Metadata (user, 2026-11-03): no
+          // field label of its own.
+          try await expect(page.locator("#origin > .record-section-title")).toHaveText("Origin")
+          try await expect(page.locator("#origin .origin-field-view")).toHaveCount(1)
+          try await expect(page.locator("#record-metadata .origin-field-view")).toHaveCount(0)
+          try await expect(block.locator(":scope > .field-view")).toHaveCount(0)
+          let placed = try await page.evaluate(
+            """
+            (() => {
+              const [m, o, t] = ['#metadata', '#origin', '#record-tree'].map((s) => document.querySelector(s));
+              const after = (a, b) => !!(a && b && (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING));
+              return after(m, o) && after(o, t);
+            })()
+            """
+          ).bool
+          #expect(placed == true, "\(url): Origin is not between the Metadata and the tree")
           let sentence = block.locator(".origin-sentence-view")
           try await expect(sentence).toHaveCount(1)
           try await expect(sentence).toBeHidden()
