@@ -119,6 +119,57 @@ struct SubmitTestamentDraftTests {
     }
   }
 
+  /// The Carrier comes back from a kept draft chosen, its control showing
+  /// it and not only its value (user, 2026-11-03). A browser that restores
+  /// the page's form state (a tab reopened or brought back, a history
+  /// entry; Firefox on a reload) puts the hidden value back before the page
+  /// hydrates: the draft's value was then already there, and the control
+  /// kept the "Carrier" the page drew while the Publication the choice
+  /// reveals came back with its place. `restored` writes the value at
+  /// DOMContentLoaded, as such a browser does.
+  @Test(arguments: gnorium.engines, [false, true])
+  func aReloadShowsTheCarrierChosen(engine: BrowserEngine, restored: Bool) async throws {
+    try await withPage(engine, gnorium) { page in
+      try await page.openHydrated(Self.form)
+      _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
+      try await page.openHydrated(Self.form)
+
+      let carrier = page.locator(".dropdown-view:has(#testament-carrier)")
+      let publication = page.locator(".activity-statement-view[data-as-namespace='publication']").first
+      let place = publication.locator("input[name='as-publication-place']")
+      try await carrier.locator(".dropdown-trigger").click()
+      try await carrier.locator(".dropdown-option[data-value='print']").click()
+      try await expect(carrier.locator(".dropdown-selected-text")).toHaveText("Print")
+      try await expect(publication).toBeVisible()
+      try await place.fill("London, England")
+
+      var kept = ""
+      for _ in 0..<20 {
+        kept = try await page.evaluate("localStorage.getItem('gnorium:draft:' + location.pathname) || ''", as: String.self)
+        if kept.contains("\"carrier\":\"print\"") && kept.contains("London, England") { break }
+        try await Task.sleep(for: .milliseconds(250))
+      }
+      #expect(kept.contains("\"carrier\":\"print\""), "the draft keeps the Carrier")
+
+      if restored {
+        try await page.addInitScript(
+          "document.addEventListener('DOMContentLoaded', () => { const c = document.getElementById('testament-carrier'); if (c) c.value = 'print'; });"
+        )
+      }
+      _ = try await page.reload()
+      try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
+
+      try await expect(place, timeout: .seconds(15)).toHaveValue("London, England")
+      try await expect(publication).toBeVisible()
+      try await expect(page.locator("#testament-carrier")).toHaveValue("print")
+      try await expect(carrier.locator(".dropdown-selected-text")).toHaveText("Print")
+      try await expect(carrier.locator(".dropdown-selected-text")).toHaveAttribute("data-selected", "true")
+      try await expect(carrier.locator(".dropdown-option[data-value='print']")).toHaveAttribute("data-selected", "true")
+
+      _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
+    }
+  }
+
   /// A draft that does not read (rows naming keys no selector may hold,
   /// levels that do not exist, a truncated object) never breaks the page:
   /// it hydrates, the rows stay as the server drew them, and the form works.
@@ -143,7 +194,8 @@ struct SubmitTestamentDraftTests {
   /// A Submit the server turns back draws the form again with every entry
   /// posted, and the rows the page had added come back from them
   /// (`DraftRows.carry`): the origins at every depth, numbered as left, the
-  /// voices, and the testament node taken out stays out. Signed out, the
+  /// voices, the Carrier chosen as it was, and the testament node taken out
+  /// stays out. Signed out, the
   /// server refuses the post ("Sign in…"); the form's own submit listeners
   /// run as for a real Submit, then the form posts.
   @Test(arguments: gnorium.engines)
@@ -176,6 +228,9 @@ struct SubmitTestamentDraftTests {
       try await expect(rows).toHaveCount(4)
       let third = try #require(try await rows.nth(3).getAttribute("data-origin-key"))
       try await title(third).fill("Web tests origin three")
+      let carrier = page.locator(".dropdown-view:has(#testament-carrier)")
+      try await carrier.locator(".dropdown-trigger").click()
+      try await carrier.locator(".dropdown-option[data-value='print']").click()
       try await page.locator("button.testament-draft-remove-level[aria-label='Remove Testament 1.1.']").click()
       let impression = page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='2']")
       try await expect(impression).toHaveAttribute("data-outliner-removed", "true")
@@ -205,6 +260,8 @@ struct SubmitTestamentDraftTests {
       try await expect(addTop).toHaveAttribute("aria-label", "Add Origin 4.")
       try await expect(voices).toHaveCount(2)
       try await expect(page.locator("input[name='work-voice-item2-text-input']")).toHaveValue("Web tests Voice Two")
+      try await expect(page.locator("#testament-carrier")).toHaveValue("print")
+      try await expect(carrier.locator(".dropdown-selected-text")).toHaveText("Print")
       try await expect(impression).toHaveAttribute("data-outliner-removed", "true")
 
       _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
