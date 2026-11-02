@@ -28,10 +28,13 @@ struct RecordRowHeaderTests {
     (() => {
       const summary = [...document.querySelectorAll('\(scope) .accordion-summary')]
         .find(s => s.querySelector('.record-row-number'))
-      // Its value's box (user, 2026-11-02): the text inside its inset.
-      const title = summary.querySelector('.record-row-heading .node-value-view textarea')
-      title.value = 'The London bookseller and publisher John Trundell, who printed the first quarto '
+      // Its value's box (user, 2026-11-02): the text inside its inset, a
+      // field's where it is edited, the read box's words where it is read.
+      const title = summary.querySelector('.record-row-heading .node-value-view :is(textarea, .node-value-box)')
+      const long = 'The London bookseller and publisher John Trundell, who printed the first quarto '
         + 'of Hamlet with Nicholas Ling in 1603, and whose shop stood at the sign of the Barbican.'
+      if (title.matches('textarea')) title.value = long
+      else title.querySelector('.node-value-text').textContent = long
       const origin = summary.getBoundingClientRect().top
       const box = el => el ? el.getBoundingClientRect() : null
       const top = el => el ? box(el).top - origin : null
