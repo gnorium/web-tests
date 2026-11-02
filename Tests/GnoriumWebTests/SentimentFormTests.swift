@@ -80,7 +80,9 @@ struct SentimentFormTests {
       let british = page.locator(".dropdown-option[data-value='british_english']")
       try await expect(british).toHaveAttribute("data-display", "British")
       try await expect(british.locator(".breadcrumb-label-context")).toHaveText("English")
-      try await expect(page.locator(".dropdown-option[data-value='received_pronunciation']")).toHaveCount(0)
+      // An accent is a Pronunciation row's, never a region's.
+      try await expect(page.locator(".submit-sentiment-tree .dropdown-option[data-value='received_pronunciation']"))
+        .toHaveCount(0)
 
       // Typed, then a record picked: its own fields stand in place of the
       // typed ones and its tree in the tree section, and it stays chosen.

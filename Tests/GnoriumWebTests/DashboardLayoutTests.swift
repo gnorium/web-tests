@@ -215,7 +215,7 @@ struct DashboardLayoutTests {
           const green=getComputedStyle(probe).borderTopColor;probe.style.borderColor='var(--border-color-base)';const neutral=getComputedStyle(probe).borderTopColor;probe.remove();
           return meta && treeFrame && fields.length>=3 && getComputedStyle(meta).borderTopColor===neutral
             && getComputedStyle(treeFrame).borderTopColor===neutral && getComputedStyle(treeFrame).borderTopWidth==='1px' && fields.every(e=>getComputedStyle(e).borderTopColor===green && e.textContent.trim()!=='' && e.textContent.trim()!=='—')
-            && [...document.querySelectorAll('#apparatus-metadata .datum-view')].some(e=>e.textContent.includes('Pronunciation')&&!e.querySelector('[data-metadata-added=true]'));
+            && (p=>!!p&&!p.querySelector('[data-metadata-added=true]'))(document.querySelector('#apparatus-metadata [data-item-list=pronunciation]'));
         })()
         """, as: Bool.self), "Aggregate metadata and added sentiment frames stay neutral; populated fields green, empty pronunciation neutral")
       try await page.expectNoHorizontalOverflow()
