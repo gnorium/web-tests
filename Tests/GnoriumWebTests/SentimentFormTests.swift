@@ -43,7 +43,7 @@ struct SentimentFormTests {
         """
         (form) => {
           const chain = [
-            '.record-choice-field-view', '#language', '#script', '#title', '#type', '.submit-sentiment-tree',
+            '.record-choice-field-view', '#language', '#title', '#type', '#script', '.submit-sentiment-tree',
             "[data-submission-draft='true']", '#usage-grammar',
             '#usage-register', '#usage-domain', '#usage-region', '#usage-currency',
           ];
