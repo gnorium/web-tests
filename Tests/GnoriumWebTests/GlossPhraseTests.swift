@@ -68,7 +68,7 @@ struct GlossPhraseTests {
         // Its language and class are the header's, not rows again (user, 2026-11-01).
         try await expect(term.locator(".datum-label")).toHaveTexts(["Lemma"])
         try await expect(term.locator(".datum-value")).toHaveTexts(["kick the bucket"])
-        try await expect(details.locator(".record-row-title[data-current='true']")).toHaveText("A leaf sense.")
+        try await expect(details.locator(".node-value-view[data-current='true'] textarea")).toHaveValue("A leaf sense.")
         // Its words, the one opened expanded, each with its own gloss.
         let rows = details.locator(".gloss-word-row")
         try await expect(rows).toHaveCount(3)

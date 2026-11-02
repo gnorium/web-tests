@@ -198,32 +198,35 @@ struct QuoteSourcesTests {
         let words = box.locator(".quote-passage-reader .artifact-markup .tei-word")
         try await expect(words.first, timeout: .seconds(20)).toBeAttached()
         try await expect(box.locator("input[name='quote-s1-source-url']")).toBeDisabled()
-        // Its leaf named by the Testament UUID field (user, 2026-11-02).
-        try await expect(box.locator(".quote-passage-record [data-placeholder='Testament UUID']"), timeout: .seconds(10)).toHaveCount(1)
-        try await expect(box.locator(".quote-passage-record")).toContainText("Testament UUID")
-        // Each leaf offered by its numbered description, then its whole UUID.
+        // Its leaf named by its Value (user, 2026-11-02): a dropdown of the
+        // record's testaments by number and whole value, posting the node id.
+        try await expect(box.locator(".quote-passage-record [data-placeholder='Value']"), timeout: .seconds(10)).toHaveCount(1)
+        try await expect(box.locator(".quote-passage-record")).toContainText("Value")
+        // Each leaf offered by its number, then its whole value; it posts
+        // the leaf's UUID.
         let leaves = try await box.evaluate(
           """
           (b) => { const field = b.querySelector("[name='quote-s1-record-node']").closest('.dropdown-view');
             const options = [...field.querySelectorAll('[data-dropdown-option]')];
             return options.length > 0 && options.every((o) =>
-              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(o.dataset.display)
-              && o.dataset.display === o.dataset.value.toLowerCase() && o.dataset.context.length > 0
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(o.dataset.value)
+              && o.dataset.number.length > 0 && o.dataset.display.length > 0
+              && o.querySelector('.dropdown-option-number')?.textContent === o.dataset.number
               && o.textContent.includes(o.dataset.display)); }
           """
         ).bool
-        #expect(leaves == true, "each leaf reads its numbered description, then its UUID")
-        // Picked, the closed field reads the same: its description, then
-        // its whole UUID, on one line inside the box.
+        #expect(leaves == true, "each leaf reads its number, then its value")
+        // Picked, the closed field reads the same: its number, then its
+        // whole value, on one line inside the box.
         let node = box.locator(".dropdown-view:has([name='quote-s1-record-node'])")
         try await node.locator(".dropdown-trigger").click()
         let option = node.locator(".dropdown-option").first
-        let uuid = try await option.getAttribute("data-display") ?? ""
-        let described = try await option.getAttribute("data-context") ?? ""
+        let value = try await option.getAttribute("data-display") ?? ""
+        let number = try await option.getAttribute("data-number") ?? ""
         try await option.click()
         let closed = box.locator(".dropdown-view:has([name='quote-s1-record-node']) .dropdown-selected-text")
-        try await expect(closed, timeout: .seconds(10)).toContainText(uuid)
-        try await expect(closed).toContainText(described)
+        try await expect(closed, timeout: .seconds(10)).toContainText(value)
+        try await expect(closed).toContainText(number)
         // One line inside the box, its tail edge-faded where it runs past
         // (the closed value fades without expand), as the Record's does.
         let fits = try await box.evaluate(

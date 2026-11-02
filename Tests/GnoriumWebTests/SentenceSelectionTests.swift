@@ -6,9 +6,12 @@ import WebTestsTesting
 /// A form's Source box selects its quote a sentence at a time (user,
 /// 2026-11-01): in its text pane no word opens a gloss nor turns blue; the
 /// sentence under the pointer is tinted violet and its lemma (the form's
-/// title) magenta; a tap takes the sentence, or lets one taken go (a
-/// quote is a set of sentences, user 2026-11-02), which fills the Quote,
-/// a line a sentence, and marks its words, its lemma as a quote's. The reader keeps its footer on
+/// title) magenta; a tap takes the sentence, its words tagged with the
+/// lemma picked as forms; a tap on a word of any sentence taken picks or
+/// lets go that form; the bar above the sentence last tapped ("− Sentence")
+/// lets it go (user, 2026-11-02). Sentences one after another are one
+/// quote, one apart another: the Quote a line a sentence, a blank line
+/// between two quotes. The reader keeps its footer on
 /// one row in the form's leaf node, the outline scrolling instead. A word
 /// that opens a gloss carries no tooltip of its own (a tap opens the
 /// gloss alone).
@@ -21,7 +24,9 @@ struct SentenceSelectionTests {
     <p><s><w xml:id="w1.1" lemma="the" class="article">The</w> <w xml:id="w1.2" lemma="scratchword" class="noun">scratchwords</w> \
     <w xml:id="w1.3" lemma="stand" class="verb">stood</w><pc>.</pc></s> \
     <s><w xml:id="w1.4" lemma="they" class="pronoun">They</w> <w xml:id="w1.5" lemma="fall" class="verb"><choice><abbr>fel</abbr>\
-    <expan>fell</expan></choice></w><pc>.</pc></s></p></body></text></TEI>
+    <expan>fell</expan></choice></w><pc>.</pc></s> \
+    <s><w xml:id="w1.6" lemma="a" class="article">A</w> <w xml:id="w1.7" lemma="scratchword" class="noun">scratchword</w> \
+    <w xml:id="w1.8" lemma="lie" class="verb">lay</w><pc>.</pc></s></p></body></text></TEI>
     """
 
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
@@ -90,32 +95,62 @@ struct SentenceSelectionTests {
         let picked = box.locator("input[name='quote-s1-words']")
         try await expect(picked).toHaveValue("w1.2")
 
-        // The second step (user, 2026-11-02): a tap on another of its words
-        // picks it too; on a picked one lets it go, never the last.
+        // The bar stands over the sentence last tapped: "− Sentence".
+        let bar = box.locator(".quote-passage-sentence-bar")
+        let remove = bar.locator(".quote-passage-sentence-remove")
+        try await expect(bar).toBeVisible()
+        try await expect(remove).toHaveAttribute("aria-label", "Remove sentence")
+        try await expect(remove).toHaveText("Sentence")
+        let above = try await page.evaluate(
+          """
+          (() => { const bar = document.querySelector('.quote-passage-sentence-bar').getBoundingClientRect();
+            const word = document.querySelector('.quote-passage-reader .tei-word[data-word-id="w1.1"]')
+              .getBoundingClientRect();
+            return bar.bottom <= word.top + 1; })()
+          """
+        ).bool
+        #expect(above == true, "the bar above its sentence")
+
+        // A tap on a word of a sentence taken picks it as a form, or lets
+        // it go (user, 2026-11-02).
         try await words.nth(0).click()
         try await expect(picked).toHaveValue("w1.1,w1.2")
         try await words.nth(1).click()
         try await expect(picked).toHaveValue("w1.1")
-        try await words.nth(0).click()
-        try await expect(picked).toHaveValue("w1.1")
         let still = try await quote.evaluate("(q) => q.value").string ?? ""
         #expect(still == "The scratchwords stood.", "the sentence stays taken: \(still)")
 
-        // A quote is a set of sentences (user, 2026-11-02): a tap on
-        // another sentence takes it too, a line each, its picked words
-        // kept; a tap on a sentence taken before lets it go, its words
-        // with it.
-        try await words.nth(3).click()
-        try await expect(box.locator(".quote-passage-reader .tei-word.tei-highlight")).toHaveCount(5)
-        let both = try await quote.evaluate("(q) => q.value").string ?? ""
-        #expect(both == "The scratchwords stood.\nThey fel.", "both sentences, in order: \(both)")
+        // A sentence apart is another quote in the same box, its lemma
+        // picked; a word of the earlier sentence is still picked by a tap.
+        try await words.nth(6).click()
+        try await expect(box.locator(".quote-passage-reader .tei-word.tei-highlight")).toHaveCount(6)
+        let two = try await quote.evaluate("(q) => q.value").string ?? ""
+        #expect(two == "The scratchwords stood.\n\nA scratchword lay.", "two quotes, a blank line between: \(two)")
         try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1,1")
-        try await expect(picked).toHaveValue("w1.1")
+        try await expect(picked).toHaveValue("w1.1,w1.7")
         try await words.nth(1).click()
-        try await expect(box.locator(".quote-passage-reader .tei-word.tei-highlight")).toHaveCount(2)
-        let next = try await quote.evaluate("(q) => q.value").string ?? ""
-        #expect(next == "They fel.", "the first let go: \(next)")
+        try await expect(picked).toHaveValue("w1.1,w1.2,w1.7")
+
+        // The sentence between taken: one quote of the three.
+        try await words.nth(3).click()
+        let one = try await quote.evaluate("(q) => q.value").string ?? ""
+        #expect(one == "The scratchwords stood.\nThey fel.\nA scratchword lay.", "one run: \(one)")
+        try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1,1,1")
+
+        // The bar lets go of the sentence last tapped, then of the last
+        // taken, and hides once none is.
+        try await remove.click()
+        let apart = try await quote.evaluate("(q) => q.value").string ?? ""
+        #expect(apart == "The scratchwords stood.\n\nA scratchword lay.", "the middle let go: \(apart)")
+        try await expect(picked).toHaveValue("w1.1,w1.2,w1.7")
+        try await remove.click()
+        let first = try await quote.evaluate("(q) => q.value").string ?? ""
+        #expect(first == "The scratchwords stood.", "the last let go: \(first)")
+        try await expect(picked).toHaveValue("w1.1,w1.2")
+        try await remove.click()
+        try await expect(box.locator(".quote-passage-reader .tei-word.tei-highlight")).toHaveCount(0)
         try await expect(picked).toHaveValue("")
+        try await expect(bar).toBeHidden()
 
         // In the form's leaf node the footer is one row; the outline
         // scrolls, never the page.

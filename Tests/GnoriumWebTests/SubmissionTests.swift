@@ -170,7 +170,7 @@ struct SubmissionTests {
     ] {
       try await expect(node(tree, level)).toHaveAttribute("data-outliner-removed", "false")
       try await expect(row(tree, level).locator(".record-row-number").first).toHaveText(number)
-      try await expect(row(tree, level).locator(".record-row-title").first).toHaveText("—")
+      try await expect(row(tree, level).locator(".record-row-heading .node-value-view textarea").first).toHaveValue("")
     }
     // No card and no level named: its fields in its open Metadata.
     try await expect(form.locator(".framed-accordion-view")).toHaveCount(0)
@@ -213,7 +213,7 @@ struct SubmissionTests {
     try await expect(row(tree, "copy").locator(".activity-statement-view[data-as-namespace='production']"))
       .toBeHidden()
     try await edition.locator("input[name='edition']").fill("Second edition")
-    try await expect(edition.locator(".record-row-title").first).toHaveText("Second edition")
+    try await expect(edition.locator(".record-row-heading .node-value-view textarea").first).toHaveValue("Second edition")
     let manifest = row(tree, "manifest")
     try await manifest.locator(".combobox-view:has(input[name='provider-dropdown']) .text-input-input")
       .fill("British Library")
@@ -269,7 +269,7 @@ struct SubmissionTests {
     try await expect(row(tree, "impression").locator(".testament-draft-message"))
       .toHaveText("Fill in the impression or its place, agents or date, or remove the impression.")
     try await row(tree, "impression").locator("input[name='impression']").fill("Second impression")
-    try await expect(row(tree, "impression").locator(".record-row-title").first).toHaveText("Second impression")
+    try await expect(row(tree, "impression").locator(".record-row-heading .node-value-view textarea").first).toHaveValue("Second impression")
     try await submit.click()
     try await expect(row(tree, "impression").locator(".testament-draft-message"))
       .toHaveText("The impression must have a digitization under it.")
@@ -350,7 +350,7 @@ struct SubmissionTests {
       .toBeEnabled()
     try await expect(tree.locator("input[name='placement-version']")).toHaveValue(work.versionID)
     try await expect(edition.locator("input[name='edition']")).toHaveValue("Kept aside")
-    try await expect(edition.locator(".record-row-title").first).toHaveText("Kept aside")
+    try await expect(edition.locator(".record-row-heading .node-value-view textarea").first).toHaveValue("Kept aside")
 
     // One testament an amendment: the tree's + hidden while it is in. Its
     // edition taken out by its own −, its copy and digitization stand at
@@ -376,7 +376,7 @@ struct SubmissionTests {
     try await expect(tree.locator("#new-testament-carrier")).toBeDisabled()
     // Named by its copy label as it is typed.
     try await copy.locator("input[name='copyLabel']").fill("Copy 2")
-    try await expect(copy.locator(".record-row-title").first).toHaveText("Copy 2")
+    try await expect(copy.locator(".record-row-heading .node-value-view textarea").first).toHaveValue("Copy 2")
     // Under the digitization above it: refused, in the tree's words.
     let handle = copy.locator(".outliner-handle").first
     try await handle.click()
@@ -577,8 +577,8 @@ struct SubmissionTests {
     let tree = form.locator(".submit-sentiment-tree")
     try await expect(tree.locator(".record-row-view")).toHaveCount(1)
     let draft = tree.locator("[data-submission-draft='true']")
-    let title = draft.locator(".record-row-title").first
-    try await expect(title).toHaveText("—")
+    let title = draft.locator(".record-row-heading .node-value-view textarea").first
+    try await expect(title).toHaveValue("")
     try await expect(form.locator(".framed-accordion-view")).toHaveCount(0)
     let apparatus = form.locator(".submit-sentiment-apparatus")
     try await expect(apparatus).toContainText("First attestation")
@@ -586,7 +586,7 @@ struct SubmissionTests {
     try await set(page, [("type", "noun")])
     try await expect(draft.locator("#description, textarea[name='description']")).toHaveCount(0)
     try await set(page, [("usage-register", "formal")])
-    try await expect(title).toHaveText("—")
+    try await expect(title).toHaveValue("")
     // Its value, founded on a quote in its Source box: its testament's
     // Source URL (an open work), the image it is on and its sentence
     // (SubmitSentimentController), pending until that testament is read.

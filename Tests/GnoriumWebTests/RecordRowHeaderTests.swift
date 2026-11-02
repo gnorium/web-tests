@@ -28,8 +28,9 @@ struct RecordRowHeaderTests {
     (() => {
       const summary = [...document.querySelectorAll('\(scope) .accordion-summary')]
         .find(s => s.querySelector('.record-row-number'))
-      const title = summary.querySelector('.record-row-title')
-      title.textContent = 'The London bookseller and publisher John Trundell, who printed the first quarto '
+      // Its value's box (user, 2026-11-02): the text inside its inset.
+      const title = summary.querySelector('.record-row-heading .node-value-view textarea')
+      title.value = 'The London bookseller and publisher John Trundell, who printed the first quarto '
         + 'of Hamlet with Nicholas Ling in 1603, and whose shop stood at the sign of the Barbican.'
       const origin = summary.getBoundingClientRect().top
       const box = el => el ? el.getBoundingClientRect() : null
@@ -37,7 +38,7 @@ struct RecordRowHeaderTests {
       const center = el => el ? box(el).top + box(el).height / 2 - origin : null
       const number = summary.querySelector('.record-row-number')
       return {
-        lines: Math.round(box(title).height / parseFloat(getComputedStyle(title).lineHeight)),
+        lines: Math.round(title.clientHeight / parseFloat(getComputedStyle(title).lineHeight)) - 1,
         number: top(number),
         info: top(summary.querySelector('.record-row-uuid svg')),
         chevron: top(summary.querySelector('.accordion-expand-icon svg')),

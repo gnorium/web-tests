@@ -132,8 +132,8 @@ struct AmendmentInsertionTests {
         // Filled: its row named by its statement, and submitted as the
         // impression inserted over the copy, named for it.
         try await impression.locator("[name='impression']").first.fill("Second impression")
-        try await expect(impression.locator(":scope > .outliner-row .record-row-title").first)
-          .toHaveText("Second impression")
+        try await expect(impression.locator(":scope > .outliner-row .record-row-heading .node-value-view textarea").first)
+          .toHaveValue("Second impression")
         // Its one act: no other testament changed (user, 2026-10-22: one
         // node per object).
         try await page.expectNoHorizontalOverflow()
