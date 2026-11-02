@@ -9,12 +9,14 @@ import WebTestsTesting
 /// title) magenta; a tap takes the sentence, its words tagged with the
 /// lemma picked as forms; a tap on a word of any sentence taken picks or
 /// lets go that form; the bar above the sentence last tapped ("− Sentence")
-/// lets it go (user, 2026-11-02). One quote is active at a time (user,
-/// 2026-11-03): a sentence beside it extends it, one apart moves it; "+
-/// Quote" starts another, each listed as a Voice row is, with "− Quote";
-/// a quote's first and last sentences each hold a form; the
-/// Quote a line a sentence, a blank line between two quotes. The reader keeps its footer on
-/// one row in the form's leaf node, the outline scrolling instead. A word
+/// lets it go (user, 2026-11-02). Each Quote card is its own artifact
+/// (user, 2026-11-03), a tap in it editing its quote: a sentence beside it
+/// extends it, one apart moves it; "+ Quote" adds a card on the same
+/// source, each with "− Quote" while there are two; a middle sentence let
+/// go splits the quote, its later run a card of its own; a quote's first
+/// and last sentences each hold a form; the Quote a line a sentence, a
+/// blank line between two quotes. The reader keeps its footer on one row in
+/// the form's leaf node, the outline scrolling instead. A word
 /// that opens a gloss carries no tooltip of its own (a tap opens the
 /// gloss alone).
 @Suite("Sentence selection")
@@ -147,36 +149,35 @@ struct SentenceSelectionTests {
         try await expect(message).toHaveText(
           "Tap a form in the first and the last sentence of each quote, or let those sentences go.")
 
-        // The box lists its quotes, each a group as a Voice row is (legend
-        // "Quote"), no "− Quote" while alone.
-        let groups = box.locator(".quote-passage-quote")
+        // Its Quote card IS its artifact (legend "Quote"), never its text;
+        // no "− Quote" while alone.
+        let groups = box.locator(".quote-passage-quotes > .quote-passage-quote")
         try await expect(groups).toHaveCount(1)
         try await expect(groups.first.locator(".form-item-legend")).toHaveText("Quote")
-        try await expect(groups.first.locator(".quote-passage-quote-text")).toHaveText("They fel. A scratchword lay.")
+        try await expect(box.locator(".quote-passage-quote-text")).toHaveCount(0)
         try await expect(groups.first.locator(".quote-passage-quote-remove")).toBeHidden()
-        let add = box.locator(".quote-passage-quote-add")
+        let add = box.locator(".quote-passage-actions .quote-passage-quote-add")
         try await expect(add).toHaveAttribute("aria-label", "Add quote")
         try await expect(add).toHaveText("Quote")
 
-        // "+ Quote": a second quote, active, taking the next tap.
+        // "+ Quote": a second card, its artifact on the same source, a tap
+        // in it taking its own quote.
         try await add.click()
         try await expect(groups).toHaveCount(2)
-        try await expect(box.locator(".quote-passage-quote[data-active='true']")).toHaveAttribute("data-quote", "2")
-        try await words.nth(0).click()
+        let others = groups.nth(1).locator(".quote-passage-reader .artifact-markup .tei-word")
+        try await expect(others.first, timeout: .seconds(20)).toBeAttached()
+        try await others.nth(0).click()
         try await expect(message).toHaveCount(0)
         let second = try await quote.evaluate("(q) => q.value").string ?? ""
         #expect(second == "They fel.\nA scratchword lay.\n\nThe scratchwords stood.", "two quotes: \(second)")
         try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1,1,1")
-        try await expect(picked).toHaveValue("w1.2,w1.7")
-
-        // A tap on a sentence of the first makes it the active one, no form
-        // picked.
-        try await words.nth(5).click()
-        try await expect(box.locator(".quote-passage-quote[data-active='true']")).toHaveAttribute("data-quote", "1")
-        try await expect(picked).toHaveValue("w1.2,w1.7")
+        try await expect(picked).toHaveValue("w1.7,w1.2")
+        try await expect(groups.nth(0).locator(".tei-word.tei-highlight")).toHaveCount(5)
+        try await expect(groups.nth(1).locator(".tei-word.tei-highlight")).toHaveCount(3)
+        try await expect(groups.first.locator(".quote-passage-quote-remove")).toBeVisible()
 
         // "− Quote" lets the second go.
-        try await box.locator(".quote-passage-quote[data-quote='2'] .quote-passage-quote-remove").click()
+        try await groups.nth(1).locator(".quote-passage-quote-remove").click()
         try await expect(groups).toHaveCount(1)
         let back = try await quote.evaluate("(q) => q.value").string ?? ""
         #expect(back == "They fel.\nA scratchword lay.", "the second let go: \(back)")
@@ -194,18 +195,21 @@ struct SentenceSelectionTests {
         try await words.nth(3).click()
         try await expect(picked).toHaveValue("w1.2,w1.7")
 
-        // The bar lets go of the sentence last tapped, a quote split in two
-        // where it was its middle; then of the last taken; and hides once
-        // none is.
+        // The bar lets go of the sentence last tapped: its quote's middle,
+        // so the quote splits, its later run a card of its own after it,
+        // read on the same source.
         try await remove.click()
         let apart = try await quote.evaluate("(q) => q.value").string ?? ""
         #expect(apart == "The scratchwords stood.\n\nA scratchword lay.", "the middle let go: \(apart)")
         try await expect(groups).toHaveCount(2)
+        try await expect(groups.nth(1).locator(".tei-word.tei-highlight"), timeout: .seconds(20)).toHaveCount(3)
         try await expect(picked).toHaveValue("w1.2,w1.7")
-        try await remove.click()
+        try await groups.nth(1).locator(".quote-passage-quote-remove").click()
         let first = try await quote.evaluate("(q) => q.value").string ?? ""
-        #expect(first == "The scratchwords stood.", "the last let go: \(first)")
+        #expect(first == "The scratchwords stood.", "the split quote let go: \(first)")
         try await expect(picked).toHaveValue("w1.2")
+        try await words.nth(1).click()
+        try await words.nth(1).click()
         try await remove.click()
         try await expect(box.locator(".quote-passage-reader .tei-word.tei-highlight")).toHaveCount(0)
         try await expect(picked).toHaveValue("")
@@ -213,7 +217,7 @@ struct SentenceSelectionTests {
 
         // In the form's leaf node the footer is one row; the outline
         // scrolls, never the page.
-        let oneRow = try await box.locator(".quote-passage-reader .artifact-footer").evaluate(
+        let oneRow = try await box.locator(".quote-passage-reader .artifact-footer").first.evaluate(
           """
           (f) => { const items = [...f.children].filter((c) => c.getClientRects().length > 0);
             const top = items[0].getBoundingClientRect().top;

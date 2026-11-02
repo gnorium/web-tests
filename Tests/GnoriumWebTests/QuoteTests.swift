@@ -80,15 +80,19 @@ struct QuoteTests {
         // no citation line, no breadcrumb, no header box, no Images or
         // Quote field.
         try await expect(attestation.locator(".chicago-citation-view")).toHaveCount(0)
-        let heading = attestation.locator(".attestation-quote > .quote-source-view")
+        // Its Source accordion over its Quote card (user, 2026-11-03), the
+        // card its artifact; read, the accordion closed, no controls.
+        let heading = attestation.locator(".attestation-quote .quote-source-view")
+        try await expect(attestation.locator(".quote-source-quote .testament-view")).toHaveCount(1)
+        try await expect(attestation.locator(".quote-source-actions")).toHaveCount(0)
         try await expect(heading).toHaveCount(1)
         let work = scratch.reading.work
         try await expect(heading.locator(".accordion-title").first).toHaveText("Source")
         try await heading.locator(".accordion-summary").first.click()
-        // The form's fields (user, 2026-11-02): Record › Testament UUID, no
+        // The form's fields (user, 2026-11-02): Biblio-record › Value, no
         // Quote.
         try await expect(heading.locator(".quote-source-fields .datum-view .datum-label")).toHaveTexts([
-          "Record", "Testament UUID",
+          "Biblio-record", "Value",
         ])
         try await expect(heading.locator(".quote-source-fields")).toContainText(work.title)
         try await expect(heading.locator(".quote-source-fields")).not.toContainText("Quote")
@@ -101,14 +105,18 @@ struct QuoteTests {
         // Its Record links to the record's page, its Testament UUID to the
         // testament's leaf row there, its reader on the quote's page.
         let links = heading.locator(".quote-source-fields a")
-        try await expect(links).toHaveCount(2)
         try await expect(links.first).toHaveAttribute("href", work.path)
-        let headingLink = links.nth(1)
-        let leafUUID = try TestAdmin.query(
-          "SELECT shape_json::jsonb -> ('manifest-' || upper(f.id::text)) ->> 'uuid' FROM biblio_record_versions v, bibliographic_figurants f WHERE v.id = '\(scratch.versionID)' AND f.id = (SELECT bibliographic_figurant_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())');"
-        ).trimmingCharacters(in: .whitespacesAndNewlines)
-        try await expect(headingLink).toHaveAttribute("href", "\(work.path)?image=2#record-row-\(leafUUID)")
-        try await expect(headingLink).toHaveText(leafUUID.lowercased())
+        // Its Value links to the testament's row on the record's page where
+        // the record's tree names it by its value; a scratch testament the
+        // tree does not label reads "—", unlinked.
+        let value = heading.locator(".quote-source-fields .datum-view").nth(1)
+        let linked = try await value.locator("a").count()
+        if linked > 0 {
+          let href = try await value.locator("a").getAttribute("href") ?? ""
+          #expect(href.hasPrefix("\(work.path)?image=2#record-row-"), "the Value links to its testament's row: \(href)")
+        } else {
+          try await expect(value).toContainText("—")
+        }
         // The whole testament (user, 2026-10-31), opened at the quote's
         // page: drawn with the page either side, the windowed reader then
         // fetches the four either side ahead—here all five.

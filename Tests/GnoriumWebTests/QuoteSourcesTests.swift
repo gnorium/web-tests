@@ -3,13 +3,13 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A sentiment's quotes sit in Source boxes (user, 2026-11-01), the same
-/// each its own Source accordion, no box around it (user, 2026-11-03),
-/// holding only what the artifact does not (user, 2026-11-02): its source
-/// (a permitted record › any of its nodes, or a URL) and its Pages where
-/// the quote is typed. "+ Source" stamps
-/// another from the page's template, each "− Source" shown while there is
-/// more than one; the boxes' keys post in order. No Image URL field, and
+/// A sentiment's quotes sit in Sources (user, 2026-11-01), each its own
+/// Source accordion holding only its data (user, 2026-11-02, 2026-11-03):
+/// its source (a permitted record › any of its nodes, or a URL) and its
+/// Pages where the quote is typed; its Quote cards under it, outside it,
+/// each its artifact; then one row, "+ Quote" and "− Source". "+ Source"
+/// stamps another from the page's template, each "− Source" shown while
+/// there is more than one; the keys post in order. No Image URL field, and
 /// no "range" anywhere in the form.
 @Suite("Quote sources")
 struct QuoteSourcesTests {
@@ -24,10 +24,18 @@ struct QuoteSourcesTests {
       try await expect(boxes).toHaveCount(1)
       let first = boxes.first
       // Its fields in its own Source accordion, no box around it (user,
-      // 2026-11-03): no legend, its reader under the accordion.
+      // 2026-11-03): its Quote card under the accordion, outside it, the
+      // card its artifact; then "+ Quote" and "− Source", one row.
       try await expect(first.locator(".source-accordion-view")).toHaveCount(1)
       try await expect(first.locator(".source-accordion-view").first).toContainText("Source")
       try await expect(first.locator(":scope > .form-item-legend")).toHaveCount(0)
+      try await expect(first.locator(".source-accordion-view .quote-passage-reader")).toHaveCount(0)
+      let cards = first.locator(".quote-passage-quotes > .quote-passage-quote")
+      try await expect(cards).toHaveCount(1)
+      try await expect(cards.first.locator(".form-item-legend")).toHaveText("Quote")
+      try await expect(cards.first.locator(":scope > .quote-passage-reader")).toHaveCount(1)
+      try await expect(first.locator(".quote-passage-quote-text")).toHaveCount(0)
+      try await expect(first.locator(".quote-passage-actions .button-label")).toHaveTexts(["Quote", "Source"])
       // Its record field, asked for as the page opens: Record, then
       // Testament once a record is picked.
       try await expect(first.locator(".quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
@@ -59,7 +67,7 @@ struct QuoteSourcesTests {
       let text = try await sources.evaluate("(el) => el.textContent.toLowerCase()").string ?? ""
       #expect(!text.contains("range"), "the Source box says range")
       // One box: no "− Source".
-      try await expect(first.locator(".quote-source-remove-btn")).toBeHidden()
+      try await expect(first.locator(".quote-passage-source-remove")).toBeHidden()
 
       // "+ Source": a second box at once, both removable, the keys in order.
       let add = sources.locator(".quote-sources-add-btn")
@@ -75,16 +83,17 @@ struct QuoteSourcesTests {
       let key = try await second.getAttribute("data-quote-source-key") ?? ""
       #expect(key.hasPrefix("quote-sn"), "a stamped box's key: \(key)")
       try await expect(keys).toHaveValue("quote-s1,\(key)")
-      try await expect(first.locator(".quote-source-remove-btn")).toBeVisible()
-      try await expect(second.locator(".quote-source-remove-btn")).toBeVisible()
-      try await expect(second.locator(".quote-source-remove-btn")).toHaveAttribute("aria-label", "Remove source")
+      try await expect(first.locator(".quote-passage-source-remove")).toBeVisible()
+      try await expect(second.locator(".quote-passage-source-remove")).toBeVisible()
+      try await expect(second.locator(".quote-passage-source-remove")).toHaveAttribute("aria-label", "Remove source")
+      try await expect(first.locator(".quote-passage-actions .button-label")).toHaveTexts(["Quote", "Source"])
       try await page.expectArtifactsUnclipped()
 
       // "− Source": the first goes, the second stays, alone again.
-      try await first.locator(".quote-source-remove-btn").click()
+      try await first.locator(".quote-passage-source-remove").click()
       try await expect(boxes).toHaveCount(1)
       try await expect(keys).toHaveValue(key)
-      try await expect(boxes.first.locator(".quote-source-remove-btn")).toBeHidden()
+      try await expect(boxes.first.locator(".quote-passage-source-remove")).toBeHidden()
       try await page.expectNoErrors()
     }
   }
@@ -148,17 +157,22 @@ struct QuoteSourcesTests {
         let pending = page.locator(".pending-quote-view").first
         try await expect(pending, timeout: .seconds(15)).toBeAttached()
         try await expect(pending.locator(".quote-source-view")).toHaveCount(1)
-        try await expect(pending.locator(".quote-source-fields .datum-label")).toHaveTexts(["URL", "Title", "Language", "Class"])
-        try await expect(pending.locator(".quote-source-fields")).toContainText("Pending shape")
-        try await expect(pending.locator(".quote-source-fields")).toContainText("English")
-        try await expect(pending.locator(".quote-source-fields")).toContainText("Play")
-        try await expect(pending.locator(".quote-source-fields a")).toHaveAttribute("href", source)
+        // A Disputorium read: the form's fields frozen, each its value.
+        let fields = pending.locator(".quote-source-fields")
+        try await expect(fields.locator("input[placeholder='URL']")).toHaveValue(source)
+        try await expect(fields.locator("input[placeholder='Title']")).toHaveValue("Pending shape")
+        try await expect(fields.locator("input[placeholder='Language']")).toHaveValue("English")
+        try await expect(fields.locator("input[placeholder='Class']")).toHaveValue("Play")
         try await expect(pending.locator(".testament-view")).toHaveCount(1)
         try await expect(pending.locator(".testament-view .artifact-markup")).toContainText("pendingword")
-        let text = try await pending.evaluate(
-          "(v) => [...v.children].filter((n) => !n.matches('.quote-source-view, .testament-view')).length + (v.textContent.trim().length > 0 && [...v.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) ? 1 : 0)"
-        ).int
-        #expect(text == 0, "a pending quote shows only its Source box and its reader")
+        // Its Source accordion, then its Quote card, the card its reader,
+        // then the form's row, disabled.
+        let shape = try await pending.evaluate(
+          "(v) => { const frame = v.querySelector('.quote-source-frame'); return [...frame.children].map((n) => n.matches('.source-accordion-frame') ? 'source' : n.matches('.quote-source-quote') ? 'quote' : n.matches('.quote-source-actions') ? 'row' : 'other').join(',') }"
+        ).string
+        #expect(shape == "source,quote,row", "a pending quote shows its Source accordion, its Quote card and its row")
+        try await expect(pending.locator(".quote-source-actions button[disabled]")).toHaveCount(2)
+        try await expect(pending.locator(".quote-source-quote .testament-view")).toHaveCount(1)
         try await expect(pending.locator(".info-chip-text")).toHaveCount(0)
         try await expect(pending).not.toContainText("Images")
         try await expect(pending.locator(".pending-quote-status")).toHaveCount(0)

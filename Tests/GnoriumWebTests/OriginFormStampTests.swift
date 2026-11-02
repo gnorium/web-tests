@@ -82,17 +82,25 @@ struct OriginFormStampTests {
 
       // No quotes yet: the empty list takes no gap above "+ Source".
       try await expect(row.locator(".origin-field-quotes")).toHaveCSS("display", "none")
-      // "+ Source": its Source box, legended, at once, its record field
-      // asked for.
+      // "+ Source": its Source at once, its accordion of fields, its record
+      // field asked for; its Quote card under it, asking the quote's
+      // Certainty above its "− Quote"; then "+ Quote" and "− Source".
       let quotes = try await page.evaluate(
         Self.addedWithinAFrame(
           "'.origin-field-view [data-origin-row=\"true\"] .origin-add-quote-btn'",
-          "'.origin-field-view .origin-quote-field-view'"), as: Int.self)
+          "'.origin-field-view .evidence-source-view'"), as: Int.self)
       #expect(quotes == 1)
-      try await expect(field.locator(".origin-quote-field-view .form-item-legend").first).toHaveText("Source")
-      try await expect(field.locator(".origin-quote-field-view .quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
+      let source = field.locator(".evidence-source-view").first
+      try await expect(source.locator(".source-accordion-view .accordion-title").first).toHaveText("Source")
+      try await expect(source.locator(".quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
         .toHaveCount(1)
-      try await expect(field.locator(".origin-quote-field-view .origin-quote-remove-btn")).toHaveCount(1)
+      let card = source.locator(".quote-passage-quotes > .quote-passage-quote").first
+      try await expect(card.locator(":scope > .quote-passage-reader")).toHaveCount(1)
+      try await expect(card.locator("input[name$='-certainty']")).toHaveCount(1)
+      try await expect(source.locator(".source-accordion-view input[name$='-certainty']")).toHaveCount(0)
+      try await expect(source.locator(".quote-passage-actions .quote-passage-source-remove")).toHaveCount(1)
+      try await source.locator(".quote-passage-actions .quote-passage-source-remove").click()
+      try await expect(field.locator(".evidence-source-view")).toHaveCount(0)
     }
   }
 

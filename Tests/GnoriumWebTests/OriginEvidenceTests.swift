@@ -157,30 +157,27 @@ struct OriginEvidenceTests {
         try await expect(add).toHaveText("Source")
         try await expect(add).toHaveAttribute("aria-label", "Add source")
         try await add.click()
-        let card = second.locator(".origin-quote-field-view")
+        let card = second.locator(".evidence-source-view")
         try await expect(card).toHaveCount(1)
         // Its record field in place (it is asked for as the box comes),
         // so nothing moves under the next press.
         try await expect(card.locator(".quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
           .toHaveCount(1)
         // Removed by its own −, added again.
-        try await card.locator(".origin-quote-remove-btn").click()
+        try await card.locator(".quote-passage-actions .quote-passage-source-remove").click()
         try await expect(card).toHaveCount(0)
         try await add.click()
         try await expect(card).toHaveCount(1)
         try await expect(card.locator(".quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
           .toHaveCount(1)
-        try await expect(rows.nth(0).locator(".origin-quote-field-view")).toHaveCount(0)
-        // Its Source box: Source URL, Images, Quote.
-        try await expect(card.locator("legend").first).toHaveText("Source")
+        try await expect(rows.nth(0).locator(".evidence-source-view")).toHaveCount(0)
+        // Its Source: its URL in its accordion, the quote typed in its Quote
+        // card's text pane.
+        try await expect(card.locator(".source-accordion-view .accordion-title").first).toHaveText("Source")
         try await card.locator("input[name$='-source-url']").fill(source)
-        try await card.locator("input[name$='-start-image']").fill("1")
-        try await card.locator("textarea[name$='-quote']").fill(Self.words)
-        let role = card.locator(".dropdown-view:has(input[name$='-role'])")
-        try await role.locator(".dropdown-trigger").click()
-        try await role.locator(".dropdown-option[data-value='existence']").filter(visible: true).first.click()
-        try await page.keyboard.press("Escape")
-        try await expect(card.locator("input[name$='-role']")).toHaveValue("existence")
+        let pane = card.locator(".quote-passage-quote .quote-passage-text .tei-page-text").first
+        try await expect(pane, timeout: .seconds(20)).toBeAttached()
+        try await pane.fill(Self.words)
         try await page.expectNoHorizontalOverflow()
         if let folder = ProcessInfo.processInfo.environment["NOTE_SCREENSHOTS"] {
           _ = try await card.evaluate("(el) => el.scrollIntoView({ block: 'center' })")
