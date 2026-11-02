@@ -680,9 +680,10 @@ struct RevisePagesTests {
       let madrigalPath = "/mission-control/madrigals/lexicographic/\(word.madrigalID)"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(madrigalPath)/revise")
-        // Every sentiment's fields, under its number: its definition first.
-        try await expect(page.locator(".sense-editor-view:has(textarea[name='sentiment-0-definition']) .sense-editor-definition"))
-          .toHaveText("A branch sense.")
+        // Every sentiment's value is its heading's one box (user,
+        // 2026-11-02): no `<sense>` editor.
+        try await expect(page.locator("textarea[name='sentiment-0-value']")).toHaveValue("A branch sense.")
+        try await expect(page.locator(".sense-editor-view")).toHaveCount(0)
         try await expect(page.locator("textarea[name='sentiment-0-label'], textarea[name='sentiment-1-label']")).toHaveCount(0)
         // One field a usage axis, as Submit Sentiment draws them (user, 2026-10-09).
         for kind in ["grammar", "register", "domain", "region", "currency"] {
@@ -690,19 +691,12 @@ struct RevisePagesTests {
         }
         try await expect(page.locator("[data-item-list='sentiment-1-usage']")).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
-        // Its definition is its TEI (user, 2026-10-10), edited as a page's
-        // markup is: rendered by default, the XML under Raw.
-        let editor = page.locator(".sense-editor-view:has(textarea[name='sentiment-1-definition'])")
-        try await expect(editor.locator(".sense-editor-definition")).toHaveText("A leaf sense.")
-        try await expect(editor.locator(".sense-editor-raw")).toBeHidden()
-        try await editor.locator(".sense-editor-xml-toggle").click()
-        try await expect(editor.locator(".sense-editor-raw .code-code")).toBeVisible()
-        try await Self.replaceCode(editor.locator(".sense-editor-raw .code-code"), with: "<sense><def>A leaf sense, defined.</def></sense>", page: page)
-        // Its diff is drawn as it is made, as a bibliographic field's is.
+        // Edited in its box; its diff is drawn as it is made, as a
+        // bibliographic field's is.
+        let box = page.locator("textarea[name='sentiment-1-value']")
+        try await expect(box).toHaveValue("A leaf sense.")
+        try await box.fill("A leaf sense, defined.")
         try await expect(page.locator("[data-diff-annotation][data-visible='true']").first).toBeAttached()
-        let posted = try await page.evaluate(
-          "(() => document.querySelector(\"textarea[name='sentiment-1-definition']\").value)()", as: String.self)
-        #expect(posted == "<sense><def>A leaf sense, defined.</def></sense>", "The form posts the XML typed: \(posted)")
         // And one of its usage fields: a Register.
         let register = page.locator(".dropdown-view:has(input[name='sentiment-1-register'])")
         try await register.locator(".dropdown-trigger").click()
@@ -734,11 +728,11 @@ struct RevisePagesTests {
         // Its definition and its one usage field, each its own item by
         // its form's label, each linked to its place on the page.
         let changed = event.locator(".thread-event-changed")
-        try await expect(changed).toHaveText("Modified Sentiment 1.1 Definition and Sentiment 1.1 Register.")
+        try await expect(changed).toHaveText("Modified Sentiment 1.1 Value and Sentiment 1.1 Register.")
         try await expect(changed.locator("a")).toHaveCount(2)
         // Each on the revision's own page, at its field there (user, 2026-10-09).
-        try await expect(changed.locator("a[href='\(revisionPath)?source=code#sentiment-1-definition']"))
-          .toHaveText("Sentiment 1.1 Definition")
+        try await expect(changed.locator("a[href='\(revisionPath)?source=code#sentiment-1-value']"))
+          .toHaveText("Sentiment 1.1 Value")
         try await expect(changed.locator("a[href='\(revisionPath)?source=code#sentiment-1-register']"))
           .toHaveText("Sentiment 1.1 Register")
         try await Self.expectChangedLinksLand(page, revision: id, on: revisionPath)

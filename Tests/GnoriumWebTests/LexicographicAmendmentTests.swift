@@ -7,8 +7,8 @@ import WebTestsTesting
 /// is the record's page in edit mode—its sentiments in the outline (each
 /// row's handle, its fields, and at its foot its "− Sentiment", which a
 /// dialog confirms and "+ Sentiment" undoes, as a testament's; no merge and
-/// no split, user, 2026-10-22), a new sentiment under the tree founded on a
-/// quote—and Submit files a lexicographic palinode, frozen (submitted: no
+/// no split, user, 2026-10-22), a new sentiment a draft row in the tree,
+/// placed by the outline and founded on a quote (user, 2026-11-02)—and Submit files a lexicographic palinode, frozen (submitted: no
 /// Revise, no Permit, no thread), and creates its overture (user,
 /// 2026-10-22), whose page says what it removes, offers Revise, and for an
 /// admin Permit. An amendment is about ONE sentiment (user, 2026-10-22), as
@@ -55,11 +55,15 @@ struct LexicographicAmendmentTests {
         let item = outline.locator(".outliner-item[data-outliner-id='s-1-1']")
         let dialog = page.locator(".sentiment-outliner-remove-dialog")
         try await expect(leaf).toHaveCount(1)
-        // Its fields in its card's body: its value, as its TEI is edited,
-        // and a dropdown for each usage axis.
+        // Its value is its heading's one box and its notes its Note box;
+        // no `<sense>` editor (user, 2026-11-02). Its fields in its card's
+        // body: a dropdown for each usage axis.
         let fields = item.locator(".sentiment-fields-view[data-sentiment-id='s-1-1']")
         try await expect(fields).toHaveCount(1)
-        try await expect(fields.locator(".sense-editor-view")).toHaveCount(1)
+        try await expect(item.locator(".sense-editor-view")).toHaveCount(0)
+        let valueBox = item.locator(".record-row-heading textarea[name$='-value']").first
+        try await expect(valueBox).toBeEnabled()
+        try await expect(item.locator("textarea[name$='-note']").first).toBeAttached()
         for axis in ["grammar", "register", "domain", "region", "currency"] {
           try await expect(fields.locator(".dropdown-view:has([name$='-\(axis)'])")).toHaveCount(1)
         }
@@ -78,9 +82,33 @@ struct LexicographicAmendmentTests {
         try await expect(item).toHaveAttribute("data-sentiment-frozen", "false")
         try await expect(outline.locator(".sentiment-outliner-hint[data-visible='true']")).toHaveCount(0)
         try await expect(outline.locator("input[name='sentiment-chosen']")).toHaveValue("")
-        // One new sentiment, its fields always drawn.
-        try await expect(form.locator("[name='new-sentiment-value']")).toHaveCount(1)
-        try await expect(form.locator("[name='new-sentiment-quote-s1-source-url']")).toHaveCount(1)
+        // One new sentiment, a draft row in the tree, its fields always
+        // drawn: its value in its heading, its Note, its Source box; no
+        // "Under" dropdown, no section of its own.
+        let draft = outline.locator(".outliner-item[data-outliner-id='new']")
+        try await expect(draft.locator(".record-row-heading [name='new-sentiment-value']")).toHaveCount(1)
+        try await expect(draft.locator("[name='new-sentiment-note']")).toHaveCount(1)
+        try await expect(draft.locator("[name='new-sentiment-quote-s1-source-url']")).toHaveCount(1)
+        try await expect(form.locator("[name='new-sentiment-parent']")).toHaveCount(0)
+        try await expect(form.locator(".submit-lexicographic-amendment-new")).toHaveCount(0)
+        try await page.expectNoErrors()
+
+        // The value edited in its box: the XML switch shows the `<sense>`
+        // as it will be filed, read-only; undone, every sentiment is open.
+        let original = try await valueBox.inputValue()
+        try await valueBox.fill("A riverside, amended.")
+        try await expect(item).toHaveAttribute("data-sentiment-chosen", "true")
+        try await expect(draft).toHaveAttribute("data-sentiment-frozen", "true")
+        try await form.locator(".apparatus-rule-xml-toggle").click()
+        let xml = item.locator(".sentiment-value-xml .code-code").first
+        try await expect(xml).toBeVisible()
+        try await expect(xml).toContainText("<def>A riverside, amended.</def>")
+        try await expect(xml).not.toHaveAttribute("contenteditable", "plaintext-only")
+        try await expect(valueBox).toBeHidden()
+        try await form.locator(".apparatus-rule-xml-toggle").click()
+        try await expect(valueBox).toBeVisible()
+        try await valueBox.fill(original)
+        try await expect(draft).toHaveAttribute("data-sentiment-frozen", "false")
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
 
@@ -108,7 +136,8 @@ struct LexicographicAmendmentTests {
         try await expect(branch.locator(".outliner-handle").first).toBeDisabled()
         try await expect(outline.locator(".sentiment-outliner-hint[data-hint='edit']")).toHaveAttribute(
           "data-visible", "true")
-        try await expect(form.locator(".submit-lexicographic-amendment-new")).toHaveAttribute("inert", "")
+        try await expect(draft).toHaveAttribute("data-sentiment-frozen", "true")
+        try await expect(draft.locator(":scope > .outliner-row")).toHaveAttribute("inert", "")
         try await expect(restore).toBeVisible()
         try await expect(restore).toHaveText("Sentiment 1.1.")
         try await expect(restore).toHaveAttribute("aria-label", "Restore Sentiment 1.1.")
@@ -119,7 +148,7 @@ struct LexicographicAmendmentTests {
         try await expect(remove).toBeVisible()
         // Undone, every sentiment is open again.
         try await expect(branch).toHaveAttribute("data-sentiment-frozen", "false")
-        try await expect(form.locator(".submit-lexicographic-amendment-new")).not.toHaveAttribute("inert", "")
+        try await expect(draft.locator(":scope > .outliner-row")).not.toHaveAttribute("inert", "")
 
         // The leaf removed, Submit: its overture's page.
         try await remove.click()
@@ -209,13 +238,24 @@ struct LexicographicAmendmentTests {
         try await expect(outline.locator(".sentiment-outliner-hint[data-hint='add']")).toHaveAttribute(
           "data-visible", "true")
         try await expect(leaf.locator(".sentiment-outliner-actions")).toHaveAttribute("inert", "")
+        // Placed by the outline, as any row is moved: picked up by its
+        // handle, under the sentiment above it, put down.
+        let handle = outline.locator(".outliner-item[data-outliner-id='new'] .outliner-handle").first
+        try await handle.focus()
+        try await page.keyboard.press("Space")
+        try await page.keyboard.press("Tab")
+        try await page.keyboard.press("Enter")
+        try await expect(outline.locator(".outliner-item[data-outliner-id='s-1'] .outliner-item[data-outliner-id='new']"))
+          .toHaveCount(1)
+        let placed = try await outline.locator("input[name='sentiment-shape']").inputValue()
+        #expect(placed.contains("\"new\":{\"parent\":\"s-1\""), "\(placed)")
         try await form.locator(".record-actions button[type='submit']").click()
 
         // The form again, at the address it posts to, saying why above
         // Submit.
         let refusal = page.locator(".submit-lexicographic-amendment-refusal")
-        try await expect(refusal, timeout: .seconds(15)).toContainText(
-          "Give the quote's source: a permitted record, or the URL of a testament Gnorium does not have yet.")
+        // Its quote's source refused (its wording is the Source box's).
+        try await expect(refusal, timeout: .seconds(15)).toContainText("Give the ")
         try await expect(page).toHaveURL("the form, not the error page") { $0.path.hasSuffix("/amendments") }
         try await expect(page.locator("form.submit-lexicographic-amendment-form")).toHaveCount(1)
         let above = try await page.evaluate(
@@ -232,6 +272,10 @@ struct LexicographicAmendmentTests {
         try await expect(quote).toHaveValue("upon the bank, \"where the wild thyme\" grows")
         try await expect(leaf.locator("input[name$='-remove']")).toHaveValue("")
         try await expect(item).toHaveAttribute("data-sentiment-frozen", "true")
+        // Its row where the outline placed it.
+        try await expect(
+          page.locator(".outliner-item[data-outliner-id='s-1'] .outliner-item[data-outliner-id='new']")
+        ).toHaveCount(1)
         let filed = try TestAdmin.query(
           "SELECT count(*) FROM lexicographic_palinodes WHERE lexico_record_id = '\(record)'")
         #expect(filed.trimmingCharacters(in: .whitespacesAndNewlines) == "0", "nothing refused is filed")
