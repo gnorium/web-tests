@@ -9,9 +9,11 @@ import WebTestsTesting
 /// title) magenta; a tap takes the sentence, its words tagged with the
 /// lemma picked as forms; a tap on a word of any sentence taken picks or
 /// lets go that form; the bar above the sentence last tapped ("− Sentence")
-/// lets it go (user, 2026-11-02). Sentences one after another are one
-/// quote, one apart another: the Quote a line a sentence, a blank line
-/// between two quotes. The reader keeps its footer on
+/// lets it go (user, 2026-11-02). One quote is active at a time (user,
+/// 2026-11-03): a sentence beside it extends it, one apart moves it; "+
+/// Quote" starts another, each listed as a Voice row is, with "− Quote";
+/// a quote's first and last sentences each hold a form; the
+/// Quote a line a sentence, a blank line between two quotes. The reader keeps its footer on
 /// one row in the form's leaf node, the outline scrolling instead. A word
 /// that opens a gloss carries no tooltip of its own (a tap opens the
 /// gloss alone).
@@ -120,33 +122,90 @@ struct SentenceSelectionTests {
         let still = try await quote.evaluate("(q) => q.value").string ?? ""
         #expect(still == "The scratchwords stood.", "the sentence stays taken: \(still)")
 
-        // A sentence apart is another quote in the same box, its lemma
-        // picked; a word of the earlier sentence is still picked by a tap.
+        // One quote is active (user, 2026-11-03): a sentence apart MOVES
+        // it there, what it held let go; one beside it extends it.
         try await words.nth(6).click()
-        try await expect(box.locator(".quote-passage-reader .tei-word.tei-highlight")).toHaveCount(6)
-        let two = try await quote.evaluate("(q) => q.value").string ?? ""
-        #expect(two == "The scratchwords stood.\n\nA scratchword lay.", "two quotes, a blank line between: \(two)")
-        try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1,1")
-        try await expect(picked).toHaveValue("w1.1,w1.7")
-        try await words.nth(1).click()
-        try await expect(picked).toHaveValue("w1.1,w1.2,w1.7")
-
-        // The sentence between taken: one quote of the three.
+        try await expect(box.locator(".quote-passage-reader .tei-word.tei-highlight")).toHaveCount(3)
+        let moved = try await quote.evaluate("(q) => q.value").string ?? ""
+        #expect(moved == "A scratchword lay.", "the quote moved: \(moved)")
+        try await expect(picked).toHaveValue("w1.7")
         try await words.nth(3).click()
+        let extended = try await quote.evaluate("(q) => q.value").string ?? ""
+        #expect(extended == "They fel.\nA scratchword lay.", "the quote extended: \(extended)")
+        try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1,1")
+
+        // Its first sentence holds no form (user, 2026-11-03): a Submit is
+        // refused, the message at the bottom of the node; a tap clears it.
+        let refused = try await box.evaluate(
+          """
+          (b) => { const e = new Event('submit', { cancelable: true, bubbles: true });
+            b.closest('form').dispatchEvent(e); return e.defaultPrevented; }
+          """
+        ).bool
+        #expect(refused == true, "a quote whose first sentence holds no form is refused")
+        let message = page.locator(".submit-sentiment-form .node-message")
+        try await expect(message).toHaveText(
+          "Tap a form in the first and the last sentence of each quote, or let those sentences go.")
+
+        // The box lists its quotes, each a group as a Voice row is (legend
+        // "Quote"), no "− Quote" while alone.
+        let groups = box.locator(".quote-passage-quote")
+        try await expect(groups).toHaveCount(1)
+        try await expect(groups.first.locator(".form-item-legend")).toHaveText("Quote")
+        try await expect(groups.first.locator(".quote-passage-quote-text")).toHaveText("They fel. A scratchword lay.")
+        try await expect(groups.first.locator(".quote-passage-quote-remove")).toBeHidden()
+        let add = box.locator(".quote-passage-quote-add")
+        try await expect(add).toHaveAttribute("aria-label", "Add quote")
+        try await expect(add).toHaveText("Quote")
+
+        // "+ Quote": a second quote, active, taking the next tap.
+        try await add.click()
+        try await expect(groups).toHaveCount(2)
+        try await expect(box.locator(".quote-passage-quote[data-active='true']")).toHaveAttribute("data-quote", "2")
+        try await words.nth(0).click()
+        try await expect(message).toHaveCount(0)
+        let second = try await quote.evaluate("(q) => q.value").string ?? ""
+        #expect(second == "They fel.\nA scratchword lay.\n\nThe scratchwords stood.", "two quotes: \(second)")
+        try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1,1,1")
+        try await expect(picked).toHaveValue("w1.2,w1.7")
+
+        // A tap on a sentence of the first makes it the active one, no form
+        // picked.
+        try await words.nth(5).click()
+        try await expect(box.locator(".quote-passage-quote[data-active='true']")).toHaveAttribute("data-quote", "1")
+        try await expect(picked).toHaveValue("w1.2,w1.7")
+
+        // "− Quote" lets the second go.
+        try await box.locator(".quote-passage-quote[data-quote='2'] .quote-passage-quote-remove").click()
+        try await expect(groups).toHaveCount(1)
+        let back = try await quote.evaluate("(q) => q.value").string ?? ""
+        #expect(back == "They fel.\nA scratchword lay.", "the second let go: \(back)")
+        try await expect(picked).toHaveValue("w1.7")
+
+        // The sentence before extends it: one quote of the three.
+        try await words.nth(0).click()
         let one = try await quote.evaluate("(q) => q.value").string ?? ""
         #expect(one == "The scratchwords stood.\nThey fel.\nA scratchword lay.", "one run: \(one)")
         try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1,1,1")
+        try await expect(picked).toHaveValue("w1.2,w1.7")
+        // The middle tapped (a form picked and let go): the bar over it.
+        try await words.nth(3).click()
+        try await expect(picked).toHaveValue("w1.2,w1.4,w1.7")
+        try await words.nth(3).click()
+        try await expect(picked).toHaveValue("w1.2,w1.7")
 
-        // The bar lets go of the sentence last tapped, then of the last
-        // taken, and hides once none is.
+        // The bar lets go of the sentence last tapped, a quote split in two
+        // where it was its middle; then of the last taken; and hides once
+        // none is.
         try await remove.click()
         let apart = try await quote.evaluate("(q) => q.value").string ?? ""
         #expect(apart == "The scratchwords stood.\n\nA scratchword lay.", "the middle let go: \(apart)")
-        try await expect(picked).toHaveValue("w1.1,w1.2,w1.7")
+        try await expect(groups).toHaveCount(2)
+        try await expect(picked).toHaveValue("w1.2,w1.7")
         try await remove.click()
         let first = try await quote.evaluate("(q) => q.value").string ?? ""
         #expect(first == "The scratchwords stood.", "the last let go: \(first)")
-        try await expect(picked).toHaveValue("w1.1,w1.2")
+        try await expect(picked).toHaveValue("w1.2")
         try await remove.click()
         try await expect(box.locator(".quote-passage-reader .tei-word.tei-highlight")).toHaveCount(0)
         try await expect(picked).toHaveValue("")

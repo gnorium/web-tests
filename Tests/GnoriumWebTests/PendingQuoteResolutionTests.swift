@@ -79,7 +79,7 @@ struct PendingQuoteResolutionTests {
       holder = other
       let pending =
         #"[{"id":"\#(UUID().uuidString)","relations":["based_on"],"typed":{"title":"Web tests source","voices":[]},"origins":[],"#
-        + #""evidence":[{"id":"\#(UUID().uuidString)","anchors":[],"roles":["existence"],"#
+        + #""evidence":[{"id":"\#(UUID().uuidString)","anchors":[],"#
         + #""pending":{"sourceURL":"\#(source)","images":[1,2],"text":"\#(Self.opening) \#(Self.rest)"}}]}]"#
       _ = try TestAdmin.query(
         "UPDATE bibliographic_overtures SET origins_json = '\(pending)' WHERE id = '\(other.overtureID)';")

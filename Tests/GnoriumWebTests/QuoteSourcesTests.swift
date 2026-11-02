@@ -4,9 +4,10 @@ import WebTests
 import WebTestsTesting
 
 /// A sentiment's quotes sit in Source boxes (user, 2026-11-01), the same
-/// pattern as the Voice and Agent boxes: each legended "Source", holding
-/// only what the artifact does not (user, 2026-11-02): its source (a
-/// permitted record › leaf, or a URL) and a sourceless record's Pages. "+ Source" stamps
+/// each its own Source accordion, no box around it (user, 2026-11-03),
+/// holding only what the artifact does not (user, 2026-11-02): its source
+/// (a permitted record › any of its nodes, or a URL) and its Pages where
+/// the quote is typed. "+ Source" stamps
 /// another from the page's template, each "− Source" shown while there is
 /// more than one; the boxes' keys post in order. No Image URL field, and
 /// no "range" anywhere in the form.
@@ -22,7 +23,11 @@ struct QuoteSourcesTests {
       let boxes = sources.locator(".quote-source")
       try await expect(boxes).toHaveCount(1)
       let first = boxes.first
-      try await expect(first.locator(".form-item-legend").first).toHaveText("Source")
+      // Its fields in its own Source accordion, no box around it (user,
+      // 2026-11-03): no legend, its reader under the accordion.
+      try await expect(first.locator(".source-accordion-view")).toHaveCount(1)
+      try await expect(first.locator(".source-accordion-view").first).toContainText("Source")
+      try await expect(first.locator(":scope > .form-item-legend")).toHaveCount(0)
       // Its record field, asked for as the page opens: Record, then
       // Testament once a record is picked.
       try await expect(first.locator(".quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
@@ -63,7 +68,7 @@ struct QuoteSourcesTests {
       try await add.click()
       try await expect(boxes).toHaveCount(2)
       let second = boxes.nth(1)
-      try await expect(second.locator(".form-item-legend").first).toHaveText("Source")
+      try await expect(second.locator(".source-accordion-view").first).toContainText("Source")
       try await expect(second.locator(".quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
         .toHaveCount(1)
       let keys = sources.locator("input[name='quote-keys']")
@@ -134,7 +139,7 @@ struct QuoteSourcesTests {
       let source = "https://web-tests.invalid/pending-shape.json"
       let origins =
         #"[{"id":"\#(UUID().uuidString)","relations":["based_on"],"typed":{"title":"Web tests source","voices":[]},"origins":[],"#
-        + #""evidence":[{"id":"\#(UUID().uuidString)","anchors":[],"roles":["existence"],"#
+        + #""evidence":[{"id":"\#(UUID().uuidString)","anchors":[],"#
         + #""pending":{"sourceURL":"\#(source)","images":[1,2],"text":"The pendingword stood fast","title":"Pending shape","language":"eng","class":"play"}}]}]"#
       _ = try TestAdmin.query(
         "UPDATE bibliographic_overtures SET origins_json = '\(origins)' WHERE id = '\(overture.overtureID)';")

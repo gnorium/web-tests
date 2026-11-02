@@ -242,8 +242,18 @@ struct SubmissionTests {
     try await expect(row(tree, "copy").locator(".record-row-number").first).toHaveText("1.1")
     let submit = form.locator(".record-actions button[type='submit']")
     try await submit.click()
-    try await expect(row(tree, "copy").locator(".testament-draft-message"))
+    // At the bottom of the whole node, under its controls (user,
+    // 2026-11-03).
+    try await expect(controls(tree, "copy").locator(":scope > .testament-draft-message"))
       .toHaveText("Fill in the copy, its holding institution or its identifier, or remove the copy.")
+    let under = try await controls(tree, "copy").evaluate(
+      """
+      (f) => { const m = f.querySelector(':scope > .testament-draft-message').getBoundingClientRect();
+        const a = f.querySelector(':scope > .testament-draft-actions').getBoundingClientRect();
+        return m.top >= a.bottom - 1; }
+      """
+    ).bool
+    #expect(under == true, "the message under the node's controls")
     try await expect(page).toHaveURL("the form") { $0.path == Self.testamentForm }
     // Removed: the digitization stands where the copy stood.
     try await controls(tree, "copy").locator(".testament-draft-remove-level").click()
@@ -281,12 +291,12 @@ struct SubmissionTests {
     // Empty: refused. Filled but with nothing under it: one testament, one
     // digitization, the one leaf.
     try await submit.click()
-    try await expect(row(tree, "impression").locator(".testament-draft-message"))
+    try await expect(controls(tree, "impression").locator(":scope > .testament-draft-message"))
       .toHaveText("Fill in the impression or its place, agents or date, or remove the impression.")
     try await row(tree, "impression").locator("input[name='impression']").fill("Second impression")
     try await expect(row(tree, "impression").locator(".record-row-heading .node-value-view textarea").first).toHaveValue("Second impression")
     try await submit.click()
-    try await expect(row(tree, "impression").locator(".testament-draft-message"))
+    try await expect(controls(tree, "impression").locator(":scope > .testament-draft-message"))
       .toHaveText("Shift the next testament under the impression, or remove the impression.")
     try await expect(page).toHaveURL("the form") { $0.path == Self.testamentForm }
 

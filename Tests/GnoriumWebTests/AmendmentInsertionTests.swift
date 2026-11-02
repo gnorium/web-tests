@@ -125,7 +125,7 @@ struct AmendmentInsertionTests {
 
         // Submitted empty: it says what to fill in.
         try await page.locator(".record-actions button[type='submit']").click()
-        try await expect(impression.locator(".testament-draft-message").first).toHaveText(
+        try await expect(impression.locator(":scope > .outliner-footer > .testament-draft-message")).toHaveText(
           "Fill in the impression or its place, agents or date, or remove the impression.")
         #expect(try await page.url().hasSuffix("/amendments/new"))
 
