@@ -27,11 +27,11 @@ struct DistinctionTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(word.path)
-        // The leaf's row opens into its Metadata, its notes and quotes.
+        // The leaf's row opens into its Metadata, its note and quotes.
         let row = page.locator("#record-row-\(word.leaf)")
         try await page.locator("#record-row-\(word.leaf) > .accordion-summary").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
-        // Its one Note, frozen, above its Metadata (user, 2026-11-01).
+        // Its one Note, frozen, under its Metadata (user, 2026-11-02).
         let note = row.locator(".note-field-view textarea")
         try await expect(note).toHaveCount(1)
         try await expect(note).toHaveValue("Unlike sense 1, a leaf sense grows no further senses.")
@@ -50,10 +50,11 @@ struct DistinctionTests {
         let metadata = try #require(try await page.locator("#record-metadata-s-1-1").boundingBox())
         let prose = try #require(try await note.boundingBox())
         let quote = try #require(try await row.locator(".attestation-view").boundingBox())
-        #expect(prose.y + prose.height <= metadata.y)
-        #expect(metadata.y + metadata.height <= quote.y)
+        // Metadata › Note, then the quote (user, 2026-11-02).
+        #expect(metadata.y + metadata.height <= prose.y)
+        #expect(prose.y + prose.height <= quote.y)
 
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoOverflowButTrees()
         try await page.expectNoErrors()
       }
     } catch {

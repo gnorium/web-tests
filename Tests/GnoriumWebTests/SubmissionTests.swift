@@ -553,7 +553,7 @@ struct SubmissionTests {
         try await newSentiment(page, suffix: suffix, source: source)
         try await placedSentiment(page, word: word)
         try await page.expectNoErrors()
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoOverflowButTrees()
       }
     } catch {
       clean()
@@ -598,7 +598,12 @@ struct SubmissionTests {
     _ = try await box.evaluate(
       """
       (b) => { b.querySelector("input[name='quote-s1-start-image']").value = '1';
-        b.querySelector("input[name='quote-s1-quote']").value = 'A web tests quote.'; return true; }
+        b.querySelector("input[name='quote-s1-quote']").value = 'A web tests quote.';
+        // A source Gnorium lacks gives its Title, Language and Class
+        // (user, 2026-11-02), as its box asks once its URL is read.
+        for (const [k, v] of [['title', 'Web tests source'], ['language', 'eng'], ['class', 'report']]) {
+          const f = b.querySelector(`[name='quote-s1-source-url-${k}']`); f.disabled = false; f.value = v; }
+        return true; }
       """)
     try await set(page, [("quote-s1-rights-statement", "noc_us")])
     try await form.locator(".record-actions button[type='submit']").click()

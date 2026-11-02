@@ -49,8 +49,11 @@ struct LevelStatesTests {
         try await expect(Self.chip(page)).toHaveText("Pending")
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Commit", "Permit", "Discard"])
-        // Its one Commit is for calibration; every page is missing: all ticked.
+        // Its one Commit is for calibration; nothing is ticked at first, and
+        // the select-all ticks every page, each missing.
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_calibration")
+        try await expect(page.locator(".commit-ticked")).toHaveAttribute("value", "")
+        try await EvidenceSelectAllTests.tap(page, ".evidence-header-view .evidence-select-all input")
         try await expect(page.locator(".commit-ticked")).toHaveAttribute("value", "0-3")
         try await expect(page.locator(".bibliographic-overture-view .level-progress-line-view")).toHaveCount(0)
         #expect(try await page.evaluate(CommitTests.interceptScript, as: Bool.self))
@@ -86,7 +89,7 @@ struct LevelStatesTests {
         try await expect(page.locator(".thread-event-line a[href='\(scratch.quatrainPath)' i]")).toBeVisible()
         try await expect(page.locator(".commit-trigger")).toHaveCount(0)
         try await expect(page.locator(".mission-control-object-header-action-buttons")).toHaveCount(0)
-        try await expect(page.locator(".thread-settled-note")).toContainText("has been committed; its locutions are closed.")
+        try await expect(page.locator(".thread-settled")).toContainText("has been committed; its locutions are closed.")
       }
     } catch {
       scratch.remove()
@@ -108,7 +111,8 @@ struct LevelStatesTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(scratch.halftonePath)
         try await expect(Self.chip(page)).toHaveText("Pending")
-        try await expect(page.locator(".level-progress-line-view")).toHaveText("Calibrated: 1 of 4 images")
+        // No progress line (user, 2026-10-21): the roster's marks say it.
+        try await expect(page.locator(".level-progress-line-view")).toHaveCount(0)
         // The machine's: revised, committed and permitted, never discarded.
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Commit", "Permit"])
@@ -144,7 +148,7 @@ struct LevelStatesTests {
         try await expect(page.locator(".field-validation-message-view").first)
           .toContainText("Tick the evidence items this commit sends to calibration.")
         #expect(try await CommitTests.posted(page) == nil)
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoOverflowButTrees()
       }
     } catch {
       scratch.remove()
@@ -166,12 +170,13 @@ struct LevelStatesTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(scratch.halftonePath)
         try await expect(Self.chip(page)).toHaveText("Pending")
-        try await expect(page.locator(".level-progress-line-view")).toHaveText("Calibrated: 4 of 4 images")
+        // No progress line (user, 2026-10-21): the roster's marks say it.
+        try await expect(page.locator(".level-progress-line-view")).toHaveCount(0)
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_explication")
         // No sentence on what the Commit freezes: the frozen header says it after (user, 2026-10-30).
         try await expect(page.locator(".halftone-explication-note")).toHaveCount(0)
         try await expect(page.locator(".halftone-evidence-items").first.locator(".roster-row")).toHaveCount(4)
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoOverflowButTrees()
       }
     } catch {
       scratch.remove()
@@ -196,7 +201,7 @@ struct LevelStatesTests {
         try await expect(page.locator(".overture-committed")).toHaveCount(0)
         try await expect(page.locator(".thread-event-line a[href='\(scratch.antiphonPath)' i]")).toBeVisible()
         try await expect(page.locator(".commit-trigger")).toHaveCount(0)
-        try await expect(page.locator(".thread-settled-note")).toContainText("has been committed; its locutions are closed.")
+        try await expect(page.locator(".thread-settled")).toContainText("has been committed; its locutions are closed.")
         // Its Pedigree names its Commit, for explication.
         try await page.locator(".pedigree-accordion .accordion-summary").first.click()
         try await expect(page.locator(".pedigree-rows")).toContainText("for explication")
@@ -265,7 +270,7 @@ struct LevelStatesTests {
         try await page.locator(".commit-trigger").click()
         let sent = try #require(try await CommitTests.posted(page))
         #expect(sent.process == "bibliographic_translation")
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoOverflowButTrees()
       }
       #expect(try scratch.stillPending(), "nothing was committed")
     } catch {
@@ -307,7 +312,7 @@ struct LevelStatesTests {
         // Permit is offered untranslated.
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Commit", "Permit"])
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoOverflowButTrees()
 
         // One page translated, one of them stale after its wording changed.
         try scratch.removeEpilogues()

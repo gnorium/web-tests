@@ -28,7 +28,7 @@ struct TestamentFormsTests {
         // the record's shape kept (derived, never typed).
         try await expect(form.locator(".derived-forms-view input[name='derived-forms']").first).toBeDisabled()
         try await page.expectNoErrors()
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoOverflowButTrees()
       }
     } catch {
       try await admin.remove(after: error)

@@ -44,7 +44,7 @@ struct ScratchCommit {
     madrigalID = id()
     // The witness's fields, on the halftone, the antiphon and the madrigal alike: the madrigal's page
     // decodes the antiphon's too.
-    let metadata = #"{"language":"eng","sourceUrl":"\#(sourceURL)","sourceKind":"iiif-manifest"}"#
+    let metadata = #"{"title":"Web tests commit \#(figurantID.prefix(8))","language":"eng","sourceUrl":"\#(sourceURL)","sourceKind":"iiif-manifest"}"#
     _ = try TestAdmin.query(
       """
       BEGIN;

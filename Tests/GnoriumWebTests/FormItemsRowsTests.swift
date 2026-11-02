@@ -11,19 +11,21 @@ import WebTestsTesting
 /// posts). Needs a signed-in account, made for the test and removed after.
 @Suite("Form item rows", .serialized)
 struct FormItemsRowsTests {
-  /// The Bosworth–Toller record, kept on the dev database: two authors.
-  static let form =
-    "/biblio-records/ang/an-anglo-saxon-dictionary/dictionary/amendments/new"
 
   @Test(arguments: gnorium.engines, Layout.allCases)
   func removingAMiddleRowRenumbersTheRest(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    // A scratch work with two authors (dev keeps no such record).
+    let work: ScratchWork
+    do { work = try ScratchWork(owner: admin, coauthor: "Web Tests Coauthor") } catch { try await admin.remove(after: error) }
     do {
-      try await run(engine: engine, viewport: layout.viewport(for: engine), admin: admin)
+      try await run(engine: engine, viewport: layout.viewport(for: engine), admin: admin, form: work.path + "/amendments/new")
     } catch {
+      work.remove()
       try await admin.remove(after: error)
     }
+    work.remove()
     try await admin.remove()
   }
 
@@ -73,9 +75,9 @@ struct FormItemsRowsTests {
     return try JSONDecoder().decode([Row].self, from: Data(json.utf8))
   }
 
-  private func run(engine: BrowserEngine, viewport: Viewport, admin: TestAdmin) async throws {
+  private func run(engine: BrowserEngine, viewport: Viewport, admin: TestAdmin, form: String) async throws {
     try await withPage(engine, gnorium, viewport: viewport, cookies: [admin.cookie]) { page in
-      try await page.openHydrated(Self.form)
+      try await page.openHydrated(form)
       let work = page.locator(".submit-amendment-work").first
       let authors = work.locator("[data-item-list='work-voice']")
       let active = authors.locator("[data-item-section='true']:not([data-item-template] *)")

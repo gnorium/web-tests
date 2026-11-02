@@ -46,7 +46,8 @@ struct ScratchWork {
 
   /// `sourceURL` is its Figurant's and overture's source URL, fixed at
   /// submission (a submitted Figurant can't be changed).
-  init(owner: TestAdmin, sourceURL: String = "https://example.org/web-tests") throws {
+  /// `coauthor`, where given, is a second voice, an author after the first.
+  init(owner: TestAdmin, sourceURL: String = "https://example.org/web-tests", coauthor: String? = nil) throws {
     self.owner = owner.username
     let user = try owner.column("id")
     var ids: [String: String] = [:]
@@ -70,7 +71,7 @@ struct ScratchWork {
     let figurant = ids["figurant"]!.uppercased()
     let metadata = """
       {"sourceUrl":"https://example.org/web-tests","sourceKind":"iiif-manifest","title":"\(title)",\
-      "voices":[{"name":"\(author)","role":"author"}],\
+      "voices":[{"name":"\(author)","role":"author"}\(coauthor.map { #",{"name":"\#($0)","role":"author"}"# } ?? "")],\
       "language":"eng","category":"report","edition":"First edition","year":1958,"genres":[],"isTranslation":false,\
       "translationChain":[],"activityStatements":[],"citations":[]}
       """
@@ -85,7 +86,11 @@ struct ScratchWork {
     let voice = """
       INSERT INTO biblio_record_voices (id, biblio_record_id, name, role, position)
         VALUES ('\(ids["authorship"]!)', '\(ids["record"]!)', '\(author)', 'author', 0);
-      """
+      """ + (coauthor.map { """
+
+      INSERT INTO biblio_record_voices (id, biblio_record_id, name, role, position)
+        VALUES (gen_random_uuid(), '\(ids["record"]!)', '\($0)', 'author', 1);
+      """ } ?? "")
     _ = try TestAdmin.query(
       """
       BEGIN;
@@ -99,7 +104,7 @@ struct ScratchWork {
         VALUES ('\(ids["record"]!)', \(Self.corpusID), '\(title)', '\(slug)',
           'report', 'eng', '[]', 1958, 'AD 1958', now(), now());
       \(voice)
-      \(chain.insert(overture: ids["overture"]!, user: user))
+      \(chain.insert(overture: ids["overture"]!, user: user, metadata: metadata))
       INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, biblio_record_id, proposed_content_json, metadata_json, shape_json, processing_status, permitted_by_user_id, permitted_at, created_at, updated_at)
         VALUES ('\(ids["madrigal"]!)', '\(ids["madrigal"]!)', '\(chain.antiphonID)', '\(ids["record"]!)', '\(Self.document)', '\(metadata)', '\(shape)', 'permitted', '\(user)', now(), now(), now());
       INSERT INTO biblio_record_versions (id, biblio_record_id, bibliographic_madrigal_id, metadata_json, shape_json, status, created_at)
@@ -123,7 +128,7 @@ struct ScratchWork {
       DELETE FROM bibliographic_halftones WHERE id = '\(chain.halftoneID)' AND NOT \(amended);
       DELETE FROM bibliographic_quatrains WHERE id = '\(chain.quatrainID)' AND NOT \(amended);
       DELETE FROM url_histories WHERE entity_id = '\(ids["record"]!)' AND NOT \(amended);
-      DELETE FROM biblio_record_voices WHERE id = '\(ids["authorship"]!)' AND NOT \(amended);
+      DELETE FROM biblio_record_voices WHERE biblio_record_id = '\(ids["record"]!)' AND NOT \(amended);
       DELETE FROM biblio_records WHERE id = '\(ids["record"]!)' AND NOT \(amended);
       DELETE FROM bibliographic_overtures WHERE id = '\(ids["overture"]!)' AND NOT \(amended);
       UPDATE bibliographic_figurants SET discarded_at = now(), discarded_by = '\(owner)' WHERE id = '\(ids["figurant"]!)';

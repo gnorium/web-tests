@@ -55,6 +55,43 @@ extension Page {
     }
   }
 
+  /// Fails where the page scrolls sideways for anything but a tree (user,
+  /// 2026-11-02: a deep tree widens the page, so a phone pinches out to see
+  /// it whole): past the screen, every element sticking out is inside an
+  /// `.outliner-view`, and the page is no wider than its widest tree.
+  func expectNoOverflowButTrees(file: String = #fileID, filePath: String = #filePath, line: Int = #line) async throws {
+    let problems = try await evaluate(
+      """
+      (() => {
+        const docRight = document.documentElement.scrollWidth;
+        if (docRight <= innerWidth + 1) return '';
+        const out = [];
+        let treeRight = innerWidth;
+        for (const t of document.querySelectorAll('.outliner-view')) {
+          if (!t.getClientRects().length) continue;
+          for (const e of [t, ...t.querySelectorAll('*')]) {
+            const r = e.getBoundingClientRect();
+            if (r.width > 0) treeRight = Math.max(treeRight, r.right + scrollX);
+          }
+        }
+        for (const e of document.querySelectorAll('body *')) {
+          if (e.closest('.outliner-view') || !e.getClientRects().length) continue;
+          const r = e.getBoundingClientRect();
+          if (r.width > 0 && r.right + scrollX > treeRight + 1 && ![...e.children].some((c) => c.getBoundingClientRect().right + scrollX > treeRight + 1))
+            out.push('<' + e.tagName.toLowerCase() + ' class="' + (e.className.baseVal ?? e.className) + '"> reaches ' + Math.round(r.right + scrollX));
+        }
+        if (docRight > treeRight + 1) out.unshift('the document is ' + docRight + 'px wide, its widest tree reaches ' + Math.round(treeRight));
+        return [...new Set(out)].slice(0, 8).join('; ');
+      })()
+      """
+    ).string ?? ""
+    if !problems.isEmpty {
+      throw WebTestError(
+        "Overflow past the trees on \((try? await url()) ?? "the page"): \(problems)",
+        location: CodeLocation(fileID: file, filePath: filePath, line: line, column: 1))
+    }
+  }
+
   /// Loads a Gnorium page and waits for the client to hydrate it: the load
   /// event, then the WebAssembly client started
   /// (`<html data-wasm-status="started">`, set by loader.js). Not

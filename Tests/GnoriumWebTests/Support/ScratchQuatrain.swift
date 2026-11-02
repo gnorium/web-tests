@@ -90,8 +90,8 @@ struct ScratchQuatrain {
         ('\(nocturneIDs[2])', md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[2])')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', '\(status == "submitted" ? "passed" : "running")', NULL, NULL, now(), NULL);
       INSERT INTO scan_layouts (id, image_url, fetched_url, bytes_sha256, width, height, measuring_version, layout, fetch_ms, measure_ms)
         VALUES ('\(layoutID)', '\(images[0])', '\(images[0])', '\(String(repeating: "a", count: 64))', 100, 100, '\(String(repeating: "b", count: 64))', '{}'::jsonb, 1, 1);
-      INSERT INTO calibration_pages (bibliographic_calibration_nocturne_instance_id, bibliographic_overture_id, image, ordinal, label, layout_id, measuring_version, em, judgment_json, tool_hashes_json, facts_json)
-        VALUES ('\(nocturneIDs[0])', '\(overtureID)', '\(services[0])', 1, '1', '\(layoutID)', '\(String(repeating: "b", count: 64))', 20.5, '{}', '{}', '{"width":2000.0,"body":45.4,"measure":55.1,"height":76.4}');
+      INSERT INTO calibration_pages (id, calibration_nocturne_instance_id, bibliographic_overture_id, image, ordinal, label, layout_id, measuring_version, em, judgment_json, tool_hashes_json, tei, facts_json)
+        VALUES (gen_random_uuid(), '\(nocturneIDs[0])', '\(overtureID)', '\(services[0])', 1, '1', '\(layoutID)', '\(String(repeating: "b", count: 64))', 20.5, '{}', '{}', '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><pb n="1"/></body></text></TEI>', '{"width":2000.0,"body":45.4,"measure":55.1,"height":76.4}');
       \(try SessionTrace.append(measured, table: "bibliographic_calibration_nocturne_instances", id: nocturneIDs[0]))
       \(try SessionTrace.append(failedTrace, table: "bibliographic_calibration_nocturne_instances", id: nocturneIDs[1]))
       \(try SessionTrace.append(running, table: "bibliographic_calibration_nocturne_instances", id: nocturneIDs[2]))
@@ -117,7 +117,7 @@ struct ScratchQuatrain {
       """
       BEGIN;
       \(SessionTrace.delete(table: table, where: "nocturne_id IN (SELECT id FROM bibliographic_calibration_nocturnes WHERE bibliographic_quatrain_id = '\(quatrainID)')"))
-      DELETE FROM calibration_observations WHERE bibliographic_calibration_nocturne_instance_id IN (SELECT id FROM \(table) WHERE nocturne_id IN (SELECT id FROM bibliographic_calibration_nocturnes WHERE bibliographic_quatrain_id = '\(quatrainID)'));
+      DELETE FROM calibration_observations WHERE calibration_nocturne_instance_id IN (SELECT id FROM \(table) WHERE nocturne_id IN (SELECT id FROM bibliographic_calibration_nocturnes WHERE bibliographic_quatrain_id = '\(quatrainID)'));
       DELETE FROM calibration_pages WHERE bibliographic_overture_id = '\(overtureID)';
       DELETE FROM model_calls WHERE bibliographic_calibration_nocturne_instance_id IN (SELECT id FROM \(table) WHERE nocturne_id IN (SELECT id FROM bibliographic_calibration_nocturnes WHERE bibliographic_quatrain_id = '\(quatrainID)'));
       DELETE FROM \(table) WHERE bibliographic_quatrain_id = '\(quatrainID)';

@@ -98,7 +98,12 @@ struct RecordBreadcrumbsTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(work.path)
         let vignettes = "\(work.path)/vignettes"
-        let link = page.locator(".record-sidebar a[href='\(vignettes)']")
+        // The sidebar on screen: on a phone, the slide menu's, opened by its
+        // button (the page's own column holds it on a wider screen).
+        if layout == .phone {
+          try await page.locator(".sidebar-menu-btn").click()
+        }
+        let link = page.locator(".record-sidebar a[href='\(vignettes)']").filter(visible: true).first
         try await expect(link).toHaveText("Vignettes")
         try await link.click()
         try await expect(page).toHaveURL(vignettes) { url in url.path == vignettes }

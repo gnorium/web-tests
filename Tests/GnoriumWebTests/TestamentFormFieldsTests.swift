@@ -3,10 +3,10 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// The testament form keeps only the fields that date the text, identify
-/// the witness, locate its source or make its reuse legal (user,
-/// 2026-09-27): no format, dimension, extent, former owners or notes, and no
-/// manufacture or distribution statement; the publication statement stays.
+/// The testament form's fields (user, 2026-09-27): no notes field, no
+/// image count; the publication statement stays, and an edition's format and
+/// extent, a copy's dimension and former owners, an impression's manufacture
+/// and an issue's distribution are back on their levels (user, 2026-11-01).
 /// Nothing is submitted. Needs a signed-in account, made for the test and
 /// removed after.
 @Suite("Testament form fields")
@@ -22,17 +22,22 @@ struct TestamentFormFieldsTests {
         try await page.openHydrated(Self.form)
         let form = page.locator(".submit-testament-form")
         try await expect(form.locator("input[name='title']")).toHaveCount(1)
-        for gone in [
-          "[name='format']", "[name='dimension_size']", "[name='dimension_unit']", "[name='extent']",
-          "[name='extent_unit']", "[name='notes']", "[data-item-list='former-owner']",
-          ".former-owners-view", "[data-as-namespace='manufacture']", "[data-as-namespace='distribution']",
-          "#testament-image-count",
-        ] {
+        for gone in ["[name='notes']", ".former-owners-view", "#testament-image-count"] {
           try await expect(form.locator(gone)).toHaveCount(0)
+        }
+        // Back on their levels (user, 2026-11-01): the edition's format and
+        // extent, the copy's dimension and former owners, the impression's
+        // manufacture and the issue's distribution.
+        for back in [
+          "[name='format']", "[name='dimension_size']", "[name='dimension_unit']", "[name='extent']",
+          "[name='extent_unit']", "[data-item-list='former-owner']", "[data-as-namespace='manufacture']",
+          "[data-as-namespace='distribution']",
+        ] {
+          try await expect(form.locator(back)).toHaveCount(1)
         }
         try await expect(form.locator("[data-as-namespace='publication']")).toHaveCount(1)
         try await page.expectNoErrors()
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoOverflowButTrees()
       }
     } catch {
       try await admin.remove(after: error)
