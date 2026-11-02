@@ -643,8 +643,10 @@ struct RevisePagesTests {
   /// label since gnorium-web 95fe7ab3f, 2026-10-20). A
   /// change is one revision of its fields, in the madrigal's thread, that
   /// an admin accepts there—written into the madrigal—and reverts.
-  /// An epilogue's definition in the record's language is revised the same
-  /// way, the session's confidence cleared once a person changed it.
+  /// An epilogue's value in the record's language is revised the same
+  /// way—its sentiment's row in the tree, its box in the record's language
+  /// the one open (user, 2026-11-03)—the session's confidence cleared once
+  /// a person changed it.
   @Test(arguments: [BrowserEngine.chrome])
   func lexicographicFieldsAreRevisedAsBibliographicOnesAre(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -653,6 +655,8 @@ struct RevisePagesTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let user = try contributor.column("id")
     let word = try ScratchWord(owner: contributor, submitted: true)
+    // Translation is only of a record not in English: the epilogue's.
+    let french = try ScratchWord(owner: contributor, language: "fra")
     let epilogue = UUID().uuidString.lowercased()
     func remove() {
       _ = try? TestAdmin.query(
@@ -663,6 +667,7 @@ struct RevisePagesTests {
         COMMIT;
         """)
       word.remove()
+      french.remove()
     }
     func content() throws -> String {
       try TestAdmin.query(
@@ -672,9 +677,9 @@ struct RevisePagesTests {
       _ = try TestAdmin.query(
         """
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, tei,
-            target, status, submitted_by_user_id, summary, definition_translation_json)
-          VALUES ('\(epilogue)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', '\(word.leaf)',
-            '<sense><def>A leaf sense.</def></sense>', 'definition', 'committed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.',
+            target, status, submitted_by_user_id, summary, value_translation_json)
+          VALUES ('\(epilogue)', '\(french.recordID.lowercased())', '\(french.versionID.lowercased())', '\(french.leaf)',
+            '<sense><def>A leaf sense.</def></sense>', 'value', 'committed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.',
             '{"languageCode":"fra","tei":"<def xml:lang=\\"fr\\">Un sens feuille.</def>","confidence":"clear","reason":"Web tests."}');
         """)
       let madrigalPath = "/mission-control/madrigals/lexicographic/\(word.madrigalID)"
@@ -716,7 +721,9 @@ struct RevisePagesTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         let revisionPath = "\(madrigalPath)/revisions/\(id)"
         try await page.openHydrated(revisionPath)
-        try await expect(page.getByText("Sentiment 1.1").first).toBeAttached()
+        // The changed sentiment's row by its number, its value's diff at its box.
+        try await expect(page.locator(".record-row-number").filter(hasText: "1.1").first).toBeAttached()
+        try await expect(page.locator("#sentiment-1-value")).toBeAttached()
         try await expect(page.locator(".diff-view").first).toBeAttached()
         try await expect(page.locator("form#revision-accept")).toHaveCount(1)
         try await expect(page.locator(".pedigree-view").getByText("Locution", exact: true)).toHaveCount(0)
@@ -725,16 +732,19 @@ struct RevisePagesTests {
         // linked, and its verdicts.
         try await page.openHydrated(madrigalPath)
         let event = page.locator("#revision-\(id)")
-        // Its definition and its one usage field, each its own item by
-        // its form's label, each linked to its place on the page.
+        // Its value and its one usage field, each its own item by its
+        // form's label, each step of it a link to its place on the page
+        // (user, 2026-10-16): two items, four links.
         let changed = event.locator(".thread-event-changed")
         try await expect(changed).toHaveText("Modified Sentiment 1.1 Value and Sentiment 1.1 Register.")
-        try await expect(changed.locator("a")).toHaveCount(2)
+        try await expect(changed.locator("a")).toHaveCount(4)
         // Each on the revision's own page, at its field there (user, 2026-10-09).
-        try await expect(changed.locator("a[href='\(revisionPath)?source=code#sentiment-1-value']"))
-          .toHaveText("Sentiment 1.1 Value")
-        try await expect(changed.locator("a[href='\(revisionPath)?source=code#sentiment-1-register']"))
-          .toHaveText("Sentiment 1.1 Register")
+        for (field, label) in [("value", "Value"), ("register", "Register")] {
+          let links = changed.locator("a[href='\(revisionPath)?source=code#sentiment-1-\(field)']")
+          try await expect(links).toHaveCount(2)
+          try await expect(links.nth(0)).toHaveText("Sentiment 1.1")
+          try await expect(links.nth(1)).toHaveText(label)
+        }
         try await Self.expectChangedLinksLand(page, revision: id, on: revisionPath)
         try await page.openHydrated(madrigalPath)
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
@@ -767,16 +777,31 @@ struct RevisePagesTests {
         #expect(try content().contains("<def>A leaf sense.</def>"), "The TEI's definition as it was")
       }
 
-      // An epilogue's definition in the record's language, the same way.
+      // An epilogue's value in the record's language, the same way: its
+      // sentiment's heading box, the record's own language first, the one
+      // box open; no `<sense>` editor.
       let epiloguePath = "/mission-control/epilogues/lexicographic/\(epilogue)"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated("\(epiloguePath)/revise")
-        // Its `<def xml:lang>`, edited the same way.
-        let editor = page.locator(".sense-editor-view:has(textarea[name='definition'])")
-        try await expect(editor.locator(".sense-editor-translation")).toHaveText("Un sens feuille.")
-        try await expect(editor.locator(".sense-editor-translation")).toHaveAttribute("lang", "fr")
-        try await editor.locator(".sense-editor-xml-toggle").click()
-        try await Self.replaceCode(editor.locator(".sense-editor-raw .code-code"), with: "<def xml:lang=\"fr\">Un sens feuille, corrigé.</def>", page: page)
+        try await expect(page.locator(".sense-editor-view")).toHaveCount(0)
+        let box = page.locator("textarea[name='sentiment-translation']")
+        try await expect(box).toBeVisible()
+        try await expect(box).toHaveValue("Un sens feuille.")
+        try await expect(page.locator(".sentiment-value-native").first).toHaveAttribute("lang", "fr")
+        // Its English value is not translation's: frozen, posting nothing.
+        try await expect(page.locator("textarea#sentiment-value")).toBeDisabled()
+        try await expect(page.locator("textarea[name='sentiment-value']")).toHaveCount(0)
+        try await box.fill("Un sens feuille, corrigé.")
+        try await expect(page.locator("[data-diff-annotation][data-visible='true']").first).toBeAttached()
+        // The XML switch shows the `<sense>` it makes, read-only.
+        try await page.locator(".apparatus-rule-xml-toggle").click()
+        let xml = page.locator(".sentiment-value-xml .code-code").first
+        try await expect(xml).toBeVisible()
+        try await expect(xml).toContainText("<def xml:lang=\"fr\">Un sens feuille, corrigé.</def>")
+        try await page.locator(".apparatus-rule-xml-toggle").click()
+        try await expect(box).toBeVisible()
+        try await page.expectNoErrors()
+        try await page.expectNoHorizontalOverflow()
         try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the epilogue at its locution", where: Self.atLocution(epiloguePath))
@@ -788,13 +813,13 @@ struct RevisePagesTests {
         try await page.openHydrated(epiloguePath)
         let event = page.locator("#revision-\(epilogueRevision)")
         try await expect(event.locator(".thread-event-changed"))
-          .toHaveText("Modified Sentiment 1.1 Definition.")
+          .toHaveText("Modified Sentiment 1.1 Value.")
         // Its revision's page, named as the server names it (ids upper case).
         let epilogueRevisionPath =
           "/mission-control/epilogues/lexicographic/\(epilogue.uppercased())/revisions/\(epilogueRevision)"
         try await expect(
-          event.locator(".thread-event-changed a[href='\(epilogueRevisionPath)?source=code#definition']")
-        ).toHaveCount(1)
+          event.locator(".thread-event-changed a[href='\(epilogueRevisionPath)?source=code#sentiment-translation']")
+        ).toHaveCount(2)
         try await Self.expectChangedLinksLand(page, revision: epilogueRevision, on: epilogueRevisionPath)
         try await page.openHydrated(epiloguePath)
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
@@ -803,9 +828,9 @@ struct RevisePagesTests {
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the epilogue at its locution", where: Self.atLocution(epiloguePath))
         let stored = try TestAdmin.query(
-          "SELECT definition_translation_json FROM lexicographic_epilogues WHERE id = '\(epilogue)'")
+          "SELECT value_translation_json FROM lexicographic_epilogues WHERE id = '\(epilogue)'")
         #expect(stored.contains("Un sens feuille, corrigé."), "stored: \(stored)")
-        #expect(stored.contains("\"confidence\":\"\""), "A person's definition has no confidence: \(stored)")
+        #expect(stored.contains("\"confidence\":\"\""), "A person's value has no confidence: \(stored)")
         // The epilogue's page reads it, its confidence "—".
         try await page.openHydrated(epiloguePath)
         try await expect(page.getByText("Un sens feuille, corrigé.").first).toBeAttached()

@@ -43,9 +43,9 @@ struct LexicographicTranslationDefinitionTests {
         -- The Arabic record translated: a version (status 2) permitted
         -- from a lexicographic epilogue, as the antecedent check requires.
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, tei, target,
-            status, submitted_by_user_id, summary, definition_translation_json, evaluated_at, evaluated_by_user_id)
+            status, submitted_by_user_id, summary, value_translation_json, evaluated_at, evaluated_by_user_id)
           VALUES ('\(arabicAmendment)', '\(arabic.recordID.lowercased())', '\(arabic.versionID.lowercased())', '\(arabic.leaf)',
-            '<sense><def>A leaf sense.</def></sense>', 'definition', 'permitted', (SELECT id FROM users WHERE username = 'gnorium'),
+            '<sense><def>A leaf sense.</def></sense>', 'value', 'permitted', (SELECT id FROM users WHERE username = 'gnorium'),
             'Wrote the Arabic definition.', '{"languageCode":"ara","tei":"<def xml:lang=\\"ar\\">\(Self.arabic)</def>","confidence":"clear","reason":"Web tests."}', now(),
             (SELECT id FROM users WHERE username = 'gnorium'));
         INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_epilogue_id, status, record_json, created_at)
@@ -55,9 +55,9 @@ struct LexicographicTranslationDefinitionTests {
               now() + interval '1 second'
             FROM lexico_record_versions WHERE id = '\(arabic.versionID.lowercased())';
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, tei, target,
-            status, submitted_by_user_id, summary, definition_translation_json)
+            status, submitted_by_user_id, summary, value_translation_json)
           VALUES ('\(amendment)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', '\(word.leaf)',
-            '<sense><def>A leaf sense.</def></sense>', 'definition', 'committed', (SELECT id FROM users WHERE username = 'gnorium'),
+            '<sense><def>A leaf sense.</def></sense>', 'value', 'committed', (SELECT id FROM users WHERE username = 'gnorium'),
             'Wrote the German definition.', '\(definition)');
         COMMIT;
         """)
