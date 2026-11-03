@@ -6,7 +6,8 @@ import WebTestsTesting
 /// A record lists no references (user, 2026-10-10): a record page, a
 /// record version's page and a word's madrigal credit no sources—no
 /// References, no Sources, no mark—and the version links to the madrigal
-/// it was permitted from. Nothing scrolls sideways. A throwaway admin owns a scratch
+/// it was permitted from. Nothing scrolls sideways but the page as wide as
+/// its tree or reader needs (user, 2026-11-02). A throwaway admin owns a scratch
 /// work and a scratch word with research references, made by SQL and
 /// removed after.
 @Suite("References", .serialized)
@@ -25,13 +26,13 @@ struct ReferencesTests {
           try await expect(page.locator("#record-references, #references, .sources-view")).toHaveCount(0)
           try await expect(page.locator(".reference-credit-view")).toHaveCount(0)
           try await expect(page.locator(".reference-mark, .reference-marks-view")).toHaveCount(0)
-          try await page.expectNoHorizontalOverflow()
+          try await page.expectNoOverflowButTrees()
           try await page.expectNoErrors()
         }
         // The version links to the madrigal it was permitted from (in its
         // pedigree).
         try await expect(page.locator("a[href='\(madrigal)']")).not.toHaveCount(0)
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoOverflowButTrees()
         try await page.expectNoErrors()
       }
     } catch {
@@ -58,7 +59,7 @@ struct ReferencesTests {
           try await expect(page.locator(".reference-credit-view")).toHaveCount(0)
           try await expect(page.locator("#record-row-\(word.leaf) .record-row-heading sup")).toHaveCount(0)
           #expect(!(try await page.locator("body").textContent()).contains("dictionary.example.org"))
-          try await page.expectNoHorizontalOverflow()
+          try await page.expectNoOverflowButTrees()
           try await page.expectNoErrors()
         }
         try await expect(page.locator("a[href='\(madrigal)']")).not.toHaveCount(0)
@@ -67,7 +68,7 @@ struct ReferencesTests {
         try await page.openHydrated(madrigal)
         try await expect(page.locator("#object-sources, .sources-view, .reference-credit-view")).toHaveCount(0)
         #expect(!(try await page.locator("body").textContent()).contains("dictionary.example.org"))
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoOverflowButTrees()
         try await page.expectNoErrors()
       }
     } catch {

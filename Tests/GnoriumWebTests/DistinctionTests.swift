@@ -54,7 +54,7 @@ struct DistinctionTests {
         #expect(metadata.y + metadata.height <= prose.y)
         #expect(prose.y + prose.height <= quote.y)
 
-        try await page.expectNoOverflowTreesInFrames()
+        try await page.expectNoOverflowButTrees()
         try await page.expectNoErrors()
       }
     } catch {

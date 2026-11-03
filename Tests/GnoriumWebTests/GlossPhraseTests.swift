@@ -7,8 +7,10 @@ import WebTestsTesting
 /// 2026-09-29, 2026-10-08): headed by the record a link over its words puts
 /// it to, linked; its Term (as printed, lemma, class, language); the record
 /// at a glance; then Words, each word an accordion with every row of its own
-/// gloss, the one opened expanded. Phone and desktop, nothing
-/// scrolling sideways. Scratch rows made and removed by SQL.
+/// gloss, the one opened expanded. Phone and desktop, the page no wider
+/// than its tree and its reader need (user, 2026-11-02: an artifact never
+/// narrower than its one-row footer, a deep tree widening the page).
+/// Scratch rows made and removed by SQL.
 @Suite("Gloss phrases", .serialized)
 struct GlossPhraseTests {
   static let idiomService = "https://example.org/iiif/webtests-phrase"
@@ -105,7 +107,7 @@ struct GlossPhraseTests {
             """)
           #expect(fits.string == "true,true,true,true", "\(fits)")
         }
-        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoOverflowButTrees()
         try await page.keyboard.press("Escape")
         try await expect(sheet).toHaveAttribute("data-state", "closed")
         try await page.expectNoErrors(ignoring: ["Failed to fetch"])

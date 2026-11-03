@@ -60,6 +60,10 @@ struct DraftSourcesTests {
       try await expect(Self.cards(first)).toHaveCount(2)
       try await expect(Self.pane(Self.cards(first).nth(1)), timeout: .seconds(15)).toBeAttached()
       try await Self.pane(Self.cards(first).nth(1)).fill("The second kept quote.")
+      // Its second quote's form picked (user, 2026-11-03), by place.
+      try await page.addForm(in: first, from: ".quote-passage-quote:nth-child(2) .quote-typed-word[data-typed-word='2']")
+      try await expect(first.locator("input[name='quote-s1-forms']"))
+        .toHaveValue(#"[[],[[{"surface":"second","word":2}]]]"#)
       // A second Source, its own quote.
       try await sources.locator(".quote-sources-add-btn").click()
       try await expect(boxes).toHaveCount(2)
@@ -90,6 +94,12 @@ struct DraftSourcesTests {
       try await expect(first.locator("input[name='quote-s1-quote']"))
         .toHaveValue("The first kept quote.\n\nThe second kept quote.")
       try await expect(second.locator("input[name='\(key)-quote']")).toHaveValue("A quote of the other work.")
+      // Its form back on the card that held it, magenta, posted as before.
+      try await expect(Self.cards(first).nth(1).locator(".quote-typed-word[data-highlight='title']"), timeout: .seconds(15))
+        .toHaveText("second")
+      try await expect(Self.cards(first).first.locator("[data-highlight='title']")).toHaveCount(0)
+      try await expect(first.locator("input[name='quote-s1-forms']"))
+        .toHaveValue(#"[[],[[{"surface":"second","word":2}]]]"#)
 
       _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
       try await page.expectNoErrors()

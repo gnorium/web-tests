@@ -23,13 +23,33 @@ struct QuoteSourcesTests {
       let boxes = sources.locator(".quote-source")
       try await expect(boxes).toHaveCount(1)
       let first = boxes.first
-      // Its fields in its own Source accordion, no box around it (user,
-      // 2026-11-03): its Quote card under the accordion, outside it, the
-      // card its artifact; then "+ Quote" and "− Source", one row.
+      // Its own Source accordion, no box around it (user, 2026-11-03): its
+      // fields, then its Quote cards, the card its artifact, then its own
+      // row, "+ Quote" and "− Source", all inside it; the node's "+
+      // Source" below every accordion, alone in its row.
       try await expect(first.locator(".source-accordion-view")).toHaveCount(1)
       try await expect(first.locator(".source-accordion-view").first).toContainText("Source")
       try await expect(first.locator(":scope > .form-item-legend")).toHaveCount(0)
-      try await expect(first.locator(".source-accordion-view .quote-passage-reader")).toHaveCount(0)
+      try await expect(first.locator(".source-accordion-view .quote-passage-reader")).toHaveCount(1)
+      try await expect(first.locator(".source-accordion-view .quote-passage-actions")).toHaveCount(1)
+      let inside = try await first.evaluate(
+        """
+        (box) => { const body = box.querySelector('.source-accordion-view .quote-passage-body');
+          return [...body.children].filter((c) => c.tagName !== 'TEMPLATE')
+            .map((c) => c.classList.contains('quote-passage-fields') ? 'fields'
+              : c.classList.contains('quote-passage-quotes') ? 'quotes'
+              : c.classList.contains('quote-passage-actions') ? 'row' : 'other').join(','); }
+        """
+      ).string
+      #expect(inside == "fields,quotes,row", "its fields, its Quote cards, its row: \(inside ?? "")")
+      let alone = try await sources.evaluate(
+        """
+        (s) => { const add = s.querySelector(':scope > .quote-sources-add');
+          return !!add && add.previousElementSibling?.classList.contains('quote-sources-list')
+            && add.querySelectorAll('button').length === 1; }
+        """
+      ).bool
+      #expect(alone == true, "the node's + Source below the accordions, alone in its row")
       let cards = first.locator(".quote-passage-quotes > .quote-passage-quote")
       try await expect(cards).toHaveCount(1)
       try await expect(cards.first.locator(".form-item-legend")).toHaveText("Quote")
@@ -195,8 +215,8 @@ struct QuoteSourcesTests {
   /// 2026-11-02): a permitted record's leaf opens under it with its text
   /// pane, its URL filled in and frozen; selecting the sentence there fills
   /// the hidden quote and image (the image it is on) and marks its words,
-  /// then a tap picks the quote's own word (magenta), posted by its
-  /// xml:id. With no record, the URL is typed, the record left empty.
+  /// then a selection and "+ Form" pick the quote's own word (magenta),
+  /// posted by its xml:id. With no record, the URL is typed, the record left empty.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aRecordsTextPaneTakesTheQuote(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -287,15 +307,12 @@ struct QuoteSourcesTests {
         try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1")
         try await expect(box.locator("input[name='quote-s1-end-image']")).toHaveValue("")
         try await expect(box.locator(".quote-passage-reader .tei-word.tei-highlight")).toHaveCount(3)
-        // The second step: a tap on its form word picks it, magenta.
-        _ = try await box.evaluate(
-          """
-          (b) => { getSelection().removeAllRanges();
-            const word = b.querySelector(".quote-passage-reader .artifact-markup .tei-word[data-word-id='w1.2']");
-            word.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); return true; }
-          """)
+        // No form guessed: the second step is the person's, a selection
+        // and "+ Form", its word magenta, posted by its xml:id.
+        try await expect(box.locator(".quote-passage-reader .tei-word[data-highlight='title']")).toHaveCount(0)
+        try await page.addForm(in: box, from: ".quote-passage-reader .artifact-markup .tei-word[data-word-id='w1.2']")
         try await expect(box.locator(".quote-passage-reader .tei-word[data-highlight='title']")).toHaveCount(1)
-        try await expect(box.locator("input[name='quote-s1-words']")).toHaveValue("w1.2")
+        try await expect(box.locator("input[name='quote-s1-forms']")).toHaveValue(#"[[["w1.2"]]]"#)
         try await page.expectArtifactsUnclipped()
 
         // No record: the URL typed, the record and its leaf empty.

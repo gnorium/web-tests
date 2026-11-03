@@ -154,7 +154,7 @@ struct CommitTests {
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Permit"])
         try await expect(page.locator(".commit-view")).toHaveCount(0)
-        try await page.expectNoOverflowTreesInFrames()
+        try await page.expectNoOverflowButTrees()
         try await page.expectNoErrors()
       }
       #expect(try scratch.stillPending(), "nothing was committed")
@@ -205,7 +205,7 @@ struct CommitTests {
         #expect(refusal.hasSuffix("|false"), "its tooltip is on: \(refusal)")
         #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
         #expect(try await Self.posted(page) == nil, "a refused Commit was sent")
-        try await page.expectNoOverflowTreesInFrames()
+        try await page.expectNoOverflowButTrees()
         try await page.expectNoErrors()
       }
       #expect(try scratch.stillPending(), "nothing was committed")

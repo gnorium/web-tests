@@ -78,7 +78,7 @@ struct VignetteLevelTests {
     try await expect(level.locator(".record-level-level")).toHaveText("Explicated")
     try await expect(level.locator(".record-level-level .icon-view")).toHaveCount(1)
     try await expect(level.locator(".record-level-partial")).toHaveCount(0)
-    try await page.expectNoOverflowTreesInFrames()
+    try await page.expectNoOverflowButTrees()
     try await page.expectNoErrors()
   }
 }

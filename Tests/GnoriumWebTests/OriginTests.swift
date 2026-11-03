@@ -9,8 +9,8 @@ import WebTestsTesting
 /// rows an option) and, once a record is picked, its testaments to name one
 /// by; with no record, the work as typed and, as the card's last row, its
 /// own "+ Origin", which puts a step under it, inside its card. Deep steps keep their width and
-/// the tree scrolls sideways, never the page; a menu opened in a deep step
-/// stands over the page by its field. Removing a step with steps under it
+/// past the screen the page widens, the tree no scrollport of its own (user,
+/// 2026-11-02); a menu opened in a deep step stands by its field. Removing a step with steps under it
 /// asks first. The form posts the tree as one JSON list (the submit event is
 /// dispatched by hand, which runs the form's script but never posts). On a
 /// record page, the Origin section after the Metadata is the same tree, each
@@ -136,18 +136,17 @@ struct OriginTests {
               ellipsis: tree.textContent.includes('…'),
               cut: tree.querySelectorAll('.origin-cut').length,
               scrolls: getComputedStyle(scroll).overflowX !== 'visible',
-              held: Math.max(...[...tree.querySelectorAll('.outliner-node')].map((n) =>
-                n.getBoundingClientRect().right - scroll.getBoundingClientRect().left + scroll.scrollLeft)) <= scroll.scrollWidth + 1,
+              page: document.documentElement.scrollWidth > window.innerWidth,
+              reach: Math.max(...[...tree.querySelectorAll('.outliner-node')].map((n) => n.getBoundingClientRect().right + scrollX)) > window.innerWidth,
             };
           }
           """)
         #expect(shape["leaf"].bool == true, "the repeated record has no steps under it: \(shape)")
         #expect(shape["ellipsis"].bool == false && shape["cut"].int == 0, "no cut: \(shape)")
-        // Past the column the tree scrolls in its own frame, never the page
-        // (user, 2026-11-03), its frame reaching every node, nothing clipped.
-        #expect(shape["scrolls"].bool == true, "the tree scrolls in its own frame: \(shape)")
-        #expect(shape["held"].bool == true, "the frame reaches the whole chain, nothing clipped: \(shape)")
-        try await page.expectNoHorizontalOverflow()
+        // The tree never scrolls on its own; past the screen the page widens
+        // (user, 2026-11-02: a phone pinches out to see it whole).
+        #expect(shape["scrolls"].bool == false, "the tree has no scrollport of its own: \(shape)")
+        #expect(shape["page"] == shape["reach"], "the page as wide as the chain, nothing clipped: \(shape)")
 
         // The record field a form draws for the second work, filing for the
         // first: its error under the field; filing for nothing, none.
@@ -570,7 +569,8 @@ struct OriginTests {
 
       // A deep origin, six steps each under the last (user, 2026-09-30):
       // every step keeps the tree's least node width (14rem), and on a phone
-      // the tree scrolls in its own frame, never the page (user, 2026-11-03).
+      // the page widens to hold it, the tree no scrollport of its own (user,
+      // 2026-11-02).
       for depth in 1..<6 {
         // The deepest step's node is the last in the page's order.
         try await controls(block.locator(".outliner-item[data-origin-step]").last)
@@ -588,17 +588,15 @@ struct OriginTests {
           return {
             narrowest: Math.round(Math.min(...widths)), least: Math.round(least),
             scrolls: getComputedStyle(scroll).overflowX !== 'visible',
-            held: Math.max(...[...block.querySelectorAll('.outliner-node')].map((n) =>
-              n.getBoundingClientRect().right - scroll.getBoundingClientRect().left + scroll.scrollLeft)) <= scroll.scrollWidth + 1,
+            page: document.documentElement.scrollWidth > window.innerWidth,
+            reach: Math.max(...[...block.querySelectorAll('.outliner-node')].map((n) => n.getBoundingClientRect().right + scrollX)) > window.innerWidth,
           };
         }
         """)
       #expect((deep["narrowest"].int ?? 0) >= (deep["least"].int ?? 0), "a deep step keeps the least node width: \(deep)")
-      #expect(deep["scrolls"].bool == true, "the tree scrolls in its own frame: \(deep)")
-      #expect(deep["held"].bool == true, "the frame reaches every step, nothing clipped: \(deep)")
-      try await page.expectNoHorizontalOverflow()
-      // A menu opened in the deepest step stands over the page by its field,
-      // not cut off at the frame's edge.
+      #expect(deep["scrolls"].bool == false, "the tree has no scrollport of its own")
+      #expect(deep["page"] == deep["reach"], "the page as wide as the tree, nothing clipped: \(deep)")
+      // A menu opened in the deepest step stands by its field, on screen.
       let deepest = block.locator("[data-origin-row='true']").last
       _ = try await deepest.evaluate("(row) => row.scrollIntoView({ block: 'center' })")
       let deepRelation = deepest.locator(".dropdown-view").first
@@ -617,7 +615,7 @@ struct OriginTests {
           };
         }
         """)
-      #expect(placed["fixed"].bool == true && placed["start"].bool == true && placed["under"].bool == true, "\(placed)")
+      #expect(placed["start"].bool == true && placed["under"].bool == true, "\(placed)")
       #expect(placed["inside"].bool == true, "the deep step's menu stays on the screen: \(placed)")
       try await deepRelation.locator(".dropdown-trigger").click()
 

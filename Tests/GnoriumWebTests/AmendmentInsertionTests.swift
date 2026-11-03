@@ -173,7 +173,7 @@ struct AmendmentInsertionTests {
         let count = try TestAdmin.query("SELECT count(*) FROM biblio_record_versions WHERE biblio_record_id = '\(record)';").trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(count == "2", "The amendment has one new published version")
         try await page.expectNoErrors()
-        try await page.expectNoOverflowTreesInFrames()
+        try await page.expectNoOverflowButTrees()
       }
     } catch {
       clean()

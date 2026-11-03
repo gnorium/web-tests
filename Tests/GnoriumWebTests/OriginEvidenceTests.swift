@@ -166,7 +166,7 @@ struct OriginEvidenceTests {
         // so nothing moves under the next press.
         try await expect(card.locator(".quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
           .toHaveCount(1)
-        // Removed by its own "− Citation", added again.
+        // Removed by its own "− Source", added again.
         try await citation.locator(".quote-passage-actions .quote-passage-source-remove").click()
         try await expect(card).toHaveCount(0)
         try await add.click()
@@ -181,7 +181,12 @@ struct OriginEvidenceTests {
         let pane = card.locator(".quote-passage-quote .quote-passage-text .tei-page-text").first
         try await expect(pane, timeout: .seconds(20)).toBeAttached()
         try await pane.fill(Self.words)
-        try await page.expectNoHorizontalOverflow()
+        // Its form picked as any quote's (user, 2026-11-03): a selection
+        // and "+ Form", carried word for word onto the anchor it is read
+        // into.
+        try await page.addForm(in: card, from: ".quote-typed-word[data-typed-word='2']")
+        try await expect(card.locator(".quote-typed-word[data-highlight='title']")).toHaveText("quartos")
+        try await page.expectNoOverflowButTrees()
         if let folder = ProcessInfo.processInfo.environment["NOTE_SCREENSHOTS"] {
           _ = try await card.evaluate("(el) => el.scrollIntoView({ block: 'center' })")
           try await page.screenshot(
@@ -199,6 +204,7 @@ struct OriginEvidenceTests {
         let content = try TestAdmin.query("SELECT content_json FROM revisions WHERE id = '\(revision)';")
         #expect(content.lowercased().contains(quoted.versionID), "the quote is not anchored: \(content)")
         #expect(!content.contains(Self.words), "the typed words were kept: \(content)")
+        #expect(content.contains("\"forms\""), "its form carried onto its anchor: \(content)")
 
         // The thread's line: "Origin 2 › Citation 1".
         let line = page.locator(".thread-event-changed").last

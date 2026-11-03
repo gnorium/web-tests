@@ -120,7 +120,7 @@ struct TranslationScopeTests {
         #expect(payload.contains("\"process\":\"bibliographic_translation\""))
         // Its roster position, as the commit posts ticks (user, 2026-10-11).
         #expect(payload.contains("\"ticked\":\"0\""))
-        try await page.expectNoOverflowTreesInFrames()
+        try await page.expectNoOverflowButTrees()
         try await page.expectNoErrors()
       }
       #expect(try TestAdmin.query("SELECT processing_status FROM bibliographic_epilogues WHERE id = '\(epilogue)'") == "pending")
