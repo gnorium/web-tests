@@ -4,10 +4,12 @@ import WebTests
 import WebTestsTesting
 
 /// A header's controls stand on its FIRST line (user, 2026-11-01): a
-/// record node's number (inside its value's box, its first column, user
-/// 2026-11-03), info icon and grip are level at the header's top, never
-/// centered on a wrapped block; a tree node's header has no chevron, its
-/// number folds it. A compact (minimal) header keeps its one line
+/// record node's number, date and info icon (its value's box's columns,
+/// user 2026-11-03: the number first, the date and the info last) and grip
+/// are level at the header's top, never centered on a wrapped block, the
+/// value's words wrapping clear of the date and the info, never under them,
+/// whether the box is read or a field; a tree node's header has no
+/// chevron, its number folds it. A compact (minimal) header keeps its one line
 /// centered in the pointer's target, its chevron on that line; a control
 /// taller than a line (an outline's grip) stands centered on the first
 /// line.
@@ -21,6 +23,11 @@ struct RecordNodeHeaderTests {
     let chevron: Double?
     let handleCenter: Double?
     let numberCenter: Double
+    /// Whether the info stands inside the value's box, at its end.
+    let infoInBox: Bool?
+    /// How far the value's words end before the date or the info, the
+    /// nearer.
+    let clearOfEnd: Double?
   }
 
   /// The first summary under `scope` holding a number: its value made long
@@ -44,10 +51,22 @@ struct RecordNodeHeaderTests {
       const top = el => el ? box(el).top - origin : null
       const center = el => el ? box(el).top + box(el).height / 2 - origin : null
       const number = summary.querySelector('.record-node-heading .node-value-view .record-node-number')
+      // The date and the info, the box's last columns (user, 2026-11-03).
+      const frame = summary.querySelector('.record-node-heading .node-value-view :is(.text-area-view, .node-value-box)')
+      const info = frame.querySelector('.node-value-info')
+      const date = frame.querySelector('.node-value-date')
+      const ends = [info, date].filter(Boolean).map(e => box(e).left)
+      // Where the value's words end: a field's inset, the read box's words.
+      const words = title.matches('textarea')
+        ? box(title).right - parseFloat(getComputedStyle(title).borderRightWidth)
+          - parseFloat(getComputedStyle(title).paddingRight)
+        : box(title.querySelector('.node-value-text')).right
       return {
         lines: Math.round(title.clientHeight / parseFloat(getComputedStyle(title).lineHeight)) - 1,
         number: top(number),
-        info: top(summary.querySelector('.record-node-uuid svg')),
+        info: top(info && info.querySelector('svg')),
+        infoInBox: info ? box(info).left >= box(frame).left && box(info).right <= box(frame).right : null,
+        clearOfEnd: ends.length ? Math.min(...ends) - words : null,
         // A tree node's header has none: its number folds it (user,
         // 2026-11-03).
         chevron: (svg => svg && svg.getBoundingClientRect().height > 0 ? top(svg) : null)(
@@ -64,6 +83,13 @@ struct RecordNodeHeaderTests {
     if let info = marks.info {
       #expect(abs(info - marks.number) < 1, "info icon \(info) vs number \(marks.number)")
     }
+    if let inBox = marks.infoInBox {
+      #expect(inBox, "the info stands outside its value's box")
+    }
+    // A column's gap (8) between the words and the date or the info.
+    if let clear = marks.clearOfEnd {
+      #expect(clear >= 6, "the value's words run \(clear)px from the date or the info")
+    }
     #expect(marks.chevron == nil, "a tree node's header has a chevron")
     if let handle = marks.handleCenter {
       #expect(abs(handle - marks.numberCenter) < 1, "grip center \(handle) vs number center \(marks.numberCenter)")
@@ -79,7 +105,7 @@ struct RecordNodeHeaderTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(word.path)
-        try await expect(page.locator(".record-node-view .record-node-uuid").first).toBeVisible()
+        try await expect(page.locator(".record-node-view .node-value-box > .node-value-info").first).toBeVisible()
         let marks = try await page.evaluate(Self.measure(".record-node-view"), as: Marks.self)
         #expect(marks.info != nil, "the row has no info icon")
         Self.expectFirstLine(marks)
@@ -161,7 +187,7 @@ struct RecordNodeHeaderTests {
 
   /// An outline row (the amendment form): its grip is its marker's (user,
   /// 2026-11-03), on the spine, centered on the heading's first line with
-  /// its number and info icon.
+  /// its number and info icon, which stand in its Value field.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aGripTallerThanALineStaysOnTheFirstLine(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -177,6 +203,7 @@ struct RecordNodeHeaderTests {
         try await expect(grip.locator(".outliner-marker-grip svg")).toHaveCount(1)
         try await expect(outline.locator(".record-node-heading .outliner-handle")).toHaveCount(0)
         let marks = try await page.evaluate(Self.measure(".sentiment-outliner-view .record-node-view"), as: Marks.self)
+        #expect(marks.info != nil, "the field has no info icon")
         let center = try #require(try await grip.evaluate(
           "(g) => { const b = g.getBoundingClientRect(), s = g.parentElement.querySelector('.accordion-summary').getBoundingClientRect(); return b.top + b.height / 2 - s.top }"
         ).double)

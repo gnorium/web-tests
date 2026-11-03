@@ -63,8 +63,9 @@ struct QuoteTests {
         try await page.openHydrated(scratchWord.path)
         let row = page.locator("#record-row-\(scratchWord.leaf)")
         let attestation = row.locator(".attestation-view")
-        // Its first attestation against the margin, in the house style.
-        try await expect(row.locator(".record-node-date").first).toHaveText("AD 1901")
+        // Its first attestation in its value's box, after the value (user,
+        // 2026-11-03), in the house style.
+        try await expect(row.locator(".node-value-box > .node-value-date").first).toHaveText("AD 1901")
         // Closed, its quote is not fetched.
         try await expect(row.locator(".attestation-quote")).toHaveAttribute("data-loaded", "false")
         let fetchedBefore = try await page.evaluate(

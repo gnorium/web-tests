@@ -9,8 +9,9 @@ import WebTestsTesting
 /// locution's avatar's size (40, 32 on a phone), which breaks it and is the node's fold
 /// control ("Collapse testament 1."), its scrim showing its chevron under
 /// the pointer and folded. Right after the marker the node is one column,
-/// its heading (its number in its value's box) and its body at one x whatever its
-/// number; its heading folds nothing. A node's stretch of the spine runs
+/// its heading (its value's box alone, its number, date and info the
+/// box's columns) and its body at one x whatever its number; its heading
+/// folds nothing, nor does its info, which opens its tooltip. A node's stretch of the spine runs
 /// from under its marker beside what it would fold, darkens under the
 /// pointer, and a click on it, at its very top too, folds the node. Below
 /// the tree's last node the spine runs on a little, fading out: the
@@ -82,6 +83,23 @@ struct RecordTreeTests {
           }
           """).string
         #expect(column == "node-value-number record-node-number outliner-number 1 true true true", "the number is not the box's first column: \(String(describing: column))")
+        // The rest of the heading in the box too (user, 2026-11-03): its
+        // date and its info its last columns, on the value's first line,
+        // the value's words ending before them; the heading the box alone.
+        let ends = try await heading.evaluate(
+          """
+          (h) => {
+            const box = h.querySelector('.node-value-box')
+            const info = box.lastElementChild, date = box.querySelector(':scope > .node-value-date')
+            const b = box.getBoundingClientRect(), i = info.getBoundingClientRect()
+            const t = box.querySelector(':scope > .node-value-text').getBoundingClientRect()
+            return [info.classList.contains('node-value-info'), h.children.length,
+              i.left >= b.left && i.right <= b.right, Math.abs(i.top - t.top) < 1,
+              t.right <= (date || info).getBoundingClientRect().left,
+              !date || Math.abs(date.getBoundingClientRect().top - t.top) < 1].join(' ')
+          }
+          """).string
+        #expect(ends == "true 1 true true true true", "the date and the info are not the box's last columns: \(String(describing: ends))")
         let frame = try await edition.evaluate(
           """
           (item) => {
@@ -110,7 +128,7 @@ struct RecordTreeTests {
         #expect(restRing == "rest", "the marker is not ringed as an avatar is: \(restRing)")
 
         // The spine: one line down the tree's start, a thread's, through
-        // the middle of every marker, from under the first marker to 16px
+        // the middle of every marker, from under the first marker to 32px
         // past the last node's foot.
         let spine = try await tree.locator(":scope > .outliner-list").evaluate(
           """
@@ -122,7 +140,11 @@ struct RecordTreeTests {
               Math.round(parseFloat(s.bottom))].join(' ')
           }
           """).string
-        #expect(spine == "1px true true -16", "the tree has no continuous spine: \(String(describing: spine))")
+        #expect(spine == "1px true true -32", "the tree has no continuous spine: \(String(describing: spine))")
+        // The hang is the tree's own room (user, 2026-11-03): reserved at
+        // its end, so nothing after the tree meets the fade.
+        let room = try await tree.evaluate("(t) => getComputedStyle(t).paddingBottom").string
+        #expect(room == "32px", "the tree keeps no room for its spine's hang: \(String(describing: room))")
 
         // A node's stretch of it: from directly under its marker, beside
         // its body and the rows under it, darkening under the pointer.
@@ -157,6 +179,13 @@ struct RecordTreeTests {
         try await summary.click()
         try await expect(edition).toHaveAttribute("data-outliner-collapsed", "false")
         try await expect(manifest).toBeVisible()
+        // Nor does its info, its own control: a click opens its tooltip.
+        try await heading.locator(".node-value-info").first.click()
+        try await expect(page.locator(".tooltip-view[data-portal='true'][data-visible='true'] .tooltip-content"))
+          .toHaveCount(1)
+        try await expect(edition).toHaveAttribute("data-outliner-collapsed", "false")
+        try await expect(manifest).toBeVisible()
+        try await page.keyboard.press("Escape")
         // One column: its body under its heading, from the tree's one x
         // right after the marker (its disc and 16px in, `OutlinerView.markerSpace`),
         // whatever its number.
@@ -235,7 +264,7 @@ struct RecordTreeTests {
     try await admin.remove()
   }
 
-  /// The tree's last node in sight: its stretch (its rail) runs 16px on
+  /// The tree's last node in sight: its stretch (its rail) runs 32px on
   /// below its foot, as the spine does, both fading out to nothing there,
   /// and folds or opens it under the pointer.
   static func expectHanging(below item: Locator) async throws {
@@ -253,6 +282,6 @@ struct RecordTreeTests {
       }
       """
     ).string
-    #expect(hang == "pointer 16 -16 true true", "the last node's stretch does not hang below it, fading: \(String(describing: hang))")
+    #expect(hang == "pointer 32 -32 true true", "the last node's stretch does not hang below it, fading: \(String(describing: hang))")
   }
 }

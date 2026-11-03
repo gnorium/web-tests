@@ -429,6 +429,33 @@ struct LexicographicAmendmentTests {
         // The others stay open.
         try await expect(form.locator(".outliner-item[data-outliner-id='s-1']")).toHaveAttribute(
           "data-sentiment-frozen", "false")
+        // Drawn disabled in the disabled tokens, never faded (user,
+        // 2026-11-03): its Value box a disabled field's ground, its
+        // accordions' headers and its labels the disabled color, its
+        // marker ringed in the disabled border; its info still its own.
+        let drawn = try await item.evaluate(
+          """
+          (i) => {
+            const row = i.querySelector(':scope > .outliner-row')
+            const token = (property, name) => {
+              const p = document.createElement('span'); p.style[property] = `var(${name})`
+              document.body.append(p); const v = getComputedStyle(p)[property]; p.remove(); return v
+            }
+            const disabled = token('color', '--color-disabled')
+            const field = row.querySelector('.sentiment-value-view textarea')
+            const marker = row.querySelector('.record-node-marker')
+            const faded = [row.querySelector('.record-node-view'), ...row.querySelectorAll('.accordion-content, .accordion-summary, .sentiment-fields-view')]
+              .some(e => getComputedStyle(e).opacity !== '1')
+            return [
+              getComputedStyle(field).backgroundColor === token('backgroundColor', '--background-color-disabled'),
+              getComputedStyle(row.querySelector('.metadata-accordion .accordion-title')).color === disabled,
+              [...row.querySelectorAll('.label-text, .dropdown-label-text')].every(l => getComputedStyle(l).color === disabled),
+              getComputedStyle(marker, '::after').borderTopColor === token('borderTopColor', '--border-color-disabled'),
+              faded, row.querySelector('.node-value-info').closest('[inert]') === null
+            ].join(' ')
+          }
+          """).string
+        #expect(drawn == "true true true true false true", "the held sentiment is not drawn disabled: \(String(describing: drawn))")
 
         // Stepped to, "− Sentiment 1.1." is disabled, the palinode's whole
         // UUID its tooltip's one link.

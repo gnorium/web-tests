@@ -5,8 +5,8 @@ import WebTestsTesting
 
 /// Every testament has its own UUID (user, 2026-10-12;
 /// design-notes/node-uuids.md): a freshly made madrigal and its record read
-/// their stored trees, and each testament's header ends with an info
-/// tooltip holding its whole UUID, its row named by it.
+/// their stored trees, and each testament's value box ends with an info
+/// tooltip holding its whole UUID (user, 2026-11-03), its row named by it.
 @Suite("Node UUIDs", .serialized)
 struct NodeUUIDsTests {
   @Test(arguments: gnorium.engines)
@@ -27,7 +27,7 @@ struct NodeUUIDsTests {
       try await page.openHydrated(work.path)
       let row = page.locator("#record-row-\(edition)")
       try await expect(row).toHaveCount(1)
-      let tip = row.locator(".record-node-uuid").first
+      let tip = row.locator(".node-value-box > .node-value-info").first
       let before = try await row.evaluate("(d) => d.open")
       try await tip.click()
       try await expect(page.locator(".tooltip-view[data-portal='true'][data-visible='true'] .tooltip-content"))
