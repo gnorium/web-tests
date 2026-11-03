@@ -3,20 +3,22 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A header's controls stand on its FIRST line (user, 2026-11-01): the
-/// accordion's controls (its chevron) are one group one line high at the
-/// header's top, beside a record row's number and info icon, never centered
-/// on a wrapped block. A compact (minimal) header keeps its one line
-/// centered in the pointer's target; a control taller than a line (an
-/// outline's grip) stands centered on that same first line.
-@Suite("Record row header", .serialized)
-struct RecordRowHeaderTests {
+/// A header's controls stand on its FIRST line (user, 2026-11-01): a
+/// record node's number (centered on the tree's spine beside it, user
+/// 2026-11-03), info icon and grip are level at the header's top, never
+/// centered on a wrapped block; a tree node's header has no chevron, its
+/// number folds it. A compact (minimal) header keeps its one line
+/// centered in the pointer's target, its chevron on that line; a control
+/// taller than a line (an outline's grip) stands centered on the first
+/// line.
+@Suite("Record node header", .serialized)
+struct RecordNodeHeaderTests {
   /// Each top and center, from the summary's top.
   struct Marks: Decodable {
     let lines: Double
     let number: Double
     let info: Double?
-    let chevron: Double
+    let chevron: Double?
     let handleCenter: Double?
     let numberCenter: Double
   }
@@ -26,11 +28,14 @@ struct RecordRowHeaderTests {
   static func measure(_ scope: String) -> String {
     """
     (() => {
+      // Its number stands beside its header, centered on the tree's spine
+      // (user, 2026-11-03), on the header's first line.
+      const own = s => s.parentElement.closest('.record-node-view')
       const summary = [...document.querySelectorAll('\(scope) .accordion-summary')]
-        .find(s => s.querySelector('.record-row-number'))
+        .find(s => s.querySelector('.record-node-heading') && own(s) && own(s).querySelector(':scope > .record-node-anchor .record-node-number'))
       // Its value's box (user, 2026-11-02): the text inside its inset, a
       // field's where it is edited, the read box's words where it is read.
-      const title = summary.querySelector('.record-row-heading .node-value-view :is(textarea, .node-value-box)')
+      const title = summary.querySelector('.record-node-heading .node-value-view :is(textarea, .node-value-box)')
       const long = 'The London bookseller and publisher John Trundell, who printed the first quarto '
         + 'of Hamlet with Nicholas Ling in 1603, and whose shop stood at the sign of the Barbican.'
       if (title.matches('textarea')) title.value = long
@@ -39,12 +44,15 @@ struct RecordRowHeaderTests {
       const box = el => el ? el.getBoundingClientRect() : null
       const top = el => el ? box(el).top - origin : null
       const center = el => el ? box(el).top + box(el).height / 2 - origin : null
-      const number = summary.querySelector('.record-row-number')
+      const number = own(summary).querySelector(':scope > .record-node-anchor .record-node-number')
       return {
         lines: Math.round(title.clientHeight / parseFloat(getComputedStyle(title).lineHeight)) - 1,
         number: top(number),
-        info: top(summary.querySelector('.record-row-uuid svg')),
-        chevron: top(summary.querySelector('.accordion-expand-icon svg')),
+        info: top(summary.querySelector('.record-node-uuid svg')),
+        // A tree node's header has none: its number folds it (user,
+        // 2026-11-03).
+        chevron: (svg => svg && svg.getBoundingClientRect().height > 0 ? top(svg) : null)(
+          summary.querySelector('.accordion-expand-icon svg')),
         handleCenter: center(summary.querySelector('.outliner-handle')),
         numberCenter: center(number)
       }
@@ -57,7 +65,7 @@ struct RecordRowHeaderTests {
     if let info = marks.info {
       #expect(abs(info - marks.number) < 1, "info icon \(info) vs number \(marks.number)")
     }
-    #expect(abs(marks.chevron - marks.number) < 1, "chevron \(marks.chevron) vs number \(marks.number)")
+    #expect(marks.chevron == nil, "a tree node's header has a chevron")
     if let handle = marks.handleCenter {
       #expect(abs(handle - marks.numberCenter) < 1, "grip center \(handle) vs number center \(marks.numberCenter)")
     }
@@ -72,8 +80,8 @@ struct RecordRowHeaderTests {
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(word.path)
-        try await expect(page.locator(".record-row-view .record-row-uuid").first).toBeVisible()
-        let marks = try await page.evaluate(Self.measure(".record-row-view"), as: Marks.self)
+        try await expect(page.locator(".record-node-view .record-node-uuid").first).toBeVisible()
+        let marks = try await page.evaluate(Self.measure(".record-node-view"), as: Marks.self)
         #expect(marks.info != nil, "the row has no info icon")
         Self.expectFirstLine(marks)
       }
@@ -153,7 +161,7 @@ struct RecordRowHeaderTests {
   }
 
   /// An outline row (the amendment form): its grip is taller than a line,
-  /// and still its number, grip, info icon and chevron share the first line.
+  /// and still its number, grip and info icon share the first line.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aGripTallerThanALineStaysOnTheFirstLine(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -164,8 +172,8 @@ struct RecordRowHeaderTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("\(word.path)/amendments/new")
         let outline = page.locator(".sentiment-outliner-view")
-        try await expect(outline.locator(".record-row-view .outliner-handle").first).toBeVisible()
-        let marks = try await page.evaluate(Self.measure(".sentiment-outliner-view .record-row-view"), as: Marks.self)
+        try await expect(outline.locator(".record-node-view .outliner-handle").first).toBeVisible()
+        let marks = try await page.evaluate(Self.measure(".sentiment-outliner-view .record-node-view"), as: Marks.self)
         #expect(marks.handleCenter != nil, "the row has no grip")
         Self.expectFirstLine(marks)
       }

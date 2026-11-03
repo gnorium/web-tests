@@ -27,7 +27,7 @@ struct NodeUUIDsTests {
       try await page.openHydrated(work.path)
       let row = page.locator("#record-row-\(edition)")
       try await expect(row).toHaveCount(1)
-      let tip = row.locator(".record-row-uuid").first
+      let tip = row.locator(".record-node-uuid").first
       let before = try await row.evaluate("(d) => d.open")
       try await tip.click()
       try await expect(page.locator(".tooltip-view[data-portal='true'][data-visible='true'] .tooltip-content"))

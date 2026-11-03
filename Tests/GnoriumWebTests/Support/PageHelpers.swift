@@ -2,27 +2,26 @@ import Foundation
 import WebTests
 
 extension Page {
-  /// Fails where a reader is clipped (user, 2026-11-02: past the screen the
-  /// page widens, so a phone pinches out to see it whole): its footer one
-  /// row, never scrolling on its own; no ancestor of an
-  /// artifact that hides or scrolls overflow is narrower than it, the
-  /// document is as wide as every artifact, and the page's fixed and sticky
-  /// chrome stays on screen scrolled fully sideways.
+  /// Fails where a reader is clipped or widens the page (user, 2026-11-03:
+  /// the page never widens for it; its footer is one row that scrolls
+  /// sideways inside itself where its controls do not fit): its footer one
+  /// row, scrolling on its own; the reader no wider than the screen; no
+  /// ancestor of it that hides or scrolls overflow narrower than it; and the
+  /// page's fixed and sticky chrome on screen scrolled fully sideways.
   func expectArtifactsUnclipped(file: String = #fileID, filePath: String = #filePath, line: Int = #line) async throws {
     let problems = try await evaluate(
       """
       (() => {
         const out = [];
-        const docRight = document.documentElement.scrollWidth;
         for (const v of document.querySelectorAll('.artifact-view')) {
           if (!v.getClientRects().length) continue;
           const r = v.getBoundingClientRect();
-          if (r.right + scrollX > docRight + 1) out.push('document narrower than a reader');
+          if (r.right + scrollX > innerWidth + 1) out.push('a reader wider than the screen');
           const footer = v.querySelector('.artifact-footer');
           const items = footer ? [...footer.children].filter((c) => c.getClientRects().length > 0) : [];
           if (items.length && !items.every((c) => Math.abs(c.getBoundingClientRect().top - items[0].getBoundingClientRect().top) < 2))
             out.push('a footer on two rows');
-          if (footer && footer.scrollWidth > footer.clientWidth + 1) out.push('a footer scrolling on its own');
+          if (footer && getComputedStyle(footer).overflowX !== 'auto') out.push('a footer that cannot scroll on its own');
           for (let e = v.parentElement; e && e !== document.body; e = e.parentElement) {
             const ox = getComputedStyle(e).overflowX;
             if (ox === 'visible') continue;
@@ -51,52 +50,6 @@ extension Page {
     if !problems.isEmpty {
       throw WebTestError(
         "Clipped on \((try? await url()) ?? "the page"): \(problems)",
-        location: CodeLocation(fileID: file, filePath: filePath, line: line, column: 1))
-    }
-  }
-
-  /// Fails where the page scrolls sideways for anything but a tree or an
-  /// artifact (user, 2026-11-02: a deep tree widens the page, so a phone
-  /// pinches out to see it whole, and an artifact is never narrower than
-  /// its one-row footer): past the screen, every element sticking out is
-  /// inside an `.outliner-view` or an `.artifact-view`, and the page is no
-  /// wider than its widest tree or artifact needs, never more.
-  func expectNoOverflowButTrees(file: String = #fileID, filePath: String = #filePath, line: Int = #line) async throws {
-    let problems = try await evaluate(
-      """
-      (() => {
-        const docRight = document.documentElement.scrollWidth;
-        if (docRight <= innerWidth + 1) return '';
-        const out = [];
-        let treeRight = innerWidth;
-        for (const t of document.querySelectorAll('.outliner-view')) {
-          if (!t.getClientRects().length) continue;
-          for (const e of [t, ...t.querySelectorAll('*')]) {
-            if (e.closest('.artifact-view') && !e.matches('.artifact-view')) continue;
-            const r = e.getBoundingClientRect();
-            if (r.width > 0) treeRight = Math.max(treeRight, r.right + scrollX);
-          }
-        }
-        // An artifact as wide as it is (its footer one row), what it holds
-        // clipped to it.
-        for (const a of document.querySelectorAll('.artifact-view')) {
-          if (!a.getClientRects().length) continue;
-          treeRight = Math.max(treeRight, a.getBoundingClientRect().right + scrollX);
-        }
-        for (const e of document.querySelectorAll('body *')) {
-          if (e.closest('.outliner-view') || e.closest('.artifact-view') || !e.getClientRects().length) continue;
-          const r = e.getBoundingClientRect();
-          if (r.width > 0 && r.right + scrollX > treeRight + 1 && ![...e.children].some((c) => c.getBoundingClientRect().right + scrollX > treeRight + 1))
-            out.push('<' + e.tagName.toLowerCase() + ' class="' + (e.className.baseVal ?? e.className) + '"> reaches ' + Math.round(r.right + scrollX));
-        }
-        if (docRight > treeRight + 1) out.unshift('the document is ' + docRight + 'px wide, its widest tree or artifact reaches ' + Math.round(treeRight));
-        return [...new Set(out)].slice(0, 8).join('; ');
-      })()
-      """
-    ).string ?? ""
-    if !problems.isEmpty {
-      throw WebTestError(
-        "Overflow past the trees on \((try? await url()) ?? "the page"): \(problems)",
         location: CodeLocation(fileID: file, filePath: filePath, line: line, column: 1))
     }
   }

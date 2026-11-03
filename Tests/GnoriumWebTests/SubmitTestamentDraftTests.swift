@@ -41,8 +41,10 @@ struct SubmitTestamentDraftTests {
 
       // Origins 1, 2 (with 2.1 under it) and 3.
       try await title("origin-1").fill("Web tests origin one")
-      let addTop = field.locator(".origin-field-add .origin-add-btn")
-      try await addTop.click()
+      // The tree's steppers add and remove (user, 2026-11-03).
+      let origins = TreeStepper(in: field)
+      let testaments = TreeStepper(page, tree: "submission-tree-outliner")
+      try await origins.add("Add origin 2.")
       try await expect(rows).toHaveCount(2)
       let second = try #require(try await rows.nth(1).getAttribute("data-origin-key"))
       try await title(second).fill("Web tests origin two")
@@ -54,17 +56,17 @@ struct SubmitTestamentDraftTests {
       try await page.keyboard.press("Escape")
       try await expect(field.locator("input[name='\(second)-relation']"))
         .toHaveValue("translation_of,abridgment_of")
-      try await page.locator("button[aria-label='Add Origin 2.1.']").click()
+      try await origins.add("Add origin 2.1.")
       try await expect(rows).toHaveCount(3)
       let nested = try #require(try await rows.nth(2).getAttribute("data-origin-key"))
       try await title(nested).fill("Web tests origin two one")
-      try await addTop.click()
+      try await origins.add("Add origin 3.")
       try await expect(rows).toHaveCount(4)
       let third = try #require(try await rows.nth(3).getAttribute("data-origin-key"))
       try await title(third).fill("Web tests origin three")
 
       // A testament node taken out: the impression (1.1).
-      try await page.locator("button.testament-draft-remove-level[aria-label='Remove Testament 1.1.']").click()
+      try await testaments.remove("Remove testament 1.1.")
       let impression = page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='2']")
       try await expect(impression).toHaveAttribute("data-outliner-removed", "true")
 
@@ -87,7 +89,7 @@ struct SubmitTestamentDraftTests {
       try await expect(title(second)).toHaveValue("Web tests origin two")
       try await expect(title(nested)).toHaveValue("Web tests origin two one")
       try await expect(title(third)).toHaveValue("Web tests origin three")
-      try await expect(field.locator(".origin-field-steps .record-row-number")).toHaveTexts(["1", "2", "2.1", "3"])
+      try await expect(field.locator(".origin-field-steps .record-node-number")).toHaveTexts(["1", "2", "2.1", "3"])
       // 2.1 stands under origin 2.
       let parent = try await rows.nth(2).evaluate(
         "(row) => row.closest('.outliner-item').parentElement.closest('.outliner-item').querySelector('[data-origin-row]').dataset.originKey"
@@ -95,8 +97,8 @@ struct SubmitTestamentDraftTests {
       #expect(parent == second, "2.1 is under origin 2")
       try await expect(field.locator("input[name='\(second)-relation']")).toHaveValue("translation_of,abridgment_of")
       try await expect(relation.locator(".dropdown-selected-text")).toContainText("Abridgment")
-      try await expect(addTop).toHaveAttribute("aria-label", "Add Origin 4.")
-      try await expect(page.locator("button[aria-label='Add Origin 2.2.']")).toHaveCount(1)
+      try await expect(origins.addButton).toHaveAttribute("aria-label", "Add origin 4.")
+      #expect(try await origins.choices("add").contains("Add origin 2.2."))
       try await expect(field.locator(".origin-sentence-view")).toContainText("Web tests origin two one")
 
       // The voices and genres, each row back with its value.
@@ -112,8 +114,8 @@ struct SubmitTestamentDraftTests {
       try await expect(impression).toHaveAttribute("data-outliner-removed", "true")
       let issue = page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='3']")
       try await expect(issue).toHaveAttribute("data-outliner-removed", "false")
-      try await expect(issue.locator(":scope > .outliner-footer .testament-draft-remove-level"))
-        .toHaveAttribute("aria-label", "Remove Testament 1.1.")
+      try await expect(issue.locator(":scope > .outliner-row .record-node-number")).toHaveText("1.1")
+      #expect(try await testaments.choices("remove").contains("Remove testament 1.1."))
 
       _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
     }
@@ -185,7 +187,7 @@ struct SubmitTestamentDraftTests {
       try await expect(field.locator("input[name='origin-1-title']")).toHaveValue("Kept")
       try await expect(page.locator(".outliner-item[data-testament-draft='true'][data-outliner-removed='true']"))
         .toHaveCount(0)
-      try await field.locator(".origin-field-add .origin-add-btn").click()
+      try await TreeStepper(in: field).add("Add origin 2.")
       try await expect(field.locator("[data-origin-row='true']")).toHaveCount(2)
       _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
     }
@@ -215,23 +217,25 @@ struct SubmitTestamentDraftTests {
       try await expect(voices).toHaveCount(2)
       try await voices.nth(1).locator(".combobox-view input[type='text']").first.fill("Web tests Voice Two")
       try await title("origin-1").fill("Web tests origin one")
-      let addTop = field.locator(".origin-field-add .origin-add-btn")
-      try await addTop.click()
+      // The tree's steppers add and remove (user, 2026-11-03).
+      let origins = TreeStepper(in: field)
+      let testaments = TreeStepper(page, tree: "submission-tree-outliner")
+      try await origins.add("Add origin 2.")
       try await expect(rows).toHaveCount(2)
       let second = try #require(try await rows.nth(1).getAttribute("data-origin-key"))
       try await title(second).fill("Web tests origin two")
-      try await page.locator("button[aria-label='Add Origin 2.1.']").click()
+      try await origins.add("Add origin 2.1.")
       try await expect(rows).toHaveCount(3)
       let nested = try #require(try await rows.nth(2).getAttribute("data-origin-key"))
       try await title(nested).fill("Web tests origin two one")
-      try await addTop.click()
+      try await origins.add("Add origin 3.")
       try await expect(rows).toHaveCount(4)
       let third = try #require(try await rows.nth(3).getAttribute("data-origin-key"))
       try await title(third).fill("Web tests origin three")
       let carrier = page.locator(".dropdown-view:has(#testament-carrier)")
       try await carrier.locator(".dropdown-trigger").click()
       try await carrier.locator(".dropdown-option[data-value='print']").click()
-      try await page.locator("button.testament-draft-remove-level[aria-label='Remove Testament 1.1.']").click()
+      try await testaments.remove("Remove testament 1.1.")
       let impression = page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='2']")
       try await expect(impression).toHaveAttribute("data-outliner-removed", "true")
       // No kept draft to fall back on: only the post brings them back.
@@ -256,8 +260,8 @@ struct SubmitTestamentDraftTests {
       try await expect(title(second)).toHaveValue("Web tests origin two")
       try await expect(title(nested)).toHaveValue("Web tests origin two one")
       try await expect(title(third)).toHaveValue("Web tests origin three")
-      try await expect(field.locator(".origin-field-steps .record-row-number")).toHaveTexts(["1", "2", "2.1", "3"])
-      try await expect(addTop).toHaveAttribute("aria-label", "Add Origin 4.")
+      try await expect(field.locator(".origin-field-steps .record-node-number")).toHaveTexts(["1", "2", "2.1", "3"])
+      try await expect(origins.addButton).toHaveAttribute("aria-label", "Add origin 4.")
       try await expect(voices).toHaveCount(2)
       try await expect(page.locator("input[name='work-voice-item2-text-input']")).toHaveValue("Web tests Voice Two")
       try await expect(page.locator("#testament-carrier")).toHaveValue("print")

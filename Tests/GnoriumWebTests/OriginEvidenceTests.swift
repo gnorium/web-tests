@@ -166,8 +166,8 @@ struct OriginEvidenceTests {
         // so nothing moves under the next press.
         try await expect(card.locator(".quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
           .toHaveCount(1)
-        // Removed by its own "− Source", added again.
-        try await citation.locator(".quote-passage-actions .quote-passage-source-remove").click()
+        // Removed by its own "− Citation", added again.
+        try await citation.locator(".quote-passage-actions .quote-passage-citation-remove").click()
         try await expect(card).toHaveCount(0)
         try await add.click()
         try await expect(card).toHaveCount(1)
@@ -186,7 +186,7 @@ struct OriginEvidenceTests {
         // into.
         try await page.addForm(in: card, from: ".quote-typed-word[data-typed-word='2']")
         try await expect(card.locator(".quote-typed-word[data-highlight='title']")).toHaveText("quartos")
-        try await page.expectNoOverflowButTrees()
+        try await page.expectNoHorizontalOverflow()
         if let folder = ProcessInfo.processInfo.environment["NOTE_SCREENSHOTS"] {
           _ = try await card.evaluate("(el) => el.scrollIntoView({ block: 'center' })")
           try await page.screenshot(

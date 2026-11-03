@@ -61,8 +61,9 @@ struct AmendmentInsertionTests {
         let edition = page.locator(".outliner-item[data-outliner-id^='edition-']:not([data-testament-draft])")
         let copy = page.locator(".outliner-item[data-outliner-id^='copy-']:not([data-testament-draft])")
         let impression = page.locator(".outliner-item[data-outliner-id='impression-new']")
-        let add = edition.locator(":scope > .outliner-footer .testament-outliner-add-own").first
-        let remove = impression.locator(":scope > .outliner-footer .testament-draft-remove-level").first
+        // The tree's one row of steppers adds and takes out (user,
+        // 2026-11-03).
+        let stepper = TreeStepper(page, tree: "testament-outliner")
         // The witness the nodes are named for.
         let editionID = try #require(try await edition.first.getAttribute("data-outliner-id"))
         let witness = String(editionID.dropFirst("edition-".count))
@@ -70,39 +71,40 @@ struct AmendmentInsertionTests {
           try await page.locator("input[name='shape']").first.inputValue()
         }
         func number(_ item: Locator) -> Locator {
-          item.locator(":scope > .outliner-row .record-row-number").first
+          item.locator(":scope > .outliner-row .record-node-number").first
         }
 
-        // The edition's own "+ Testament", as it looks everywhere; a new
-        // node out of the outline until it is asked for.
+        // "+ Testament 1.2." under the edition, after its copy, as it looks
+        // everywhere; a new node out of the outline until it is asked for.
         try await expect(impression).toBeHidden()
         try await expect(page.locator("#testament-outliner .outliner-item[data-testament-draft='true']"))
           .toHaveCount(0)
-        try await expect(add).toHaveText("Testament 1.2.")
-        try await expect(add).toHaveAttribute("aria-label", "Add Testament 1.2.")
+        #expect(try await stepper.choose("add", "Add testament 1.2."))
+        try await expect(stepper.addButton).toHaveText("Testament 1.2.")
 
         // A new child at the next level, after the one it has: 1.2, the
         // copy still 1.1.
-        try await add.click()
+        try await stepper.add("Add testament 1.2.")
         try await expect(impression).toBeVisible()
         try await expect(number(impression)).toHaveText("1.2")
         try await expect(number(copy)).toHaveText("1.1")
-        // The amendment's one testament: the others' fields frozen, no
-        // other + offered.
+        // The amendment's one testament: the others' fields frozen, and a
+        // new node offered only under it.
         try await expect(edition.locator(":scope > .outliner-row .testament-outliner-node"))
           .toHaveAttribute("data-testament-frozen", "true")
-        try await expect(add).toBeHidden()
+        let offered = try await stepper.choices("add")
+        #expect(!offered.isEmpty && offered.allSatisfy { $0.hasPrefix("Add testament 1.2.") }, "\(offered)")
         try await expect(page.locator(".testament-outliner-hint[data-hint='add']")).toBeVisible()
 
-        // Taken out again by its own −.
-        try await remove.click()
+        // Taken out again by "− Testament 1.2.".
+        try await stepper.remove("Remove testament 1.2.")
         try await expect(impression).toBeHidden()
-        try await expect(add).toBeVisible()
+        try await expect(stepper.addButton).toBeEnabled()
         #expect(!(try await shape()).contains("impression-"))
 
         // In again, and the copy moved into it: picked up by its grip, moved
         // after it, put under it.
-        try await add.click()
+        try await stepper.add("Add testament 1.2.")
         try await expect(number(impression)).toHaveText("1.2")
         let grip = copy.locator(":scope > .outliner-row .outliner-handle").first
         // The grip a medium button's target, a size down on a phone (user,
@@ -132,7 +134,7 @@ struct AmendmentInsertionTests {
         // Filled: its row named by its statement, and submitted as the
         // impression inserted over the copy, named for it.
         try await impression.locator("[name='impression']").first.fill("Second impression")
-        try await expect(impression.locator(":scope > .outliner-row .record-row-heading .node-value-view textarea").first)
+        try await expect(impression.locator(":scope > .outliner-row .record-node-heading .node-value-view textarea").first)
           .toHaveValue("Second impression")
         // Its one act: no other testament changed (user, 2026-10-22: one
         // node per object).
@@ -173,7 +175,7 @@ struct AmendmentInsertionTests {
         let count = try TestAdmin.query("SELECT count(*) FROM biblio_record_versions WHERE biblio_record_id = '\(record)';").trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(count == "2", "The amendment has one new published version")
         try await page.expectNoErrors()
-        try await page.expectNoOverflowButTrees()
+        try await page.expectNoHorizontalOverflow()
       }
     } catch {
       clean()

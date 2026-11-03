@@ -208,7 +208,7 @@ struct DashboardLayoutTests {
       try await expect(page.locator("#apparatus-metadata")).toContainText("Voices")
       #expect(try await page.evaluate("""
         (()=>{const meta=document.querySelector('.record-metadata-change > .metadata-accordion-view > .accordion-view');
-          const tree=document.querySelector('[data-tree-change=added] > .sentiment-view > .record-row-view > .accordion-view');
+          const tree=document.querySelector('[data-tree-change=added] > .sentiment-view > .record-node-view > .accordion-view');
           const treeFrame=tree?.closest('.outliner-item[data-outliner-accordion=true]');
           const fields=[...document.querySelectorAll('#apparatus-metadata [data-metadata-added=true]')];
           const probe=document.createElement('span');probe.style.borderColor='var(--border-color-green)';document.body.append(probe);

@@ -7,9 +7,9 @@ import WebTestsTesting
 /// 2026-09-29, 2026-10-08): headed by the record a link over its words puts
 /// it to, linked; its Term (as printed, lemma, class, language); the record
 /// at a glance; then Words, each word an accordion with every row of its own
-/// gloss, the one opened expanded. Phone and desktop, the page no wider
-/// than its tree and its reader need (user, 2026-11-02: an artifact never
-/// narrower than its one-row footer, a deep tree widening the page).
+/// gloss, the one opened expanded. Phone and desktop, the page never wider
+/// than the screen (user, 2026-11-03: a reader's footer scrolls inside
+/// itself, a flat tree wraps).
 /// Scratch rows made and removed by SQL.
 @Suite("Gloss phrases", .serialized)
 struct GlossPhraseTests {
@@ -51,7 +51,7 @@ struct GlossPhraseTests {
         try await page.openHydrated(scratch.reading.work.path)
         _ = try await page.evaluate(
           """
-          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-row')
+          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-node')
             .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
           """)
         // Its words are clicked once it has opened: while it grows, what
@@ -107,7 +107,7 @@ struct GlossPhraseTests {
             """)
           #expect(fits.string == "true,true,true,true", "\(fits)")
         }
-        try await page.expectNoOverflowButTrees()
+        try await page.expectNoHorizontalOverflow()
         try await page.keyboard.press("Escape")
         try await expect(sheet).toHaveAttribute("data-state", "closed")
         try await page.expectNoErrors(ignoring: ["Failed to fetch"])

@@ -55,7 +55,7 @@ struct FormRuleTests {
     #expect(placed["onRule"].bool == true, "the switch is not on the rule")
     // Pressed, every accordion opens: the new node's, closed by hand first.
     let control = box.locator(".apparatus-rule-view .verbose-toggle-button-control")
-    try await box.locator("[data-submission-draft='true'] .record-row > .accordion-details > .accordion-summary")
+    try await box.locator("[data-submission-draft='true'] .record-node > .accordion-details > .accordion-summary")
       .first.click()
     try await expect(box.locator(".accordion-details[data-expanded='false']").first).toBeAttached()
     try await expect(control).toHaveAttribute("aria-pressed", "false")

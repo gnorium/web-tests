@@ -285,7 +285,7 @@ struct EntriesAndCitationsTests {
         original.insert(contentsOf: """
           <script>
           (() => {
-            const row = document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-row');
+            const row = document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-node');
             row.setAttribute('data-early-reader', 'true');
             row.closest('.outliner-item').setAttribute('data-early-reader-item', 'true');
             const details = row.querySelector(':scope > .accordion-details');

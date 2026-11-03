@@ -95,7 +95,7 @@ struct OriginDiffTests {
         let moved = diff.locator(".origin-diff-node[data-tree-change='changed']")
         try await expect(moved).toHaveCount(1)
         try await expect(moved).toContainText("webtestsmoved")
-        try await expect(moved.locator(".record-row-view .diff-view").first).toContainText("4→1")
+        try await expect(moved.locator(".record-node-view .diff-view").first).toContainText("4→1")
         try await expect(diff.locator(".origin-diff-node[data-tree-change='removed']")).toHaveCount(1)
         // The edit is one step, open on the form's own fields: each changed
         // one framed, its "Diff:" line under it.
@@ -110,12 +110,13 @@ struct OriginDiffTests {
         try await expect(lines.nth(2)).toContainText("to bend")
         try await expect(changed.locator("input[name$='-meaning']")).toHaveCount(1)
         // Frames of the diff's own tokens, a border and an outline of one
-        // color; no card tinted; the added step's fields green.
+        // color, a node's round the flat node; none tinted; the added step's
+        // fields green.
         let colors = try await diff.evaluate(
           """
           (root) => {
-            // The card's frame: its outline item's border, round the whole
-            // card (its own accordion draws none).
+            // The node's frame: the ring its outline item draws round the
+            // whole flat node, its ::after (its own accordion draws none).
             const card = (frame) => root.querySelector(
               `.origin-diff-node[data-tree-change='${frame}']`).closest('.outliner-item');
             const probe = (name) => {
@@ -127,7 +128,7 @@ struct OriginDiffTests {
               return color;
             };
             const ring = (el, name) => {
-              const style = getComputedStyle(el);
+              const style = getComputedStyle(el, el.matches('.outliner-item') ? '::after' : null);
               return style.borderTopColor === probe(name) && style.outlineColor === probe(name)
                 && style.outlineStyle === 'solid' && style.outlineWidth === style.borderTopWidth
                 && style.boxShadow === 'none';

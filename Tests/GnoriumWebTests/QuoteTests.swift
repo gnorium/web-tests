@@ -64,14 +64,14 @@ struct QuoteTests {
         let row = page.locator("#record-row-\(scratchWord.leaf)")
         let attestation = row.locator(".attestation-view")
         // Its first attestation against the margin, in the house style.
-        try await expect(row.locator(".record-row-date").first).toHaveText("AD 1901")
+        try await expect(row.locator(".record-node-date").first).toHaveText("AD 1901")
         // Closed, its quote is not fetched.
         try await expect(row.locator(".attestation-quote")).toHaveAttribute("data-loaded", "false")
         let fetchedBefore = try await page.evaluate(
           "performance.getEntriesByType('resource').filter(e => e.name.includes('/quote?')).length")
         #expect(fetchedBefore == .number(0))
 
-        try await page.locator("#record-row-\(scratchWord.leaf) > .accordion-summary").click()
+        try await page.locator("#record-row-\(scratchWord.leaf)-fold").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
         let quote = attestation.locator(".testament-view")
         try await expect(quote).toHaveCount(1)

@@ -11,7 +11,9 @@ import WebTestsTesting
 /// all (n)", n its live assigned quotes, leading to the biblio-records'
 /// quotes filtered by its UUID, the filter shown in the filter bar. The
 /// sidebar counts the sentiments per level, with their marks, as visible
-/// text. Phone and desktop: past the screen the page widens, nothing clipped. A throwaway admin
+/// text. Phone and desktop: the page never wider than the screen, the
+/// reader's footer one row that scrolls inside itself where it does not
+/// fit (user, 2026-11-03). A throwaway admin
 /// owns a scratch work with a permitted testament, a scratch word attested
 /// in it and the word's assignment, made by SQL and removed after. Chrome
 /// headless.
@@ -93,7 +95,7 @@ struct LexicoRecordArtifactsTests {
         try await page.openHydrated(scratchWord.path)
 
         let row = page.locator("#record-row-\(scratchWord.leaf)")
-        try await page.locator("#record-row-\(scratchWord.leaf) > .accordion-summary").click()
+        try await page.locator("#record-row-\(scratchWord.leaf)-fold").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
         let attestation = row.locator(".attestation-view")
         let viewer = attestation.locator(".artifact-view")
@@ -110,19 +112,25 @@ struct LexicoRecordArtifactsTests {
         // Its Header switch present, off at first.
         try await expect(viewer.locator(".artifact-header-toggle")).toHaveCount(1)
         try await expect(viewer).toHaveAttribute("data-header", "false")
-        // Its footer one row, never scrolling on its own, the viewer as wide
-        // as it; past the screen the page widens, nothing clipped.
+        // Its footer one row, scrolling sideways inside itself where its
+        // controls do not fit; neither it nor the viewer ever widens the
+        // page (user, 2026-11-03).
         let footer = try await viewer.evaluate(
           """
           (v) => { const f = v.querySelector('.artifact-footer');
             const items = [...f.children].filter((c) => c.getClientRects().length > 0);
             const top = items[0].getBoundingClientRect().top;
             return [items.every((c) => Math.abs(c.getBoundingClientRect().top - top) < 2),
-              f.scrollWidth <= f.clientWidth + 1, v.getBoundingClientRect().width + 1 >= f.scrollWidth,
-              !!v.closest('.outliner-scroll'), Math.round(v.getBoundingClientRect().width)].join(' '); }
+              getComputedStyle(f).overflowX === 'auto',
+              f.getBoundingClientRect().right <= v.getBoundingClientRect().right + 1,
+              v.getBoundingClientRect().right <= innerWidth + 1,
+              document.documentElement.scrollWidth <= innerWidth + 1,
+              f.scrollWidth, f.clientWidth, Math.round(v.getBoundingClientRect().width)].join(' '); }
           """
         ).string ?? ""
-        #expect(footer.hasPrefix("true true true"), "the footer one row, the viewer as wide: \(footer)")
+        #expect(
+          footer.hasPrefix("true true true true true"),
+          "the footer one row, scrolling inside a viewer within the page: \(footer)")
 
         // Its XML switch is its own (a sentiment's value is its header, no
         // box of its own to switch: 2026-10-28).

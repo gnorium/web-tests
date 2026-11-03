@@ -159,7 +159,7 @@ struct ReaderHeaderTests {
         try await page.openHydrated(work.path)
         _ = try await page.evaluate(
           """
-          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-row')
+          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-node')
             .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
           """)
         try await expect(page.locator(".artifact-view .artifact-canvas-label").first).toHaveText("p1")
@@ -188,7 +188,7 @@ struct ReaderHeaderTests {
         try await page.openHydrated(work.path)
         _ = try await page.evaluate(
           """
-          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-row')
+          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-node')
             .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
           """)
         try await expect(page.locator(".artifact-view .artifact-canvas-label").first).toHaveText("iv")

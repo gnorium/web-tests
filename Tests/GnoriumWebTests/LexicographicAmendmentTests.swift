@@ -5,10 +5,12 @@ import WebTestsTesting
 
 /// A lexico-record's amendment (user, 2026-10-21): `<record path>/amendments/new`
 /// is the record's page in edit mode—its sentiments in the outline (each
-/// row's handle, its fields, and at its foot its "− Sentiment", which a
-/// dialog confirms and "+ Sentiment" undoes, as a testament's; no merge and
-/// no split, user, 2026-10-22), a new sentiment a draft row in the tree,
-/// placed by the outline and founded on a quote (user, 2026-11-02)—and Submit files a lexicographic palinode, frozen (submitted: no
+/// row's handle and its fields; the tree's one row of steppers after it,
+/// "‹ − Sentiment 1.1. ›", which a dialog confirms and the same button,
+/// "+ Sentiment 1.1.", undoes, as a testament's, user 2026-11-03; no merge
+/// and no split, user, 2026-10-22), a new sentiment a draft row in the
+/// tree, placed by "‹ + Sentiment 1.2. ›" and founded on a quote (user,
+/// 2026-11-02)—and Submit files a lexicographic palinode, frozen (submitted: no
 /// Revise, no Permit, no thread), and creates its overture (user,
 /// 2026-10-22), whose page says what it removes, offers Revise, and for an
 /// admin Permit. An amendment is about ONE sentiment (user, 2026-10-22), as
@@ -45,13 +47,13 @@ struct LexicographicAmendmentTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("\(word.path)/amendments/new")
         // The record's page in edit mode: its sentiments in the outline,
-        // each with its controls at its foot.
+        // the tree's one row of steppers after it.
         let form = page.locator("form.submit-lexicographic-amendment-form")
         try await expect(form).toHaveCount(1)
         try await expect(form.locator(".form-header-view")).toContainText("Submit Amendment")
         let outline = form.locator(".sentiment-outliner-view")
         try await expect(outline.locator("input[name='sentiment-shape']")).toHaveCount(1)
-        let leaf = outline.locator(".sentiment-outliner-controls[data-sentiment-id='s-1-1']")
+        let leaf = outline.locator(".sentiment-outliner-removal[data-sentiment-id='s-1-1']")
         let item = outline.locator(".outliner-item[data-outliner-id='s-1-1']")
         let dialog = page.locator(".sentiment-outliner-remove-dialog")
         try await expect(leaf).toHaveCount(1)
@@ -61,20 +63,21 @@ struct LexicographicAmendmentTests {
         let fields = item.locator(".sentiment-fields-view[data-sentiment-id='s-1-1']")
         try await expect(fields).toHaveCount(1)
         try await expect(item.locator(".sense-editor-view")).toHaveCount(0)
-        let valueBox = item.locator(".record-row-heading textarea[name$='-value']").first
+        let valueBox = item.locator(".record-node-heading textarea[name$='-value']").first
         try await expect(valueBox).toBeEnabled()
         try await expect(item.locator("textarea[name$='-note']").first).toBeAttached()
         for axis in ["grammar", "register", "domain", "region", "currency"] {
           try await expect(fields.locator(".dropdown-view:has([name$='-\(axis)'])")).toHaveCount(1)
         }
-        // Its removal is the house control, never a checkbox: the icon and
-        // the noun, "− Sentiment", the words for assistive technology.
+        // Its removal is the house control, never a checkbox: the tree's
+        // "− Sentiment 1.1.", the icon and the noun, the words for
+        // assistive technology; no sentiment has controls of its own.
         try await expect(leaf.locator("input[type='checkbox']")).toHaveCount(0)
-        let remove = leaf.locator(".sentiment-outliner-remove")
-        let restore = leaf.locator(".sentiment-outliner-restore")
-        try await expect(remove).toHaveText("Sentiment 1.1.")
-        try await expect(remove).toHaveAttribute("aria-label", "Remove Sentiment 1.1.")
-        try await expect(restore).toBeHidden()
+        try await expect(outline.locator(".sentiment-outliner-controls")).toHaveCount(0)
+        let steps = TreeStepper(page, tree: "sentiment-outline")
+        #expect(try await steps.choose("remove", "Remove sentiment 1.1."))
+        try await expect(steps.removeButton).toHaveText("Sentiment 1.1.")
+        try await expect(steps.removeButton.locator("svg.minus-icon-view")).toHaveCount(1)
         // Nothing changed yet: every sentiment is open, no hint shown, and
         // none is the amendment's.
         let branch = outline.locator(".outliner-item[data-outliner-id='s-1']")
@@ -82,11 +85,18 @@ struct LexicographicAmendmentTests {
         try await expect(item).toHaveAttribute("data-sentiment-frozen", "false")
         try await expect(outline.locator(".sentiment-outliner-hint[data-visible='true']")).toHaveCount(0)
         try await expect(outline.locator("input[name='sentiment-chosen']")).toHaveValue("")
-        // One new sentiment, a draft row in the tree, its fields always
-        // drawn: its value in its heading, its Note, its Source box; no
+        // One new sentiment, a draft row out of the tree until the tree's
+        // "+ Sentiment" places it (user, 2026-11-03), its fields drawn with
+        // it: its value in its heading, its Note, its Source box; no
         // "Under" dropdown, no section of its own.
         let draft = outline.locator(".outliner-item[data-outliner-id='new']")
-        try await expect(draft.locator(".record-row-heading [name='new-sentiment-value']")).toHaveCount(1)
+        try await expect(draft).toHaveAttribute("data-outliner-removed", "true")
+        try await expect(draft).toBeHidden()
+        // "+ Sentiment" steps through every place: under the first, after
+        // its sentiment ("1.2."), after it ("2.").
+        let places = try await steps.choices("add")
+        #expect(places.contains("Add sentiment 1.2.") && places.contains("Add sentiment 2."), "\(places)")
+        try await expect(draft.locator(".record-node-heading [name='new-sentiment-value']")).toHaveCount(1)
         try await expect(draft.locator("[name='new-sentiment-note']")).toHaveCount(1)
         try await expect(draft.locator("[name='new-sentiment-quote-s1-source-url']")).toHaveCount(1)
         try await expect(form.locator("[name='new-sentiment-parent']")).toHaveCount(0)
@@ -113,7 +123,7 @@ struct LexicographicAmendmentTests {
         try await page.expectNoHorizontalOverflow()
 
         // Cancelled: nothing removed.
-        try await remove.click()
+        try await steps.remove("Remove sentiment 1.1.")
         try await expect(dialog).toHaveAttribute("open")
         try await dialog.locator("button").filter(hasText: "Cancel").first.click()
         try await expect(dialog).not.toHaveAttribute("open")
@@ -121,7 +131,7 @@ struct LexicographicAmendmentTests {
 
         // Removed in place, out of the tree it posts; "+ Sentiment" puts
         // it back.
-        try await remove.click()
+        try await steps.remove("Remove sentiment 1.1.")
         try await dialog.locator("button").filter(hasText: "Remove").first.click()
         try await expect(item).toHaveAttribute("data-outline-state", "removed")
         try await expect(leaf.locator("input[name$='-remove']")).toHaveValue("true")
@@ -138,20 +148,21 @@ struct LexicographicAmendmentTests {
           "data-visible", "true")
         try await expect(draft).toHaveAttribute("data-sentiment-frozen", "true")
         try await expect(draft.locator(":scope > .outliner-row")).toHaveAttribute("inert", "")
-        try await expect(restore).toBeVisible()
-        try await expect(restore).toHaveText("Sentiment 1.1.")
-        try await expect(restore).toHaveAttribute("aria-label", "Restore Sentiment 1.1.")
-        try await expect(remove).toBeHidden()
-        try await restore.click()
+        try await expect(steps.removeButton).toHaveText("Sentiment 1.1.")
+        try await expect(steps.removeButton).toHaveAttribute("aria-label", "Restore sentiment 1.1.")
+        try await expect(steps.removeButton.locator("svg.plus-icon-view")).toHaveCount(1)
+        try await steps.remove("Restore sentiment 1.1.")
         try await expect(item).not.toHaveAttribute("data-outline-state", "removed")
         try await expect(leaf.locator("input[name$='-remove']")).toHaveValue("")
-        try await expect(remove).toBeVisible()
-        // Undone, every sentiment is open again.
+        try await expect(steps.removeButton).toHaveAttribute("aria-label", "Remove sentiment 1.1.")
+        // Undone, every sentiment is open again, and the new one may be
+        // placed again.
         try await expect(branch).toHaveAttribute("data-sentiment-frozen", "false")
-        try await expect(draft.locator(":scope > .outliner-row")).not.toHaveAttribute("inert", "")
+        try await expect(draft).toHaveAttribute("data-sentiment-frozen", "false")
+        #expect(try await steps.choose("add", "Add sentiment 1.2."))
 
         // The leaf removed, Submit: its overture's page.
-        try await remove.click()
+        try await steps.remove("Remove sentiment 1.1.")
         try await dialog.locator("button").filter(hasText: "Remove").first.click()
         try await expect(item).toHaveAttribute("data-outline-state", "removed")
         try await form.locator(".record-actions button[type='submit']").click()
@@ -219,14 +230,18 @@ struct LexicographicAmendmentTests {
         try await page.openHydrated("\(word.path)/amendments/new")
         let form = page.locator("form.submit-lexicographic-amendment-form")
         let outline = form.locator(".sentiment-outliner-view")
-        let leaf = outline.locator(".sentiment-outliner-controls[data-sentiment-id='s-1-1']")
+        let leaf = outline.locator(".sentiment-outliner-removal[data-sentiment-id='s-1-1']")
         let item = outline.locator(".outliner-item[data-outliner-id='s-1-1']")
         let dialog = page.locator(".sentiment-outliner-remove-dialog")
         let value = form.locator("textarea[name='new-sentiment-value']")
         let quote = form.locator("input[name='new-sentiment-quote-s1-quote']")
 
-        // A new sentiment with its quote but no source nor image: it is
-        // the amendment's one sentiment, and the others freeze.
+        // A new sentiment placed under the first by the tree's "+ Sentiment
+        // 1.2." (user, 2026-11-03), with its quote but no source nor image:
+        // it is the amendment's one sentiment, and the others freeze.
+        let steps = TreeStepper(page, tree: "sentiment-outline")
+        try await steps.add("Add sentiment 1.2.")
+        try await expect(outline.locator(".outliner-item[data-outliner-id='new']")).toBeVisible()
         try await value.fill("A slope beside water.")
         // Its sentence as its reader's text pane fills it (user, 2026-11-02).
         _ = try await quote.evaluate(
@@ -237,14 +252,9 @@ struct LexicographicAmendmentTests {
         try await expect(item).toHaveAttribute("data-sentiment-frozen", "true")
         try await expect(outline.locator(".sentiment-outliner-hint[data-hint='add']")).toHaveAttribute(
           "data-visible", "true")
-        try await expect(leaf.locator(".sentiment-outliner-actions")).toHaveAttribute("inert", "")
-        // Placed by the outline, as any row is moved: picked up by its
-        // handle, under the sentiment above it, put down.
-        let handle = outline.locator(".outliner-item[data-outliner-id='new'] .outliner-handle").first
-        try await handle.focus()
-        try await page.keyboard.press("Space")
-        try await page.keyboard.press("Tab")
-        try await page.keyboard.press("Enter")
+        // None other may go while it is in.
+        #expect(!(try await steps.choices("remove")).contains("Remove sentiment 1.1."))
+        // Placed under the first sentiment, its last, as the outline posts it.
         try await expect(outline.locator(".outliner-item[data-outliner-id='s-1'] .outliner-item[data-outliner-id='new']"))
           .toHaveCount(1)
         let placed = try await outline.locator("input[name='sentiment-shape']").inputValue()
@@ -283,13 +293,13 @@ struct LexicographicAmendmentTests {
         try await page.expectNoErrors(ignoring: ["status of 422", "HTTP 422"])
         try await page.expectNoHorizontalOverflow()
 
-        // Corrected—the new sentiment left out, so every sentiment is open
-        // again, and a leaf removed instead—it files.
-        try await value.fill("")
-        _ = try await quote.evaluate(
-          "(input) => { input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true })); return true; }")
+        // Corrected—the new sentiment taken out again by "− Sentiment 1.2.",
+        // so every sentiment is open again, and a leaf removed instead—it
+        // files.
+        try await steps.remove("Remove sentiment 1.2.")
+        try await expect(outline.locator(".outliner-item[data-outliner-id='new']")).toBeHidden()
         try await expect(item).toHaveAttribute("data-sentiment-frozen", "false")
-        try await leaf.locator(".sentiment-outliner-remove").click()
+        try await steps.remove("Remove sentiment 1.1.")
         try await dialog.locator("button").filter(hasText: "Remove").first.click()
         try await expect(item).toHaveAttribute("data-outline-state", "removed")
         try await page.locator("form.submit-lexicographic-amendment-form .record-actions button[type='submit']").click()
@@ -388,8 +398,8 @@ struct LexicographicAmendmentTests {
         // The leaf removed and submitted: its palinode holds it.
         try await page.openHydrated("\(word.path)/amendments/new")
         let form = page.locator("form.submit-lexicographic-amendment-form")
-        let leaf = form.locator(".sentiment-outliner-controls[data-sentiment-id='s-1-1']")
-        try await leaf.locator(".sentiment-outliner-remove").click()
+        let steps = TreeStepper(page, tree: "sentiment-outline")
+        try await steps.remove("Remove sentiment 1.1.")
         try await page.locator(".sentiment-outliner-remove-dialog button").filter(hasText: "Remove").first.click()
         try await form.locator(".record-actions button[type='submit']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the overture's page") {
@@ -397,20 +407,16 @@ struct LexicographicAmendmentTests {
         }
 
         // Drawn again: the held sentiment is frozen, its handle still, and
-        // its removal disabled, the open palinode in its tooltip.
+        // never one "− Sentiment" steps to.
         try await page.openHydrated("\(word.path)/amendments/new")
         let item = form.locator(".outliner-item[data-outliner-id='s-1-1']")
         try await expect(item).toHaveAttribute("data-sentiment-held", "true")
         try await expect(item).toHaveAttribute("data-sentiment-frozen", "true")
         try await expect(item.locator(".outliner-handle").first).toBeDisabled()
-        let tooltip = leaf.locator(".button-tooltip")
-        try await expect(tooltip.locator(".sentiment-outliner-remove")).toBeDisabled()
-        try await tooltip.hover()
-        let link = page.locator(".tooltip-content a[href*='/mission-control/palinodes/lexicographic/']").first
-        try await expect(link).toBeVisible()
-        let href = try await link.getAttribute("href") ?? ""
-        #expect(href.hasPrefix("/mission-control/palinodes/lexicographic/"), "\(href)")
-        let palinode = String(href.split(separator: "/").last ?? "").lowercased()
+        #expect(!(try await steps.choices("remove")).contains("Remove sentiment 1.1."))
+        let palinode = try TestAdmin.query(
+          "SELECT id FROM lexicographic_palinodes WHERE lexico_record_id = '\(record)' ORDER BY created_at DESC LIMIT 1"
+        ).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         // The others stay open.
         try await expect(form.locator(".outliner-item[data-outliner-id='s-1']")).toHaveAttribute(
           "data-sentiment-frozen", "false")
@@ -431,13 +437,6 @@ struct LexicographicAmendmentTests {
           """, as: String.self)
         #expect(answer.hasPrefix("422 "), "\(answer.prefix(80))")
         #expect(answer.contains("is held by open palinode \(palinode)"), "the refusal names the palinode")
-
-        // The link opens the palinode.
-        try await tooltip.hover()
-        try await link.click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the palinode's page") {
-          $0.path.lowercased() == "/mission-control/palinodes/lexicographic/\(palinode)"
-        }
       }
     } catch {
       try await clean()

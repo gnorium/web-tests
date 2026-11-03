@@ -32,7 +32,7 @@ struct NodeValueGlossTests {
         try await page.openHydrated(word.path)
         // The leaf's row: its accordion's <details>, by its UUID.
         let leaf = page.locator("#record-row-\(word.leaf)")
-        let box = leaf.locator(".record-row-heading .node-value-box").first
+        let box = leaf.locator(".record-node-heading .node-value-box").first
         try await expect(box.locator(".node-value-text:not([data-native])")).toHaveText(
           "A leaf sense, as in \(work.title).")
         // The term, a gloss trigger previewing the work's record.
@@ -43,7 +43,7 @@ struct NodeValueGlossTests {
         try await expect(term).toHaveAttribute("aria-haspopup", "dialog")
         try await expect(term).toHaveCSS("cursor", "help")
         // A value with no link stays plain.
-        let branch = page.locator("#record-row-\(word.branch) .record-row-heading .node-value-box").first
+        let branch = page.locator("#record-row-\(word.branch) .record-node-heading .node-value-box").first
         try await expect(branch.locator(".node-value-text:not([data-native])")).toHaveText("A branch sense.")
         try await expect(branch.locator("button")).toHaveCount(0)
         // The box is a disabled field's (`TextAreaView`'s disabled input):
@@ -51,7 +51,7 @@ struct NodeValueGlossTests {
         let look = try await page.evaluate(
           """
           (() => {
-            const box = document.querySelector('#record-row-\(word.leaf) .record-row-heading .node-value-box');
+            const box = document.querySelector('#record-row-\(word.leaf) .record-node-heading .node-value-box');
             const probe = document.createElement('div');
             probe.style.cssText = 'background-color: var(--background-color-disabled); '
               + 'border: var(--border-width-base) solid var(--border-color-disabled); '
@@ -94,7 +94,7 @@ struct NodeValueGlossTests {
         let corner = try await page.evaluate(
           """
           (() => {
-            const r = document.querySelector('#record-row-\(word.leaf) .record-row-heading .node-value-box').getBoundingClientRect();
+            const r = document.querySelector('#record-row-\(word.leaf) .record-node-heading .node-value-box').getBoundingClientRect();
             return { x: r.left + 4, y: r.top + 4 };
           })()
           """)

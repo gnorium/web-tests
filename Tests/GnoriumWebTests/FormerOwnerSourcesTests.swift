@@ -9,7 +9,7 @@ import WebTestsTesting
 /// fields, and each former owner by name as it is typed), its Source
 /// accordion holding its fields, its Quote cards (a sourceless work's
 /// text-only reader, its quote typed there) and its own row, "+ Quote" and
-/// "− Source" (user, 2026-11-03). A typed quote's words naming the claim
+/// "− Citation": a citation holds exactly one source (user, 2026-11-03). A typed quote's words naming the claim
 /// are picked as any quote's (a text selection and "+ Form"), never
 /// matched by the owner's name. The copy's list posts as JSON, each new
 /// card its claim and its Source, its forms by place.
@@ -136,13 +136,16 @@ struct FormerOwnerSourcesTests {
       let retyped = try await json.evaluate("(i) => i.value").string ?? ""
       #expect(!retyped.contains("\"forms\""), "its stale form let go: \(retyped)")
 
-      // "− Source" lets it go.
-      let remove = card.locator(".quote-passage-actions .quote-passage-source-remove")
-      try await expect(remove).toHaveText("Source")
+      // "− Citation" lets it go: a citation holds one source, never a
+      // "+ Source" (user, 2026-11-03).
+      let remove = card.locator(".quote-passage-actions .quote-passage-citation-remove")
+      try await expect(remove).toHaveText("Citation")
+      try await expect(remove).toHaveAttribute("aria-label", "Remove citation")
+      try await expect(card.locator(".quote-sources-add-btn, .quote-passage-source-remove")).toHaveCount(0)
       try await remove.click()
       try await expect(cards).toHaveCount(0)
       try await expect(json).toHaveValue("")
-      try await page.expectNoOverflowButTrees()
+      try await page.expectNoHorizontalOverflow()
       _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
       try await page.expectNoErrors()
     }
@@ -231,7 +234,7 @@ struct FormerOwnerSourcesTests {
       try await expect(source.locator(".quote-passage-fields-view"), timeout: .seconds(15))
         .toHaveAttribute("data-quote-website", "false")
       try await expect(accessed).toHaveValue("")
-      try await page.expectNoOverflowButTrees()
+      try await page.expectNoHorizontalOverflow()
       _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
       try await page.expectNoErrors()
     }

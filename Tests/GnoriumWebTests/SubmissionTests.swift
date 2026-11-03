@@ -41,7 +41,7 @@ struct SubmissionTests {
     _ = try await top.evaluate(
       """
       (el) => {
-        el.querySelectorAll('.record-row-metadata').forEach((m) => {
+        el.querySelectorAll('.record-node-metadata').forEach((m) => {
           const d = m.closest('details');
           if (d && d.open) { d.open = false; d.dataset.shotClosed = 'true'; }
         });
@@ -141,9 +141,10 @@ struct SubmissionTests {
     node(scope, level).locator(":scope > .outliner-row")
   }
 
-  /// A new testament's node's own controls: its last row, after the nodes
-  /// under it (user, 2026-10-01).
-  private func controls(_ scope: Locator, _ level: String) -> Locator {
+  /// A new testament's node's own row: what stopped a submit, at the end
+  /// of its body (user, 2026-11-03). Its adding and removing are the
+  /// tree's one row of steppers (`TreeStepper`).
+  private func footer(_ scope: Locator, _ level: String) -> Locator {
     node(scope, level).locator(":scope > .outliner-footer")
   }
 
@@ -169,8 +170,8 @@ struct SubmissionTests {
       ("edition", "1"), ("impression", "1.1"), ("issue", "1.1.1"), ("copy", "1.1.1.1"), ("manifest", "1.1.1.1.1"),
     ] {
       try await expect(node(tree, level)).toHaveAttribute("data-outliner-removed", "false")
-      try await expect(row(tree, level).locator(".record-row-number").first).toHaveText(number)
-      try await expect(row(tree, level).locator(".record-row-heading .node-value-view textarea").first).toHaveValue("")
+      try await expect(row(tree, level).locator(".record-node-number").first).toHaveText(number)
+      try await expect(row(tree, level).locator(".record-node-heading .node-value-view textarea").first).toHaveValue("")
     }
     // No card and no level named: its fields in its open Metadata.
     try await expect(form.locator(".framed-accordion-view")).toHaveCount(0)
@@ -194,9 +195,10 @@ struct SubmissionTests {
     try await expect(node(tree, "edition")).toHaveAttribute("data-outliner-removed", "true")
     try await expect(node(tree, "impression")).toHaveAttribute("data-outliner-removed", "true")
     try await expect(node(tree, "issue")).toHaveAttribute("data-outliner-removed", "true")
-    try await expect(row(tree, "copy").locator(".record-row-number").first).toHaveText("1")
+    try await expect(row(tree, "copy").locator(".record-node-number").first).toHaveText("1")
     try await expect(row(tree, "copy").locator("#testament-carrier")).toHaveCount(1)
-    try await expect(controls(tree, "copy").locator(".testament-draft-remove-level")).toBeHidden()
+    let steps = TreeStepper(in: form, tree: TreeStepper.submission)
+    #expect(!(try await steps.choices("remove")).contains("Remove testament 1."), "a manuscript's copy may go")
     try await expect(
       row(tree, "copy").locator(".testament-metadata-citations[data-citations-slot='production'] \(citations)")
     ).toBeVisible()
@@ -213,7 +215,7 @@ struct SubmissionTests {
     try await expect(row(tree, "copy").locator(".activity-statement-view[data-as-namespace='production']"))
       .toBeHidden()
     try await edition.locator("input[name='edition']").fill("Second edition")
-    try await expect(edition.locator(".record-row-heading .node-value-view textarea").first).toHaveValue("Second edition")
+    try await expect(edition.locator(".record-node-heading .node-value-view textarea").first).toHaveValue("Second edition")
     let manifest = row(tree, "manifest")
     try await manifest.locator(".combobox-view:has(input[name='provider-dropdown']) .text-input-input")
       .fill("British Library")
@@ -230,73 +232,72 @@ struct SubmissionTests {
     try await expect(form.locator(".testament-draft-reader .artifact-view"), timeout: .seconds(20)).toBeVisible()
 
     // Printed again, the impression and issue the manuscript took come back
-    // in their places; each is taken out by its own −, the nodes under it
-    // standing where it stood. The copy left empty: refused on it, nothing
-    // sent.
-    try await expect(row(tree, "copy").locator(".record-row-number").first).toHaveText("1.1.1.1")
-    try await controls(tree, "impression").locator(".testament-draft-remove-level").click()
+    // in their places; each is taken out by "− Testament" stepped to it,
+    // the nodes under it standing where it stood. The copy left empty:
+    // refused on it, nothing sent.
+    try await expect(row(tree, "copy").locator(".record-node-number").first).toHaveText("1.1.1.1")
+    try await steps.remove(node: node(tree, "impression"), noun: "testament")
     try await expect(node(tree, "impression")).toHaveAttribute("data-outliner-removed", "true")
-    try await expect(row(tree, "issue").locator(".record-row-number").first).toHaveText("1.1")
-    try await controls(tree, "issue").locator(".testament-draft-remove-level").click()
+    try await expect(row(tree, "issue").locator(".record-node-number").first).toHaveText("1.1")
+    try await steps.remove(node: node(tree, "issue"), noun: "testament")
     try await expect(node(tree, "issue")).toHaveAttribute("data-outliner-removed", "true")
-    try await expect(row(tree, "copy").locator(".record-row-number").first).toHaveText("1.1")
+    try await expect(row(tree, "copy").locator(".record-node-number").first).toHaveText("1.1")
     let submit = form.locator(".record-actions button[type='submit']")
     try await submit.click()
-    // At the bottom of the whole node, under its controls (user,
+    // At the end of the node's own body, under its heading (user,
     // 2026-11-03).
-    try await expect(controls(tree, "copy").locator(":scope > .testament-draft-message"))
+    try await expect(footer(tree, "copy").locator(":scope > .testament-draft-message"))
       .toHaveText("Fill in the copy, its holding institution or its identifier, or remove the copy.")
-    let under = try await controls(tree, "copy").evaluate(
+    let under = try await node(tree, "copy").evaluate(
       """
-      (f) => { const m = f.querySelector(':scope > .testament-draft-message').getBoundingClientRect();
-        const a = f.querySelector(':scope > .testament-draft-actions').getBoundingClientRect();
-        return m.top >= a.bottom - 1; }
+      (item) => { const m = item.querySelector(':scope > .outliner-footer > .testament-draft-message').getBoundingClientRect();
+        const r = item.querySelector(':scope > .outliner-row').getBoundingClientRect();
+        return m.top >= r.bottom - 1; }
       """
     ).bool
-    #expect(under == true, "the message under the node's controls")
+    #expect(under == true, "the message under the node's own row")
     try await expect(page).toHaveURL("the form") { $0.path == Self.testamentForm }
     // Removed: the digitization stands where the copy stood.
-    try await controls(tree, "copy").locator(".testament-draft-remove-level").click()
+    try await steps.remove(node: node(tree, "copy"), noun: "testament")
     try await expect(node(tree, "copy")).toHaveAttribute("data-outliner-removed", "true")
-    try await expect(manifest.locator(".record-row-number").first).toHaveText("1.1")
+    try await expect(manifest.locator(".record-node-number").first).toHaveText("1.1")
     // The digitization is optional as the others are (user, 2026-11-02):
-    // taken out by its −, the edition its leaf. Each node's + puts back
-    // the next level out under it, the digitization last; the levels
-    // between taken out again, it stands where it stood.
-    try await controls(tree, "manifest").locator(".testament-draft-remove-level").click()
+    // taken out, the edition its leaf. "+ Testament" under each node puts
+    // back the next level out, the digitization last; the levels between
+    // taken out again, it stands where it stood.
+    try await steps.remove(node: node(tree, "manifest"), noun: "testament")
     try await expect(node(tree, "manifest")).toHaveAttribute("data-outliner-removed", "true")
-    for (level, next) in [("edition", "impression"), ("impression", "issue"), ("issue", "copy"), ("copy", "manifest")] {
-      try await controls(tree, level).locator(".testament-draft-add-level").click()
+    for (under, next) in [("1", "impression"), ("1.1", "issue"), ("1.1.1", "copy"), ("1.1.1.1", "manifest")] {
+      try await steps.add("Add testament \(under).1.")
       try await expect(node(tree, next)).toHaveAttribute("data-outliner-removed", "false")
     }
     for level in ["impression", "issue", "copy"] {
-      try await controls(tree, level).locator(".testament-draft-remove-level").click()
+      try await steps.remove(node: node(tree, level), noun: "testament")
       try await expect(node(tree, level)).toHaveAttribute("data-outliner-removed", "true")
     }
-    try await expect(manifest.locator(".record-row-number").first).toHaveText("1.1")
+    try await expect(manifest.locator(".record-node-number").first).toHaveText("1.1")
 
-    // The edition's "+ Testament" adds a new child at the next level, after
-    // the one it has: 1.2, never pushing 1.1 down (user, 2026-10-03). Every
-    // node is a testament: the icon and the noun, the words for assistive
-    // technology.
-    let add = controls(tree, "edition").locator(".testament-draft-add-level")
-    try await expect(add).toHaveText("Testament 1.2.")
-    try await expect(add).toHaveAttribute("aria-label", "Add Testament 1.2.")
-    try await expect(row(tree, "edition").locator(".testament-draft-add-level")).toHaveCount(0)
-    try await add.click()
+    // "+ Testament 1.2." adds a new child of the edition at the next
+    // level, after the one it has, never pushing 1.1 down (user,
+    // 2026-10-03). Every node is a testament: the icon and the noun, the
+    // words for assistive technology; no node has a + of its own.
+    #expect(try await steps.choose("add", "Add testament 1.2."))
+    try await expect(steps.addButton).toHaveText("Testament 1.2.")
+    try await expect(tree.locator(".testament-draft-add-child")).toHaveCount(0)
+    try await steps.addButton.click()
     try await expect(node(tree, "impression")).toHaveAttribute("data-outliner-removed", "false")
-    try await expect(row(tree, "impression").locator(".record-row-number").first).toHaveText("1.2")
-    try await expect(manifest.locator(".record-row-number").first).toHaveText("1.1")
+    try await expect(row(tree, "impression").locator(".record-node-number").first).toHaveText("1.2")
+    try await expect(manifest.locator(".record-node-number").first).toHaveText("1.1")
     try await Self.shoot(page, "submit-testament-added-1.2", from: tree)
     // Empty: refused. Filled but with nothing under it: one testament, one
     // digitization, the one leaf.
     try await submit.click()
-    try await expect(controls(tree, "impression").locator(":scope > .testament-draft-message"))
+    try await expect(footer(tree, "impression").locator(":scope > .testament-draft-message"))
       .toHaveText("Fill in the impression or its place, agents or date, or remove the impression.")
     try await row(tree, "impression").locator("input[name='impression']").fill("Second impression")
-    try await expect(row(tree, "impression").locator(".record-row-heading .node-value-view textarea").first).toHaveValue("Second impression")
+    try await expect(row(tree, "impression").locator(".record-node-heading .node-value-view textarea").first).toHaveValue("Second impression")
     try await submit.click()
-    try await expect(controls(tree, "impression").locator(":scope > .testament-draft-message"))
+    try await expect(footer(tree, "impression").locator(":scope > .testament-draft-message"))
       .toHaveText("Shift the next testament under the impression, or remove the impression.")
     try await expect(page).toHaveURL("the form") { $0.path == Self.testamentForm }
 
@@ -307,8 +308,8 @@ struct SubmissionTests {
     try await grip.press("ArrowDown")
     try await grip.press("ArrowRight")
     try await grip.press("Enter")
-    try await expect(row(tree, "impression").locator(".record-row-number").first).toHaveText("1.1")
-    try await expect(manifest.locator(".record-row-number").first).toHaveText("1.1.1")
+    try await expect(row(tree, "impression").locator(".record-node-number").first).toHaveText("1.1")
+    try await expect(manifest.locator(".record-node-number").first).toHaveText("1.1.1")
     try await Self.shoot(page, "submit-testament-dragged", from: tree)
 
     // Once the move has settled: a click while the rows slide lands
@@ -373,42 +374,43 @@ struct SubmissionTests {
     let tree = page.locator(".testament-outliner-view")
     let edition = row(tree, "edition")
     try await expect(node(tree, "edition")).toHaveAttribute("data-outliner-removed", "false")
-    try await expect(edition.locator(".record-row-number").first).toHaveText("2")
-    try await expect(row(tree, "copy").locator(".record-row-number").first).toHaveText("2.1")
-    try await expect(row(tree, "manifest").locator(".record-row-number").first).toHaveText("2.1.1")
+    try await expect(edition.locator(".record-node-number").first).toHaveText("2")
+    try await expect(row(tree, "copy").locator(".record-node-number").first).toHaveText("2.1")
+    try await expect(row(tree, "manifest").locator(".record-node-number").first).toHaveText("2.1.1")
     // The record's own nodes still move while the new ones stand: one moved
     // into a new level is that level inserted over it (gnorium-web a5dd799d9).
     try await expect(tree.locator(".outliner-item:not([data-testament-draft]) .outliner-handle").first)
       .toBeEnabled()
     try await expect(tree.locator("input[name='placement-version']")).toHaveValue(work.versionID)
     try await expect(edition.locator("input[name='edition']")).toHaveValue("Kept aside")
-    try await expect(edition.locator(".record-row-heading .node-value-view textarea").first).toHaveValue("Kept aside")
+    try await expect(edition.locator(".record-node-heading .node-value-view textarea").first).toHaveValue("Kept aside")
 
-    // One testament an amendment: the tree's + hidden while it is in. Its
-    // edition taken out by its own −, its copy and digitization stand at
-    // the top, and the copy moves under the record's edition: a copy and
-    // its digitization, the edition's carrier taken.
-    let recordEdition = tree.locator(".outliner-item[data-outliner-id^='edition-']:not([data-testament-draft])").first
-    let addUnder = recordEdition.locator(":scope > .outliner-footer .testament-outliner-add-own")
-    try await expect(addUnder).toBeHidden()
-    try await controls(tree, "edition").locator(".testament-draft-remove-level").click()
+    // One testament an amendment: while it is in, the tree's "+
+    // Testament" offers no place among the record's own nodes. Its edition
+    // taken out by "− Testament 2.", its copy and digitization stand at the
+    // top, and the copy moves under the record's edition: a copy and its
+    // digitization, the edition's carrier taken.
+    let steps = TreeStepper(page, tree: "testament-outliner")
+    let offered = try await steps.choices("add")
+    #expect(!offered.contains { $0.hasPrefix("Add testament 1.") }, "\(offered)")
+    try await steps.remove("Remove testament 2.")
     try await expect(node(tree, "edition")).toHaveAttribute("data-outliner-removed", "true")
     let copy = row(tree, "copy")
-    let number = copy.locator(".record-row-number").first
+    let number = copy.locator(".record-node-number").first
     try await expect(number).toHaveText("2")
     let grip = copy.locator(".outliner-handle").first
     try await grip.click()
     try await grip.press("ArrowRight")
     try await grip.press("Enter")
     try await expect(number).toHaveText("1.2")
-    try await expect(row(tree, "manifest").locator(".record-row-number").first).toHaveText("1.2.1")
+    try await expect(row(tree, "manifest").locator(".record-node-number").first).toHaveText("1.2.1")
     try await expect(copy.locator(".testament-metadata-acquisition")).toBeVisible()
     try await expect(row(tree, "manifest").locator(".activity-statement-view[data-as-namespace='reproduction']"))
       .toBeVisible()
     try await expect(tree.locator("#new-testament-carrier")).toBeDisabled()
     // Named by its copy label as it is typed.
     try await copy.locator("input[name='copyLabel']").fill("Copy 2")
-    try await expect(copy.locator(".record-row-heading .node-value-view textarea").first).toHaveValue("Copy 2")
+    try await expect(copy.locator(".record-node-heading .node-value-view textarea").first).toHaveValue("Copy 2")
     // Under the digitization above it: refused, in the tree's words.
     let handle = copy.locator(".outliner-handle").first
     try await handle.click()
@@ -585,7 +587,7 @@ struct SubmissionTests {
         try await newSentiment(page, suffix: suffix, source: source)
         try await placedSentiment(page, word: word)
         try await page.expectNoErrors()
-        try await page.expectNoOverflowButTrees()
+        try await page.expectNoHorizontalOverflow()
       }
     } catch {
       clean()
@@ -607,9 +609,9 @@ struct SubmissionTests {
     let form = page.locator(".submit-sentiment-form")
     try await expect(form.locator(".record-choice-field-view .dropdown-selected-text")).toHaveText("Lexico-record")
     let tree = form.locator(".submit-sentiment-tree")
-    try await expect(tree.locator(".record-row-view")).toHaveCount(1)
+    try await expect(tree.locator(".record-node-view")).toHaveCount(1)
     let draft = tree.locator("[data-submission-draft='true']")
-    let title = draft.locator(".record-row-heading .node-value-view textarea").first
+    let title = draft.locator(".record-node-heading .node-value-view textarea").first
     try await expect(title).toHaveValue("")
     try await expect(form.locator(".framed-accordion-view")).toHaveCount(0)
     let apparatus = form.locator(".submit-sentiment-apparatus")

@@ -5,8 +5,10 @@ import WebTestsTesting
 
 /// An amendment edits or removes, never adds (user, 2026-09-28): any
 /// testament of the Submit Amendment form's tree can be removed, every
-/// testament under it with it, once the dialog confirms it; a removed one is
-/// framed red, leaves the tree the amendment posts, and can be restored.
+/// testament under it with it, once the dialog confirms it, by the tree's
+/// "‹ − Testament 1.1. ›" stepped to it (user, 2026-11-03); a removed one
+/// is framed red, leaves the tree the amendment posts, and can be restored
+/// by the same button, "+ Testament 1.1.".
 /// Submitted (an amendment is about one digitization), the reopened object
 /// carries the tree without it, and its page draws it where it stood,
 /// removed; while that object is open, another amendment can neither move
@@ -37,11 +39,9 @@ struct AmendmentRemovalTests {
         let edition = page.locator(".outliner-item[data-outliner-id^='edition-']:not([data-testament-draft])")
         let manifest = page.locator(".outliner-item[data-outliner-id^='manifest-']:not([data-testament-draft])")
         let dialog = page.locator(".testament-outliner-remove-dialog")
-        /// A testament's own control: its node's last row, after the
-        /// testaments under it (user, 2026-10-01).
-        func own(_ item: Locator, _ selector: String) -> Locator {
-          item.locator(":scope > .outliner-footer \(selector)").first
-        }
+        // The tree's one row of steppers removes and restores (user,
+        // 2026-11-03); no node has controls of its own.
+        let stepper = TreeStepper(page, tree: "testament-outliner")
         /// Opens a node's row, and settles it, before its controls are aimed
         /// at: they move while it grows.
         func reveal(_ item: Locator) async throws {
@@ -54,7 +54,7 @@ struct AmendmentRemovalTests {
             }
             """)
           try await expect(
-            item.locator(":scope > .outliner-row > .outliner-node > .testament-outliner-node > .record-row-view > .accordion-view > .accordion-details")
+            item.locator(":scope > .outliner-row > .outliner-node > .testament-outliner-node > .record-node-view > .accordion-view > .accordion-details")
               .first
           ).toHaveAttribute("data-open-finished", "true")
         }
@@ -62,33 +62,31 @@ struct AmendmentRemovalTests {
           try await page.locator("input[name='shape']").first.inputValue()
         }
 
-        // Cancelled: nothing removed. Its "− Testament" is its card's last
-        // row, after the testaments under it, never in its header.
+        // Cancelled: nothing removed. "− Testament 1.1." chosen, the last
+        // node at first; none in a node.
         try await reveal(manifest)
-        try await expect(own(manifest, ".testament-outliner-remove")).toHaveText("Testament 1.1.")
-        try await expect(edition.locator(".accordion-summary .testament-outliner-remove")).toHaveCount(0)
-        let last = try await edition.evaluate(
-          "(item) => item.lastElementChild.classList.contains('outliner-footer') && item.querySelector(':scope > .outliner-footer').getBoundingClientRect().top >= item.querySelector(':scope > .outliner-list').getBoundingClientRect().bottom"
-        ).bool
-        #expect(last == true, "an edition's controls come after the testaments under it")
-        try await own(manifest, ".testament-outliner-remove").click()
+        try await expect(stepper.removeButton).toHaveText("Testament 1.1.")
+        try await expect(stepper.removeButton).toHaveAttribute("aria-label", "Remove testament 1.1.")
+        try await expect(page.locator(".outliner-item .testament-outliner-remove")).toHaveCount(0)
+        try await stepper.remove("Remove testament 1.1.")
         try await expect(dialog).toHaveAttribute("open")
         try await dialog.locator("button").filter(hasText: "Cancel").first.click()
         try await expect(dialog).not.toHaveAttribute("open")
         try await expect(manifest).not.toHaveAttribute("data-outliner-removed", "true")
 
         // Removed, then restored.
-        try await own(manifest, ".testament-outliner-remove").click()
+        try await stepper.remove("Remove testament 1.1.")
         try await dialog.locator("button").filter(hasText: "Remove").first.click()
         try await expect(manifest).toHaveAttribute("data-outline-state", "removed")
         #expect(!(try await shape()).contains("manifest-"))
-        // Its card ringed as a field is: the card's border—the outline
-        // item's, round the whole card—and an outline of one red, never a
-        // box-shadow and never a line through the card.
+        // Its node ringed as a field is: the ring the outline item draws
+        // round the whole flat node (its `::after`), a border and an
+        // outline of one red, never a box-shadow and never a line through
+        // the node.
         let ring = try await manifest.evaluate(
           """
           (item) => {
-            const s = getComputedStyle(item)
+            const s = getComputedStyle(item, '::after')
             const row = getComputedStyle(item.querySelector(':scope > .outliner-row .accordion-view'))
             const ok = s.borderTopColor === s.outlineColor && s.outlineStyle === 'solid'
               && s.outlineWidth === s.borderTopWidth && s.borderTopWidth === '1px' && s.boxShadow === 'none'
@@ -97,32 +95,31 @@ struct AmendmentRemovalTests {
               s.boxShadow, row.outlineStyle, row.boxShadow].join(' | ')
           }
           """)
-        #expect(ring.string == "ok", "The removed testament's card is not ringed as a field: \(ring)")
-        try await own(manifest, ".testament-outliner-restore").click()
+        #expect(ring.string == "ok", "The removed testament's node is not ringed as a field: \(ring)")
+        try await expect(stepper.removeButton).toHaveAttribute("aria-label", "Restore testament 1.1.")
+        try await stepper.remove("Restore testament 1.1.")
         try await expect(manifest).not.toHaveAttribute("data-outline-state", "removed")
         #expect((try await shape()).contains("manifest-"))
 
         // The edition removed, its digitization with it.
         try await reveal(edition)
-        try await own(edition, ".testament-outliner-remove").click()
+        try await stepper.remove("Remove testament 1.")
         try await expect(dialog).toHaveAttribute("open")
         try await dialog.locator("button").filter(hasText: "Remove").first.click()
         try await expect(edition).toHaveAttribute("data-outline-state", "removed")
         let posted = try await shape()
         #expect(!posted.contains("edition-") && !posted.contains("manifest-"), "\(posted)")
-        try await expect(own(edition, ".testament-outliner-restore")).toBeVisible()
-        try await expect(own(edition, ".testament-outliner-remove")).toBeHidden()
-        // The icon and the noun: "+ Testament" restores it, the words for
-        // assistive technology.
-        try await expect(own(edition, ".testament-outliner-restore")).toHaveText("Testament 1.")
-        try await expect(own(edition, ".testament-outliner-restore")).toHaveAttribute("aria-label", "Restore Testament 1.")
-        try await expect(own(edition, ".testament-outliner-remove")).toHaveAttribute("aria-label", "Remove Testament 1.")
+        // The icon and the noun: "+ Testament 1." restores it, the words
+        // for assistive technology.
+        try await expect(stepper.removeButton).toHaveText("Testament 1.")
+        try await expect(stepper.removeButton).toHaveAttribute("aria-label", "Restore testament 1.")
+        try await expect(stepper.removeButton.locator("svg.plus-icon-view")).toHaveCount(1)
 
         // An amendment is about one digitization: the edition restored, the
         // digitization removed is what it submits.
-        try await own(edition, ".testament-outliner-restore").click()
+        try await stepper.remove("Restore testament 1.")
         try await expect(edition).not.toHaveAttribute("data-outline-state", "removed")
-        try await own(manifest, ".testament-outliner-remove").click()
+        try await stepper.remove("Remove testament 1.1.")
         try await expect(dialog).toHaveAttribute("open")
         try await dialog.locator("button").filter(hasText: "Remove").first.click()
         try await expect(manifest).toHaveAttribute("data-outline-state", "removed")
@@ -145,16 +142,16 @@ struct AmendmentRemovalTests {
 
         // While that object is open its digitization keeps its place in
         // another amendment: its handle disabled, and neither it nor the
-        // edition above it removable—drawn so, not hidden.
+        // edition above it removable—the stepper drawn so, not hidden.
         try await page.openHydrated("\(work.path)/amendments/new")
         // Drawn so, and kept so by the outline's every pass (a click runs one).
         try await page.locator(".testament-outliner-hint").first.evaluate("(hint) => document.body.click()")
         try await expect(manifest.locator(":scope > .outliner-row .outliner-handle").first).toBeDisabled()
         try await expect(edition.locator(":scope > .outliner-row .outliner-handle").first).toBeEnabled()
-        for item in [manifest, edition] {
-          try await expect(own(item, ".testament-outliner-remove")).toBeDisabled()
-          try await expect(own(item, ".testament-outliner-remove")).toBeAttached()
-        }
+        // Neither is one "− Testament" steps to: none to remove, the
+        // button there, disabled.
+        try await expect(stepper.removeButton).toBeVisible()
+        try await expect(stepper.removeButton).toBeDisabled()
       }
     } catch {
       clean()

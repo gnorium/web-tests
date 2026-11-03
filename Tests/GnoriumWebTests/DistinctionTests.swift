@@ -29,7 +29,7 @@ struct DistinctionTests {
         try await page.openHydrated(word.path)
         // The leaf's row opens into its Metadata, its note and quotes.
         let row = page.locator("#record-row-\(word.leaf)")
-        try await page.locator("#record-row-\(word.leaf) > .accordion-summary").click()
+        try await page.locator("#record-row-\(word.leaf)-fold").click()
         try await expect(row).toHaveAttribute("data-open-finished", "true")
         // Its one Note, frozen, under its Metadata (user, 2026-11-02).
         let note = row.locator(".note-field-view textarea")
@@ -54,7 +54,7 @@ struct DistinctionTests {
         #expect(metadata.y + metadata.height <= prose.y)
         #expect(prose.y + prose.height <= quote.y)
 
-        try await page.expectNoOverflowButTrees()
+        try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }
     } catch {

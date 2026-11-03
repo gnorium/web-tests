@@ -722,7 +722,7 @@ struct RevisePagesTests {
         let revisionPath = "\(madrigalPath)/revisions/\(id)"
         try await page.openHydrated(revisionPath)
         // The changed sentiment's row by its number, its value's diff at its box.
-        try await expect(page.locator(".record-row-number").filter(hasText: "1.1").first).toBeAttached()
+        try await expect(page.locator(".record-node-number").filter(hasText: "1.1").first).toBeAttached()
         try await expect(page.locator("#sentiment-1-value")).toBeAttached()
         try await expect(page.locator(".diff-view").first).toBeAttached()
         try await expect(page.locator("form#revision-accept")).toHaveCount(1)

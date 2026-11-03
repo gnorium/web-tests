@@ -26,13 +26,13 @@ struct ReferencesTests {
           try await expect(page.locator("#record-references, #references, .sources-view")).toHaveCount(0)
           try await expect(page.locator(".reference-credit-view")).toHaveCount(0)
           try await expect(page.locator(".reference-mark, .reference-marks-view")).toHaveCount(0)
-          try await page.expectNoOverflowButTrees()
+          try await page.expectNoHorizontalOverflow()
           try await page.expectNoErrors()
         }
         // The version links to the madrigal it was permitted from (in its
         // pedigree).
         try await expect(page.locator("a[href='\(madrigal)']")).not.toHaveCount(0)
-        try await page.expectNoOverflowButTrees()
+        try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }
     } catch {
@@ -57,9 +57,9 @@ struct ReferencesTests {
           try await page.openHydrated(path)
           try await expect(page.locator("#record-references, #references, .sources-view")).toHaveCount(0)
           try await expect(page.locator(".reference-credit-view")).toHaveCount(0)
-          try await expect(page.locator("#record-row-\(word.leaf) .record-row-heading sup")).toHaveCount(0)
+          try await expect(page.locator("#record-row-\(word.leaf) .record-node-heading sup")).toHaveCount(0)
           #expect(!(try await page.locator("body").textContent()).contains("dictionary.example.org"))
-          try await page.expectNoOverflowButTrees()
+          try await page.expectNoHorizontalOverflow()
           try await page.expectNoErrors()
         }
         try await expect(page.locator("a[href='\(madrigal)']")).not.toHaveCount(0)
@@ -68,7 +68,7 @@ struct ReferencesTests {
         try await page.openHydrated(madrigal)
         try await expect(page.locator("#object-sources, .sources-view, .reference-credit-view")).toHaveCount(0)
         #expect(!(try await page.locator("body").textContent()).contains("dictionary.example.org"))
-        try await page.expectNoOverflowButTrees()
+        try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }
     } catch {

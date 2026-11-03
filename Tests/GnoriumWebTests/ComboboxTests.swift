@@ -216,11 +216,13 @@ struct ComboboxTests {
     #expect(row == "\(typedProvider)|\(typedHolding)|[\"\(typedGenre)\"]", "\(row)")
   }
 
-  /// The new testament's `levels` taken out, each by its node's own −.
+  /// The new testament's `levels` taken out, each by the tree's "−
+  /// Testament" stepped to it.
   static func removeLevels(_ form: Locator, _ levels: [String]) async throws {
+    let stepper = TreeStepper(in: form, tree: TreeStepper.submission)
     for level in levels {
       let node = form.locator(".outliner-item[data-outliner-id='\(level)-new']")
-      try await node.locator(":scope > .outliner-footer .testament-draft-remove-level").click()
+      try await stepper.remove(node: node, noun: "testament")
       try await expect(node).toHaveAttribute("data-outliner-removed", "true")
     }
   }

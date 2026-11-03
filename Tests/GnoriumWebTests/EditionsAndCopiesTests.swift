@@ -84,12 +84,13 @@ struct EditionsAndCopiesTests {
       try await expect(publisher).not.toHaveAttribute("data-unoffered", "true")
       // The impression (1.1) out, then the issue (1.1 again): their
       // manufacture and distribution fold into the edition.
-      try await page.locator("button.testament-draft-remove-level[aria-label='Remove Testament 1.1.']").click()
+      let stepper = TreeStepper(page, tree: TreeStepper.submission)
+      try await stepper.remove("Remove testament 1.1.")
       try await expect(printer).toHaveAttribute("data-unoffered", "false")
       let distributor = publication.locator("[data-item-section='true'] .dropdown-option[data-value='distributor']").first
       try await expect(distributor).toHaveAttribute("data-unoffered", "true")
       let issue = page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='3']")
-      try await issue.locator(":scope > .outliner-footer .testament-draft-remove-level").click()
+      try await stepper.remove(node: issue, noun: "testament")
       try await expect(issue).toHaveAttribute("data-outliner-removed", "true")
       try await expect(distributor).toHaveAttribute("data-unoffered", "false")
       // The impression's manufacture is its own activity, named so.

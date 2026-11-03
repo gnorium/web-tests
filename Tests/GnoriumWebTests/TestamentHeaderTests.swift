@@ -211,7 +211,7 @@ struct TestamentHeaderTests {
         try await page.openHydrated(work.path)
         _ = try await page.evaluate(
           """
-          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-row')
+          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-node')
             .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
           """)
         let view = page.locator(".artifact-view").first
@@ -250,7 +250,7 @@ struct TestamentHeaderTests {
         #expect(state.headerReset == "code-line 0")
         #expect(state.headerGround != state.markupGround, "the header is on the page's ground")
         #expect(!state.headerEditable)
-        try await page.expectNoOverflowButTrees()
+        try await page.expectNoHorizontalOverflow()
 
         // XML on: the header off, the page's code alone, numbered from 1,
         // holding no header.

@@ -79,7 +79,7 @@ struct LexicographicTranslationDefinitionTests {
         let row = page.locator("#record-row-\(word.leaf)")
         let english = page.locator(".apparatus-rule-language-toggle")
         try await expect(english).toHaveAttribute("aria-pressed", "true")
-        try await expect(row.locator(".record-row-heading .node-value-text:not([hidden])").first).toHaveText("A leaf sense.")
+        try await expect(row.locator(".record-node-heading .node-value-text:not([hidden])").first).toHaveText("A leaf sense.")
         // Its definition in its box (user, 2026-10-10): the English `<def>`
         // while English is on; the `<def xml:lang>` once it is off, as the
         // label; the box's own Raw turns that box alone to its XML.
@@ -108,8 +108,8 @@ struct LexicographicTranslationDefinitionTests {
         try await expect(branch.locator(".sentiment-definition-xml-toggle")).toHaveAttribute("aria-pressed", "false")
         try await box.locator(".sentiment-definition-xml-toggle").click()
         try await expect(box.locator("[data-definition-layer='native']")).toBeVisible()
-        try await expect(row.locator(".record-row-heading .node-value-text:not([hidden])").first).toHaveText(Self.german)
-        try await expect(row.locator(".record-row-heading .node-value-text:not([hidden])").first).toHaveAttribute("lang", "de")
+        try await expect(row.locator(".record-node-heading .node-value-text:not([hidden])").first).toHaveText(Self.german)
+        try await expect(row.locator(".record-node-heading .node-value-text:not([hidden])").first).toHaveAttribute("lang", "de")
         // No single level (user, 2026-10-20): its sentiments counted per
         // level, the branch explicated, the leaf translated.
         let counts = page.locator(".record-level-counts-view").first
@@ -119,16 +119,16 @@ struct LexicographicTranslationDefinitionTests {
         try await expect(row.locator(".sentiment-metadata-view").first).toContainText("in seafaring use")
         try await expect(row.locator(".sentiment-metadata-view").getByText("in der Seefahrt")).toHaveCount(0)
         try await english.click()
-        try await expect(row.locator(".record-row-heading .node-value-text:not([hidden])").first).toHaveText("A leaf sense.")
+        try await expect(row.locator(".record-node-heading .node-value-text:not([hidden])").first).toHaveText("A leaf sense.")
         #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)
 
         // Arabic reads right to left.
         try await page.openHydrated(arabic.path)
         try await page.locator(".apparatus-rule-language-toggle").click()
-        let rtl = page.locator("#record-row-\(arabic.leaf) .record-row-heading .node-value-text:not([hidden])").first
+        let rtl = page.locator("#record-row-\(arabic.leaf) .record-node-heading .node-value-text:not([hidden])").first
         try await expect(rtl).toHaveAttribute("lang", "ar")
         let direction = try await page.evaluate(
-          "(() => ({ direction: getComputedStyle(document.querySelector('#record-row-\(arabic.leaf) .record-row-heading .node-value-text:not([hidden])')).direction }))()",
+          "(() => ({ direction: getComputedStyle(document.querySelector('#record-row-\(arabic.leaf) .record-node-heading .node-value-text:not([hidden])')).direction }))()",
           as: Direction.self)
         #expect(direction.direction == "rtl")
         #expect(try await page.evaluate(Self.overflow, as: Width.self).overflow <= 0)

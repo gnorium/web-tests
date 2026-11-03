@@ -157,7 +157,7 @@ struct LevelStatesTests {
         let tooltipOff = try await page.evaluate(
           "document.querySelector('.commit-trigger').closest('.tooltip-view').dataset.tooltipOff", as: String.self)
         #expect(tooltipOff == "false")
-        try await page.expectNoOverflowButTrees()
+        try await page.expectNoHorizontalOverflow()
       }
     } catch {
       scratch.remove()
@@ -187,7 +187,7 @@ struct LevelStatesTests {
         try await expect(rows).toHaveCount(4)
         for index in 0..<4 { try await expect(rows.nth(index)).toHaveAttribute("data-locked", "false") }
         try await expect(page.locator(".halftone-explication-note")).toHaveCount(0)
-        try await page.expectNoOverflowButTrees()
+        try await page.expectNoHorizontalOverflow()
       }
     } catch {
       scratch.remove()
@@ -216,7 +216,7 @@ struct LevelStatesTests {
         // No sentence on what the Commit freezes: the frozen header says it after (user, 2026-10-30).
         try await expect(page.locator(".halftone-explication-note")).toHaveCount(0)
         try await expect(page.locator(".halftone-evidence-items").first.locator(".roster-row")).toHaveCount(4)
-        try await page.expectNoOverflowButTrees()
+        try await page.expectNoHorizontalOverflow()
       }
     } catch {
       scratch.remove()
@@ -325,7 +325,7 @@ struct LevelStatesTests {
         let sent = try #require(try await CommitTests.posted(page))
         #expect(sent.process == "bibliographic_translation")
         #expect(sent.ticked == "0-1")
-        try await page.expectNoOverflowButTrees()
+        try await page.expectNoHorizontalOverflow()
       }
       #expect(try scratch.stillPending(), "nothing was committed")
     } catch {
@@ -367,7 +367,7 @@ struct LevelStatesTests {
         // Permit is offered untranslated.
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Commit", "Permit"])
-        try await page.expectNoOverflowButTrees()
+        try await page.expectNoHorizontalOverflow()
 
         // Two pages translated, the second stale after its wording changed,
         // none integrated: the first, translated, is open for its Integration.

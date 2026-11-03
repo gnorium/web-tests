@@ -74,7 +74,7 @@ struct GlossTests {
         try await page.openHydrated(scratch.reading.work.path)
         _ = try await page.evaluate(
           """
-          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-row')
+          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-node')
             .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
           """)
         // Its words are clicked once it has opened: while it grows, what
@@ -146,7 +146,7 @@ struct GlossTests {
         try await expect(details.locator(".metadata-group-title").filter(hasText: "Lexico-record")).toHaveCount(1)
         try await expect(details.locator(".record-title")).toHaveCount(0)
         try await expect(details.locator("#origin .origin-view")).toHaveText("—")
-        let values = details.locator(".record-row-heading .node-value-box > .node-value-text:not([data-native])")
+        let values = details.locator(".record-node-heading .node-value-box > .node-value-text:not([data-native])")
         try await expect(values).toHaveCount(2)
         try await expect(values.first).toHaveText("A branch sense.")
         try await expect(values.last).toHaveText("A leaf sense.")
@@ -232,7 +232,7 @@ struct GlossTests {
         // 2026-10-09): its testament's Chicago note, then its words, the
         // word clicked expanded with its own gloss's rows and its record.
         try await page.openHydrated(english.path)
-        try await page.locator("#record-row-\(english.leaf) > .accordion-summary").click()
+        try await page.locator("#record-row-\(english.leaf)-fold").click()
         let quote = page.locator("#record-row-\(english.leaf) .attestation-quote .testament-view")
         let word = quote.locator(".tei-word").filter(hasText: "scratchwords")
         try await expect(word).toHaveCount(1)

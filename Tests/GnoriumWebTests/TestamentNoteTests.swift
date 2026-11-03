@@ -34,14 +34,14 @@ struct TestamentNoteTests {
         try await page.openHydrated(work.path)
         // A testament's: frozen, labeled, under its row's Metadata (user,
         // 2026-11-02: Metadata › Note › Source).
-        let note = page.locator(".record-row-view textarea[name='edition_note']")
+        let note = page.locator(".record-node-view textarea[name='edition_note']")
         try await expect(note).toHaveCount(1)
         try await expect(note).toHaveValue(Self.note)
         try await expect(note).toBeDisabled()
         try await expect(note).toHaveAttribute("placeholder", "Note")
-        let field = page.locator(".record-row-view .note-field-view").first
+        let field = page.locator(".record-node-view .note-field-view").first
         try await expect(field.locator(".label-view").first).toContainText("Note")
-        let row = page.locator(".record-row-view:has(textarea[name='edition_note'])").first
+        let row = page.locator(".record-node-view:has(textarea[name='edition_note'])").first
         let metadata = row.locator(".metadata-accordion-view").first
         try await metadata.locator(".accordion-summary").first.click()
         // Its row's Metadata, opened, does not repeat it.
@@ -134,8 +134,9 @@ struct TestamentNoteTests {
         let carrier = tree.locator(".dropdown-view:has(#testament-carrier)")
         try await carrier.locator(".dropdown-trigger").click()
         try await carrier.locator(".dropdown-option[data-value='print']").filter(visible: true).first.click()
+        let stepper = TreeStepper(page, tree: TreeStepper.submission)
         for level in ["impression", "issue", "copy"] {
-          try await node(level).locator(":scope > .outliner-footer .testament-draft-remove-level").click()
+          try await stepper.remove(node: node(level), noun: "testament")
           try await expect(node(level)).toHaveAttribute("data-outliner-removed", "true")
         }
         let manifest = node("manifest").locator(":scope > .outliner-row")

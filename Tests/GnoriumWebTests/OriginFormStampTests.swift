@@ -4,8 +4,8 @@ import WebTests
 import WebTestsTesting
 
 /// The Origin field on Submit Testament: its date is the work date model (an
-/// exact date offers Month and Day, posted in `origins-json`); "+ Origin",
-/// "+ Origin 1.1" and "+ Source" stamp their rows from the page's templates,
+/// exact date offers Month and Day, posted in `origins-json`); the tree's
+/// "+ Origin 2.", "+ Origin 2.1." and "+ Citation" stamp their rows from the page's templates,
 /// so each is there within one frame of the click, its own date with a Month
 /// and a Day; and a native name in another script never waits on Noto's
 /// symbol faces.
@@ -56,11 +56,14 @@ struct OriginFormStampTests {
       let posted = try await json.inputValue()
       #expect(posted.contains("\"month\":\"january\",\"day\":28"))
 
-      // "+ Origin": the new step is there within one frame of the click,
+      // The tree's stepper at its first place, "+ Origin 2." after the
+      // first step: the new step is there within one frame of the click,
       // with its own Month and Day.
+      try await expect(TreeStepper(in: field).addButton).toHaveAttribute("aria-label", "Add origin 2.")
       let added = try await page.evaluate(
         Self.addedWithinAFrame(
-          "'.origin-field-view .origin-field-add .origin-add-btn'", "'.origin-field-view [data-origin-row=\"true\"]'"), as: Int.self)
+          "'.origin-field-view .outliner-stepper-add .outliner-stepper-button'",
+          "'.origin-field-view [data-origin-row=\"true\"]'"), as: Int.self)
       #expect(added == 1)
       try await expect(rows).toHaveCount(2)
       let second = try #require(try await rows.nth(1).getAttribute("data-origin-key"))
@@ -73,10 +76,12 @@ struct OriginFormStampTests {
       try await secondQualifier.locator(".dropdown-option[data-value='exact']").filter(visible: true).first.click()
       try await expect(rows.nth(1).locator(".form-date-day-group")).toBeVisible()
 
-      // "+ Origin 2.1": a step under it, at once too.
+      // "+ Origin 2.1.", stepped to: a step under it, at once too.
+      #expect(try await TreeStepper(in: field).choose("add", "Add origin 2.1."))
       let nested = try await page.evaluate(
         Self.addedWithinAFrame(
-          "'button[aria-label=\"Add Origin 2.1.\"]'", "'.origin-field-view [data-origin-row=\"true\"]'"), as: Int.self)
+          "'.origin-field-view .outliner-stepper-add .outliner-stepper-button'",
+          "'.origin-field-view [data-origin-row=\"true\"]'"), as: Int.self)
       #expect(nested == 1)
       try await expect(rows).toHaveCount(3)
 
@@ -101,7 +106,7 @@ struct OriginFormStampTests {
       try await expect(card.locator("input[name$='-certainty']")).toHaveCount(1)
       try await expect(source.locator(".source-accordion-view input[name$='-certainty']")).toHaveCount(0)
       // A new card's row: "+ Quote", then "− Citation".
-      let remove = citation.locator(".quote-passage-actions .quote-passage-source-remove")
+      let remove = citation.locator(".quote-passage-actions .quote-passage-citation-remove")
       try await expect(remove).toHaveText("Citation")
       try await remove.click()
       try await expect(field.locator(".outgoing-citation")).toHaveCount(0)
