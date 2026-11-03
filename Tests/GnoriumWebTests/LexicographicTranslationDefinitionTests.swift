@@ -9,8 +9,9 @@ import WebTestsTesting
 /// schema, never translated (user, 2026-10-09). The amendment's page shows the
 /// definition in German with its confidence and reason; permitted, the record is
 /// Translated and its row carries the record-level English toggle, selected
-/// initially, switching definitions while the usage stays as it is. An Arabic
-/// definition reads right to left.
+/// initially, switching definitions (each its sentiment's value, its
+/// heading's box) while the usage stays as it is, and the record rule's XML
+/// switch shows its `<sense>`. An Arabic definition reads right to left.
 /// Phone and desktop, nothing scrolling sideways.
 @Suite("Lexicographic translation: the definition in the record's language", .serialized)
 struct LexicographicTranslationDefinitionTests {
@@ -62,10 +63,12 @@ struct LexicographicTranslationDefinitionTests {
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        // The amendment, committed: the definition in German with its provenance; no usage translated.
+        // The amendment, committed: the definition in German with its
+        // provenance, under its node's value's name (a sentiment's
+        // definition is its value, user 2026-10-28); no usage translated.
         try await page.openHydrated("/mission-control/epilogues/lexicographic/\(amendment)")
         let body = page.locator(".lexicographic-epilogue-body")
-        try await expect(body.getByText("Definition in German")).toBeVisible()
+        try await expect(body.getByText("Value in German")).toBeVisible()
         try await expect(body.getByText(Self.german)).toHaveAttribute("lang", "de")
         try await expect(body.getByText("in der Seefahrt")).toHaveCount(0)
         try await expect(body.getByText("The English says it plainly.")).toBeVisible()
@@ -79,37 +82,35 @@ struct LexicographicTranslationDefinitionTests {
         let row = page.locator("#record-row-\(word.leaf)")
         let english = page.locator(".apparatus-rule-language-toggle")
         try await expect(english).toHaveAttribute("aria-pressed", "true")
-        try await expect(row.locator(".record-node-heading .node-value-text:not([hidden])").first).toHaveText("A leaf sense.")
-        // Its definition in its box (user, 2026-10-10): the English `<def>`
-        // while English is on; the `<def xml:lang>` once it is off, as the
-        // label; the box's own Raw turns that box alone to its XML.
-        let box = row.locator(".sentiment-definition-view").first
-        let branch = page.locator("#record-row-\(word.branch) .sentiment-definition-view").first
-        try await expect(box.locator("[data-definition-layer='english']")).toBeVisible()
-        try await expect(box.locator("[data-definition-layer='english'] .sentiment-definition-text")).toHaveText("A leaf sense.")
-        try await expect(box.locator("[data-definition-layer='native']")).toBeHidden()
-        try await expect(box.locator("[data-definition-layer='raw']")).toBeHidden()
-        // Raw, medium, on its bottom legend: 36 below, 16 elsewhere (user, 2026-10-10).
-        #expect(try await page.evaluate(
-          "(() => { const s = getComputedStyle(document.querySelector('#record-row-\(word.leaf) .sentiment-definition-view')); return [s.paddingTop, s.paddingInlineStart, s.paddingInlineEnd, s.paddingBottom].join(' '); })()",
-          as: String.self) == "16px 16px 16px 36px")
+        // Its definition is its value, its heading's one box (user,
+        // 2026-10-28; 2026-11-02): the English `<def>` while English is on;
+        // the `<def xml:lang>` once it is off; the rule's XML switch shows
+        // its whole `<sense>` in its place.
+        let value = row.locator(".record-node-heading .node-value-text:not([hidden])").first
+        let branch = page.locator("#record-row-\(word.branch) .record-node-heading .node-value-text:not([hidden])").first
+        try await expect(value).toHaveText("A leaf sense.")
+        try await expect(branch).toHaveText("A branch sense.")
         try await english.click()
-        try await expect(box.locator("[data-definition-layer='native']")).toBeVisible()
-        try await expect(box.locator("[data-definition-layer='native'] .sentiment-definition-text")).toHaveText(Self.german)
-        try await expect(box.locator("[data-definition-layer='native'] .sentiment-definition-text")).toHaveAttribute("lang", "de")
-        try await expect(box.locator("[data-definition-layer='english']")).toBeHidden()
+        try await expect(english).toHaveAttribute("aria-pressed", "false")
+        try await expect(value).toHaveText(Self.german)
+        try await expect(value).toHaveAttribute("lang", "de")
         // A sentiment not translated keeps its English words.
-        try await expect(branch.locator("[data-definition-layer='english']")).toBeVisible()
-        try await box.locator(".sentiment-definition-xml-toggle").click()
-        try await expect(box.locator("[data-definition-layer='raw']")).toBeVisible()
-        try await expect(box.locator("[data-definition-layer='raw']")).toContainText("<sense>")
-        try await expect(box.locator("[data-definition-layer='native']")).toBeHidden()
-        try await expect(branch.locator("[data-definition-layer='raw']")).toBeHidden()
-        try await expect(branch.locator(".sentiment-definition-xml-toggle")).toHaveAttribute("aria-pressed", "false")
-        try await box.locator(".sentiment-definition-xml-toggle").click()
-        try await expect(box.locator("[data-definition-layer='native']")).toBeVisible()
-        try await expect(row.locator(".record-node-heading .node-value-text:not([hidden])").first).toHaveText(Self.german)
-        try await expect(row.locator(".record-node-heading .node-value-text:not([hidden])").first).toHaveAttribute("lang", "de")
+        try await expect(branch).toHaveText("A branch sense.")
+        // The XML: its `<sense>`, the German `<def>` in it, while the
+        // switch stands pressed, and none once it is let go.
+        let xml = row.locator(".sentiment-sense-xml").first
+        try await expect(xml).toBeHidden()
+        let xmlSwitch = page.locator(".apparatus-rule-xml-toggle")
+        try await xmlSwitch.click()
+        try await expect(xmlSwitch).toHaveAttribute("aria-pressed", "true")
+        try await expect(xml).toBeVisible()
+        try await expect(xml).toContainText("<sense>")
+        try await expect(xml).toContainText(Self.german)
+        try await xmlSwitch.click()
+        try await expect(xmlSwitch).toHaveAttribute("aria-pressed", "false")
+        try await expect(xml).toBeHidden()
+        try await expect(value).toHaveText(Self.german)
+        try await expect(value).toHaveAttribute("lang", "de")
         // No single level (user, 2026-10-20): its sentiments counted per
         // level, the branch explicated, the leaf translated.
         let counts = page.locator(".record-level-counts-view").first
