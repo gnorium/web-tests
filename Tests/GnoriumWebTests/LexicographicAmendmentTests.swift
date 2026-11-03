@@ -143,7 +143,8 @@ struct LexicographicAmendmentTests {
         try await expect(item).toHaveAttribute("data-sentiment-chosen", "true")
         try await expect(outline.locator("input[name='sentiment-chosen']")).toHaveValue("s-1-1")
         try await expect(branch).toHaveAttribute("data-sentiment-frozen", "true")
-        try await expect(branch.locator(".outliner-handle").first).toBeDisabled()
+        // Its marker keeps its place, folding it still (user, 2026-11-03).
+        try await expect(branch.locator(".outliner-handle").first).toHaveAttribute("data-outliner-immovable", "true")
         try await expect(outline.locator(".sentiment-outliner-hint[data-hint='edit']")).toHaveAttribute(
           "data-visible", "true")
         try await expect(draft).toHaveAttribute("data-sentiment-frozen", "true")
@@ -414,10 +415,10 @@ struct LexicographicAmendmentTests {
         let item = form.locator(".outliner-item[data-outliner-id='s-1-1']")
         try await expect(item).toHaveAttribute("data-sentiment-held", "true")
         try await expect(item).toHaveAttribute("data-sentiment-frozen", "true")
-        try await expect(item.locator(".outliner-handle").first).toBeDisabled()
+        try await expect(item.locator(".outliner-handle").first).toHaveAttribute("data-outliner-immovable", "true")
         let palinode = try TestAdmin.query(
           "SELECT id FROM lexicographic_palinodes WHERE lexico_record_id = '\(record)' ORDER BY created_at DESC LIMIT 1"
-        ).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        ).trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         // The others stay open.
         try await expect(form.locator(".outliner-item[data-outliner-id='s-1']")).toHaveAttribute(
           "data-sentiment-frozen", "false")
@@ -443,7 +444,8 @@ struct LexicographicAmendmentTests {
         try await expect(link).toBeVisible()
         try await expect(link).toHaveText(palinode)
         let href = try await link.getAttribute("href") ?? ""
-        #expect(href.lowercased() == "/mission-control/palinodes/lexicographic/\(palinode)", "\(href)")
+        // Upper case, as every UUID is shown (user, 2026-11-03).
+        #expect(href == "/mission-control/palinodes/lexicographic/\(palinode)", "\(href)")
         // Mono, as an identifier's tooltip is.
         try await expect(
           page.locator(".tooltip-content[data-font='mono']:has(a[href*='/mission-control/palinodes/lexicographic/'])").first
@@ -484,7 +486,7 @@ struct LexicographicAmendmentTests {
         try await expect(link).toBeVisible()
         try await link.click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the palinode's page") {
-          $0.path.lowercased() == "/mission-control/palinodes/lexicographic/\(palinode)"
+          $0.path == "/mission-control/palinodes/lexicographic/\(palinode)"
         }
       }
     } catch {

@@ -28,11 +28,10 @@ struct RecordNodeHeaderTests {
   static func measure(_ scope: String) -> String {
     """
     (() => {
-      // Its number stands beside its header, centered on the tree's spine
-      // (user, 2026-11-03), on the header's first line.
-      const own = s => s.parentElement.closest('.record-node-view')
+      // Its number stands first in its heading, centered on the tree's
+      // spine (user, 2026-11-03), on the header's first line.
       const summary = [...document.querySelectorAll('\(scope) .accordion-summary')]
-        .find(s => s.querySelector('.record-node-heading') && own(s) && own(s).querySelector(':scope > .record-node-anchor .record-node-number'))
+        .find(s => s.querySelector('.record-node-heading > .record-node-number'))
       // Its value's box (user, 2026-11-02): the text inside its inset, a
       // field's where it is edited, the read box's words where it is read.
       const title = summary.querySelector('.record-node-heading .node-value-view :is(textarea, .node-value-box)')
@@ -44,7 +43,7 @@ struct RecordNodeHeaderTests {
       const box = el => el ? el.getBoundingClientRect() : null
       const top = el => el ? box(el).top - origin : null
       const center = el => el ? box(el).top + box(el).height / 2 - origin : null
-      const number = own(summary).querySelector(':scope > .record-node-anchor .record-node-number')
+      const number = summary.querySelector('.record-node-heading > .record-node-number')
       return {
         lines: Math.round(title.clientHeight / parseFloat(getComputedStyle(title).lineHeight)) - 1,
         number: top(number),
@@ -160,8 +159,9 @@ struct RecordNodeHeaderTests {
     try await admin.remove()
   }
 
-  /// An outline row (the amendment form): its grip is taller than a line,
-  /// and still its number, grip and info icon share the first line.
+  /// An outline row (the amendment form): its grip is its marker's (user,
+  /// 2026-11-03), on the spine, centered on the heading's first line with
+  /// its number and info icon.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aGripTallerThanALineStaysOnTheFirstLine(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -172,9 +172,15 @@ struct RecordNodeHeaderTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("\(word.path)/amendments/new")
         let outline = page.locator(".sentiment-outliner-view")
-        try await expect(outline.locator(".record-node-view .outliner-handle").first).toBeVisible()
+        let grip = outline.locator(".record-node-view > .outliner-marker.outliner-handle").first
+        try await expect(grip).toBeVisible()
+        try await expect(grip.locator(".outliner-marker-grip svg")).toHaveCount(1)
+        try await expect(outline.locator(".record-node-heading .outliner-handle")).toHaveCount(0)
         let marks = try await page.evaluate(Self.measure(".sentiment-outliner-view .record-node-view"), as: Marks.self)
-        #expect(marks.handleCenter != nil, "the row has no grip")
+        let center = try #require(try await grip.evaluate(
+          "(g) => { const b = g.getBoundingClientRect(), s = g.parentElement.querySelector('.accordion-summary').getBoundingClientRect(); return b.top + b.height / 2 - s.top }"
+        ).double)
+        #expect(abs(center - marks.numberCenter) < 1, "marker center \(center) vs number center \(marks.numberCenter)")
         Self.expectFirstLine(marks)
       }
     } catch {

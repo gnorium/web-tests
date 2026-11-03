@@ -5,19 +5,19 @@ import WebTestsTesting
 
 /// A record page's testament tree is the shared tree, drawn flat as a
 /// thread is (user, 2026-11-03): no card, no rule and no indent. One spine
-/// runs down the tree's start, through the middle of each node's number's
-/// first figure, broken round it by a control's height; every number,
-/// plain text, at one x, as wide as it is; its heading and its body start
-/// right after its own number, 8px on, so a longer number's start further
-/// in. Its fold control is the chevron at its heading's end ("Collapse
-/// testament 1."); the rest of its heading folds nothing. A node's stretch
-/// of the spine runs from under its number's gap beside what it would
-/// fold, darkens under the pointer, and a click on it, at its very top
-/// too, folds the node; closed, a node has none. Below the tree's last node the
-/// spine runs on a little, fading out: the stretch of its last node in
-/// sight, at any depth, open or folded, which folds or opens it too.
-/// Closing a row hides the rows under it with its body; opening it shows
-/// them again. The fixture work holds an edition and its manifest.
+/// runs down the tree's start through every node's marker, a disc a
+/// locution's avatar's size (40, 32 on a phone), which breaks it and is the node's fold
+/// control ("Collapse testament 1."), its scrim showing its chevron under
+/// the pointer and folded. Right after the marker the node is one column,
+/// its heading (its number first) and its body at one x whatever its
+/// number; its heading folds nothing. A node's stretch of the spine runs
+/// from under its marker beside what it would fold, darkens under the
+/// pointer, and a click on it, at its very top too, folds the node. Below
+/// the tree's last node the spine runs on a little, fading out: the
+/// stretch of its last node in sight, at any depth, open or folded, which
+/// folds or opens it too. Closing a row hides the rows under it with its
+/// body; opening it shows them again. The fixture work holds an edition
+/// and its manifest.
 @Suite("Record tree", .serialized)
 struct RecordTreeTests {
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
@@ -36,36 +36,34 @@ struct RecordTreeTests {
         try await expect(tree.locator(".outliner-toggle")).toHaveCount(0)
         try await expect(manifest).toBeVisible()
 
-        // No toggle column, no card, no rule and no indent: every number
-        // at one x, plain text, as wide as it is ("1." narrower than
-        // "1.1."), and every heading right after its own number, 8px on.
+        // No toggle column, no card, no rule and no indent: every marker
+        // on the spine, an avatar's disc (40, 32 on a phone); every
+        // heading, its number first, and every body right after the
+        // marker, 12px on, at one x.
+        let disc: Double = layout.viewport(for: engine).width < 480 ? 32 : 40
         let list = try #require(try await tree.locator(":scope > .outliner-list").boundingBox())
         let spineLeft = try #require(
           try await tree.locator(":scope > .outliner-list").evaluate(
             "(list) => parseFloat(getComputedStyle(list, '::before').left)"
           ).double)
         let spineX = list.x + spineLeft + 0.5
-        let fold = edition.locator(":scope > .outliner-row .record-node-fold").first
-        let innerFold = manifest.locator(":scope > .outliner-row .record-node-fold").first
-        let number = try #require(
-          try await edition.locator(":scope > .outliner-row .record-node-number").first.boundingBox())
-        let innerNumber = try #require(
-          try await manifest.locator(":scope > .outliner-row .record-node-number").first.boundingBox())
-        try await expect(tree.locator(".record-node-anchor button")).toHaveCount(0)
-        let anchor = try #require(
-          try await edition.locator(":scope > .outliner-row .record-node-anchor").first.boundingBox())
-        let innerAnchor = try #require(
-          try await manifest.locator(":scope > .outliner-row .record-node-anchor").first.boundingBox())
+        let fold = edition.locator(":scope > .outliner-row .outliner-marker").first
+        let innerFold = manifest.locator(":scope > .outliner-row .outliner-marker").first
+        let marker = try #require(try await fold.boundingBox())
+        let innerMarker = try #require(try await innerFold.boundingBox())
+        #expect(abs(marker.width - disc) < 0.5 && abs(marker.height - disc) < 0.5, "the marker is no avatar's disc: \(marker)")
+        #expect(abs(marker.x - innerMarker.x) < 0.5, "the markers do not stand at one x")
+        #expect(abs(marker.x + marker.width / 2 - spineX) < 1, "the spine does not run through the marker: \(marker.x), \(spineX)")
         let top = try #require(
-          try await edition.locator(":scope > .outliner-row .accordion-summary").first.boundingBox())
+          try await edition.locator(":scope > .outliner-row .record-node-heading").first.boundingBox())
         let under = try #require(
-          try await manifest.locator(":scope > .outliner-row .accordion-summary").first.boundingBox())
-        #expect(abs(innerNumber.x - number.x) < 0.5, "the numbers do not start at one x: \(number.x), \(innerNumber.x)")
-        #expect(innerNumber.width > number.width + 1, "a number is not as wide as it is")
-        #expect(innerAnchor.width > anchor.width + 1, "the numbers stand in one column")
-        #expect(number.width <= anchor.width + 0.5 && innerNumber.width <= innerAnchor.width + 0.5, "a number overflows its place")
-        #expect(abs(top.x - (anchor.x + anchor.width + 8)) < 1, "the heading does not start right after its number")
-        #expect(abs(under.x - (innerAnchor.x + innerAnchor.width + 8)) < 1, "the heading under it does not start right after its number")
+          try await manifest.locator(":scope > .outliner-row .record-node-heading").first.boundingBox())
+        #expect(abs(top.x - (marker.x + marker.width + 12)) < 1, "the heading does not start right after its marker")
+        #expect(abs(under.x - top.x) < 1, "the headings do not start at one x: \(top.x), \(under.x)")
+        // Its number first in its heading, before its grip and value.
+        let first = try await edition.locator(":scope > .outliner-row .record-node-heading").first.evaluate(
+          "(h) => h.firstElementChild.className").string
+        #expect(first?.contains("record-node-number") == true, "the number is not first in its heading: \(String(describing: first))")
         let frame = try await edition.evaluate(
           """
           (item) => {
@@ -75,52 +73,43 @@ struct RecordTreeTests {
           }
           """).string
         #expect(frame == "0px 0px 0px 0px 0px", "a node is unframed and unruled: \(String(describing: frame))")
-        // Its chevron, at its heading's end, is its fold control, named for
-        // what a press does, down open and to the side folded.
-        let summaryBox = try #require(try await fold.evaluate(
-          "(f) => { const s = f.closest('.accordion-summary').getBoundingClientRect(), b = f.getBoundingClientRect(); return Math.abs(s.right - b.right) < 1 }"
-        ).bool)
-        #expect(summaryBox, "the chevron does not end its heading")
+        // Its marker is its fold control, named for what a press does, its
+        // chevron down open and to the side folded; no chevron at its
+        // heading's end.
+        try await expect(edition.locator(":scope > .outliner-row .record-node-heading .animated-right-down-chevron-view")).toHaveCount(0)
         try await expect(fold.locator(".animated-right-down-chevron-view")).toHaveAttribute("data-expanded", "true")
         try await expect(innerFold.locator(".animated-right-down-chevron-view")).toHaveAttribute("data-expanded", "false")
         try await expect(fold).toHaveAttribute("aria-label", "Collapse testament 1.")
         try await expect(fold).toHaveAttribute("aria-expanded", "true")
         try await expect(innerFold).toHaveAttribute("aria-label", "Expand testament 1.1.")
+        // Folded, its scrim stays over it; open, only under the pointer.
+        try await expect(innerFold.locator(".outliner-marker-scrim")).toBeVisible()
+        try await expect(fold.locator(".outliner-marker-scrim")).toBeHidden()
 
         // The spine: one line down the tree's start, a thread's, through
-        // the middle of every number's first figure, broken round each
-        // number by a large control's height (a medium one's on a phone),
-        // from under the first number's gap to 16px past the last node's
-        // foot.
-        let gap: Double = layout.viewport(for: engine).width < 480 ? 40 : 48
+        // the middle of every marker, from under the first marker to 16px
+        // past the last node's foot.
         let spine = try await tree.locator(":scope > .outliner-list").evaluate(
           """
           (list) => {
             const s = getComputedStyle(list, '::before')
-            const first = list.querySelector('.outliner-number').getBoundingClientRect()
+            const first = list.querySelector('.outliner-marker').getBoundingClientRect()
             return [s.width, parseFloat(s.left) >= 0,
-              Math.abs(list.getBoundingClientRect().top + parseFloat(s.top) - (first.top + first.height / 2 + \(gap) / 2)) < 1,
+              Math.abs(list.getBoundingClientRect().top + parseFloat(s.top) - first.bottom) < 1,
               Math.round(parseFloat(s.bottom))].join(' ')
           }
           """).string
         #expect(spine == "1px true true -16", "the tree has no continuous spine: \(String(describing: spine))")
-        let figure = try #require(try await edition.locator(":scope > .outliner-row .outliner-number").first.evaluate(
-          "(n) => { const r = document.createRange(); r.setStart(n.firstChild, 0); r.setEnd(n.firstChild, 1); const b = r.getBoundingClientRect(); return b.left + b.width / 2 }"
-        ).double)
-        #expect(abs(figure - spineX) < 1, "the spine does not run through the number's first figure: \(figure), \(spineX)")
 
-        // A node's stretch of it: from directly under its number's gap,
-        // beside its body and the rows under it, darkening under the
-        // pointer.
+        // A node's stretch of it: from directly under its marker, beside
+        // its body and the rows under it, darkening under the pointer.
         let rail = edition.locator(":scope > .outliner-rail")
         try await expect(rail).toHaveAttribute("aria-hidden", "true")
         try await expect(rail).toHaveCSS("cursor", "pointer")
         let railBox = try #require(try await rail.boundingBox())
         let inner = try #require(try await manifest.boundingBox())
         #expect(abs(railBox.x + railBox.width / 2 + 0.5 - spineX) < 1, "the rail is not on the spine")
-        #expect(
-          abs(railBox.y - (number.y + number.height / 2 + gap / 2)) < 1,
-          "the rail does not start directly under the number's gap")
+        #expect(abs(railBox.y - (marker.y + marker.height)) < 1, "the rail does not start directly under the marker")
         #expect(
           abs(railBox.y + railBox.height - (inner.y + inner.height)) < 1,
           "the rail does not run beside the rows under it to its foot, and no further")
@@ -133,7 +122,7 @@ struct RecordTreeTests {
         _ = try await rail.evaluate(
           "(rail) => { window.scrollBy(0, rail.getBoundingClientRect().top - innerHeight / 2); return true }")
         let shown = try #require(try await rail.boundingBox())
-        // Its very top, directly under the number's gap: the stretch, whole.
+        // Its very top, directly under the marker: the stretch, whole.
         let topmost = (x: shown.x + shown.width / 2, y: shown.y + 1)
         try await page.mouse.move(x: topmost.x, y: topmost.y)
         let hovered = try await line.evaluate("(l) => getComputedStyle(l).backgroundColor").string
@@ -145,11 +134,22 @@ struct RecordTreeTests {
         try await summary.click()
         try await expect(edition).toHaveAttribute("data-outliner-collapsed", "false")
         try await expect(manifest).toBeVisible()
-        // Its body starts where its heading does.
-        let body = try #require(
-          try await edition.locator(":scope > .outliner-row .accordion-content-clip").first.boundingBox())
-        #expect(abs(body.x - top.x) < 1, "the body does not start where its heading does: \(body.x - top.x)px")
-        // Its chevron: closed, the rows under it go with its body.
+        // One column: its body under its heading, from the tree's one x
+        // right after the marker (its disc and 12px in), whatever its number.
+        let bodyX = { (item: Locator) async throws -> Double in
+          try #require(try await item.evaluate(
+            "(i) => { const c = i.querySelector(':scope > .outliner-row .accordion-content'); return c.getBoundingClientRect().left + parseFloat(getComputedStyle(c).paddingInlineStart) - i.closest('.outliner-view > .outliner-list').getBoundingClientRect().left }"
+          ).double)
+        }
+        let body = try await bodyX(edition)
+        #expect(abs(body - (disc + 12)) < 1, "the body does not start right after the marker: \(body)px")
+        _ = try await innerFold.evaluate("(f) => { f.click(); return true }")
+        try await expect(manifest).toHaveAttribute("data-outliner-collapsed", "false")
+        let innerBody = try await bodyX(manifest)
+        #expect(abs(innerBody - body) < 1, "the bodies do not start at one x: \(body), \(innerBody)")
+        _ = try await innerFold.evaluate("(f) => { f.click(); return true }")
+        try await expect(manifest).toHaveAttribute("data-outliner-collapsed", "true")
+        // Its marker: closed, the rows under it go with its body.
         try await fold.click()
         try await expect(edition).toHaveAttribute("data-outliner-collapsed", "true")
         try await expect(manifest).toBeHidden()

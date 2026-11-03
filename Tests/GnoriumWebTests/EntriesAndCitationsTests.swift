@@ -313,6 +313,9 @@ struct EntriesAndCitationsTests {
         // Medium, a step down under the phone step on a phone, the find
         // field and the page pager with them.
         let control = try await page.controlHeight("medium")
+        // The pager's chevrons a size under its number box (user,
+        // 2026-11-03): small, a step down again on a phone.
+        let chevron = try await page.controlHeight("small")
         let type = try await page.controlFontSize("medium")
         let icon = try await page.controlIconSize()
         let row = try await page.length("calc(\(control) + 2 * var(--spacing-8))")
@@ -328,7 +331,7 @@ struct EntriesAndCitationsTests {
             const out = [];
             if (h(row) !== \(px(row))) out.push('header row ' + h(row));
             if (!pager.classList.contains('pagination-size-medium')) out.push('pager ' + pager.className);
-            if (h(pager.querySelector('.pagination-prev')) !== \(px(control))) out.push('pager button ' + h(pager.querySelector('.pagination-prev')));
+            if (h(pager.querySelector('.pagination-prev')) !== \(px(chevron))) out.push('pager button ' + h(pager.querySelector('.pagination-prev')));
             if (getComputedStyle(pager.querySelector('.page-box')).fontSize !== '\(type)') out.push('page box ' + getComputedStyle(pager.querySelector('.page-box')).fontSize);
             if (el.closest('.search-input-view').dataset.size !== 'medium') out.push('field size ' + el.closest('.search-input-view').dataset.size);
             if (h(el) !== \(px(control))) out.push('field ' + h(el));

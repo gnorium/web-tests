@@ -112,7 +112,8 @@ struct AmendmentInsertionTests {
         let gripSize = try await grip.evaluate(
           "el => { const r = el.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height); }")
         #expect(gripSize.string == (layout == .phone ? "32x32" : "40x40"), "\(gripSize)")
-        try await grip.click()
+        // Space picks it up: a press on its marker folds it (user, 2026-11-03).
+        try await grip.press("Space")
         try await grip.press("ArrowDown")
         try await grip.press("ArrowRight")
         try await grip.press("Enter")

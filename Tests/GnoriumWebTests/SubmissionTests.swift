@@ -304,7 +304,8 @@ struct SubmissionTests {
     // Restructured by the outline's moves: the digitization picked up,
     // moved after the impression and put under it.
     let grip = manifest.locator(".outliner-handle").first
-    try await grip.click()
+    // Space picks it up: a press on its marker folds it (user, 2026-11-03).
+    try await grip.press("Space")
     try await grip.press("ArrowDown")
     try await grip.press("ArrowRight")
     try await grip.press("Enter")
@@ -399,7 +400,8 @@ struct SubmissionTests {
     let number = copy.locator(".record-node-number").first
     try await expect(number).toHaveText("2")
     let grip = copy.locator(".outliner-handle").first
-    try await grip.click()
+    // Space picks it up: a press on its marker folds it (user, 2026-11-03).
+    try await grip.press("Space")
     try await grip.press("ArrowRight")
     try await grip.press("Enter")
     try await expect(number).toHaveText("1.2")
@@ -413,7 +415,7 @@ struct SubmissionTests {
     try await expect(copy.locator(".record-node-heading .node-value-view textarea").first).toHaveValue("Copy 2")
     // Under the digitization above it: refused, in the tree's words.
     let handle = copy.locator(".outliner-handle").first
-    try await handle.click()
+    try await handle.press("Space")
     try await handle.press("ArrowRight")
     try await expect(tree.locator(".outliner-feedback .alert-content"))
       .toHaveText("Nothing can go under a digitization: its images attest it.")

@@ -80,23 +80,27 @@ struct AmendmentRemovalTests {
         try await expect(manifest).toHaveAttribute("data-outline-state", "removed")
         #expect(!(try await shape()).contains("manifest-"))
         // Its node ringed as a field is: the ring the outline item draws
-        // round the whole flat node (its `::after`), a border and an
-        // outline of one red, never a box-shadow and never a line through
-        // the node.
+        // round the whole node and every node under it (its `::after`), a
+        // border and an outline of one red, never a box-shadow and never a
+        // line through the node, right of its marker (user, 2026-11-03).
         let ring = try await manifest.evaluate(
           """
           (item) => {
             const s = getComputedStyle(item, '::after')
             const row = getComputedStyle(item.querySelector(':scope > .outliner-row .accordion-view'))
+            const marker = item.querySelector(':scope > .outliner-row .outliner-marker').getBoundingClientRect()
+            const left = item.getBoundingClientRect().left + parseFloat(s.left) - 1
             const ok = s.borderTopColor === s.outlineColor && s.outlineStyle === 'solid'
               && s.outlineWidth === s.borderTopWidth && s.borderTopWidth === '1px' && s.boxShadow === 'none'
-              && row.outlineStyle === 'none' && row.boxShadow === 'none'
+              && row.outlineStyle === 'none' && row.boxShadow === 'none' && left > marker.right
             return ok ? 'ok' : [s.borderTopColor, s.outlineColor, s.outlineStyle, s.outlineWidth, s.borderTopWidth,
-              s.boxShadow, row.outlineStyle, row.boxShadow].join(' | ')
+              s.boxShadow, row.outlineStyle, row.boxShadow, left, marker.right].join(' | ')
           }
           """)
         #expect(ring.string == "ok", "The removed testament's node is not ringed as a field: \(ring)")
-        try await expect(stepper.removeButton).toHaveAttribute("aria-label", "Restore testament 1.1.")
+        // The stepper on to the node next to it, here the one before (user,
+        // 2026-11-03); stepped back, it restores it.
+        try await expect(stepper.removeButton).toHaveAttribute("aria-label", "Remove testament 1.")
         try await stepper.remove("Restore testament 1.1.")
         try await expect(manifest).not.toHaveAttribute("data-outline-state", "removed")
         #expect((try await shape()).contains("manifest-"))
@@ -146,8 +150,10 @@ struct AmendmentRemovalTests {
         try await page.openHydrated("\(work.path)/amendments/new")
         // Drawn so, and kept so by the outline's every pass (a click runs one).
         try await page.locator(".testament-outliner-hint").first.evaluate("(hint) => document.body.click()")
-        try await expect(manifest.locator(":scope > .outliner-row .outliner-handle").first).toBeDisabled()
-        try await expect(edition.locator(":scope > .outliner-row .outliner-handle").first).toBeEnabled()
+        try await expect(manifest.locator(":scope > .outliner-row .outliner-handle").first).toHaveAttribute(
+          "data-outliner-immovable", "true")
+        try await expect(edition.locator(":scope > .outliner-row .outliner-handle").first).toHaveAttribute(
+          "data-outliner-immovable", "false")
         // Neither is one "− Testament" steps to: none to remove, the
         // button there, disabled.
         try await expect(stepper.removeButton).toBeVisible()
