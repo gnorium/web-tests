@@ -429,10 +429,11 @@ struct LexicographicAmendmentTests {
         // The others stay open.
         try await expect(form.locator(".outliner-item[data-outliner-id='s-1']")).toHaveAttribute(
           "data-sentiment-frozen", "false")
-        // Drawn disabled in the disabled tokens, never faded (user,
-        // 2026-11-03): its Value box a disabled field's ground, its
-        // accordions' headers and its labels the disabled color, its
-        // marker ringed in the disabled border; its info still its own.
+        // Drawn as a page that reads draws its fields, never greyed out nor
+        // faded (user, 2026-11-03): its Value box a disabled field's ground,
+        // its labels and its accordions' headers in their own colors, its
+        // buttons disabled, its marker ringed in the disabled border; its
+        // info still its own, and its accordions still open and close.
         let drawn = try await item.evaluate(
           """
           (i) => {
@@ -441,21 +442,37 @@ struct LexicographicAmendmentTests {
               const p = document.createElement('span'); p.style[property] = `var(${name})`
               document.body.append(p); const v = getComputedStyle(p)[property]; p.remove(); return v
             }
-            const disabled = token('color', '--color-disabled')
+            const base = token('color', '--color-base')
             const field = row.querySelector('.sentiment-value-view textarea')
             const marker = row.querySelector('.record-node-marker')
             const faded = [row.querySelector('.record-node-view'), ...row.querySelectorAll('.accordion-content, .accordion-summary, .sentiment-fields-view')]
               .some(e => getComputedStyle(e).opacity !== '1')
             return [
               getComputedStyle(field).backgroundColor === token('backgroundColor', '--background-color-disabled'),
-              getComputedStyle(row.querySelector('.metadata-accordion .accordion-title')).color === disabled,
-              [...row.querySelectorAll('.label-text, .dropdown-label-text')].every(l => getComputedStyle(l).color === disabled),
+              getComputedStyle(row.querySelector('.metadata-accordion .accordion-title')).color === base,
+              [...row.querySelectorAll('.label-view:not([data-disabled=true]) > .label-text, .dropdown-label-text')]
+                .every(l => getComputedStyle(l).color === base),
               getComputedStyle(marker, '::after').borderTopColor === token('borderTopColor', '--border-color-disabled'),
               faded, row.querySelector('.node-value-info').closest('[inert]') === null
             ].join(' ')
           }
           """).string
         #expect(drawn == "true true true true false true", "the held sentiment is not drawn disabled: \(String(describing: drawn))")
+        // Its accordions still open and close (user, 2026-11-03), so its
+        // fields are read; what they hold takes no input.
+        let metadata = item.locator(":scope > .outliner-row .metadata-accordion").first
+        let details = metadata.locator(":scope > .accordion-details")
+        let wasOpen = try await details.getAttribute("data-expanded") == "true"
+        try await metadata.locator(":scope > .accordion-details > .accordion-summary").click()
+        try await expect(details).toHaveAttribute("data-expanded", wasOpen ? "false" : "true")
+        try await metadata.locator(":scope > .accordion-details > .accordion-summary").click()
+        try await expect(details).toHaveAttribute("data-expanded", wasOpen ? "true" : "false")
+        let taken = try await metadata.evaluate(
+          """
+          (m) => [...m.querySelectorAll('.accordion-content input:not([type=hidden]), .accordion-content button, .accordion-content textarea')]
+            .every(c => c.closest('[inert]') !== null)
+          """)
+        #expect(taken == .bool(true), "a field of the held sentiment's Metadata takes input")
 
         // Stepped to, "− Sentiment 1.1." is disabled, the palinode's whole
         // UUID its tooltip's one link.
