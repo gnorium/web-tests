@@ -630,11 +630,14 @@ struct SubmissionTests {
     let box = form.locator(".quote-sources-view .quote-source").first
     try await box.locator("input[name='quote-s1-source-url']").fill(source)
     // The image on screen and the sentence typed in its reader's text pane
-    // (user, 2026-11-02), as the reader fills them.
+    // (user, 2026-11-02), and its form, a word of it picked and added with
+    // "+ Form" (user, 2026-11-03: every quote holds one, by its word's
+    // place and surface), as the reader fills them.
     _ = try await box.evaluate(
       """
       (b) => { b.querySelector("input[name='quote-s1-start-image']").value = '1';
         b.querySelector("input[name='quote-s1-quote']").value = 'A web tests quote.';
+        b.querySelector("input[name='quote-s1-forms']").value = '[[[{"surface":"web","word":2}]]]';
         // A source Gnorium lacks gives its Title, Language and Class
         // (user, 2026-11-02), as its box asks once its URL is read.
         for (const [k, v] of [['title', 'Web tests source'], ['language', 'eng'], ['class', 'report']]) {
@@ -658,8 +661,10 @@ struct SubmissionTests {
     let sentiment = try TestAdmin.query(
       "SELECT sentiment_json FROM lexicographic_figurants WHERE title_form_json::json ->> 'title' = 'webtestsnew\(suffix)'")
     #expect(sentiment.contains(#""register":["formal"]"#), "\(sentiment)")
-    // Its quote pending: its Source URL, image 1 and its sentence.
+    // Its quote pending: its Source URL, image 1 and its sentence, its
+    // form kept by its word's place and surface.
     #expect(sentiment.contains(#""images":[1]"#) && sentiment.contains(#""pending""#), "\(sentiment)")
+    #expect(sentiment.contains(#""surface":"web""#), "its form: \(sentiment)")
     #expect(!sentiment.contains("default.jpg"), "an image URL was kept: \(sentiment)")
   }
 

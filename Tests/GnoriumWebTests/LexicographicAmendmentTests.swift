@@ -369,10 +369,13 @@ struct LexicographicAmendmentTests {
   }
 
   /// A sentiment an open palinode holds (user, 2026-11-01): on the next
-  /// amendment form it is frozen and stays where it is, its removal
-  /// disabled with the palinode's UUID linked in its tooltip, as a held
-  /// testament's radio. A second palinode on it, posted anyway, is refused
-  /// (the form drawn again) naming and linking the open one.
+  /// amendment form it is frozen and stays where it is. The tree's removal
+  /// stepper still steps to it (user, 2026-11-03), and to the sentiment it
+  /// stands under, which would take it along: its "− Sentiment" disabled
+  /// there, the palinode's whole UUID linked in its tooltip, as a held
+  /// testament's radio; the add stepper likewise at a place under it. A
+  /// second palinode on it, posted anyway, is refused (the form drawn
+  /// again) naming and linking the open one.
   @Test(arguments: [BrowserEngine.chrome])
   func aSentimentAnOpenPalinodeHoldsLinksItsPalinode(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -406,20 +409,57 @@ struct LexicographicAmendmentTests {
           $0.path.hasPrefix("/mission-control/overtures/lexicographic/amendments/")
         }
 
-        // Drawn again: the held sentiment is frozen, its handle still, and
-        // never one "− Sentiment" steps to.
+        // Drawn again: the held sentiment is frozen, its handle still.
         try await page.openHydrated("\(word.path)/amendments/new")
         let item = form.locator(".outliner-item[data-outliner-id='s-1-1']")
         try await expect(item).toHaveAttribute("data-sentiment-held", "true")
         try await expect(item).toHaveAttribute("data-sentiment-frozen", "true")
         try await expect(item.locator(".outliner-handle").first).toBeDisabled()
-        #expect(!(try await steps.choices("remove")).contains("Remove sentiment 1.1."))
         let palinode = try TestAdmin.query(
           "SELECT id FROM lexicographic_palinodes WHERE lexico_record_id = '\(record)' ORDER BY created_at DESC LIMIT 1"
         ).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         // The others stay open.
         try await expect(form.locator(".outliner-item[data-outliner-id='s-1']")).toHaveAttribute(
           "data-sentiment-frozen", "false")
+
+        // Stepped to, "− Sentiment 1.1." is disabled, the palinode's whole
+        // UUID its tooltip's one link.
+        let removal = steps.holdTooltip("remove")
+        let addition = steps.holdTooltip("add")
+        #expect(try await steps.choose("remove", "Remove sentiment 1.1."))
+        try await expect(steps.removeButton).toBeDisabled()
+        try await expect(removal).toHaveAttribute("data-tooltip-off", "false")
+        // The bubble shown: each stepper's has its own.
+        let link = page.locator(".tooltip-content a[href*='/mission-control/palinodes/lexicographic/']")
+          .filter(visible: true).first
+        // Pointed at once the page is still (a scroll closes a tooltip).
+        func point() async throws {
+          _ = try await removal.evaluate("(e) => e.scrollIntoView({ block: 'center' })")
+          try await Task.sleep(for: .milliseconds(300))
+          try await page.mouse.move(x: 1, y: 1)
+          try await removal.hover()
+        }
+        try await point()
+        try await expect(link).toBeVisible()
+        try await expect(link).toHaveText(palinode)
+        let href = try await link.getAttribute("href") ?? ""
+        #expect(href.lowercased() == "/mission-control/palinodes/lexicographic/\(palinode)", "\(href)")
+        // Mono, as an identifier's tooltip is.
+        try await expect(
+          page.locator(".tooltip-content[data-font='mono']:has(a[href*='/mission-control/palinodes/lexicographic/'])").first
+        ).toBeVisible()
+        // "− Sentiment 1." too: it would take the held one along.
+        #expect(try await steps.choose("remove", "Remove sentiment 1."))
+        try await expect(steps.removeButton).toBeDisabled()
+        try await expect(removal).toHaveAttribute("data-tooltip-off", "false")
+        // The add stepper: a place under the held one is kept as well; one
+        // beside it is open, its tooltip off.
+        #expect(try await steps.choose("add", "Add sentiment 1.1.1."))
+        try await expect(steps.addButton).toBeDisabled()
+        try await expect(addition).toHaveAttribute("data-tooltip-off", "false")
+        #expect(try await steps.choose("add", "Add sentiment 1.2."))
+        try await expect(steps.addButton).toBeEnabled()
+        try await expect(addition).toHaveAttribute("data-tooltip-off", "true")
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
 
@@ -437,6 +477,15 @@ struct LexicographicAmendmentTests {
           """, as: String.self)
         #expect(answer.hasPrefix("422 "), "\(answer.prefix(80))")
         #expect(answer.contains("is held by open palinode \(palinode)"), "the refusal names the palinode")
+
+        // Its link opens the palinode.
+        #expect(try await steps.choose("remove", "Remove sentiment 1.1."))
+        try await point()
+        try await expect(link).toBeVisible()
+        try await link.click()
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the palinode's page") {
+          $0.path.lowercased() == "/mission-control/palinodes/lexicographic/\(palinode)"
+        }
       }
     } catch {
       try await clean()

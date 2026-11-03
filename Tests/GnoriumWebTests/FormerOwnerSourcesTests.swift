@@ -59,10 +59,12 @@ struct FormerOwnerSourcesTests {
       try await source.locator("input[name$='-source-url-title']").fill("A Catalogue of the Library")
       let quotes = source.locator(".quote-passage-quotes > .quote-passage-quote")
       try await expect(quotes).toHaveCount(1)
-      // Inside its Source accordion, after its fields, then its own row.
+      // Inside its Source accordion, after its fields, then its own row:
+      // "+ Quote", then "− Citation", a citation holding one source (user,
+      // 2026-11-03).
       try await expect(source.locator(".source-accordion-view .quote-passage-quotes > .quote-passage-quote")).toHaveCount(1)
       try await expect(source.locator(".source-accordion-view .quote-passage-actions .button-label"))
-        .toHaveTexts(["Quote", "Source"])
+        .toHaveTexts(["Quote", "Citation"])
       let pane = quotes.first.locator(".quote-passage-text .tei-page-text")
       try await expect(pane, timeout: .seconds(15)).toBeAttached()
       // The whole typing area the caret's (user, 2026-11-03): its

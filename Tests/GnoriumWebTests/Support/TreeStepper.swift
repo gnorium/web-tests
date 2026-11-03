@@ -6,7 +6,9 @@ import WebTestsTesting
 /// after the tree: "‹ + Testament 1.2. ›" stepping through every place a
 /// new node may go, its button putting one there, and "‹ − Testament 1.1. ›"
 /// stepping through the nodes that may go, its button removing the one
-/// chosen (a removed one's, "+ Testament 1.1.", restoring it).
+/// chosen (a removed one's, "+ Testament 1.1.", restoring it). Where an
+/// open object holds the node or place stepped to, the button is disabled,
+/// the object linked in its tooltip (`holdTooltip`).
 struct TreeStepper {
   /// The row: `.outliner-stepper-view` for the tree `tree` names.
   let row: Locator
@@ -31,6 +33,10 @@ struct TreeStepper {
   var addButton: Locator { row.locator(".outliner-stepper-add .outliner-stepper-button") }
   /// The remove stepper's button: "− Testament 1.", aria-label "Remove testament 1.".
   var removeButton: Locator { row.locator(".outliner-stepper-remove .outliner-stepper-button") }
+
+  /// The tooltip round `stepper`'s ("add" or "remove") button, saying the
+  /// hold that disables it; off while none does.
+  func holdTooltip(_ stepper: String) -> Locator { row.locator(".outliner-stepper-\(stepper) .outliner-stepper-hold") }
 
   /// Steps `stepper` ("add" or "remove") to the choice its button names
   /// `label` ("Add testament 1.2."), from its first: false where none is.

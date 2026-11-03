@@ -49,10 +49,18 @@ struct EditionsAndCopiesTests {
       try await page.locator("input[name='former-owner-item2-start-year']").fill("1914")
       // The added row's dates stay optional.
       try await expect(page.locator("input[name='former-owner-item2-start-year']")).not.toHaveAttribute("required", "")
-      let json = page.locator("input[name='former-owner-json']")
-      try await expect(json).toHaveValue(
+      // Each row posts its own id, given as it was added, so a claim names
+      // it (user, 2026-11-03), after its name, its Certainty and its period.
+      let rows =
         #"[{"value":"Duke of Devonshire","certainty":"certain","start":{"era":"anno_domini","year":1800}},"#
-          + #"{"value":"Henry E. Huntington","certainty":"certain","start":{"era":"anno_domini","year":1914}}]"#)
+        + #"{"value":"Henry E. Huntington","certainty":"certain","start":{"era":"anno_domini","year":1914}}]"#
+      var posted = try await Self.formerOwners(page)
+      for _ in 0..<20 where posted.rest != rows {
+        try await Task.sleep(for: .milliseconds(250))
+        posted = try await Self.formerOwners(page)
+      }
+      #expect(posted.rest == rows, "the rows as posted: \(posted.rest)")
+      let ids = try #require(posted.ids, "each row its own id")
 
       // Kept a moment after the last change, and back after a reload.
       var kept = ""
@@ -66,9 +74,34 @@ struct EditionsAndCopiesTests {
       try await expect(section, timeout: .seconds(15)).toHaveCount(2)
       try await expect(page.locator("input[name='former-owner-item2-text-input']")).toHaveValue("Henry E. Huntington")
       try await expect(page.locator("input[name='former-owner-item2-start-year']")).toHaveValue("1914")
+      // The rows back with their ids: a claim made before still names them.
+      var back = try await Self.formerOwners(page)
+      for _ in 0..<20 where back.ids != ids {
+        try await Task.sleep(for: .milliseconds(250))
+        back = try await Self.formerOwners(page)
+      }
+      #expect(back.ids == ids, "the ids kept with the draft: \(back.ids ?? "none")")
+      #expect(back.rest == rows, "the rows kept with the draft: \(back.rest)")
       _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
       try await page.expectNoErrors()
     }
+  }
+
+  /// The former owners' list as posted (`former-owner-json`): its rows
+  /// without their ids, as JSON, and their ids in order, nil unless each
+  /// is a UUID of its own.
+  static func formerOwners(_ page: Page) async throws -> (rest: String, ids: String?) {
+    let read = try await page.evaluate(
+      """
+      (() => { const input = document.querySelector("input[name='former-owner-json']");
+        let rows = []; try { rows = JSON.parse(input?.value || '[]'); } catch (e) { return { rest: input.value, ids: '' }; }
+        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const ids = rows.map((row) => row.id);
+        const own = ids.every((id) => typeof id === 'string' && uuid.test(id)) && new Set(ids).size === ids.length;
+        return { rest: JSON.stringify(rows.map(({ id, ...rest }) => rest)), ids: own ? ids.join(',') : '' }; })()
+      """)
+    let ids = read["ids"].string ?? ""
+    return (read["rest"].string ?? "", ids.isEmpty ? nil : ids)
   }
 
   @Test(arguments: gnorium.engines)

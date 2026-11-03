@@ -104,7 +104,11 @@ struct OriginFormStampTests {
       let card = source.locator(".quote-passage-quotes > .quote-passage-quote").first
       try await expect(card.locator(":scope > .quote-passage-reader")).toHaveCount(1)
       try await expect(card.locator("input[name$='-certainty']")).toHaveCount(1)
-      try await expect(source.locator(".source-accordion-view input[name$='-certainty']")).toHaveCount(0)
+      // The Source's own fields ask none: its accordion holds its Quote
+      // cards (user, 2026-11-03), and the card's is its accordion's one.
+      try await expect(source.locator(".source-accordion-view .quote-passage-fields input[name$='-certainty']"))
+        .toHaveCount(0)
+      try await expect(source.locator(".source-accordion-view input[name$='-certainty']")).toHaveCount(1)
       // A new card's row: "+ Quote", then "− Citation".
       let remove = citation.locator(".quote-passage-actions .quote-passage-citation-remove")
       try await expect(remove).toHaveText("Citation")
