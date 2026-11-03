@@ -68,14 +68,16 @@ struct PromptVignetteComparisonTests {
       try await expect(changed.locator(".prompt-text-view")).toHaveAttribute("data-raw", "true")
       try await expect(changed.locator(".prompt-text-view .diff-box")).toHaveCount(0)
       try await expect(changed.locator(":scope > .prompt-text-diff .diff-box")).toBeVisible()
-      // Every prompt of the process, in the vignette's order (user,
-      // 2026-10-17), as the Revise page and the prompt previews list them
-      // (gnorium-web e140e4996): the continuation changed, then the
-      // autocompaction's two unchanged.
-      try await expect(comparisons).toHaveCount(5)
-      try await expect(comparisons.nth(2).locator(".prompt-text-view")).toHaveAttribute("data-raw", "true")
-      try await expect(comparisons.nth(2).locator(":scope > .prompt-text-diff .diff-box")).toBeVisible()
-      try await expect(comparisons.nth(3).locator(".prompt-text-view")).toHaveAttribute("data-raw", "false")
+      // Every prompt of the process, in the order each comes into play
+      // (`PromptNode`, user, 2026-10-25 and 2026-10-26): System, Task,
+      // Reminder, Subagent, Autocompaction, Continuation, then the
+      // Integration's System and Task; only the continuation changed.
+      try await expect(comparisons).toHaveCount(8)
+      try await expect(comparisons.nth(5).locator(".prompt-text-view")).toHaveAttribute("data-raw", "true")
+      try await expect(comparisons.nth(5).locator(":scope > .prompt-text-diff .diff-box")).toBeVisible()
+      for unchanged in [2, 3, 4, 6, 7] {
+        try await expect(comparisons.nth(unchanged).locator(".diff-box")).toHaveCount(0)
+      }
       try await expect(comparisons.nth(4).locator(".prompt-text-view")).toHaveAttribute("data-raw", "false")
       let styled = try await page.evaluate("""
         (() => {
