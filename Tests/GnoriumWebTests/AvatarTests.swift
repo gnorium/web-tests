@@ -154,9 +154,7 @@ struct AvatarTests {
     do {
       try await withPage(engine, gnorium, cookies: [admin.cookie]) { page in
         // The list is a table: its first locution, opened in its thread.
-        // Every row links into a thread a page shows, never a bare anchor:
-        // a tool overture's thread is history no page shows (tools are core
-        // code since 2026-10-30), and its locutions are not listed.
+        // Every row links into its object's page, never a bare anchor.
         try await page.openHydrated("/mission-control/locutions")
         try await expect(page.locator(".locutions-body .table-tbody a[href^='#locution-']")).toHaveCount(0)
         let link = page.locator(".locutions-body .table-tbody a[href*='#locution-']").first
