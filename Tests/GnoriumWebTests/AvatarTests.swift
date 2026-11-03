@@ -166,6 +166,13 @@ struct AvatarTests {
         try await page.openHydrated(href)
         let first = page.locator("#\(href.split(separator: "#").last.map(String.init) ?? "")")
         try await expect(first).toBeAttached()
+        // Open: gnorium's locutions open folded (`LocutionView`), the gap
+        // folded with them; its avatar opens it.
+        if try await first.getAttribute("data-collapsed") == "true" {
+          try await first.locator("button.locution-collapse").first.click()
+          try await expect(first).toHaveAttribute("data-collapsed", "false")
+        }
+        try await expect(first).toHaveAttribute("data-motion", "idle")
         // Byline and body 8px apart—the content's row gap, which folds with
         // the body (user, 2026-10-15), no padding of its own; 16px between
         // the words and the footer row (user, 2026-10-12).
