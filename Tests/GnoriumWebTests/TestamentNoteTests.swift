@@ -292,8 +292,10 @@ struct TestamentNoteTests {
         try await expect(note).toBeEnabled()
         try await expect(note).toHaveValue("")
         try await note.fill(Self.workNote)
-        // The work edited: its one digitization is the amendment's.
-        try await expect(page.locator(".testament-choice-view input[name='testament']").first).toBeChecked()
+        // The work edited: the amendment's one subject (user, 2026-11-03),
+        // every testament frozen.
+        try await expect(page.locator(".testament-choice-view")).toHaveCount(0)
+        try await expect(page.locator(".testament-outliner-node[data-testament-frozen='true']").first).toBeAttached()
         try await Self.shoot(page, "notes-amendment-\(layout)")
         try await page.locator(".record-actions button[type='submit']").first.click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the reopened madrigal") {

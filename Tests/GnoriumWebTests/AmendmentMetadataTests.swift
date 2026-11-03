@@ -36,33 +36,35 @@ struct AmendmentMetadataTests {
     try await admin.remove()
   }
 
-  /// An amendment names its one digitization (user, 2026-10-31): only the
-  /// leaf has a radio; nothing selected refuses Submit with an alert above
-  /// it; editing a parent's fields selects the one digitization
-  /// under it, and its edit keeps the selection while it stands.
+  /// One subject per amendment (user, 2026-11-03), never chosen: no
+  /// radio; Submit with nothing changed is turned back above Submit; the
+  /// first change—the work's fields here—freezes every testament, its
+  /// handle and fields shut and the steppers offering nothing; undone,
+  /// all open again.
   @Test(arguments: gnorium.engines, [Layout.desktop])
-  func selectingTheDigitization(engine: BrowserEngine, layout: Layout) async throws {
+  func theFirstChangeIsTheOneSubject(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let scratch = try ScratchWork(owner: admin)
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("\(scratch.path)/amendments/new")
-        let radios = page.locator(".testament-choice-view input[name='testament']")
-        try await expect(radios).toHaveCount(1)
-        let radio = radios.first
-        try await expect(radio).toBeEnabled()
-        try await expect(radio).toBeChecked(false)
+        try await expect(page.locator(".testament-choice-view")).toHaveCount(0)
+        try await expect(page.locator("input[name='testament'][type='radio']")).toHaveCount(0)
 
-        // Nothing selected: refused where it is, with the alert.
-        let alert = page.locator(".testament-outliner-unchosen")
-        try await expect(alert).toBeHidden()
+        // Nothing changed: the server turns it back, on the form drawn again.
         try await page.locator(".action-gate-view button[type='submit']").first.click()
-        try await expect(alert).toBeVisible()
-        try await expect(alert).toContainText("Select the digitization this amendment is about.")
-        #expect(try await page.url().hasSuffix("/amendments/new"))
+        let refusal = page.locator(".submit-amendment-refusal")
+        try await expect(refusal, timeout: .seconds(15)).toContainText("Nothing was changed.")
+        try await page.openHydrated("\(scratch.path)/amendments/new")
 
-        // The work edited: its one digitization is selected, and the alert goes.
+        let nodes = page.locator(".testament-outliner-node")
+        let stepper = page.locator("#testament-outliner > .outliner-stepper-view[data-outliner-stepper-ready='true']")
+        try await expect(stepper).toBeAttached()
+        try await expect(nodes.first).toHaveAttribute("data-testament-frozen", "false")
+        try await expect(stepper.locator(".outliner-stepper-add .outliner-stepper-button")).toBeEnabled()
+
+        // The work edited: its own fields are the subject, every testament frozen.
         let work = page.locator(".submit-amendment-work")
         let title = work.locator("input[name='title']").first
         if !(try await title.isVisible()) {
@@ -70,14 +72,19 @@ struct AmendmentMetadataTests {
         }
         let original = try await title.inputValue()
         try await title.fill(original + " (edited)")
-        try await expect(radio).toBeChecked()
-        try await expect(alert).toBeHidden()
-        try await expect(radio).toHaveAttribute("form", "amendment-work")
+        try await expect(nodes.first).toHaveAttribute("data-testament-frozen", "true")
+        try await expect(nodes.first.locator(".record-node-marker").first)
+          .toHaveAttribute("data-outliner-immovable", "true")
+        try await expect(stepper.locator(".outliner-stepper-add .outliner-stepper-button")).toBeDisabled()
+        try await expect(stepper.locator(".outliner-stepper-remove .outliner-stepper-button")).toBeDisabled()
+        try await expect(page.locator(".testament-outliner-hint[data-hint='edit']")).toHaveAttribute("data-visible", "true")
 
-        // Undone: still selected, still a radio.
+        // Undone: all open again.
         try await title.fill(original)
-        try await expect(radio).toBeChecked()
-        try await expect(radio).toBeEnabled()
+        try await expect(nodes.first).toHaveAttribute("data-testament-frozen", "false")
+        try await expect(nodes.first.locator(".record-node-marker").first)
+          .toHaveAttribute("data-outliner-immovable", "false")
+        try await expect(stepper.locator(".outliner-stepper-add .outliner-stepper-button")).toBeEnabled()
       }
     } catch {
       scratch.remove()

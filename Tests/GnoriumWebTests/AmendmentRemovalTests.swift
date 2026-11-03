@@ -9,7 +9,7 @@ import WebTestsTesting
 /// "‹ − Testament 1.1. ›" stepped to it (user, 2026-11-03); a removed one
 /// is framed red, leaves the tree the amendment posts, and can be restored
 /// by the same button, "+ Testament 1.1.".
-/// Submitted (an amendment is about one digitization), the reopened object
+/// Submitted (an amendment is about one node), the reopened object
 /// carries the tree without it, and its page draws it where it stood,
 /// removed; while that object is open, another amendment can neither move
 /// nor remove the digitization, nor remove a testament above it. The
@@ -98,9 +98,12 @@ struct AmendmentRemovalTests {
           }
           """)
         #expect(ring.string == "ok", "The removed testament's node is not ringed as a field: \(ring)")
-        // The stepper on to the node next to it, here the one before (user,
-        // 2026-11-03); stepped back, it restores it.
-        try await expect(stepper.removeButton).toHaveAttribute("aria-label", "Remove testament 1.")
+        // The removal is the amendment's one subject (user, 2026-11-03): the
+        // stepper offers nothing but its restore, and the edition above it
+        // is frozen in place.
+        try await expect(stepper.removeButton).toHaveAttribute("aria-label", "Restore testament 1.1.")
+        #expect(!(try await stepper.choices("remove")).contains("Remove testament 1."))
+        try await expect(stepper.addButton).toBeDisabled()
         try await stepper.remove("Restore testament 1.1.")
         try await expect(manifest).not.toHaveAttribute("data-outline-state", "removed")
         #expect((try await shape()).contains("manifest-"))
@@ -119,7 +122,7 @@ struct AmendmentRemovalTests {
         try await expect(stepper.removeButton).toHaveAttribute("aria-label", "Restore testament 1.")
         try await expect(stepper.removeButton.locator("svg.plus-icon-view")).toHaveCount(1)
 
-        // An amendment is about one digitization: the edition restored, the
+        // An amendment is about one node: the edition restored, the
         // digitization removed is what it submits.
         try await stepper.remove("Restore testament 1.")
         try await expect(edition).not.toHaveAttribute("data-outline-state", "removed")
@@ -145,13 +148,27 @@ struct AmendmentRemovalTests {
         try await page.expectNoHorizontalOverflow()
 
         // While that object is open its digitization keeps its place in
-        // another amendment: its handle disabled, and neither it nor the
-        // edition above it removable—the stepper drawn so, not hidden.
+        // another amendment: frozen, its marker the plain disc—no grip, no
+        // handle—carrying the holder's UUID in its tooltip, and neither it
+        // nor the edition above it removable—the stepper drawn so, not
+        // hidden. The edition may still be shifted: a passive move of it.
         try await page.openHydrated("\(work.path)/amendments/new")
         // Drawn so, and kept so by the outline's every pass (a click runs one).
         try await page.locator(".testament-outliner-hint").first.evaluate("(hint) => document.body.click()")
-        try await expect(manifest.locator(":scope > .outliner-row .outliner-handle").first).toHaveAttribute(
-          "data-outliner-immovable", "true")
+        let heldMarker = manifest.locator(":scope > .outliner-row .record-node-marker").first
+        try await expect(heldMarker).toHaveAttribute("data-outliner-held", "true")
+        try await expect(heldMarker.locator(".outliner-marker-grip")).toHaveCount(0)
+        try await expect(manifest.locator(":scope > .outliner-row .outliner-handle")).toHaveCount(0)
+        // Its tooltip's link the holder's whole UUID (its bubble drawn in
+        // the top layer, the hold kept on the item).
+        try await expect(manifest.locator(":scope > .outliner-row .record-node-hold").first).toBeAttached()
+        try await expect(manifest).toHaveAttribute(
+          "data-outliner-hold",
+          try TestAdmin.query(
+            "SELECT upper(bibliographic_palinode_id::text) FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND bibliographic_palinode_id IS NOT NULL;"
+          ).trimmingCharacters(in: .whitespacesAndNewlines))
+        try await expect(manifest.locator(":scope > .outliner-row .testament-outliner-node").first)
+          .toHaveAttribute("data-testament-frozen", "true")
         try await expect(edition.locator(":scope > .outliner-row .outliner-handle").first).toHaveAttribute(
           "data-outliner-immovable", "false")
         // Neither is one "− Testament" steps to: none to remove, the

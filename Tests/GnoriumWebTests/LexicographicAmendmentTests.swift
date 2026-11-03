@@ -410,15 +410,22 @@ struct LexicographicAmendmentTests {
           $0.path.hasPrefix("/mission-control/overtures/lexicographic/amendments/")
         }
 
-        // Drawn again: the held sentiment is frozen, its handle still.
+        // Drawn again: the held sentiment is frozen, its marker the plain
+        // disc—no grip, no handle—its tooltip linking the palinode (user,
+        // 2026-11-03: only its holder shifts it).
         try await page.openHydrated("\(word.path)/amendments/new")
         let item = form.locator(".outliner-item[data-outliner-id='s-1-1']")
         try await expect(item).toHaveAttribute("data-sentiment-held", "true")
         try await expect(item).toHaveAttribute("data-sentiment-frozen", "true")
-        try await expect(item.locator(".outliner-handle").first).toHaveAttribute("data-outliner-immovable", "true")
+        try await expect(item.locator(":scope > .outliner-row .outliner-handle")).toHaveCount(0)
+        let marker = item.locator(":scope > .outliner-row .record-node-marker").first
+        try await expect(marker).toHaveAttribute("data-outliner-held", "true")
+        try await expect(marker.locator(".outliner-marker-grip")).toHaveCount(0)
         let palinode = try TestAdmin.query(
           "SELECT id FROM lexicographic_palinodes WHERE lexico_record_id = '\(record)' ORDER BY created_at DESC LIMIT 1"
         ).trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        try await expect(item.locator(":scope > .outliner-row .record-node-hold").first).toBeAttached()
+        try await expect(item).toHaveAttribute("data-outliner-hold", palinode)
         // The others stay open.
         try await expect(form.locator(".outliner-item[data-outliner-id='s-1']")).toHaveAttribute(
           "data-sentiment-frozen", "false")
@@ -448,7 +455,8 @@ struct LexicographicAmendmentTests {
         #expect(href == "/mission-control/palinodes/lexicographic/\(palinode)", "\(href)")
         // Mono, as an identifier's tooltip is.
         try await expect(
-          page.locator(".tooltip-content[data-font='mono']:has(a[href*='/mission-control/palinodes/lexicographic/'])").first
+          page.locator(".tooltip-content[data-font='mono']:has(a[href*='/mission-control/palinodes/lexicographic/'])")
+            .filter(visible: true).first
         ).toBeVisible()
         // "− Sentiment 1." too: it would take the held one along.
         #expect(try await steps.choose("remove", "Remove sentiment 1."))
