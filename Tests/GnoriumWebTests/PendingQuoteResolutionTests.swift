@@ -77,10 +77,14 @@ struct PendingQuoteResolutionTests {
       // The quote pending on another object's origin: images 1 and 2.
       let other = try ScratchOverture(owner: admin, sealed: false)
       holder = other
+      // Its evidence its outgoing citations, each claiming the step
+      // (user, 2026-11-03).
+      let step = UUID().uuidString
       let pending =
-        #"[{"id":"\#(UUID().uuidString)","relations":["based_on"],"typed":{"title":"Web tests source","voices":[]},"origins":[],"#
-        + #""evidence":[{"id":"\#(UUID().uuidString)","anchors":[],"#
-        + #""pending":{"sourceURL":"\#(source)","images":[1,2],"text":"\#(Self.opening) \#(Self.rest)"}}]}]"#
+        #"[{"id":"\#(step)","relations":["based_on"],"typed":{"title":"Web tests source","voices":[]},"origins":[],"#
+        + #""outgoingCitations":[{"id":"\#(UUID().uuidString)","claim":{"field":"origin","row":"\#(step)"},"#
+        + #""quotes":[{"id":"\#(UUID().uuidString)","anchors":[],"#
+        + #""pending":{"sourceURL":"\#(source)","images":[1,2],"text":"\#(Self.opening) \#(Self.rest)"}}]}]}]"#
       _ = try TestAdmin.query(
         "UPDATE bibliographic_overtures SET origins_json = '\(pending)' WHERE id = '\(other.overtureID)';")
 

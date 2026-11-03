@@ -613,7 +613,9 @@ struct SubmissionTests {
     try await expect(title).toHaveValue("")
     try await expect(form.locator(".framed-accordion-view")).toHaveCount(0)
     let apparatus = form.locator(".submit-sentiment-apparatus")
-    try await expect(apparatus).toContainText("First attestation")
+    // Its first attestation's fields, bare (no group headings: user,
+    // 2026-11-03).
+    try await expect(apparatus).toContainText("Testament")
     try await apparatus.locator("input[name='title']").fill("webtestsnew\(suffix)")
     try await set(page, [("type", "noun")])
     try await expect(draft.locator("#description, textarea[name='description']")).toHaveCount(0)

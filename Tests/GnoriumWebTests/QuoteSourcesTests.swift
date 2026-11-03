@@ -146,10 +146,14 @@ struct QuoteSourcesTests {
       let overture = try ScratchOverture(owner: admin, sealed: false)
       holder = overture
       let source = "https://web-tests.invalid/pending-shape.json"
+      // Its evidence its outgoing citations, each claiming the step
+      // (user, 2026-11-03).
+      let step = UUID().uuidString
       let origins =
-        #"[{"id":"\#(UUID().uuidString)","relations":["based_on"],"typed":{"title":"Web tests source","voices":[]},"origins":[],"#
-        + #""evidence":[{"id":"\#(UUID().uuidString)","anchors":[],"#
-        + #""pending":{"sourceURL":"\#(source)","images":[1,2],"text":"The pendingword stood fast","title":"Pending shape","language":"eng","class":"play"}}]}]"#
+        #"[{"id":"\#(step)","relations":["based_on"],"typed":{"title":"Web tests source","voices":[]},"origins":[],"#
+        + #""outgoingCitations":[{"id":"\#(UUID().uuidString)","claim":{"field":"origin","row":"\#(step)"},"#
+        + #""quotes":[{"id":"\#(UUID().uuidString)","anchors":[],"#
+        + #""pending":{"sourceURL":"\#(source)","images":[1,2],"text":"The pendingword stood fast","title":"Pending shape","language":"eng","class":"play"}}]}]}]"#
       _ = try TestAdmin.query(
         "UPDATE bibliographic_overtures SET origins_json = '\(origins)' WHERE id = '\(overture.overtureID)';")
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -165,13 +169,15 @@ struct QuoteSourcesTests {
         try await expect(fields.locator("input[placeholder='Class']")).toHaveValue("Play")
         try await expect(pending.locator(".testament-view")).toHaveCount(1)
         try await expect(pending.locator(".testament-view .artifact-markup")).toContainText("pendingword")
-        // Its Source accordion, then its Quote card, the card its reader,
-        // then the form's row, disabled.
+        // Its Source accordion, then its Quote card, the card its reader;
+        // the row is its Citation card's (user, 2026-11-03), disabled:
+        // "+ Quote" and "− Citation".
         let shape = try await pending.evaluate(
           "(v) => { const frame = v.querySelector('.quote-source-frame'); return [...frame.children].map((n) => n.matches('.source-accordion-frame') ? 'source' : n.matches('.quote-source-quote') ? 'quote' : n.matches('.quote-source-actions') ? 'row' : 'other').join(',') }"
         ).string
-        #expect(shape == "source,quote,row", "a pending quote shows its Source accordion, its Quote card and its row")
-        try await expect(pending.locator(".quote-source-actions button[disabled]")).toHaveCount(2)
+        #expect(shape == "source,quote", "a pending quote shows its Source accordion and its Quote card")
+        let citation = page.locator(".outgoing-citation:has(.pending-quote-view)").first
+        try await expect(citation.locator(".outgoing-citation-actions button[disabled]")).toHaveCount(2)
         try await expect(pending.locator(".quote-source-quote .testament-view")).toHaveCount(1)
         try await expect(pending.locator(".info-chip-text")).toHaveCount(0)
         try await expect(pending).not.toContainText("Images")

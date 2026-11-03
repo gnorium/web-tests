@@ -80,17 +80,19 @@ struct OriginFormStampTests {
       #expect(nested == 1)
       try await expect(rows).toHaveCount(3)
 
-      // No quotes yet: the empty list takes no gap above "+ Source".
-      try await expect(row.locator(".origin-field-quotes")).toHaveCSS("display", "none")
-      // "+ Source": its Source at once, its accordion of fields, its record
-      // field asked for; its Quote card under it, asking the quote's
-      // Certainty above its "− Quote"; then "+ Quote" and "− Source".
+      // No citations yet: the empty list takes no gap above "+ Citation".
+      try await expect(row.locator(".outgoing-citations-list")).toHaveCSS("display", "none")
+      // "+ Citation" (user, 2026-11-03): a card at once, its claim the step,
+      // its Source's accordion of fields, its record field asked for; its
+      // Quote card under it, asking the quote's Certainty; then "+ Quote"
+      // and "− Citation".
       let quotes = try await page.evaluate(
         Self.addedWithinAFrame(
-          "'.origin-field-view [data-origin-row=\"true\"] .origin-add-quote-btn'",
-          "'.origin-field-view .evidence-source-view'"), as: Int.self)
+          "'.origin-field-view [data-origin-row=\"true\"] .outgoing-citations-add'",
+          "'.origin-field-view .outgoing-citation'"), as: Int.self)
       #expect(quotes == 1)
-      let source = field.locator(".evidence-source-view").first
+      let citation = field.locator(".outgoing-citation").first
+      let source = citation.locator(".evidence-source-view")
       try await expect(source.locator(".source-accordion-view .accordion-title").first).toHaveText("Source")
       try await expect(source.locator(".quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
         .toHaveCount(1)
@@ -98,9 +100,11 @@ struct OriginFormStampTests {
       try await expect(card.locator(":scope > .quote-passage-reader")).toHaveCount(1)
       try await expect(card.locator("input[name$='-certainty']")).toHaveCount(1)
       try await expect(source.locator(".source-accordion-view input[name$='-certainty']")).toHaveCount(0)
-      try await expect(source.locator(".quote-passage-actions .quote-passage-source-remove")).toHaveCount(1)
-      try await source.locator(".quote-passage-actions .quote-passage-source-remove").click()
-      try await expect(field.locator(".evidence-source-view")).toHaveCount(0)
+      // A new card's row: "+ Quote", then "− Citation".
+      let remove = citation.locator(".quote-passage-actions .quote-passage-source-remove")
+      try await expect(remove).toHaveText("Citation")
+      try await remove.click()
+      try await expect(field.locator(".outgoing-citation")).toHaveCount(0)
     }
   }
 

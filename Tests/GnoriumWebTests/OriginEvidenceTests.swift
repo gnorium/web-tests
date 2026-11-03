@@ -153,24 +153,27 @@ struct OriginEvidenceTests {
         let rows = page.locator("[data-revise-form] .origin-field-view [data-origin-row='true']")
         try await expect(rows).toHaveCount(2)
         let second = rows.nth(1)
-        let add = second.locator(".origin-field-add-quote .origin-add-quote-btn")
-        try await expect(add).toHaveText("Source")
-        try await expect(add).toHaveAttribute("aria-label", "Add source")
+        // Its Outgoing citations (user, 2026-11-03): "+ Citation" stamps a
+        // card, its claim the step itself, its Source the form's.
+        let add = second.locator(".outgoing-citations-actions .outgoing-citations-add")
+        try await expect(add).toHaveText("Citation")
+        try await expect(add).toHaveAttribute("aria-label", "Add citation")
         try await add.click()
-        let card = second.locator(".evidence-source-view")
+        let citation = second.locator(".outgoing-citations-list > .outgoing-citation")
+        let card = citation.locator(".evidence-source-view")
         try await expect(card).toHaveCount(1)
         // Its record field in place (it is asked for as the box comes),
         // so nothing moves under the next press.
         try await expect(card.locator(".quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
           .toHaveCount(1)
-        // Removed by its own −, added again.
-        try await card.locator(".quote-passage-actions .quote-passage-source-remove").click()
+        // Removed by its own "− Citation", added again.
+        try await citation.locator(".quote-passage-actions .quote-passage-source-remove").click()
         try await expect(card).toHaveCount(0)
         try await add.click()
         try await expect(card).toHaveCount(1)
         try await expect(card.locator(".quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
           .toHaveCount(1)
-        try await expect(rows.nth(0).locator(".evidence-source-view")).toHaveCount(0)
+        try await expect(rows.nth(0).locator(".outgoing-citation")).toHaveCount(0)
         // Its Source: its URL in its accordion, the quote typed in its Quote
         // card's text pane.
         try await expect(card.locator(".source-accordion-view .accordion-title").first).toHaveText("Source")
@@ -197,14 +200,14 @@ struct OriginEvidenceTests {
         #expect(content.lowercased().contains(quoted.versionID), "the quote is not anchored: \(content)")
         #expect(!content.contains(Self.words), "the typed words were kept: \(content)")
 
-        // The thread's line: "Origin 2 › Source 1".
+        // The thread's line: "Origin 2 › Citation 1".
         let line = page.locator(".thread-event-changed").last
         try await expect(line).toBeVisible()
         let text = try await line.evaluate("(el) => el.textContent.replace(/\\s+/g, ' ')")
         let said = text.string ?? ""
         #expect(
-          said.contains("Origin 2") && said.contains("Source 1") && !said.contains("Origin 1"),
-          "the Changed line does not name Origin 2 › Source 1: \(said)")
+          said.contains("Origin 2") && said.contains("Citation 1") && !said.contains("Origin 1"),
+          "the Changed line does not name Origin 2 › Citation 1: \(said)")
         if let folder = ProcessInfo.processInfo.environment["NOTE_SCREENSHOTS"] {
           _ = try await line.evaluate("(el) => el.scrollIntoView({ block: 'center' })")
           try await page.screenshot(
@@ -213,7 +216,7 @@ struct OriginEvidenceTests {
 
         // The revision's page draws the quote under its origin.
         try await page.openHydrated("\(overture)/revisions/\(revision)")
-        try await expect(page.locator(".origin-evidence-view .attestation-view").first).toBeAttached()
+        try await expect(page.locator(".outgoing-citations-view .attestation-view").first).toBeAttached()
         try await page.expectNoHorizontalOverflow()
 
         // A madrigal whose origin is the one revised.
@@ -253,13 +256,13 @@ struct OriginEvidenceTests {
         try await expect(page.locator(".mission-control-object-header-status-chip"), timeout: .seconds(15))
           .toHaveText("Permitted")
         try await page.openHydrated(revised.work.path)
-        let evidence = page.locator(".origin-evidence-view")
+        let evidence = page.locator(".origin-view .outgoing-citations-view")
         try await expect(evidence.locator(".attestation-view")).toHaveCount(1)
         // Under the second origin, the first has none.
         let order = try await page.evaluate(
           """
           (() => {
-            const quote = document.querySelector('.origin-evidence-view .attestation-view');
+            const quote = document.querySelector('.origin-view .outgoing-citations-view .attestation-view');
             const step = quote && quote.closest('.origin-step-view, .outliner-item, [data-origin-id]');
             return step ? step.textContent.includes('Web tests source two') && !step.textContent.includes('Web tests source one') : false;
           })()
