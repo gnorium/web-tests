@@ -68,10 +68,11 @@ struct TEILayoutTests {
         let flowed = try await block.innerText()
         #expect(flowed.contains("The migh-ty Power that form'd the world"))
         let blockBox = try #require(try await block.boundingBox())
-        let textBox = try #require(try await text.boundingBox())
+        let pageBox = try #require(try await page.locator(".tei-page").first.boundingBox())
         #expect(first.x >= blockBox.x)
-        // The rendered layer's own 16 inset, then the block.
-        #expect(abs(blockBox.x - (textBox.x + 16)) < 0.5)
+        // The text pane's 16 inset, then the block: reflowed, the page's around its zoomed text (user,
+        // 2026-11-03), never the text's own, which its zoom shrinks.
+        #expect(abs(blockBox.x - (pageBox.x + 16)) < 0.5)
         try await expect(block).toHaveCSS("padding-inline-start", "24px")
         // The note's lines run on too, the block centered as its rend says.
         let note = text.locator(".tei-block[data-rend='align(center)']")
