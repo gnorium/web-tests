@@ -69,7 +69,8 @@ struct TestamentLevelsTests {
         (form) => {
           const at = (selector) => form.querySelector(selector);
           const chain = [
-            '#work-language', '#work-title', '#work-type', '#work-place', "[data-item-list='work-voice']",
+            // Voices in identity order (user, 2026-11-03): after its class.
+            '#work-language', '#work-title', '#work-type', "[data-item-list='work-voice']", '#work-place',
             "[name='year']", "[data-item-list='work-genre']", '#testament-carrier',
             ".activity-statement-view[data-as-namespace='publication']", '#work-edition',
             "[data-item-list='as-publication']", "[name='as-publication-year']", "[name='as-publication-place']",

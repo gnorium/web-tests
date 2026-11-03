@@ -37,9 +37,10 @@ struct DropdownSearchTests {
       try await expect(input).toHaveAttribute("data-edge-fade-view", "true")
 
       // The box is medium whatever the dropdown's size: a field's 40 tall,
-      // its text 16px, 8 inside its border on every side; on a phone, one
-      // step down like every sized control (`controlSize`): 32 tall, its
-      // text 14px, 4 inside.
+      // its text 16px, 8 inside its border on every side; on a phone too,
+      // never the step below a lone medium box takes, as tall as the
+      // trigger it hangs from (a tap target, 2026-10-22: a large trigger is
+      // 40 there).
       try await picker.locator(".dropdown-trigger").click()
       // Opened, it takes the focus: typing goes to its search, not to the
       // field that had it before (user, 2026-10-21).
@@ -47,22 +48,24 @@ struct DropdownSearchTests {
         "document.activeElement?.classList.contains('search-input') && document.activeElement.closest('.filter-bar-field-picker') !== null",
         as: Bool.self)
       #expect(focused, "Opening a dropdown focuses its search box")
-      let (height, font, padding) = try await page.controlSize("medium") == "small"
-        ? (32, "14px", "4px") : (40, "16px", "8px")
+      let phone = try await page.controlSize("medium") == "small"
       let sized = try await page.evaluate(
         """
         (() => {
           const view = document.querySelector('.filter-bar-row .filter-bar-field-picker .search-input-view.dropdown-search-input');
           const box = view.querySelector('.search-input');
+          const trigger = document.querySelector('.filter-bar-row .filter-bar-field-picker .dropdown-trigger');
           const css = getComputedStyle(box);
+          const height = Math.round(box.getBoundingClientRect().height);
           return view.getAttribute('data-size') === 'medium'
-            && Math.round(box.getBoundingClientRect().height) === \(height)
-            && css.fontSize === '\(font)'
-            && css.paddingTop === '\(padding)' && css.paddingBottom === '\(padding)'
-            && css.paddingInlineStart === '\(padding)';
+            && height === 40
+            && (!\(phone) || height === Math.round(trigger.getBoundingClientRect().height))
+            && css.fontSize === '16px'
+            && css.paddingTop === '8px' && css.paddingBottom === '8px'
+            && css.paddingInlineStart === '8px';
         })()
         """, as: Bool.self)
-      #expect(sized, "The dropdown's search box is medium (a step down on a phone)")
+      #expect(sized, "The dropdown's search box is medium, on a phone as tall as its trigger")
       try await picker.locator(".dropdown-trigger").click()
       try await expect(picker.locator(".dropdown-menu")).toHaveAttribute("data-open", "false")
 

@@ -37,7 +37,7 @@ struct TestamentFormFieldsTests {
         }
         try await expect(form.locator("[data-as-namespace='publication']")).toHaveCount(1)
         try await page.expectNoErrors()
-        try await page.expectNoOverflowButTrees()
+        try await page.expectNoOverflowTreesInFrames()
       }
     } catch {
       try await admin.remove(after: error)

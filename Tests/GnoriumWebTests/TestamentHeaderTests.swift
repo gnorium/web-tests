@@ -250,7 +250,7 @@ struct TestamentHeaderTests {
         #expect(state.headerReset == "code-line 0")
         #expect(state.headerGround != state.markupGround, "the header is on the page's ground")
         #expect(!state.headerEditable)
-        try await page.expectNoOverflowButTrees()
+        try await page.expectNoOverflowTreesInFrames()
 
         // XML on: the header off, the page's code alone, numbered from 1,
         // holding no header.

@@ -2,12 +2,13 @@ import Foundation
 import WebTests
 
 extension Page {
-  /// Fails where a reader is clipped (user, 2026-11-02: past the screen the
-  /// page widens, so a phone pinches out to see it whole): its footer one
-  /// row, never scrolling on its own; no ancestor of an
-  /// artifact that hides or scrolls overflow is narrower than it, the
-  /// document is as wide as every artifact, and the page's fixed and sticky
-  /// chrome stays on screen scrolled fully sideways.
+  /// Fails where a reader is clipped (user, 2026-11-02): its footer one row,
+  /// never scrolling on its own; no ancestor of an artifact that hides or
+  /// scrolls overflow is narrower than it, but a tree's frame
+  /// (`data-scrollport`, user 2026-11-03: a tree scrolls in its own frame,
+  /// never the page) whose scroll reaches the whole artifact; the document
+  /// is as wide as every artifact in no such frame, and the page's fixed and
+  /// sticky chrome stays on screen scrolled fully sideways.
   func expectArtifactsUnclipped(file: String = #fileID, filePath: String = #filePath, line: Int = #line) async throws {
     let problems = try await evaluate(
       """
@@ -17,7 +18,12 @@ extension Page {
         for (const v of document.querySelectorAll('.artifact-view')) {
           if (!v.getClientRects().length) continue;
           const r = v.getBoundingClientRect();
-          if (r.right + scrollX > docRight + 1) out.push('document narrower than a reader');
+          // A tree's frame scrolls to show it whole: no clip, if its scroll
+          // reaches the artifact.
+          const frame = v.closest("[data-scrollport='true']");
+          const held = (e) => { const b = e.getBoundingClientRect(); const start = b.left - e.scrollLeft;
+            return r.left >= start - 1 && r.right <= start + e.scrollWidth + 1; };
+          if (!frame && r.right + scrollX > docRight + 1) out.push('document narrower than a reader');
           const footer = v.querySelector('.artifact-footer');
           const items = footer ? [...footer.children].filter((c) => c.getClientRects().length > 0) : [];
           if (items.length && !items.every((c) => Math.abs(c.getBoundingClientRect().top - items[0].getBoundingClientRect().top) < 2))
@@ -26,6 +32,10 @@ extension Page {
           for (let e = v.parentElement; e && e !== document.body; e = e.parentElement) {
             const ox = getComputedStyle(e).overflowX;
             if (ox === 'visible') continue;
+            if (e.dataset.scrollport === 'true') {
+              if (!held(e)) out.push('a tree frame whose scroll stops short of a reader');
+              continue;
+            }
             const b = e.getBoundingClientRect();
             if (b.left > r.left + 1 || b.right < r.right - 1)
               out.push(ox + ' ' + (e.className || e.tagName).toString().split(' ')[0] + ' ' + Math.round(b.width) + ' < ' + Math.round(r.width));
@@ -55,39 +65,31 @@ extension Page {
     }
   }
 
-  /// Fails where the page scrolls sideways for anything but a tree (user,
-  /// 2026-11-02: a deep tree widens the page, so a phone pinches out to see
-  /// it whole): past the screen, every element sticking out is inside an
-  /// `.outliner-view`, and the page is no wider than its widest tree.
-  func expectNoOverflowButTrees(file: String = #fileID, filePath: String = #filePath, line: Int = #line) async throws {
+  /// Fails where the page scrolls sideways, a tree included (user,
+  /// 2026-11-03: a tree scrolls in its own frame, never the page), or where
+  /// a tree's frame stops short of a node it holds.
+  func expectNoOverflowTreesInFrames(file: String = #fileID, filePath: String = #filePath, line: Int = #line) async throws {
+    try await expectNoHorizontalOverflow(fileID: file, filePath: filePath, line: line)
     let problems = try await evaluate(
       """
       (() => {
-        const docRight = document.documentElement.scrollWidth;
-        if (docRight <= innerWidth + 1) return '';
         const out = [];
-        let treeRight = innerWidth;
-        for (const t of document.querySelectorAll('.outliner-view')) {
-          if (!t.getClientRects().length) continue;
-          for (const e of [t, ...t.querySelectorAll('*')]) {
-            const r = e.getBoundingClientRect();
-            if (r.width > 0) treeRight = Math.max(treeRight, r.right + scrollX);
+        for (const frame of document.querySelectorAll('.outliner-view > .outliner-scroll')) {
+          if (!frame.getClientRects().length) continue;
+          const start = frame.getBoundingClientRect().left - frame.scrollLeft;
+          for (const node of frame.querySelectorAll('.outliner-node')) {
+            const r = node.getBoundingClientRect();
+            if (r.width > 0 && r.right > start + frame.scrollWidth + 1)
+              out.push('a node reaches ' + Math.round(r.right - start) + ' past its frame of ' + frame.scrollWidth);
           }
         }
-        for (const e of document.querySelectorAll('body *')) {
-          if (e.closest('.outliner-view') || !e.getClientRects().length) continue;
-          const r = e.getBoundingClientRect();
-          if (r.width > 0 && r.right + scrollX > treeRight + 1 && ![...e.children].some((c) => c.getBoundingClientRect().right + scrollX > treeRight + 1))
-            out.push('<' + e.tagName.toLowerCase() + ' class="' + (e.className.baseVal ?? e.className) + '"> reaches ' + Math.round(r.right + scrollX));
-        }
-        if (docRight > treeRight + 1) out.unshift('the document is ' + docRight + 'px wide, its widest tree reaches ' + Math.round(treeRight));
         return [...new Set(out)].slice(0, 8).join('; ');
       })()
       """
     ).string ?? ""
     if !problems.isEmpty {
       throw WebTestError(
-        "Overflow past the trees on \((try? await url()) ?? "the page"): \(problems)",
+        "A tree past its frame on \((try? await url()) ?? "the page"): \(problems)",
         location: CodeLocation(fileID: file, filePath: filePath, line: line, column: 1))
     }
   }

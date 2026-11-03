@@ -585,7 +585,7 @@ struct SubmissionTests {
         try await newSentiment(page, suffix: suffix, source: source)
         try await placedSentiment(page, word: word)
         try await page.expectNoErrors()
-        try await page.expectNoOverflowButTrees()
+        try await page.expectNoOverflowTreesInFrames()
       }
     } catch {
       clean()

@@ -73,7 +73,7 @@ struct FormerOwnerSourcesTests {
       try await remove.click()
       try await expect(cards).toHaveCount(0)
       try await expect(json).toHaveValue("")
-      if layout == .desktop { try await page.expectNoHorizontalOverflow() }
+      try await page.expectNoHorizontalOverflow()
       _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
       try await page.expectNoErrors()
     }
@@ -139,7 +139,7 @@ struct FormerOwnerSourcesTests {
       try await expect(source.locator(".quote-passage-fields-view"), timeout: .seconds(15))
         .toHaveAttribute("data-quote-website", "false")
       try await expect(accessed).toHaveValue("")
-      if layout == .desktop { try await page.expectNoHorizontalOverflow() }
+      try await page.expectNoHorizontalOverflow()
       _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
       try await page.expectNoErrors()
     }

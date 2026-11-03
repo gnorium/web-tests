@@ -119,9 +119,12 @@ struct OriginTests {
         // The first work again: a plain row, linked, with nothing under it.
         let repeated = steps.last
         try await expect(repeated.locator("a[href='\(first.path)'] .breadcrumb-label-text")).toHaveText(first.title)
+        // Its evidence is its Outgoing citations now (user, 2026-11-03),
+        // none drawn on a record's page for a step with none.
         try await expect(repeated.locator(".datum-value")).toHaveTexts([
-          "Derivation", "AD 1958", "Certain", "\(first.author) (Author)", "—",
+          "Derivation", "AD 1958", "Certain", "\(first.author) (Author)",
         ])
+        try await expect(repeated.locator(".outgoing-citations-view")).toHaveCount(0)
         let shape = try await tree.evaluate(
           """
           (tree) => {
@@ -133,17 +136,18 @@ struct OriginTests {
               ellipsis: tree.textContent.includes('…'),
               cut: tree.querySelectorAll('.origin-cut').length,
               scrolls: getComputedStyle(scroll).overflowX !== 'visible',
-              page: document.documentElement.scrollWidth > window.innerWidth,
-              reach: Math.max(...[...tree.querySelectorAll('.outliner-node')].map((n) => n.getBoundingClientRect().right + scrollX)) > window.innerWidth,
+              held: Math.max(...[...tree.querySelectorAll('.outliner-node')].map((n) =>
+                n.getBoundingClientRect().right - scroll.getBoundingClientRect().left + scroll.scrollLeft)) <= scroll.scrollWidth + 1,
             };
           }
           """)
         #expect(shape["leaf"].bool == true, "the repeated record has no steps under it: \(shape)")
         #expect(shape["ellipsis"].bool == false && shape["cut"].int == 0, "no cut: \(shape)")
-        // The tree never scrolls on its own; past the screen the page widens
-        // (user, 2026-11-02: a phone pinches out to see it whole).
-        #expect(shape["scrolls"].bool == false, "the tree has no scrollport of its own: \(shape)")
-        #expect(shape["page"] == shape["reach"], "the page as wide as the chain, nothing clipped: \(shape)")
+        // Past the column the tree scrolls in its own frame, never the page
+        // (user, 2026-11-03), its frame reaching every node, nothing clipped.
+        #expect(shape["scrolls"].bool == true, "the tree scrolls in its own frame: \(shape)")
+        #expect(shape["held"].bool == true, "the frame reaches the whole chain, nothing clipped: \(shape)")
+        try await page.expectNoHorizontalOverflow()
 
         // The record field a form draws for the second work, filing for the
         // first: its error under the field; filing for nothing, none.
@@ -304,7 +308,7 @@ struct OriginTests {
         try await expect(bubble).toHaveCount(0)
         return text
       }
-      #expect(try await tooltip() == "How this record came from the one the row names.")
+      #expect(try await tooltip() == "The way this record came from the one the row names.")
       // A work's relations in FRBR's order: Transformation (another type of
       // work) after Adaptation (the same type).
       try await expect(relation.locator(".dropdown-option .dropdown-option-display-text")).toHaveTexts([
@@ -343,7 +347,7 @@ struct OriginTests {
       try await certainty.locator(".dropdown-option[data-value='probable']").click()
       try await expect(certainty.locator(".dropdown-selected-text")).toHaveText("Probable")
       let record = first.locator(".origin-field-record .origin-record-field-view")
-      try await expect(record.locator("legend")).toContainText("Record")
+      try await expect(record.locator("legend")).toContainText("Biblio-record")
       let typedFields = first.locator(".origin-field-typed")
       try await expect(typedFields).toBeVisible()
 
@@ -363,8 +367,9 @@ struct OriginTests {
       // A record's origin is its own: no "+ Origin" under a picked record.
       try await expect(actions.locator(".origin-add-own-btn")).toBeHidden()
       let node = first.locator(".origin-record-field-view .dropdown-view").nth(1)
-      try await expect(first.locator(".origin-record-field-view")).toContainText("Testament")
-      // The record's nodes, valued by their ids, named by their labels.
+      // Its Value (user, 2026-11-02): the record's testaments, valued by
+      // their ids, each by its number and its value.
+      try await expect(node.locator(".dropdown-label")).toContainText("Value")
       let edition = node.locator(".dropdown-option").filter(hasText: "First edition")
       try await expect(edition).toHaveCount(1)
       let editionID = try await edition.getAttribute("data-value") ?? ""
@@ -565,8 +570,7 @@ struct OriginTests {
 
       // A deep origin, six steps each under the last (user, 2026-09-30):
       // every step keeps the tree's least node width (14rem), and on a phone
-      // the page widens to hold it, the tree no scrollport of its own (user,
-      // 2026-11-02).
+      // the tree scrolls in its own frame, never the page (user, 2026-11-03).
       for depth in 1..<6 {
         // The deepest step's node is the last in the page's order.
         try await controls(block.locator(".outliner-item[data-origin-step]").last)
@@ -584,15 +588,17 @@ struct OriginTests {
           return {
             narrowest: Math.round(Math.min(...widths)), least: Math.round(least),
             scrolls: getComputedStyle(scroll).overflowX !== 'visible',
-            page: document.documentElement.scrollWidth > window.innerWidth,
-            reach: Math.max(...[...block.querySelectorAll('.outliner-node')].map((n) => n.getBoundingClientRect().right + scrollX)) > window.innerWidth,
+            held: Math.max(...[...block.querySelectorAll('.outliner-node')].map((n) =>
+              n.getBoundingClientRect().right - scroll.getBoundingClientRect().left + scroll.scrollLeft)) <= scroll.scrollWidth + 1,
           };
         }
         """)
       #expect((deep["narrowest"].int ?? 0) >= (deep["least"].int ?? 0), "a deep step keeps the least node width: \(deep)")
-      #expect(deep["scrolls"].bool == false, "the tree has no scrollport of its own")
-      #expect(deep["page"] == deep["reach"], "the page as wide as the tree, nothing clipped: \(deep)")
-      // A menu opened in the deepest step stands by its field, on screen.
+      #expect(deep["scrolls"].bool == true, "the tree scrolls in its own frame: \(deep)")
+      #expect(deep["held"].bool == true, "the frame reaches every step, nothing clipped: \(deep)")
+      try await page.expectNoHorizontalOverflow()
+      // A menu opened in the deepest step stands over the page by its field,
+      // not cut off at the frame's edge.
       let deepest = block.locator("[data-origin-row='true']").last
       _ = try await deepest.evaluate("(row) => row.scrollIntoView({ block: 'center' })")
       let deepRelation = deepest.locator(".dropdown-view").first
@@ -611,7 +617,7 @@ struct OriginTests {
           };
         }
         """)
-      #expect(placed["start"].bool == true && placed["under"].bool == true, "\(placed)")
+      #expect(placed["fixed"].bool == true && placed["start"].bool == true && placed["under"].bool == true, "\(placed)")
       #expect(placed["inside"].bool == true, "the deep step's menu stays on the screen: \(placed)")
       try await deepRelation.locator(".dropdown-trigger").click()
 
@@ -636,10 +642,13 @@ struct OriginTests {
       let steps = tree.locator(".origin-step-view")
       try await expect(steps).toHaveCount(2)
       let typedStep = steps.first
-      try await expect(typedStep.locator(".datum-label")).toHaveTexts(["Relation", "Date", "Certainty", "Voices", "Evidence"])
+      // Its evidence is its Outgoing citations now (user, 2026-11-03), none
+      // drawn on a record's page for a step with none.
+      try await expect(typedStep.locator(".datum-label")).toHaveTexts(["Relation", "Date", "Certainty", "Voices"])
       try await expect(typedStep.locator(".datum-value")).toHaveTexts([
-        "Translation, Abridgment", "circa AD 890", "Certain", "—", "—",
+        "Translation, Abridgment", "circa AD 890", "Certain", "—",
       ])
+      try await expect(typedStep.locator(".outgoing-citations-view")).toHaveCount(0)
       try await expect(typedStep.locator(".breadcrumb-label-context")).toHaveText("Old English")
       try await expect(typedStep.locator(".breadcrumb-label-text")).toHaveText(typed)
       try await expect(typedStep.locator(".record-type-view")).toHaveText("treatise")
@@ -652,7 +661,7 @@ struct OriginTests {
       try await expect(recordStep.locator("a[href='\(original.path)'] .breadcrumb-label-text")).toHaveText(original.title)
       try await expect(recordStep.locator(".record-type-view")).toHaveText("report")
       try await expect(recordStep.locator(".datum-value")).toHaveTexts([
-        "Translation", "AD 1958", "Certain", "\(original.author) (Author)", "—",
+        "Translation", "AD 1958", "Certain", "\(original.author) (Author)",
       ])
       // Above the tree, the tree in one sentence: each step's relations,
       // its voice's, its language (at the prose's weight, never semibold:
@@ -772,15 +781,19 @@ struct OriginTests {
         "data-display", "Calque")
       try await wordRelation.locator(".dropdown-trigger").click()
       try await wordRelation.locator(".dropdown-option[data-value='coinage']").click()
+      // Its typed fields two groups (user, 2026-11-02): its Value under the
+      // record field, then its Language, Title and Class.
+      let wordTyped = wordRow.locator(".origin-field-typed")
+      try await expect(wordTyped).toHaveCount(2)
       try await expect(wordRow.locator(".origin-field-record")).toBeHidden()
-      try await expect(wordRow.locator(".origin-field-typed")).toBeHidden()
+      for index in 0..<2 { try await expect(wordTyped.nth(index)).toBeHidden() }
       // Unchosen, and another chosen: the fields come back.
       try await wordRelation.locator(".dropdown-option[data-value='coinage']").click()
       try await wordRelation.locator(".dropdown-option[data-value='eponym_of']").click()
       // Closed by Esc: its search field stands over its trigger while open.
       try await page.keyboard.press("Escape")
       try await expect(wordRow.locator(".origin-field-record")).toBeVisible()
-      try await expect(wordRow.locator(".origin-field-typed")).toBeVisible()
+      for index in 0..<2 { try await expect(wordTyped.nth(index)).toBeVisible() }
       // A word's typed step: its word class from the closed list, and its
       // date as every date of ours.
       let wordKey = try await wordRow.getAttribute("data-origin-key") ?? ""

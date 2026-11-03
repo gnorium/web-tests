@@ -167,7 +167,8 @@ struct CarrierTests {
       // on the page, the typed host while none is chosen, the locator.
       let container = publication.locator(".container-field-view")
       try await expect(container.locator("legend").first).toHaveText("Container")
-      try await expect(container.locator(".origin-record-field-view legend")).toContainText("Record")
+      // Named by its side (user, 2026-11-02): Biblio-record, never Record.
+      try await expect(container.locator(".origin-record-field-view legend")).toContainText("Biblio-record")
       try await expect(container.locator(".container-field-typed")).toBeVisible()
       for name in ["container-volume", "container-issue", "container-pages"] {
         try await expect(container.locator("input[name='\(name)']")).toHaveCount(1)
