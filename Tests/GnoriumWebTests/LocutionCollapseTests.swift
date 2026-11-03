@@ -72,8 +72,8 @@ struct LocutionCollapseTests {
         try await expect(chevron).toBeVisible()
         try await expect(chevron).toHaveAttribute("data-expanded", "true")
         // Its avatar ringed (user, 2026-11-03), a white one readable on a
-        // white page: one subtle 1px border outside its disc, which keeps
-        // a medium control's full 40.
+        // white page: one 1px border outside its disc, which keeps a
+        // medium control's full 40, a control's base border.
         let avatar = try #require(try await toggle.locator(".avatar-view").boundingBox())
         #expect(abs(avatar.width - 40) < 0.5 && abs(avatar.height - 40) < 0.5, "the avatar is not its full 40: \(avatar)")
         let restRing = try await toggle.discRing()

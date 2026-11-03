@@ -85,8 +85,9 @@ struct RecordTreeTests {
         // Folded, its scrim stays over it; open, only under the pointer.
         try await expect(innerFold.locator(".outliner-marker-scrim")).toBeVisible()
         try await expect(fold.locator(".outliner-marker-scrim")).toBeHidden()
-        // Ringed as a locution's avatar is (user, 2026-11-03): one subtle
-        // 1px border outside its disc, which keeps its full size.
+        // Ringed as a locution's avatar is (user, 2026-11-03): one 1px
+        // border outside its disc, which keeps its full size, a control's
+        // base border.
         let restRing = try await fold.discRing()
         #expect(restRing == "rest", "the marker is not ringed as an avatar is: \(restRing)")
 

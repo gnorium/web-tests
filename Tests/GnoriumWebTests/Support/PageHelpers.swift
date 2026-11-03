@@ -157,8 +157,10 @@ extension Locator {
   /// An avatar's or a tree node marker's ring (user, 2026-11-03), for this
   /// locator, the control that folds (a locution's `.locution-collapse`,
   /// whose avatar is ringed, or a node's `.outliner-marker`): "rest" when
-  /// it is one subtle 1px border outside the disc, which keeps its full
-  /// size, no outline; "focus" when, focused from the keyboard, it is the
+  /// it is one 1px border outside the disc, which keeps its full size, no
+  /// outline, the base border where the disc is a control (a button: its
+  /// edge identifies it, 3:1) and the subtle one where it is a picture
+  /// alone; "focus" when, focused from the keyboard, it is the
   /// focus ring every control wears, the border in the focus color and a
   /// 1px outline of it, the control drawing no ring of its own; else what
   /// is off. Never a box-shadow.
@@ -183,7 +185,8 @@ extension Locator {
         if (r.borderTopWidth !== '1px' || r.borderTopStyle !== 'solid') off.push('border ' + r.borderTopWidth + ' ' + r.borderTopStyle);
         if ([d.boxShadow, r.boxShadow, c.boxShadow].some((s) => s !== 'none')) off.push('a box-shadow');
         const focused = control.matches(':focus-visible');
-        const color = probe(focused ? '--border-color-blue-focus' : '--border-color-subtle');
+        const rest = control.matches('button') ? '--border-color-base' : '--border-color-subtle';
+        const color = probe(focused ? '--border-color-blue-focus' : rest);
         if (r.borderTopColor !== color) off.push('border color ' + r.borderTopColor + ' not ' + color);
         if (focused) {
           if (r.outlineStyle !== 'solid' || r.outlineWidth !== '1px' || r.outlineColor !== color || r.outlineOffset !== '0px')
