@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// A header's controls stand on its FIRST line (user, 2026-11-01): a
-/// record node's number (centered on the tree's spine beside it, user
+/// record node's number (inside its value's box, its first column, user
 /// 2026-11-03), info icon and grip are level at the header's top, never
 /// centered on a wrapped block; a tree node's header has no chevron, its
 /// number folds it. A compact (minimal) header keeps its one line
@@ -28,10 +28,10 @@ struct RecordNodeHeaderTests {
   static func measure(_ scope: String) -> String {
     """
     (() => {
-      // Its number stands first in its heading, centered on the tree's
-      // spine (user, 2026-11-03), on the header's first line.
+      // Its number stands in its value's box, its first column (user,
+      // 2026-11-03), on the header's first line.
       const summary = [...document.querySelectorAll('\(scope) .accordion-summary')]
-        .find(s => s.querySelector('.record-node-heading > .record-node-number'))
+        .find(s => s.querySelector('.record-node-heading .node-value-view .record-node-number'))
       // Its value's box (user, 2026-11-02): the text inside its inset, a
       // field's where it is edited, the read box's words where it is read.
       const title = summary.querySelector('.record-node-heading .node-value-view :is(textarea, .node-value-box)')
@@ -43,7 +43,7 @@ struct RecordNodeHeaderTests {
       const box = el => el ? el.getBoundingClientRect() : null
       const top = el => el ? box(el).top - origin : null
       const center = el => el ? box(el).top + box(el).height / 2 - origin : null
-      const number = summary.querySelector('.record-node-heading > .record-node-number')
+      const number = summary.querySelector('.record-node-heading .node-value-view .record-node-number')
       return {
         lines: Math.round(title.clientHeight / parseFloat(getComputedStyle(title).lineHeight)) - 1,
         number: top(number),
