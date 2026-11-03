@@ -49,16 +49,20 @@ struct CitationsTests {
         let row = citations.locator(".citations-work")
         try await expect(row.locator("a[href='\(citing.path)']")).toHaveCount(1)
         try await expect(row.locator(".citations-count")).toHaveText("1 citation")
+        // How many, its Citations datum: at the head of its Incoming
+        // citations (user, 2026-11-03), no longer in its Metadata.
+        let datum = citations.locator(".incoming-citations-body > .datum-view").filter(hasText: "Citations")
+        try await expect(datum.locator(".datum-label")).toHaveText("Citations")
+        try await expect(datum.locator(".datum-value")).toHaveText("1 work")
         let metadata = page.locator("#record-metadata")
         try await metadata.locator(".accordion-summary").first.click()
-        let datum = metadata.locator(".datum-view").filter(hasText: "Citations")
-        try await expect(datum.locator(".datum-value")).toHaveText("1 work")
+        try await expect(metadata.locator(".datum-label").filter(hasText: "Citations", exact: true)).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
-        // The citing work cites; nothing cites it.
+        // The citing work cites; nothing cites it: no Incoming citations,
+        // the accordion not drawn where nothing cites the record.
         try await page.openHydrated(citing.path)
-        let own = page.locator("#record-metadata")
-        try await own.locator(".accordion-summary").first.click()
-        try await expect(own.locator(".datum-view").filter(hasText: "Citations").locator(".datum-value")).toHaveText("0 works")
+        try await expect(page.locator(".incoming-citations-view")).toHaveCount(0)
+        try await expect(page.locator("#record-citations")).toHaveCount(0)
       }
     } catch {
       do { try await cleanUp() } catch let removal {

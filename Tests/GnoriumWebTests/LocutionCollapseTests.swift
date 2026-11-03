@@ -71,6 +71,13 @@ struct LocutionCollapseTests {
         let chevron = overlay.locator(".animated-right-down-chevron-view")
         try await expect(chevron).toBeVisible()
         try await expect(chevron).toHaveAttribute("data-expanded", "true")
+        // Its avatar ringed (user, 2026-11-03), a white one readable on a
+        // white page: one subtle 1px border outside its disc, which keeps
+        // a medium control's full 40.
+        let avatar = try #require(try await toggle.locator(".avatar-view").boundingBox())
+        #expect(abs(avatar.width - 40) < 0.5 && abs(avatar.height - 40) < 0.5, "the avatar is not its full 40: \(avatar)")
+        let restRing = try await toggle.discRing()
+        #expect(restRing == "rest", "the avatar is not ringed: \(restRing)")
 
         // Pressed: it folds as an accordion does—partway shortly after the
         // press, strictly between its open height and 0—then the byline alone.
@@ -108,6 +115,10 @@ struct LocutionCollapseTests {
         try await expect(locution).toHaveAttribute("data-collapsed", "false")
         try await expect(body).toBeVisible()
         try await expect(locution.locator(".reactions-view")).toBeVisible()
+        // Focused from the keyboard, its avatar's ring is the focus ring
+        // every control wears; the button draws none of its own.
+        let focusRing = try await toggle.discRing()
+        #expect(focusRing == "focus", "the focused avatar does not wear the focus ring: \(focusRing)")
 
         // Opening moves the same way back: partway, then whole.
         try await toggle.press("Enter")

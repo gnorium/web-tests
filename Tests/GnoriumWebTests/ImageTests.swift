@@ -97,11 +97,29 @@ struct ImageTests {
             if (Math.round(p.height) !== control) off.push('pager ' + p.height);
             if (Math.round(f.height) !== control + 17) off.push('footer ' + f.height);
             if (Math.abs(p.top + p.height / 2 - (b.top + b.height / 2)) >= 1) off.push('fullscreen');
-            if (!(p.right <= b.left && b.right <= f.right)) off.push('row ' + [p.right, b.left, b.right, f.right].join(','));
-            if (footer.scrollWidth > footer.clientWidth) off.push('width ' + footer.scrollWidth + '>' + footer.clientWidth);
+            // The pager, then fullscreen at the row's end: the end of what
+            // the row scrolls through, where it is wider than the footer.
+            const end = f.left + footer.scrollWidth;
+            if (!(p.right <= b.left && b.right <= end)) off.push('row ' + [p.right, b.left, b.right, end].join(','));
+            // Never wider than the viewer (user, 2026-11-03): where its
+            // controls do not fit (a phone's), it scrolls sideways inside
+            // itself under its own plain scrollbar, no fade at its edges,
+            // and scrolled to its end, fullscreen is in reach.
+            const v = viewer.getBoundingClientRect(), s = getComputedStyle(footer);
+            if (f.left < v.left - 0.5 || f.right > v.right + 0.5) off.push('wider than the viewer ' + [f.left, f.right, v.left, v.right].join(','));
+            if (s.overflowX !== 'auto') off.push('overflow-x ' + s.overflowX);
+            const mask = s.maskImage || s.webkitMaskImage || 'none';
+            if (mask !== 'none') off.push('fade ' + mask);
+            if (footer.scrollWidth > footer.clientWidth) {
+              footer.scrollLeft = footer.scrollWidth;
+              const e = full.getBoundingClientRect();
+              if (footer.scrollLeft <= 0 || e.left < f.left - 0.5 || e.right > f.right + 0.5)
+                off.push('fullscreen out of reach ' + [footer.scrollLeft, e.left, e.right, f.left, f.right].join(','));
+              footer.scrollLeft = 0;
+            }
             return off.length ? off.join('; ') : 'ok'; }
           """).string
-        #expect(footerPager == "ok", "the pager sits in the footer, before fullscreen, and the footer fits one row: \(String(describing: footerPager))")
+        #expect(footerPager == "ok", "the pager sits in the footer, before fullscreen, and the footer is one row that scrolls inside itself: \(String(describing: footerPager))")
         // The header row's controls fit without scrolling sideways.
         let rowFits = try await viewer.evaluate(
           "(viewer) => { const r = viewer.querySelector('.artifact-header-row'); return r.scrollWidth <= r.clientWidth; }"

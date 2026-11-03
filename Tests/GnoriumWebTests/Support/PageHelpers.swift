@@ -152,3 +152,49 @@ extension Page {
     return try await length("var(\(token))")
   }
 }
+
+extension Locator {
+  /// An avatar's or a tree node marker's ring (user, 2026-11-03), for this
+  /// locator, the control that folds (a locution's `.locution-collapse`,
+  /// whose avatar is ringed, or a node's `.outliner-marker`): "rest" when
+  /// it is one subtle 1px border outside the disc, which keeps its full
+  /// size, no outline; "focus" when, focused from the keyboard, it is the
+  /// focus ring every control wears, the border in the focus color and a
+  /// 1px outline of it, the control drawing no ring of its own; else what
+  /// is off. Never a box-shadow.
+  func discRing() async throws -> String {
+    try await evaluate(
+      """
+      (control) => {
+        const disc = control.matches('.outliner-marker') ? control : control.querySelector('.avatar-view');
+        const probe = (name) => {
+          const el = document.createElement('span');
+          el.style.color = `var(${name})`;
+          document.body.appendChild(el);
+          const color = getComputedStyle(el).color;
+          el.remove();
+          return color;
+        };
+        const d = getComputedStyle(disc), r = getComputedStyle(disc, '::after'), c = getComputedStyle(control);
+        const off = [];
+        if (d.borderTopStyle !== 'none' && d.borderTopWidth !== '0px') off.push('a border inside the disc ' + d.borderTopWidth);
+        if (r.position !== 'absolute' || [r.top, r.right, r.bottom, r.left].some((v) => v !== '-1px'))
+          off.push('not outside the disc ' + [r.position, r.top, r.right, r.bottom, r.left].join(' '));
+        if (r.borderTopWidth !== '1px' || r.borderTopStyle !== 'solid') off.push('border ' + r.borderTopWidth + ' ' + r.borderTopStyle);
+        if ([d.boxShadow, r.boxShadow, c.boxShadow].some((s) => s !== 'none')) off.push('a box-shadow');
+        const focused = control.matches(':focus-visible');
+        const color = probe(focused ? '--border-color-blue-focus' : '--border-color-subtle');
+        if (r.borderTopColor !== color) off.push('border color ' + r.borderTopColor + ' not ' + color);
+        if (focused) {
+          if (r.outlineStyle !== 'solid' || r.outlineWidth !== '1px' || r.outlineColor !== color || r.outlineOffset !== '0px')
+            off.push('outline ' + [r.outlineStyle, r.outlineWidth, r.outlineColor, r.outlineOffset].join(' '));
+          if (c.outlineStyle !== 'none' && c.outlineColor !== 'rgba(0, 0, 0, 0)') off.push('a ring of its own ' + c.outlineColor);
+        } else if (r.outlineStyle !== 'none' && r.outlineWidth !== '0px') {
+          off.push('an outline at rest ' + r.outlineWidth);
+        }
+        return off.length ? off.join('; ') : focused ? 'focus' : 'rest';
+      }
+      """
+    ).string ?? "nothing"
+  }
+}

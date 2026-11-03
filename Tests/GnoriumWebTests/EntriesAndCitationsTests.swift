@@ -134,11 +134,14 @@ struct EntriesAndCitationsTests {
         let lettersRow = rows.filter(hasText: letters.title)
         try await expect(lettersRow.locator(".citations-count")).toHaveText("3 citations")
         try await expect(rows.filter(hasText: catalog.title).locator(".citations-count")).toHaveText("1 citation")
-        // Its Metadata counts them.
+        // Its Incoming citations count them, its Citations datum at their
+        // head (user, 2026-11-03), no longer in its Metadata.
+        try await expect(
+          citations.locator(".incoming-citations-body > .datum-view").filter(hasText: "Citations").locator(".datum-value")
+        ).toHaveText("2 works")
         let metadata = page.locator("#record-metadata")
         try await metadata.locator(".accordion-summary").first.click()
-        try await expect(metadata.locator(".datum-view").filter(hasText: "Citations").locator(".datum-value"))
-          .toHaveText("2 works")
+        try await expect(metadata.locator(".datum-label").filter(hasText: "Citations", exact: true)).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
 
         // Filtered by type: the catalog alone.

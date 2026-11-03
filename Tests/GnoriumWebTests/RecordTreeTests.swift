@@ -85,6 +85,10 @@ struct RecordTreeTests {
         // Folded, its scrim stays over it; open, only under the pointer.
         try await expect(innerFold.locator(".outliner-marker-scrim")).toBeVisible()
         try await expect(fold.locator(".outliner-marker-scrim")).toBeHidden()
+        // Ringed as a locution's avatar is (user, 2026-11-03): one subtle
+        // 1px border outside its disc, which keeps its full size.
+        let restRing = try await fold.discRing()
+        #expect(restRing == "rest", "the marker is not ringed as an avatar is: \(restRing)")
 
         // The spine: one line down the tree's start, a thread's, through
         // the middle of every marker, from under the first marker to 16px
@@ -193,6 +197,14 @@ struct RecordTreeTests {
         // image count, no other fact that is none of its fields.
         try await expect(tree.locator(".record-node-metadata > .datum-view")).toHaveCount(0)
         try await expect(tree.locator(".record-node-metadata").getByText("Images", exact: true)).toHaveCount(0)
+        // Focused from the keyboard, its ring is the focus ring every
+        // control wears, as a locution's avatar's (user, 2026-11-03).
+        try await fold.press("Enter")
+        try await expect(edition).toHaveAttribute("data-outliner-collapsed", "true")
+        try await fold.press("Enter")
+        try await expect(edition).toHaveAttribute("data-outliner-collapsed", "false")
+        let focusRing = try await fold.discRing()
+        #expect(focusRing == "focus", "the focused marker does not wear the focus ring: \(focusRing)")
         try await page.expectNoHorizontalOverflow()
       }
     } catch {

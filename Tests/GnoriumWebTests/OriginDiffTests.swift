@@ -101,13 +101,15 @@ struct OriginDiffTests {
         // one framed, its "Diff:" line under it.
         let changed = node("changed")
         try await expect(changed).toContainText("webtestsedited")
-        // Its form corrected too: still the same step, by its id.
+        // Its form corrected too: still the same step, by its id. In the
+        // form's order (user, 2026-11-02): Certainty, then a word's Value,
+        // then its Language, Title and Class.
         try await expect(changed.locator(".diff-wrap-changed")).toHaveCount(3)
         let lines = changed.locator(".diff-wrap-changed > .field-diff-diff")
         try await expect(lines.nth(0)).toContainText("Diff:")
         try await expect(lines.nth(0)).toContainText("Probable")
-        try await expect(lines.nth(1)).toContainText("webtestseditedform")
-        try await expect(lines.nth(2)).toContainText("to bend")
+        try await expect(lines.nth(1)).toContainText("to bend")
+        try await expect(lines.nth(2)).toContainText("webtestseditedform")
         try await expect(changed.locator("input[name$='-meaning']")).toHaveCount(1)
         // Frames of the diff's own tokens, a border and an outline of one
         // color, a node's round the flat node; none tinted; the added step's
