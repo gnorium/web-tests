@@ -233,6 +233,18 @@ struct ArtifactReflowCoverTests {
         try await Task.sleep(for: .milliseconds(500))
         let reading = try await page.evaluate(Self.reading, as: Reading.self)
         Self.expectInSight(reading)
+        // Its leaf's head above its frame, 7.42 em at its zoom, and its foot below it, 11.23: reflowed, "THE"
+        // stood at the pane's top and "1603." at its foot.
+        let leaf = try await page.evaluate(
+          """
+          (() => {
+            const text = document.querySelector(".artifact-markup .tei-page[data-active='true'] .tei-page-text[data-layer='rendering']");
+            const block = text.querySelector(".tei-text-block").getBoundingClientRect(), page = text.getBoundingClientRect();
+            return [block.top - page.top, page.bottom - block.bottom, text.currentCSSZoom || 1];
+          })()
+          """, as: [Double].self)
+        #expect(abs(leaf[0] - 7.42 * 16 * leaf[2]) < 1, "its head is \(leaf[0]) px, its zoom \(leaf[2])")
+        #expect(abs(leaf[1] - 11.23 * 16 * leaf[2]) < 1, "its foot is \(leaf[1]) px, its zoom \(leaf[2])")
         // A centered line on the pane's middle, the frame's middle: the frame at the pane's left set it there.
         for text in ["THE", "1603."] {
           let line = try #require(reading.lines.first { $0.text == text })
