@@ -57,8 +57,11 @@ struct LexicographicOvertureDiscardTests {
 
         // Discard: to the register, the overture Discarded, the row kept.
         // It asks first, saying what goes with it; only the dialog's Discard posts.
-        try await tab.locator("button[form='overture-discard']").click()
         let confirm = tab.locator(".mission-control-object-header-confirm")
+        // The page the locution's post reloaded, hydrated: its Discard bound
+        // to the dialog, never a bare submit.
+        try await expect(confirm, timeout: .seconds(20)).toHaveAttribute("data-confirm-bound", "true")
+        try await tab.locator("button[form='overture-discard']").click()
         try await expect(confirm).toContainText("This also discards the submission it came from.")
         try await confirm.locator(".dialog-primary-button").click()
         try await expect(tab, timeout: .seconds(15)).toHaveURL("/mission-control/overtures/lexicographic")
