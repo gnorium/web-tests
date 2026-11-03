@@ -125,7 +125,7 @@ struct ArbitrationTests {
         try await expect(page.locator(".locution-commit")).toHaveCount(0)
       }
       let callID = try TestAdmin.query("""
-        SELECT id FROM locutions WHERE locutable_type = 'bibliographic_madrigal'
+        SELECT upper(id::text) FROM locutions WHERE locutable_type = 'bibliographic_madrigal'
           AND locutable_id = '\(objectID)' AND author_id = '\(contributorID)' AND kind = 'call'
         """)
       #expect(UUID(uuidString: callID) != nil)
@@ -151,7 +151,7 @@ struct ArbitrationTests {
             const x = (row, s) => row.querySelector(s).getBoundingClientRect().left
             return ['.roster-marker', '.roster-status', '.roster-label'].every(s => x(rows[0], s) === x(rows[1], s)) })()
           """, as: Bool.self), "Locked and unlocked rows align")
-        let call = page.locator("#locution-\(callID.uppercased())")
+        let call = page.locator("#locution-\(callID)")
         // No status chip; its Commit under its words, above its reactions,
         // where an act's verdicts stand (user, 2026-10-11).
         try await expect(call.locator(".locution-call-status")).toHaveCount(0)
@@ -167,8 +167,8 @@ struct ArbitrationTests {
         // Its byline names the page its writer was on, and nothing else,
         // linked to the page turned to it (user, 2026-10-17): "… submitted
         // locution ‹id› on Image 3", not the page it ticked.
-        try await expect(call.locator(".locution-header")).toContainText("submitted locution \(callID.uppercased()) on Image 3")
-        try await expect(call.locator("a:has(.locution-call-page)")).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID.uppercased())?image=2")
+        try await expect(call.locator(".locution-header")).toContainText("submitted locution \(callID) on Image 3")
+        try await expect(call.locator("a:has(.locution-call-page)")).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID)?image=2")
         // Its body stays as typed; what it ticked is one sentence in a box
         // after it, as a revision's Modified line is: "Attached Image
         // 1.", the page's image a line-high chip opening the lightbox (user,
@@ -190,14 +190,14 @@ struct ArbitrationTests {
           ".expandable-attachment-view[data-presentation='received'], .expandable-attachment-view[data-presentation='inline']"))
           .toHaveCount(0)
         try await expect(call.locator(".locution-commit")).toHaveText("Commit")
-        try await expect(call.locator(".locution-commit-form[action$='/locutions/\(callID.uppercased())/commit']")).toHaveCount(1)
+        try await expect(call.locator(".locution-commit-form[action$='/locutions/\(callID)/commit']")).toHaveCount(1)
         try await call.locator(".locution-commit").click()
         // The workers are stopped: the session waits, queued, contacting no
         // provider. The test plays its states from here, held so the
         // resumer leaves it be.
         var sessionID = ""
         for _ in 0..<300 {
-          sessionID = try TestAdmin.query("SELECT id FROM bibliographic_arbitration_sessions WHERE call_locution_id = '\(callID)' AND result = 'queued'")
+          sessionID = try TestAdmin.query("SELECT upper(id::text) FROM bibliographic_arbitration_sessions WHERE call_locution_id = '\(callID)' AND result = 'queued'")
           if !sessionID.isEmpty { break }
           try await Task.sleep(for: .milliseconds(100))
         }
@@ -206,7 +206,7 @@ struct ArbitrationTests {
         }
         // gnorium's reply, submitted with the Commit (user, 2026-10-15).
         let replyID = try TestAdmin.query(
-          "SELECT id FROM locutions WHERE arbitration_session_id = '\(sessionID)' AND kind = 'reply'")
+          "SELECT upper(id::text) FROM locutions WHERE arbitration_session_id = '\(sessionID)' AND kind = 'reply'")
         guard UUID(uuidString: replyID) != nil else { throw WebTestError("The Commit submitted no reply.") }
         // Running (its trace's rows stand in for the live buffer here): its
         // first four blocks, received 100ms apart—the rest follow on that
@@ -262,7 +262,7 @@ struct ArbitrationTests {
         // Its row by its id: its trace holds no text block yet and its words
         // are filled as it ends, so its Locution reads "—", unlinked
         // (LocutionsView, MissionControlController.locutions).
-        let listed = page.locator("tr[data-row-id='\(replyID.uppercased())']")
+        let listed = page.locator("tr[data-row-id='\(replyID)']")
         try await expect(listed).toHaveCount(1)
         try await expect(listed).toContainText("gnorium")
 
@@ -282,15 +282,15 @@ struct ArbitrationTests {
         // gnorium's reply, submitted with the Commit under its own id, its
         // session streaming in it (user, 2026-10-15).
         try await page.openHydrated(reading.path)
-        let slot = page.locator("#locution-\(replyID.uppercased())")
+        let slot = page.locator("#locution-\(replyID)")
         try await expect(slot).toHaveCount(1)
         try await expect(call.locator(".computorium-session-view")).toHaveCount(0)
         try await expect(slot.locator(".locution-header")).toContainText(
-          "gnorium submitted locution \(replyID.uppercased()) replying to locution \(callID.uppercased())")
+          "gnorium submitted locution \(replyID) replying to locution \(callID)")
         #expect(try await page.evaluate("""
           (() => { const top = s => document.querySelector(s).getBoundingClientRect().top
-            return top('#locution-\(callID.uppercased())') < top('#commit-\(callID.uppercased())')
-              && top('#commit-\(callID.uppercased())') < top('#locution-\(replyID.uppercased())') })()
+            return top('#locution-\(callID)') < top('#commit-\(callID)')
+              && top('#commit-\(callID)') < top('#locution-\(replyID)') })()
           """, as: Bool.self), "Call, its commit, then gnorium's reply")
         let live = slot.locator(".computorium-session-view")
         try await expect(live, timeout: .seconds(15)).toContainText("Reading the selected evidence carefully.")
@@ -306,7 +306,7 @@ struct ArbitrationTests {
         try await expect(chip.locator(".rotating-ring-sector-view")).toHaveCount(1)
         try await expect(chip.locator(".rotating-dotted-ring-sector-view, .rotating-sector-view")).toHaveCount(0)
         try await ComputoriumMarks.checkThinking(
-          page, process: "arbitration", arbitrated: "calibrated", scope: "#locution-\(replyID.uppercased())")
+          page, process: "arbitration", arbitrated: "calibrated", scope: "#locution-\(replyID)")
         try await expect(live).not.toContainText(Self.reply)
         // The rest of its trace, appended as its next batch: a trace only grows.
         _ = try TestAdmin.query(try SessionTrace.append(
@@ -360,7 +360,7 @@ struct ArbitrationTests {
         try await expect(page.locator(".locution-view .computorium-session-view")).toHaveCount(1)
 
         try await page.openHydrated(reading.path)
-        let reply = page.locator("#locution-\(replyID.uppercased())")
+        let reply = page.locator("#locution-\(replyID)")
         try await expect(reply).toHaveAttribute("data-collapsed", "true")
         try await reply.locator(".locution-collapse").click()
         try await expect(reply).toHaveAttribute("data-collapsed", "false")
@@ -375,12 +375,12 @@ struct ArbitrationTests {
         try await expect(reply).toContainText("gnorium submitted locution")
         // Answered, the session stands in the reply alone; the admin's
         // Commit is an act of the thread between the call and the reply.
-        let commit = page.locator("#commit-\(callID.uppercased())")
-        try await expect(commit).toContainText("committed locution \(callID.uppercased())")
+        let commit = page.locator("#commit-\(callID)")
+        try await expect(commit).toContainText("committed locution \(callID)")
         #expect(try await page.evaluate("""
           (() => { const top = s => document.querySelector(s).getBoundingClientRect().top
-            return top('#locution-\(callID.uppercased())') < top('#commit-\(callID.uppercased())')
-              && top('#commit-\(callID.uppercased())') < top('#locution-\(replyID.uppercased())') })()
+            return top('#locution-\(callID)') < top('#commit-\(callID)')
+              && top('#commit-\(callID)') < top('#locution-\(replyID)') })()
           """, as: Bool.self), "The commit stands between the call and its reply")
         // Committed, the call still names its page; its reply names the
         // call it answers instead.
@@ -388,8 +388,8 @@ struct ArbitrationTests {
         try await expect(call.locator(".locution-commit")).toHaveCount(0)
         try await expect(call.locator(".locution-call-page")).toHaveText("Image 3")
         try await expect(reply.locator(".locution-call-page")).toHaveCount(0)
-        try await expect(reply.locator(".locution-header")).toContainText("gnorium submitted locution \(replyID.uppercased()) replying to locution \(callID.uppercased())")
-        try await expect(reply.locator(".locution-header a[href='#locution-\(callID.uppercased())']")).toHaveCount(1)
+        try await expect(reply.locator(".locution-header")).toContainText("gnorium submitted locution \(replyID) replying to locution \(callID)")
+        try await expect(reply.locator(".locution-header a[href='#locution-\(callID)']")).toHaveCount(1)
         // Our two boxes legended, by name: the system prompt's, the task's.
         try await expect(session.locator(".computorium-session-prompt-fieldset legend")).toHaveCount(2)
         try await expect(session.locator(".computorium-session-system-fieldset .computorium-session-prompt-legend-title"))
@@ -435,7 +435,7 @@ struct ArbitrationTests {
         // appear, and follows it there (user, 2026-10-17): the reader starts
         // where the reply's transcript end is out of view.
         let tailInView = """
-          (() => { const content = document.querySelector('#locution-\(replyID.uppercased()) .computorium-session-output-content'), tail = content.lastElementChild
+          (() => { const content = document.querySelector('#locution-\(replyID) .computorium-session-output-content'), tail = content.lastElementChild
             const r = tail.getBoundingClientRect(), s = getComputedStyle(content.parentElement)
             const line = parseFloat(s.lineHeight) || parseFloat(s.fontSize) * 1.2
             // Above the playback bar, which sticks over the viewport's foot.
@@ -444,7 +444,7 @@ struct ArbitrationTests {
             return r.bottom >= 0 && r.bottom - foot <= line })()
           """
         let away = try await page.evaluate("""
-          (() => { const content = document.querySelector('#locution-\(replyID.uppercased()) .computorium-session-output-content'), tail = content.lastElementChild
+          (() => { const content = document.querySelector('#locution-\(replyID) .computorium-session-output-content'), tail = content.lastElementChild
             // Room below a short thread, so the reader can stand past its end.
             document.body.style.paddingBlockEnd = (2 * innerHeight) + 'px'
             const end = document.documentElement.scrollHeight - innerHeight
@@ -577,7 +577,7 @@ struct ArbitrationTests {
           COMMIT;
           """)
         try await page.openHydrated(reading.path)
-        let failed = page.locator("#locution-\(replyID.uppercased())")
+        let failed = page.locator("#locution-\(replyID)")
         try await failed.locator(".locution-collapse").click()
         try await expect(failed.locator(".computorium-session-view")).toHaveAttribute("data-computorium-session-status", "failed")
         try await expect(failed.locator(".computorium-session-failed-alert"))
@@ -588,7 +588,7 @@ struct ArbitrationTests {
         let continueButton = failed.locator(".locution-call-actions .locution-continue")
         try await expect(continueButton).toHaveCount(1)
         try await expect(continueButton).toHaveText("Continue")
-        try await expect(failed.locator("form.locution-continue-form[action$='/locutions/\(callID.uppercased())/continue']"))
+        try await expect(failed.locator("form.locution-continue-form[action$='/locutions/\(callID)/continue']"))
           .toHaveCount(1)
         #expect(try await continueButton.evaluate("""
           el => ['button-color-blue', 'button-weight-solid', 'button-size-large'].every(c => el.classList.contains(c))
@@ -632,17 +632,17 @@ struct ArbitrationTests {
         // no new session, queued again on its call (its saved trace the
         // service carries on once a worker takes it), on the vignette it was
         // committed with; the reply still its.
-        let resumed = page.locator("#locution-\(replyID.uppercased())")
+        let resumed = page.locator("#locution-\(replyID)")
         try await expect(resumed.locator(".computorium-session-view"), timeout: .seconds(15))
           .not.toHaveAttribute("data-computorium-session-status", "failed")
         #expect(try TestAdmin.query("""
-          SELECT string_agg(id || ':' || instance || ':' || result, ',') FROM bibliographic_arbitration_sessions
+          SELECT string_agg(upper(id::text) || ':' || instance || ':' || result, ',') FROM bibliographic_arbitration_sessions
           WHERE call_locution_id = '\(callID)'
           """) == "\(sessionID):1:queued")
         #expect(try TestAdmin.query("SELECT prompt_vignette_id FROM bibliographic_arbitration_sessions WHERE id = '\(sessionID)'") == vignette)
-        #expect(try TestAdmin.query("SELECT call_status || '|' || arbitration_session_id FROM locutions WHERE id = '\(callID)'")
+        #expect(try TestAdmin.query("SELECT call_status || '|' || upper(arbitration_session_id::text) FROM locutions WHERE id = '\(callID)'")
           == "committed|\(sessionID)")
-        #expect(try TestAdmin.query("SELECT arbitration_session_id FROM locutions WHERE id = '\(replyID)'") == sessionID)
+        #expect(try TestAdmin.query("SELECT upper(arbitration_session_id::text) FROM locutions WHERE id = '\(replyID)'") == sessionID)
         #expect(try TestAdmin.query("""
           SELECT count(*) FROM event_logs WHERE action = 'continue' AND resource_id = '\(callID)' AND user_id = '\(adminID)'
           """) == "1")
@@ -652,7 +652,7 @@ struct ArbitrationTests {
         let continuedTailInView = """
           (async () => {
             for (let i = 0; i < 50; i++) {
-              const content = document.querySelector('#locution-\(replyID.uppercased()) .computorium-session-output-content')
+              const content = document.querySelector('#locution-\(replyID) .computorium-session-output-content')
               // The last child drawn: the hidden Raw view the transcript ends in has no box.
               const tail = content && ([...content.children].reverse().find(e => e.getClientRects().length > 0) ?? content)
               const rect = tail && tail.getBoundingClientRect()
@@ -672,7 +672,7 @@ struct ArbitrationTests {
         #expect(try await page.evaluate("""
           (async () => {
             for (let i = 0; i < 100; i++) {
-              if (document.querySelector('#locution-\(replyID.uppercased())').textContent.includes('Carried on: one more round of reading.')) return true
+              if (document.querySelector('#locution-\(replyID)').textContent.includes('Carried on: one more round of reading.')) return true
               await new Promise(r => setTimeout(r, 200))
             }
             return false
@@ -682,7 +682,7 @@ struct ArbitrationTests {
         // One instance: no pager.
         try await expect(resumed.locator(".locution-pages-nav")).toHaveCount(0)
         // The Continue, an act of the thread.
-        let act = page.locator(".thread-event-line").filter(hasText: "continued locution \(callID.uppercased())")
+        let act = page.locator(".thread-event-line").filter(hasText: "continued locution \(callID)")
         try await expect(act).toHaveCount(1)
         try await expect(act).not.toContainText("instance")
         // Waiting again: its Continue drawn hidden, shown only should it fail
@@ -743,7 +743,7 @@ struct ArbitrationTests {
           emit(name, data) { for (const fn of this.handlers[name] ?? []) fn({ data }) }
           close() {}
         }
-        window.__label = () => document.querySelector('#locution-\(replyID.uppercased()) .computorium-session-view')
+        window.__label = () => document.querySelector('#locution-\(replyID) .computorium-session-view')
           .dataset.computoriumSessionImage ?? ''
         window.__status = (text) => window.__stream.emit('chunk',
           JSON.stringify({ type: 'status', text, image: window.__label(), image_index: -1, message: '' }))
@@ -751,7 +751,7 @@ struct ArbitrationTests {
       """)
     try await page.openHydrated(path + "#renew-test")
     let chip = page.locator(".disputorium-core-header-status-chip .info-chip-text")
-    let session = page.locator("#locution-\(replyID.uppercased()) .computorium-session-view")
+    let session = page.locator("#locution-\(replyID) .computorium-session-view")
     #expect(try await page.evaluate("""
       (async () => { for (let i = 0; i < 50 && !window.__stream; i++) await new Promise(r => setTimeout(r, 100)); return !!window.__stream })()
       """, as: Bool.self), "The reply's watch is attached")
@@ -788,7 +788,7 @@ struct ArbitrationTests {
   /// kept across a reload, then set back to 1×, and the page left as
   /// freshly loaded.
   func expectReplaySpeed(_ page: Page, path: String, replyID: String) async throws {
-    let reply = "#locution-\(replyID.uppercased())"
+    let reply = "#locution-\(replyID)"
     try await page.addInitScript("""
       if (location.hash === '#pace-test') {
         const Real = window.EventSource
@@ -888,7 +888,7 @@ struct ArbitrationTests {
   /// on Replay; Replay again starts a new replay from 0:00. The speed is
   /// set back to 1× and the page left freshly loaded.
   func expectReplaySeek(_ page: Page, path: String, replyID: String) async throws {
-    let reply = "#locution-\(replyID.uppercased())"
+    let reply = "#locution-\(replyID)"
     try await page.addInitScript("""
       if (location.hash === '#seek-test') {
         const Real = window.EventSource
@@ -1101,7 +1101,7 @@ struct ArbitrationTests {
   /// (`aria-valuenow` rising through each), the replay held under the
   /// hand, and the transcript lands at the time let go, playing on.
   func expectReplayScrub(_ page: Page, path: String, replyID: String) async throws {
-    let reply = "#locution-\(replyID.uppercased())"
+    let reply = "#locution-\(replyID)"
     try await page.addInitScript("""
       if (location.hash === '#scrub-test') {
         const Real = window.EventSource
@@ -1279,7 +1279,7 @@ struct ArbitrationTests {
       VALUES ('\(revisionID)', 'bibliographicMadrigal', '\(madrigalID)', '[]', 'pending', '\(userID)', now())
       """)
     _ = try await page.evaluate("""
-      (() => { const label = document.querySelector('#locution-\(replyID.uppercased()) .computorium-session-view')
+      (() => { const label = document.querySelector('#locution-\(replyID) .computorium-session-view')
           .dataset.computoriumSessionImage ?? ''
         window.__suggestStream.emit('chunk', JSON.stringify({ type: 'tool', name: 'suggest_revision', arguments: '{}',
           status: 'ok', call_id: 'web_tests_suggest', result: '{"revision":"\(revisionID)"}', image: label }))
@@ -1298,8 +1298,7 @@ struct ArbitrationTests {
     // none of the page around it.
     let fragment = try await page.evaluate(
       "fetch(location.pathname + '?part=thread').then(r => r.text())", as: String.self)
-    #expect(fragment.contains("id=\"revision-\(revisionID)\"") || fragment.lowercased().contains("id=\"revision-\(revisionID.lowercased())\""),
-      "the thread fragment holds the revision's act")
+    #expect(fragment.contains("id=\"revision-\(revisionID)\""), "the thread fragment holds the revision's act")
     #expect(fragment.contains("suggested revision"), "the fragment says what was done")
     #expect(fragment.contains("thread-view"), "the fragment is the thread")
     for chrome in ["<html", "<!DOCTYPE", "layout-main", "disputorium-core-view", "artifact-view"] {
@@ -1446,7 +1445,7 @@ struct ArbitrationTests {
         try await page.locator(".thread-submit").click()
         let first = page.locator(".locution-view").first
         try await expect(first, timeout: .seconds(15)).toBeVisible()
-        let firstID = try TestAdmin.query("SELECT id FROM locutions WHERE locutable_id = '\(objectID)'").uppercased()
+        let firstID = try TestAdmin.query("SELECT upper(id::text) FROM locutions WHERE locutable_id = '\(objectID)'")
         try await page.openHydrated(reading.path)
         // Its stretch of the rail folds it and opens it again, a pointer's
         // way to its avatar's toggle (user, 2026-10-16).
@@ -1638,7 +1637,7 @@ struct ArbitrationTests {
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let scratch = try ScratchCommit(owner: contributor, sourceURL: fixture.baseURL + "/manifest.json")
     let word = try ScratchWord(owner: contributor, language: "fra")
-    let epilogue = UUID().uuidString.lowercased()
+    let epilogue = UUID().uuidString
     let user = try contributor.column("id")
     func remove() {
       _ = try? TestAdmin.query("DELETE FROM lexicographic_epilogues WHERE id = '\(epilogue)'")
@@ -1649,7 +1648,7 @@ struct ArbitrationTests {
       _ = try TestAdmin.query("""
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, tei,
           target, status, submitted_by_user_id, summary, value_translation_json)
-          VALUES ('\(epilogue)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', '\(word.leaf)',
+          VALUES ('\(epilogue)', '\(word.recordID)', '\(word.versionID)', '\(word.leaf)',
             '<sense><def>A leaf sense.</def></sense>', 'value', 'committed', '\(user)', 'Web tests arbitration prompts.',
             '{"languageCode":"fra","tei":"<def xml:lang=\\"fr\\">Un sens feuille.</def>","confidence":"clear","reason":"Web tests."}');
         """)

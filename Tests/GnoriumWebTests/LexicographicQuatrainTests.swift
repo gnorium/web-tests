@@ -26,7 +26,7 @@ struct LexicographicQuatrainTests {
     init(owner: TestAdmin) throws {
       self.owner = owner.username
       let user = try owner.column("id")
-      func id() -> String { UUID().uuidString.lowercased() }
+      func id() -> String { UUID().uuidString }
       let submission = id()
       figurantID = id()
       overtureID = id()
@@ -34,7 +34,7 @@ struct LexicographicQuatrainTests {
       sentimentID = id()
       let nocturne = id()
       let version = id()
-      title = "webtestsquatrain\(quatrainID.prefix(8))"
+      title = "webtestsquatrain\(quatrainID.prefix(8).lowercased())"
       let form = #"{"title":"\#(title)","languageCode":"eng","class":"noun","origin":{"etymons":[],"citations":[],"derivation":""}}"#
       let counts = [
         ("gated", 0, 1), ("duplicate", 0, 0), ("knowledge_rich", 0, 0), ("earliest", 1, 0), ("latest", 1, 0),

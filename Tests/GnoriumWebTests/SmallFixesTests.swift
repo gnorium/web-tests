@@ -37,7 +37,7 @@ struct SmallFixesTests {
     guard gnorium.engines.contains(engine) else { return }
     let id = try TestAdmin.query(
       """
-      SELECT v.id FROM prompt_vignettes v
+      SELECT upper(v.id::text) FROM prompt_vignettes v
       JOIN prompt_activations a ON a.vignette_id = v.id
       WHERE v.committed_at IS NULL AND v.committed_object_id IS NULL AND v.is_proprietary_content = false
       LIMIT 1

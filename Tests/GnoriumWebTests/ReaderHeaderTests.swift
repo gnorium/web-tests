@@ -101,7 +101,7 @@ struct ReaderHeaderTests {
       _ = try TestAdmin.query(
         """
         UPDATE biblio_record_versions SET metadata_json = jsonb_set(metadata_json::jsonb, '{sourceUrl}', '"\(sourceURL)"')::text
-          WHERE biblio_record_id = '\(work.recordID.lowercased())';
+          WHERE biblio_record_id = '\(work.recordID)';
         """)
       let viewport = layout.viewport(for: engine)
       let folder = ProcessInfo.processInfo.environment["READER_HEADER_SCREENSHOTS"]
@@ -159,7 +159,7 @@ struct ReaderHeaderTests {
         try await page.openHydrated(work.path)
         _ = try await page.evaluate(
           """
-          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-node')
+          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)']").closest('.record-node')
             .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
           """)
         try await expect(page.locator(".artifact-view .artifact-canvas-label").first).toHaveText("p1")
@@ -183,12 +183,12 @@ struct ReaderHeaderTests {
         _ = try TestAdmin.query(
           """
           UPDATE biblio_record_versions SET metadata_json = jsonb_set(metadata_json::jsonb, '{sourceUrl}', '"https://example.org/web-tests-none"')::text
-            WHERE biblio_record_id = '\(work.recordID.lowercased())';
+            WHERE biblio_record_id = '\(work.recordID)';
           """)
         try await page.openHydrated(work.path)
         _ = try await page.evaluate(
           """
-          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-node')
+          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)']").closest('.record-node')
             .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
           """)
         try await expect(page.locator(".artifact-view .artifact-canvas-label").first).toHaveText("iv")

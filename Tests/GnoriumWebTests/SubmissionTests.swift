@@ -93,7 +93,7 @@ struct SubmissionTests {
         """
         UPDATE biblio_record_versions
           SET metadata_json = replace(metadata_json, '"edition":"First edition"', '"edition":"First edition","carrier":"print"')
-          WHERE id = '\(work.versionID.lowercased())';
+          WHERE id = '\(work.versionID)';
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await newTestament(page, suffix: suffix, source: source)
@@ -324,7 +324,7 @@ struct SubmissionTests {
     let row = try TestAdmin.query(
       """
       SELECT e.title || '|' || coalesce(e.carrier, '') || '|' || coalesce(e.edition, '') || '|'
-        || coalesce(e.copy_label, '') || '|' || coalesce(e.chosen_biblio_record_id::text, '') || '|' || count(o.id)
+        || coalesce(e.copy_label, '') || '|' || coalesce(upper(e.chosen_biblio_record_id::text), '') || '|' || count(o.id)
         FROM bibliographic_figurants e LEFT JOIN bibliographic_overtures o ON o.bibliographic_figurant_id = e.id
         WHERE e.source_url = '\(source)/new' GROUP BY e.id;
       """
@@ -446,28 +446,28 @@ struct SubmissionTests {
       $0.path == "/mission-control"
     }
     let evidence = try TestAdmin.query(
-      "SELECT id FROM bibliographic_figurants WHERE source_url = '\(source)/placed';"
-    ).trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+      "SELECT upper(id::text) FROM bibliographic_figurants WHERE source_url = '\(source)/placed';"
+    ).trimmingCharacters(in: .whitespacesAndNewlines)
     #expect(!evidence.isEmpty, "No evidence.")
     let row = try TestAdmin.query(
       """
       SELECT e.title || '|' || coalesce(e.carrier, '') || '|' || coalesce(e.copy_label, '') || '|'
-        || coalesce(e.edition, '') || '|' || e.chosen_biblio_record_id::text || '|' || o.chosen_biblio_record_id::text
+        || coalesce(e.edition, '') || '|' || upper(e.chosen_biblio_record_id::text) || '|' || upper(o.chosen_biblio_record_id::text)
         FROM bibliographic_figurants e JOIN bibliographic_overtures o ON o.bibliographic_figurant_id = e.id
         WHERE e.source_url = '\(source)/placed';
       """
     ).trimmingCharacters(in: .whitespacesAndNewlines)
-    let record = work.recordID.lowercased()
+    let record = work.recordID
     #expect(row == "\(work.title)|print|Copy 2||\(record)|\(record)", "\(row)")
     let placement = try TestAdmin.query(
       "SELECT placement_json FROM bibliographic_figurants WHERE source_url = '\(source)/placed';")
     let shape = try JSONSerialization.jsonObject(with: Data(placement.utf8)) as? [String: [String: Any]] ?? [:]
-    let placedCopy = shape.first { $0.key.lowercased() == "copy-\(evidence.lowercased())" }
-    let placedManifest = shape.first { $0.key.lowercased() == "manifest-\(evidence.lowercased())" }
+    let placedCopy = shape.first { $0.key == "copy-\(evidence)" }
+    let placedManifest = shape.first { $0.key == "manifest-\(evidence)" }
     #expect((placedCopy?.value["parent"] as? String)?.hasPrefix("edition-") == true, "\(placement)")
     #expect((placedCopy?.value["position"] as? Int) == 1, "\(placement)")
-    #expect((placedManifest?.value["parent"] as? String)?.lowercased() == placedCopy?.key.lowercased(), "\(placement)")
-    #expect(shape.keys.contains { $0.lowercased() == "edition-\(evidence.lowercased())" } == false)
+    #expect((placedManifest?.value["parent"] as? String) == placedCopy?.key, "\(placement)")
+    #expect(shape.keys.contains("edition-\(evidence)") == false)
   }
 
   // MARK: - From a record's page
@@ -576,7 +576,7 @@ struct SubmissionTests {
         BEGIN;
         DELETE FROM lexicographic_overtures WHERE lexicographic_figurant_id IN
           (SELECT id FROM lexicographic_figurants WHERE title_form_json::json ->> 'title' = 'webtestsnew\(suffix)'
-            OR chosen_lexico_record_id = '\(word.recordID.lowercased())');
+            OR chosen_lexico_record_id = '\(word.recordID)');
         DELETE FROM bibliographic_overtures WHERE bibliographic_figurant_id IN
           (SELECT id FROM bibliographic_figurants WHERE source_url = '\(source)');
         UPDATE bibliographic_figurants SET discarded_at = now(), discarded_by = '\(admin.username)'
@@ -653,7 +653,7 @@ struct SubmissionTests {
     }
     let row = try TestAdmin.query(
       """
-      SELECT (e.title_form_json::json ->> 'title') || '|' || coalesce(e.chosen_lexico_record_id::text, '') || '|'
+      SELECT (e.title_form_json::json ->> 'title') || '|' || coalesce(upper(e.chosen_lexico_record_id::text), '') || '|'
         || count(o.id)
         FROM lexicographic_figurants e LEFT JOIN lexicographic_overtures o ON o.lexicographic_figurant_id = e.id
         WHERE e.title_form_json::json ->> 'title' = 'webtestsnew\(suffix)' GROUP BY e.id;

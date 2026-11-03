@@ -30,8 +30,8 @@ struct LocutionDiscardTests {
     do { scratch = try ScratchCommit(owner: reader) } catch {
       try await other.remove(); try await reader.remove(); try await admin.remove(after: error)
     }
-    let locutionID = UUID().uuidString.lowercased()
-    let madrigalID = scratch.madrigalID.lowercased()
+    let locutionID = UUID().uuidString
+    let madrigalID = scratch.madrigalID
     func removeLocutions() {
       _ = try? TestAdmin.query("DELETE FROM locutions WHERE locutable_id = '\(madrigalID)'")
     }
@@ -49,7 +49,7 @@ struct LocutionDiscardTests {
           VALUES ('\(locutionID)', 'bibliographic_madrigal', '\(madrigalID)', '\(readerID)',
                   '\(Self.words)', 1, now() - interval '2 minutes')
         """)
-      let id = locutionID.uppercased()
+      let id = locutionID
 
       // An admin: Discard, beside Nullify, wearing the trash; no dialog.
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in

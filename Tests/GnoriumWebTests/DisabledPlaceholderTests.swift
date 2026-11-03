@@ -20,7 +20,7 @@ struct DisabledPlaceholderTests {
         """
         UPDATE biblio_record_versions
           SET metadata_json = (metadata_json::jsonb || '{"workNote":"A note."}'::jsonb)::text
-          WHERE id = '\(work.versionID.lowercased())';
+          WHERE id = '\(work.versionID)';
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(work.path)

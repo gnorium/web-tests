@@ -692,7 +692,7 @@ struct ReviseEditorTests {
         try await expect(page, timeout: .seconds(15))
           .toHaveURL("the overture at its locution", where: RevisePagesTests.atLocution(palinode.path))
         let user = try contributor.column("id")
-        let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'").uppercased()
+        let id = try TestAdmin.query("SELECT upper(id::text) FROM revisions WHERE requested_by_user_id = '\(user)'")
         try await page.openHydrated("\(palinode.path)/revisions/\(id)")
         let filed = try await page.evaluate(
           """

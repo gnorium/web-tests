@@ -18,19 +18,19 @@ struct CitationsTests {
     let citing = try ScratchWork(owner: admin)
     // A citation of the one by the other's version, as a permit's reading
     // leaves it: standoff, resolved.
-    let citation = UUID().uuidString.lowercased()
-    let extraction = UUID().uuidString.lowercased()
+    let citation = UUID().uuidString
+    let extraction = UUID().uuidString
     _ = try TestAdmin.query(
       """
       BEGIN;
       INSERT INTO citations (id, biblio_record_version_id, biblio_record_id, testament_id, permitted_at, image_id, page,
         start_line, start_word, start_surface, end_line, end_word, end_surface, element, kind, surface, parts_json,
         language_code, status, cited_biblio_record_id, resolved_at, created_at)
-        VALUES ('\(citation)', '\(citing.versionID.lowercased())', '\(citing.recordID.lowercased())', '\(citing.recordID.lowercased())',
+        VALUES ('\(citation)', '\(citing.versionID)', '\(citing.recordID)', '\(citing.recordID)',
           now(), 'c', 1, 1, 1, 'Report', 1, 1, 'Report', 'bibl', 'work', 'Report', '{}', 'eng', 'resolved',
-          '\(cited.recordID.lowercased())', now(), now());
+          '\(cited.recordID)', now(), now());
       INSERT INTO citation_extractions (id, biblio_record_version_id, testament_id, permitted_at, citations_version, count, extracted_at)
-        VALUES ('\(extraction)', '\(citing.versionID.lowercased())', '\(citing.recordID.lowercased())', now(), 'tei-bibl-ref-mentioned-v3', 1, now());
+        VALUES ('\(extraction)', '\(citing.versionID)', '\(citing.recordID)', now(), 'tei-bibl-ref-mentioned-v3', 1, now());
       COMMIT;
       """)
     func cleanUp() async throws {
@@ -107,7 +107,7 @@ struct CitationsTests {
       }
       // A catalog's entry for it, and two citations of it in the catalog.
       let catalogPath = try EntriesAndCitationsTests.retype(catalog, "catalog")
-      let workID = reading.work.recordID.lowercased()
+      let workID = reading.work.recordID
       _ = try TestAdmin.query(
         "BEGIN;\n" + EntriesAndCitationsTests.read(catalog)
           + EntriesAndCitationsTests.entry(in: catalog, heading: "WEB TESTS HEADING", work: workID)

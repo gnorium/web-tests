@@ -28,7 +28,7 @@ struct TestamentNoteTests {
         UPDATE biblio_record_versions
           SET metadata_json = (metadata_json::jsonb
             || '{"editionNote":"\(Self.note)","workNote":"\(Self.workNote)"}'::jsonb)::text
-          WHERE id = '\(work.versionID.lowercased())';
+          WHERE id = '\(work.versionID)';
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(work.path)
@@ -175,7 +175,7 @@ struct TestamentNoteTests {
         let filed = try TestAdmin.query(
           """
           SELECT coalesce(f.work_note, '') || '|' || coalesce(f.digitization_note, '') || '|'
-            || coalesce(o.work_note, '') || '|' || coalesce(o.digitization_note, '') || '|' || o.id
+            || coalesce(o.work_note, '') || '|' || coalesce(o.digitization_note, '') || '|' || upper(o.id::text)
             FROM bibliographic_figurants f JOIN bibliographic_overtures o ON o.bibliographic_figurant_id = f.id
             WHERE f.source_url = '\(source)';
           """
@@ -208,10 +208,10 @@ struct TestamentNoteTests {
         try await expect(revise).toHaveCount(1)
         try await page.locator("button[type='submit']").filter(hasText: "Suggest").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the overture at its locution") { url in
-          url.path.lowercased() == overture.lowercased() && (url.fragment ?? "").hasPrefix("revision-")
+          url.path == overture && (url.fragment ?? "").hasPrefix("revision-")
         }
         let revision = try TestAdmin.query(
-          "SELECT id FROM revisions WHERE revisable_id = '\(parts.last ?? "")' ORDER BY created_at DESC LIMIT 1;"
+          "SELECT upper(id::text) FROM revisions WHERE revisable_id = '\(parts.last ?? "")' ORDER BY created_at DESC LIMIT 1;"
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(!revision.isEmpty, "no revision was filed")
 
@@ -265,17 +265,17 @@ struct TestamentNoteTests {
     defer { fixture.stop() }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin, sourceURL: fixture.baseURL + "/manifest.json")
-    let record = work.recordID.lowercased()
+    let record = work.recordID
     func clean() {
       _ = try? TestAdmin.query(
         """
         BEGIN;
         DELETE FROM inferred_citation_jobs WHERE record_id = '\(record)';
         DELETE FROM locutions WHERE locutable_id IN
-          (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');
+          (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID)');
         DELETE FROM revisions WHERE revisable_id IN
-          (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');
-        DELETE FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())';
+          (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID)');
+        DELETE FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID)';
         COMMIT;
         """)
     }
@@ -284,7 +284,7 @@ struct TestamentNoteTests {
         """
         UPDATE biblio_record_versions
           SET metadata_json = replace(metadata_json, 'https://example.org/web-tests', '\(fixture.baseURL)/manifest.json')
-          WHERE id = '\(work.versionID.lowercased())';
+          WHERE id = '\(work.versionID)';
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("\(work.path)/amendments/new")
@@ -357,9 +357,9 @@ struct TestamentNoteTests {
         // An overture whose title form carries one: frozen on its page.
         let user = try admin.column("id")
         let form = #"{"title":"\#(title)","languageCode":"eng","class":"noun","note":"\#(rootNote)","origin":{"etymons":[],"citations":[],"derivation":""}}"#
-        let submission = UUID().uuidString.lowercased()
-        let figurant = UUID().uuidString.lowercased()
-        let id = UUID().uuidString.lowercased()
+        let submission = UUID().uuidString
+        let figurant = UUID().uuidString
+        let id = UUID().uuidString
         _ = try TestAdmin.query(
           """
           BEGIN;
@@ -382,7 +382,7 @@ struct TestamentNoteTests {
         try await revise.fill(rootNote + " Revised.")
         try await page.locator("button[type='submit']").filter(hasText: "Suggest").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the overture at its locution") { url in
-          url.path.lowercased() == overture.lowercased() && (url.fragment ?? "").hasPrefix("revision-")
+          url.path == overture && (url.fragment ?? "").hasPrefix("revision-")
         }
         let link = page.locator(".thread-event-changed a").filter(hasText: "Note")
         try await expect(link).toHaveCount(1)

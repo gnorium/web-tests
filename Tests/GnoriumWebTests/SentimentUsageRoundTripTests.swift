@@ -15,7 +15,7 @@ struct SentimentUsageRoundTripTests {
     let labelsJSON = String(decoding: try JSONEncoder().encode(labels), as: UTF8.self)
     let path = "/mission-control/madrigals/lexicographic/\(word.madrigalID)"
     func remove() {
-      _ = try? TestAdmin.query("DELETE FROM revisions WHERE revisable_id = '\(word.madrigalID.lowercased())';")
+      _ = try? TestAdmin.query("DELETE FROM revisions WHERE revisable_id = '\(word.madrigalID)';")
       word.remove()
     }
     do {
@@ -24,7 +24,7 @@ struct SentimentUsageRoundTripTests {
         UPDATE lexicographic_madrigals
         SET proposed_content_json = jsonb_set(proposed_content_json::jsonb,
           '{record,senses,0,usage,register}', '\(labelsJSON)'::jsonb)::text
-        WHERE id = '\(word.madrigalID.lowercased())';
+        WHERE id = '\(word.madrigalID)';
         """)
       try await withPage(.chrome, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated("\(path)/revise")
@@ -39,14 +39,14 @@ struct SentimentUsageRoundTripTests {
         try await page.locator("textarea[name='sentiment-0-label']").fill("A branch description revised independently.")
         try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the madrigal at its locution", where: {
-          $0.path.lowercased() == path.lowercased() && ($0.fragment ?? "").hasPrefix("revision-")
+          $0.path == path && ($0.fragment ?? "").hasPrefix("revision-")
         })
         try await page.expectNoErrors()
       }
       let filed = try TestAdmin.query(
         """
         SELECT content_json FROM revisions
-        WHERE revisable_id = '\(word.madrigalID.lowercased())' AND status = 'pending' AND content_json IS NOT NULL;
+        WHERE revisable_id = '\(word.madrigalID)' AND status = 'pending' AND content_json IS NOT NULL;
         """)
       let content = try #require(JSONSerialization.jsonObject(with: Data(filed.utf8)) as? [String: Any])
       let sentiments = try #require(content["sentiments"] as? [[String: Any]])

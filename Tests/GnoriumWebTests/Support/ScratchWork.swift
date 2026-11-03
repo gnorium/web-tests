@@ -16,10 +16,9 @@ struct ScratchWork {
   let suffix: String
   let recordID: String
   let versionID: String
-  /// Its overture's id (committed), as the server writes it: upper case.
+  /// Its overture's id (committed).
   let overtureID: String
-  /// The madrigal its version was permitted from, as the server writes it:
-  /// upper case.
+  /// The madrigal its version was permitted from.
   let madrigalID: String
   let path: String
   private let ids: [String: String]
@@ -54,21 +53,21 @@ struct ScratchWork {
     for name in [
       "submission", "figurant", "overture", "record", "madrigal", "version", "authorship",
     ] {
-      ids[name] = UUID().uuidString.lowercased()
+      ids[name] = UUID().uuidString
     }
-    let suffix = String(ids["record"]!.prefix(8))
+    // Text, not an id: the title's and the slug's lower-case hex.
+    let suffix = ids["record"]!.prefix(8).lowercased()
     self.suffix = suffix
     title = "Web tests placement \(suffix)"
     let slug = "web-tests-placement-\(suffix)"
     author = "Web Tests Author \(suffix)"
     path = "/biblio-records/eng/\(slug)/report"
-    // As the server writes them: upper case.
-    recordID = ids["record"]!.uppercased()
-    versionID = ids["version"]!.uppercased()
-    overtureID = ids["overture"]!.uppercased()
-    madrigalID = ids["madrigal"]!.uppercased()
+    recordID = ids["record"]!
+    versionID = ids["version"]!
+    overtureID = ids["overture"]!
+    madrigalID = ids["madrigal"]!
     self.ids = ids
-    let figurant = ids["figurant"]!.uppercased()
+    let figurant = ids["figurant"]!
     let metadata = """
       {"sourceUrl":"https://example.org/web-tests","sourceKind":"iiif-manifest","title":"\(title)",\
       "voices":[{"name":"\(author)","role":"author"}\(coauthor.map { #",{"name":"\#($0)","role":"author"}"# } ?? "")],\

@@ -34,8 +34,8 @@ struct ScratchPromptOverture {
     self.owner = owner.username
     self.slot = slot
     kind = slot.hasPrefix("lexicographic_") ? "lexicographic" : "bibliographic"
-    id = UUID().uuidString.lowercased()
-    palinodeID = UUID().uuidString.lowercased()
+    id = UUID().uuidString
+    palinodeID = UUID().uuidString
     let stale = """
       SELECT o.id FROM vignette_overtures o JOIN vignette_palinodes p ON p.id = o.vignette_palinode_id
         JOIN users u ON u.id = p.submitted_by_user_id

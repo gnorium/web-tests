@@ -13,15 +13,14 @@ import Foundation
 /// testament's record, version and page, and the quote's passage and
 /// word there), the leaf is attested by a quote in that testament.
 struct ScratchWord {
-  /// Its overture's, its madrigal's and its version's ids, as the server
-  /// writes them.
+  /// Its overture's, its madrigal's and its version's ids.
   let overtureID: String
   let madrigalID: String
   let versionID: String
   /// The scratch record's title.
   let title: String
   let path: String
-  /// Its record's id, as the server writes it: upper case.
+  /// Its record's id.
   let recordID: String
   /// Its sentiments' UUIDs (design-notes/node-uuids.md), each its own, as
   /// the server gives them: the branch sense `s-1` and its leaf `s-1-1`.
@@ -56,16 +55,16 @@ struct ScratchWord {
     let user = try owner.column("id")
     var ids: [String: String] = [:]
     for name in ["submission", "figurant", "overture", "antiphon", "madrigal", "lemma", "record", "version"] {
-      ids[name] = UUID().uuidString.lowercased()
+      ids[name] = UUID().uuidString
     }
-    overtureID = ids["overture"]!.uppercased()
-    madrigalID = ids["madrigal"]!.uppercased()
-    versionID = ids["version"]!.uppercased()
+    overtureID = ids["overture"]!
+    madrigalID = ids["madrigal"]!
+    versionID = ids["version"]!
     self.ids = ids
-    recordID = ids["record"]!.uppercased()
+    recordID = ids["record"]!
     branch = UUID().uuidString
     leaf = UUID().uuidString
-    let title = title ?? "webtestsword\(ids["record"]!.prefix(8))"
+    let title = title ?? "webtestsword\(ids["record"]!.prefix(8).lowercased())"
     self.title = title
     path = "/lexico-records/\(language)/\(title)/noun"
     // The title form's romanized title, as explication writes it.

@@ -16,11 +16,11 @@ struct NodeUUIDsTests {
     let work = try ScratchWork(owner: admin)
     defer { work.remove() }
     let shape = try TestAdmin.query(
-      "SELECT shape_json FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())';")
+      "SELECT shape_json FROM biblio_record_versions WHERE id = '\(work.versionID)';")
     let edition = try #require(
       shape.firstMatch(of: /"edition-[0-9A-F-]+":\{[^}]*"uuid":"([0-9A-F-]{36})"/).map { String($0.1) }, "\(shape)")
     try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine), cookies: [admin.cookie]) { page in
-      let madrigal = try await page.goto("/mission-control/madrigals/bibliographic/\(work.madrigalID.lowercased())")
+      let madrigal = try await page.goto("/mission-control/madrigals/bibliographic/\(work.madrigalID)")
       #expect(madrigal.status == 200)
       let record = try await page.goto(work.path)
       #expect(record.status == 200)

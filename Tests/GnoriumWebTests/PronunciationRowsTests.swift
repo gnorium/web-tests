@@ -25,9 +25,9 @@ struct PronunciationRowsTests {
         """
         BEGIN;
         DELETE FROM locutions WHERE locutable_id IN
-          (SELECT id FROM lexicographic_record_overtures WHERE lexico_record_id = '\(word.recordID.lowercased())');
-        DELETE FROM lexicographic_record_overtures WHERE lexico_record_id = '\(word.recordID.lowercased())';
-        DELETE FROM lexicographic_palinodes WHERE lexico_record_id = '\(word.recordID.lowercased())';
+          (SELECT id FROM lexicographic_record_overtures WHERE lexico_record_id = '\(word.recordID)');
+        DELETE FROM lexicographic_record_overtures WHERE lexico_record_id = '\(word.recordID)';
+        DELETE FROM lexicographic_palinodes WHERE lexico_record_id = '\(word.recordID)';
         COMMIT;
         """)
       word.remove()

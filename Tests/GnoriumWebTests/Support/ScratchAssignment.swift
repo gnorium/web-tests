@@ -17,26 +17,26 @@ struct ScratchAssignment {
     owner: TestAdmin, testament: ScratchTestament, word: ScratchWord, image: String, wordID: String,
     surface: String, lemma: String, wordClass: String
   ) throws {
-    antiphonID = UUID().uuidString.lowercased()
-    nocturneID = UUID().uuidString.lowercased()
+    antiphonID = UUID().uuidString
+    nocturneID = UUID().uuidString
     self.word = word
     self.wordClass = wordClass
     let work = testament.reading.work
     let user = try owner.column("id")
-    let leaf = word.leaf.lowercased()
+    let leaf = word.leaf
     _ = try TestAdmin.query(
       """
       BEGIN;
       INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
-        VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
+        VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
       INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
-       VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 1)
+       VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)'), 'explication', '1', 1)
        ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
       INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
       VALUES ('\(nocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), 1200, now());
       INSERT INTO sentiment_inventories (language_code, lemma, class, version) VALUES ('eng', '\(word.title)', '\(wordClass)', 1);
       INSERT INTO sentiments (uuid, lexico_record_id, language_code, lemma, class, inventory_version, value_text, value_key, provisional)
-        VALUES ('\(leaf)', '\(word.recordID.lowercased())', 'eng', '\(word.title)', '\(wordClass)', 1,
+        VALUES ('\(leaf)', '\(word.recordID)', 'eng', '\(word.title)', '\(wordClass)', 1,
           'A leaf sense.', 'a leaf sense', false);
       INSERT INTO sentiment_assignments (reading_id, image, word_id, surface, language_code, lemma, class, sentiment_uuid, assigned_by)
         VALUES ('\(nocturneID)', '\(image)', '\(wordID)', '\(surface)', 'eng', '\(lemma)', '\(wordClass)', '\(leaf)',
@@ -51,7 +51,7 @@ struct ScratchAssignment {
       """
       BEGIN;
       DELETE FROM sentiment_assignments WHERE reading_id = '\(nocturneID)';
-      DELETE FROM sentiments WHERE uuid = '\(word.leaf.lowercased())';
+      DELETE FROM sentiments WHERE uuid = '\(word.leaf)';
       DELETE FROM sentiment_inventories WHERE language_code = 'eng' AND lemma = '\(word.title)' AND class = '\(wordClass)';
       \(SessionTrace.delete(table: "bibliographic_explication_nocturne_instances", where: "id='\(nocturneID)'"))
       DELETE FROM bibliographic_explication_nocturnes WHERE id IN (SELECT nocturne_id FROM bibliographic_explication_nocturne_instances WHERE id = '\(nocturneID)');

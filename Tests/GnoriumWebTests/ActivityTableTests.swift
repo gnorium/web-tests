@@ -24,15 +24,15 @@ struct ActivityTableTests {
         try await expect(table.locator("th[data-table-column-id]"))
           .toHaveTexts(["Action", "Object", "ID", "Title", "By", "When"])
         // The dashboard is recomputed every few seconds and pushed live.
-        let id = table.locator("a[href*='/revisions/\(revisionID)' i]").first
+        let id = table.locator("a[href*='/revisions/\(revisionID)']").first
         try await expect(id, timeout: .seconds(30)).toHaveCount(1)
-        try await expect(id).toHaveText(revisionID.uppercased())
+        try await expect(id).toHaveText(revisionID)
         let cells = try await page.evaluate("""
-          (() => { const a = document.querySelector(".mission-control-dashboard-recent-activity-table a[href*='/revisions/\(revisionID)' i]");
+          (() => { const a = document.querySelector(".mission-control-dashboard-recent-activity-table a[href*='/revisions/\(revisionID)']");
             const row = a.closest('tr');
             return [...row.querySelectorAll('td')].slice(0, 4).map(td => td.innerText.trim()).join('|') })()
           """, as: String.self)
-        #expect(cells == "Suggestion|Revision|\(revisionID.uppercased())|\(scratch.title)", "Row: \(cells)")
+        #expect(cells == "Suggestion|Revision|\(revisionID)|\(scratch.title)", "Row: \(cells)")
         try await expect(table).not.toContainText("Folksong")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()

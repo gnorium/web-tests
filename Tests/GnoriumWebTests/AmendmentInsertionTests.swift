@@ -23,17 +23,17 @@ struct AmendmentInsertionTests {
     defer { fixture.stop() }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin, sourceURL: fixture.baseURL + "/manifest.json")
-    let record = work.recordID.lowercased()
+    let record = work.recordID
     func clean() {
       // Its Palinodes are submitted input, frozen: they stay.
       _ = try? TestAdmin.query(
         """
         BEGIN;
         DELETE FROM inferred_citation_jobs WHERE record_id = '\(record)';
-        DELETE FROM biblio_record_versions WHERE biblio_record_id = '\(record)' AND id <> '\(work.versionID.lowercased())';
+        DELETE FROM biblio_record_versions WHERE biblio_record_id = '\(record)' AND id <> '\(work.versionID)';
         DELETE FROM revisions WHERE revisable_id IN
-          (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');
-        DELETE FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())';
+          (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID)');
+        DELETE FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID)';
         COMMIT;
         """)
     }
@@ -41,9 +41,9 @@ struct AmendmentInsertionTests {
       // A printed witness with a copy: an impression's publication is drawn
       // for it, and its copy hangs from its edition.
       let stood = try TestAdmin.query(
-        "SELECT shape_json FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())';")
+        "SELECT shape_json FROM biblio_record_versions WHERE id = '\(work.versionID)';")
       let figurant = try #require(
-        stood.firstMatch(of: /"edition-([0-9A-Fa-f-]+)"/).map { String($0.1) }, "\(stood)")
+        stood.firstMatch(of: /"edition-([0-9A-F-]+)"/).map { String($0.1) }, "\(stood)")
       _ = try TestAdmin.query(
         """
         UPDATE biblio_record_versions
@@ -54,7 +54,7 @@ struct AmendmentInsertionTests {
               shape_json::jsonb || jsonb_build_object('copy-\(figurant)', jsonb_build_object(
                 'parent', 'edition-\(figurant)', 'position', 0, 'uuid', '\(UUID().uuidString)')),
               '{manifest-\(figurant),parent}', '"copy-\(figurant)"')::text
-          WHERE id = '\(work.versionID.lowercased())';
+          WHERE id = '\(work.versionID)';
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("\(work.path)/amendments/new")
@@ -147,7 +147,7 @@ struct AmendmentInsertionTests {
         let stored = try TestAdmin.query(
           """
           SELECT shape_json FROM bibliographic_madrigals
-            WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())';
+            WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID)';
           """
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(stored.contains("\"impression-\(witness)\":{\"parent\":\"edition-\(witness)\""), "\(stored)")
@@ -158,7 +158,7 @@ struct AmendmentInsertionTests {
         let filed = try TestAdmin.query(
           "SELECT metadata_json FROM bibliographic_palinodes WHERE biblio_record_id = '\(record)';")
         #expect(filed.contains("\"impression\":\"Second impression\""), "\(filed)")
-        let revisions = try TestAdmin.query("SELECT count(*) FROM revisions WHERE revisable_id IN (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');").trimmingCharacters(in: .whitespacesAndNewlines)
+        let revisions = try TestAdmin.query("SELECT count(*) FROM revisions WHERE revisable_id IN (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID)');").trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(revisions == "0", "the fields are the object's first state")
         try await page.locator("button[form='madrigal-permit']").click()
         try await expect(page.locator(".mission-control-object-header-status-chip"), timeout: .seconds(15)).toHaveText("Permitted")

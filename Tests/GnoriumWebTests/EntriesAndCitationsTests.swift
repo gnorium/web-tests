@@ -17,7 +17,7 @@ struct EntriesAndCitationsTests {
   /// A scratch work retyped (a catalog, a dictionary…): its address moves
   /// with its type.
   static func retype(_ work: ScratchWork, _ type: String) throws -> String {
-    _ = try TestAdmin.query("UPDATE biblio_records SET type = '\(type)' WHERE id = '\(work.recordID.lowercased())';")
+    _ = try TestAdmin.query("UPDATE biblio_records SET type = '\(type)' WHERE id = '\(work.recordID)';")
     return work.path.replacingOccurrences(of: "/report", with: "/\(type)")
   }
 
@@ -25,7 +25,7 @@ struct EntriesAndCitationsTests {
   static func read(_ work: ScratchWork) -> String {
     """
     INSERT INTO citation_extractions (id, biblio_record_version_id, testament_id, permitted_at, citations_version, count, extracted_at)
-      VALUES (gen_random_uuid(), '\(work.versionID.lowercased())', '\(work.recordID.lowercased())', now(), 'tei-bibl-ref-mentioned-v3', 0, now());
+      VALUES (gen_random_uuid(), '\(work.versionID)', '\(work.recordID)', now(), 'tei-bibl-ref-mentioned-v3', 0, now());
     """
   }
 
@@ -39,8 +39,8 @@ struct EntriesAndCitationsTests {
         start_line, start_word, start_surface, end_line, end_word, end_surface, element, kind, surface, parts_json,
         language_code, status, cited_biblio_record_id, cited_lexico_record_id, resolved_at, created_at,
         entry_heading, entry_head)
-        VALUES (gen_random_uuid(), '\(citing.versionID.lowercased())', '\(citing.recordID.lowercased())',
-          '\(citing.recordID.lowercased())', now(), 'c', 2, \(line), 1, 'Cited', \(line), 1, 'Cited',
+        VALUES (gen_random_uuid(), '\(citing.versionID)', '\(citing.recordID)',
+          '\(citing.recordID)', now(), 'c', 2, \(line), 1, 'Cited', \(line), 1, 'Cited',
           '\(word == nil ? "bibl" : "mentioned")', '\(word == nil ? "work" : "word")', 'Cited \(line)', '{}', 'eng',
           'resolved', \(work.map { "'\($0)'" } ?? "NULL"), \(word.map { "'\($0)'" } ?? "NULL"),
           now(), now(), \(entry.map { "'\($0)'" } ?? "NULL"), false);
@@ -54,15 +54,15 @@ struct EntriesAndCitationsTests {
     INSERT INTO entries (id, biblio_record_version_id, work_record_id, testament_id, permitted_at, image_id, page,
       start_line, start_word, start_surface, end_line, end_word, end_surface, kind, heading, parts_json, language_code,
       status, lexico_record_id, biblio_record_id, resolved_at, created_at)
-      VALUES (gen_random_uuid(), '\(canon.versionID.lowercased())', '\(canon.recordID.lowercased())',
-        '\(canon.recordID.lowercased())', now(), 'c', 3, 1, 1, '\(heading)', 1, 1, '\(heading)',
+      VALUES (gen_random_uuid(), '\(canon.versionID)', '\(canon.recordID)',
+        '\(canon.recordID)', now(), 'c', 3, 1, 1, '\(heading)', 1, 1, '\(heading)',
         '\(word == nil ? "bibliographic" : "lexicographic")', '\(heading)', '{}', 'eng', 'resolved',
         \(word.map { "'\($0)'" } ?? "NULL"), \(work.map { "'\($0)'" } ?? "NULL"), now(), now());
     """
   }
 
   static func clean(_ works: [ScratchWork]) -> String {
-    let versions = works.map { "'\($0.versionID.lowercased())'" }.joined(separator: ",")
+    let versions = works.map { "'\($0.versionID)'" }.joined(separator: ",")
     return """
       DELETE FROM entries WHERE biblio_record_version_id IN (\(versions));
       DELETE FROM citations WHERE biblio_record_version_id IN (\(versions));
@@ -86,7 +86,7 @@ struct EntriesAndCitationsTests {
     }
     do {
       let catalogPath = try Self.retype(catalog, "catalog")
-      let citedID = cited.recordID.lowercased()
+      let citedID = cited.recordID
       _ = try TestAdmin.query(
         "BEGIN;\n" + Self.read(catalog) + Self.read(letters)
           + Self.entry(in: catalog, heading: "WEB TESTS HEADING", work: citedID)
@@ -96,16 +96,16 @@ struct EntriesAndCitationsTests {
       // A node is named by its UUID (0112, user 2026-10-12): the edition's,
       // which its row's anchor carries too.
       let targetNode = try TestAdmin.query(
-        "SELECT value->>'uuid' FROM biblio_record_versions, jsonb_each(shape_json::jsonb) WHERE id = '\(cited.versionID.lowercased())' AND key LIKE 'edition-%';"
+        "SELECT value->>'uuid' FROM biblio_record_versions, jsonb_each(shape_json::jsonb) WHERE id = '\(cited.versionID)' AND key LIKE 'edition-%';"
       ).trimmingCharacters(in: .whitespacesAndNewlines)
       #expect(UUID(uuidString: targetNode) != nil, "the edition's UUID, not \(targetNode)")
       _ = try TestAdmin.query(
         """
         INSERT INTO inferred_citation_placements
           (citation_id, biblio_record_id, target_version_id, node_id, basis_json, computed_at)
-          SELECT id, '\(citedID)', '\(cited.versionID.lowercased())', '\(targetNode)',
+          SELECT id, '\(citedID)', '\(cited.versionID)', '\(targetNode)',
             '{"method":"citation-context-v1","fields":["surrounding sentence"],"similarity":0.75,"margin":0.25,"exemplarIDs":[]}', now()
-          FROM citations WHERE biblio_record_version_id = '\(catalog.versionID.lowercased())';
+          FROM citations WHERE biblio_record_version_id = '\(catalog.versionID)';
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         try await page.openHydrated(cited.path)
@@ -151,7 +151,7 @@ struct EntriesAndCitationsTests {
 
         // The pair's page: every citation between the two, the catalog's in the entry it stands in.
         try await page.openHydrated(
-          "\(cited.path)/citations?work=\(catalog.recordID.lowercased())&direction=citations")
+          "\(cited.path)/citations?work=\(catalog.recordID)&direction=citations")
         try await expect(page.locator("h1")).toHaveText("Citations in \(catalog.title)")
         let table = page.locator(".record-citations-table")
         try await expect(table).toContainText("ANOTHER HEADING")
@@ -195,7 +195,7 @@ struct EntriesAndCitationsTests {
     }
     do {
       let dictionaryPath = try Self.retype(dictionary, "dictionary")
-      let wordID = word.recordID.lowercased()
+      let wordID = word.recordID
       _ = try TestAdmin.query(
         "BEGIN;\n" + Self.read(dictionary) + Self.read(letters)
           + Self.entry(in: dictionary, heading: word.title.uppercased(), word: wordID)
@@ -288,7 +288,7 @@ struct EntriesAndCitationsTests {
         original.insert(contentsOf: """
           <script>
           (() => {
-            const row = document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-node');
+            const row = document.querySelector("[data-reader-url*='\(scratch.versionID)']").closest('.record-node');
             row.setAttribute('data-early-reader', 'true');
             row.closest('.outliner-item').setAttribute('data-early-reader-item', 'true');
             const details = row.querySelector(':scope > .accordion-details');

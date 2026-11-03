@@ -43,7 +43,7 @@ struct TextPaneGesturesTests {
         try await page.openHydrated(scratch.reading.work.path)
         _ = try await page.evaluate(
           """
-          (() => { sessionStorage.clear(); document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-node')
+          (() => { sessionStorage.clear(); document.querySelector("[data-reader-url*='\(scratch.versionID)']").closest('.record-node')
             .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
           """)
         let pane = page.locator(".artifact-markup").first

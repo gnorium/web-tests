@@ -33,10 +33,10 @@ struct PromptOvertureTests {
       try Test.cancel(Comment(rawValue: "\(slot) has an open overture that is not a web test's"))
       return
     }
-    let vignette = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
+    let vignette = try TestAdmin.query("SELECT upper(vignette_id::text) FROM active_prompt_vignettes WHERE slot = '\(slot)'")
       .trimmingCharacters(in: .whitespacesAndNewlines)
     /// The overture the Amend opened, and its palinode.
-    func opened(_ column: String = "o.id") throws -> String {
+    func opened(_ column: String = "upper(o.id::text)") throws -> String {
       try TestAdmin.query(
         """
         SELECT \(column) FROM vignette_overtures o JOIN vignette_palinodes p ON p.id = o.vignette_palinode_id
@@ -62,7 +62,7 @@ struct PromptOvertureTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         // The Prompts list links each process's vignette in force.
         try await page.openHydrated("/mission-control/prompts/bibliographic")
-        try await expect(page.locator("a[href='/mission-control/prompts/vignettes/\(vignette)' i]").first).toBeVisible()
+        try await expect(page.locator("a[href='/mission-control/prompts/vignettes/\(vignette)']").first).toBeVisible()
         // Its page offers an Amend.
         try await page.openHydrated("/mission-control/prompts/vignettes/\(vignette)")
         let amend = page.locator(".prompt-details-amend button[type='submit']")
@@ -70,7 +70,7 @@ struct PromptOvertureTests {
         try await amend.click()
         // Its Amend form: the vignette in edit mode, every prompt, no note.
         try await expect(page, timeout: .seconds(15)).toHaveURL("the Amend form") {
-          $0.path.lowercased() == "/mission-control/prompts/vignettes/\(vignette)/amend"
+          $0.path == "/mission-control/prompts/vignettes/\(vignette)/amend"
         }
         try await expect(page.locator(".form-header-view h1, .form-header-title").first)
           .toContainText("Submit Amendment")
@@ -94,22 +94,22 @@ struct PromptOvertureTests {
           """, as: Bool.self)
         try await submit.click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the overture") {
-          $0.path.lowercased().hasPrefix("/mission-control/prompts/overtures/bibliographic/")
+          $0.path.hasPrefix("/mission-control/prompts/overtures/bibliographic/")
         }
         let id = try opened()
         #expect(!id.isEmpty, "Amend opened an overture")
-        let palinode = try opened("p.id")
+        let palinode = try opened("upper(p.id::text)")
         let path = "/mission-control/prompts/overtures/bibliographic/\(id)"
         let palinodePath = "/mission-control/prompts/palinodes/bibliographic/\(palinode)"
         let robots = try await page.evaluate(
           "document.querySelector(\"meta[name='robots']\")?.content ?? ''", as: String.self)
         #expect(robots.contains("noindex"), "Never indexed: \(robots)")
         try await expect(page.locator(".disputorium-core-title")).toHaveText("Bibliographic Overture")
-        try await expect(page.locator(".pedigree-view a[href='\(palinodePath)' i]")).toHaveCount(1)
+        try await expect(page.locator(".pedigree-view a[href='\(palinodePath)']")).toHaveCount(1)
         // Its thread opens with its palinode's submitting, naming the
         // vignette amended.
         try await expect(page.getByText("amending vignette")).toBeVisible()
-        try await expect(page.locator("a[href='/mission-control/prompts/vignettes/\(vignette)' i]").first).toBeVisible()
+        try await expect(page.locator("a[href='/mission-control/prompts/vignettes/\(vignette)']").first).toBeVisible()
         // Its proposal is its body's change, no revision filed.
         try await expect(page.locator("#prompt-overture-body")).toContainText("Web tests overture line.")
         #expect(try TestAdmin.query("SELECT count(*) FROM revisions WHERE revisable_id = '\(id)'")
@@ -119,7 +119,7 @@ struct PromptOvertureTests {
         try await expect(page.locator("button[form='prompt-overture-permit']")).toHaveCount(1)
         // Permit waits on an open revision, asking no review; pressed, it
         // says why and sends nothing.
-        let revision = UUID().uuidString.lowercased()
+        let revision = UUID().uuidString
         _ = try TestAdmin.query(
           """
           INSERT INTO revisions (id, revisable_type, revisable_id, requested_by_user_id, status, prompt_changes_json,
@@ -155,7 +155,7 @@ struct PromptOvertureTests {
         #expect(committed.trimmingCharacters(in: .whitespacesAndNewlines) == "0", "No review was committed")
         let status = try TestAdmin.query("SELECT committed_at IS NULL FROM vignette_overtures WHERE id = '\(id)'")
         #expect(status.trimmingCharacters(in: .whitespacesAndNewlines) == "t", "The overture is never committed")
-        let still = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
+        let still = try TestAdmin.query("SELECT upper(vignette_id::text) FROM active_prompt_vignettes WHERE slot = '\(slot)'")
         #expect(still.trimmingCharacters(in: .whitespacesAndNewlines) == vignette, "Nothing is put in force")
 
         // The palinode's page: the submission and its Pedigree, leading to
@@ -163,8 +163,8 @@ struct PromptOvertureTests {
         try await page.openHydrated(palinodePath)
         try await expect(page.locator(".mission-control-object-header-view h1, .palinode-title").first)
           .toHaveText("Bibliographic Palinode")
-        try await expect(page.locator(".pedigree-view a[href='\(path)' i]")).toHaveCount(1)
-        try await expect(page.locator(".palinode-submission a[href='/mission-control/prompts/vignettes/\(vignette)' i]"))
+        try await expect(page.locator(".pedigree-view a[href='\(path)']")).toHaveCount(1)
+        try await expect(page.locator(".palinode-submission a[href='/mission-control/prompts/vignettes/\(vignette)']"))
           .toHaveCount(1)
         try await expect(page.locator("button[form='prompt-overture-commit']")).toHaveCount(0)
         try await expect(page.locator(".vignette-palinode-content")).toContainText("Web tests overture line.")
@@ -172,7 +172,7 @@ struct PromptOvertureTests {
         // The vignette's page now leads to the open overture, no Amend.
         try await page.openHydrated("/mission-control/prompts/vignettes/\(vignette)")
         try await expect(page.locator(".prompt-details-amend")).toHaveCount(0)
-        try await expect(page.locator(".associated-links-view a[href='\(path)' i]")).toHaveCount(1)
+        try await expect(page.locator(".associated-links-view a[href='\(path)']")).toHaveCount(1)
         try await page.expectNoErrors()
       }
       // A reader signed out: the page, no Permit (and never a Commit).
@@ -209,7 +209,7 @@ struct PromptOvertureTests {
       try Test.cancel(Comment(rawValue: "\(slot) has an open overture that is not a web test's"))
       return
     }
-    let vignette = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)'")
+    let vignette = try TestAdmin.query("SELECT upper(vignette_id::text) FROM active_prompt_vignettes WHERE slot = '\(slot)'")
       .trimmingCharacters(in: .whitespacesAndNewlines)
     let reader = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     do {
@@ -219,7 +219,7 @@ struct PromptOvertureTests {
         try await expect(amend).toHaveText("Submit Amendment")
         try await amend.click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the Amend form") {
-          $0.path.lowercased() == "/mission-control/prompts/vignettes/\(vignette)/amend"
+          $0.path == "/mission-control/prompts/vignettes/\(vignette)/amend"
         }
         try await expect(page.locator("#amend-vignette-form button[type='submit']")).toHaveText("Submit")
         try await page.expectNoErrors()
@@ -232,12 +232,12 @@ struct PromptOvertureTests {
         // The Amend form opens for a reader who is signed out; its Submit
         // says signing in is needed and files nothing.
         try await expect(page, timeout: .seconds(15)).toHaveURL("the Amend form, signed out") {
-          $0.path.lowercased() == "/mission-control/prompts/vignettes/\(vignette)/amend"
+          $0.path == "/mission-control/prompts/vignettes/\(vignette)/amend"
         }
         try await page.locator("#amend-vignette-form button[type='submit']").click()
         try await expect(page.locator(".action-gate-view .alert-content")).toContainText("Signing in is needed")
         try await expect(page.locator(".action-gate-view .action-gate-alert a")).toHaveAttribute("target", "_blank")
-        #expect(URL(string: try await page.url())?.path.lowercased() == "/mission-control/prompts/vignettes/\(vignette)/amend")
+        #expect(URL(string: try await page.url())?.path == "/mission-control/prompts/vignettes/\(vignette)/amend")
       }
     } catch {
       try await reader.remove(after: error)

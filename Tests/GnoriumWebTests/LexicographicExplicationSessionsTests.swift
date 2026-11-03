@@ -34,10 +34,10 @@ struct LexicographicExplicationSessionsTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let word = try ScratchWord(owner: admin)
-    let antiphon = UUID().uuidString.lowercased()
-    let clustering = UUID().uuidString.lowercased()
-    let clusters = [UUID().uuidString.lowercased(), UUID().uuidString.lowercased()]
-    let nocturne = UUID().uuidString.lowercased()
+    let antiphon = UUID().uuidString
+    let clustering = UUID().uuidString
+    let clusters = [UUID().uuidString, UUID().uuidString]
+    let nocturne = UUID().uuidString
     do {
       let user = try admin.column("id")
       // Failed and needing a person: no worker takes it up, nothing is spent.

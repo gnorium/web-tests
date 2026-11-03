@@ -48,8 +48,8 @@ struct ImageAttachmentTests {
     // answers at any path under the page's service.
     let fixture = try await FixtureServer.threePageManifest()
     let sent = fixture.baseURL + "/page-1/pct:0,0,100,100/max/0/default.jpg"
-    let nocturneID = UUID().uuidString.lowercased()
-    let antiphonID = UUID().uuidString.lowercased()
+    let nocturneID = UUID().uuidString
+    let antiphonID = UUID().uuidString
     let name = "image-live-\(UUID().uuidString).html"
     let file = URL(fileURLWithPath: "/Users/Madhavik/Downloads/Gnorium/gnorium-web/Public").appendingPathComponent(name)
     do {
@@ -59,9 +59,9 @@ struct ImageAttachmentTests {
         """
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status, created_at, updated_at)
-          VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted', now(), now());
+          VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted', now(), now());
         INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
-         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 1)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)'), 'explication', '1', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
         VALUES ('\(nocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, 1, 'fixture', 'fixture', 'passed', gen_random_uuid(), 1, now());

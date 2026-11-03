@@ -195,7 +195,7 @@ struct TestamentHeaderTests {
       _ = try TestAdmin.query(
         """
         UPDATE biblio_record_versions SET metadata_json = jsonb_set(metadata_json::jsonb, '{sourceUrl}', '"\(sourceURL)"')::text
-          WHERE biblio_record_id = '\(work.recordID.lowercased())';
+          WHERE biblio_record_id = '\(work.recordID)';
         """)
       // A pending madrigal holding the same document, for its Revise page.
       let revising = try ScratchCommit(owner: admin, sourceURL: sourceURL)
@@ -211,7 +211,7 @@ struct TestamentHeaderTests {
         try await page.openHydrated(work.path)
         _ = try await page.evaluate(
           """
-          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-node')
+          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)']").closest('.record-node')
             .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
           """)
         let view = page.locator(".artifact-view").first

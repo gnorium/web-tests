@@ -35,9 +35,9 @@ struct LexicographicAmendmentTests {
         """
         BEGIN;
         DELETE FROM locutions WHERE locutable_id IN
-          (SELECT id FROM lexicographic_record_overtures WHERE lexico_record_id = '\(word.recordID.lowercased())');
-        DELETE FROM lexicographic_record_overtures WHERE lexico_record_id = '\(word.recordID.lowercased())';
-        DELETE FROM lexicographic_palinodes WHERE lexico_record_id = '\(word.recordID.lowercased())';
+          (SELECT id FROM lexicographic_record_overtures WHERE lexico_record_id = '\(word.recordID)');
+        DELETE FROM lexicographic_record_overtures WHERE lexico_record_id = '\(word.recordID)';
+        DELETE FROM lexicographic_palinodes WHERE lexico_record_id = '\(word.recordID)';
         COMMIT;
         """)
       word.remove()
@@ -212,7 +212,7 @@ struct LexicographicAmendmentTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let word = try ScratchWord(owner: admin)
-    let record = word.recordID.lowercased()
+    let record = word.recordID
     func clean() async throws {
       _ = try? TestAdmin.query(
         """
@@ -383,7 +383,7 @@ struct LexicographicAmendmentTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let word = try ScratchWord(owner: admin)
-    let record = word.recordID.lowercased()
+    let record = word.recordID
     func clean() async throws {
       _ = try? TestAdmin.query(
         """
@@ -422,8 +422,8 @@ struct LexicographicAmendmentTests {
         try await expect(marker).toHaveAttribute("data-outliner-held", "true")
         try await expect(marker.locator(".outliner-marker-grip")).toHaveCount(0)
         let palinode = try TestAdmin.query(
-          "SELECT id FROM lexicographic_palinodes WHERE lexico_record_id = '\(record)' ORDER BY created_at DESC LIMIT 1"
-        ).trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+          "SELECT upper(id::text) FROM lexicographic_palinodes WHERE lexico_record_id = '\(record)' ORDER BY created_at DESC LIMIT 1"
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
         try await expect(item.locator(":scope > .outliner-row .record-node-hold").first).toBeAttached()
         try await expect(item).toHaveAttribute("data-outliner-hold", palinode)
         // The others stay open.

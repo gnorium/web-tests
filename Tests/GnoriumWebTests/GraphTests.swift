@@ -29,7 +29,7 @@ struct GraphTests {
     """
     WITH step AS (
       INSERT INTO biblio_record_origins (id, step_id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
-        VALUES (gen_random_uuid(), gen_random_uuid(), '\(work.recordID.lowercased())', NULL, 0, '\(source.recordID.lowercased())', NULL, now())
+        VALUES (gen_random_uuid(), gen_random_uuid(), '\(work.recordID)', NULL, 0, '\(source.recordID)', NULL, now())
         RETURNING id)
     INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
       SELECT gen_random_uuid(), id, 0, 'translation_of' FROM step;
@@ -53,7 +53,7 @@ struct GraphTests {
     func cleanUp() async throws {
       _ = try? TestAdmin.query(
         EntriesAndCitationsTests.clean(works)
-          + "\nDELETE FROM biblio_record_origins WHERE biblio_record_id = '\(translation.recordID.lowercased())';")
+          + "\nDELETE FROM biblio_record_origins WHERE biblio_record_id = '\(translation.recordID)';")
       for work in works { work.remove() }
       try await admin.remove()
     }
@@ -62,7 +62,7 @@ struct GraphTests {
       // translates the citing work.
       _ = try TestAdmin.query(
         "BEGIN;\n" + EntriesAndCitationsTests.read(citing)
-          + EntriesAndCitationsTests.cite(3, by: citing, work: cited.recordID.lowercased())
+          + EntriesAndCitationsTests.cite(3, by: citing, work: cited.recordID)
           + Self.translated(translation, from: citing) + "\nCOMMIT;")
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
         // Home: between the two records lists.

@@ -17,7 +17,7 @@ import WebTestsTesting
 struct RevisePagesTests {
   /// The object's page at a suggestion's locution in its thread.
   static func atLocution(_ path: String) -> @Sendable (URL) -> Bool {
-    { url in url.path.lowercased() == path.lowercased() && (url.fragment ?? "").hasPrefix("revision-") }
+    { url in url.path == path && (url.fragment ?? "").hasPrefix("revision-") }
   }
 
   /// Revise opens on the image the object's reader is showing (user,
@@ -32,8 +32,7 @@ struct RevisePagesTests {
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let commit = try ScratchCommit(owner: contributor)
     let services = (1...3).map { "https://web-tests.invalid/iiif/p\($0)" }
-    // The links name the object as the server writes its id.
-    let objectURL = "/mission-control/madrigals/bibliographic/\(commit.madrigalID.uppercased())"
+    let objectURL = "/mission-control/madrigals/bibliographic/\(commit.madrigalID)"
     do {
       let pages = (1...3).map {
         #"<pb n=\"\#($0)\" facs=\"https://web-tests.invalid/iiif/p\#($0)/full/1300,/0/default.jpg\"/><p>Line \#($0)</p>"#
@@ -58,7 +57,7 @@ struct RevisePagesTests {
         try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise?image=2")
         try await revise.click()
         try await expect(page).toHaveURL("the Revise page at image 3") {
-          $0.path.lowercased() == "\(objectURL)/revise".lowercased() && $0.query == "image=2"
+          $0.path == "\(objectURL)/revise" && $0.query == "image=2"
         }
         let viewer = page.locator(".revise-bibliographic-object .artifact-view")
         try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
@@ -75,7 +74,7 @@ struct RevisePagesTests {
         try await expect(backAtTwo).toHaveCount(1)
         try await backAtTwo.click()
         try await expect(page).toHaveURL("the madrigal at image 2") {
-          $0.path.lowercased() == commit.madrigalPath.lowercased() && $0.query == "image=1"
+          $0.path == commit.madrigalPath && $0.query == "image=1"
         }
         try await expect(page.locator("#madrigal-images .roster-row-selected"))
           .toHaveAttribute("data-computorium-session-id", "1")
@@ -198,7 +197,7 @@ struct RevisePagesTests {
           """)
         #expect(stored == "1 true 1 true", "One row holding both, no prompt: \(stored)")
       }
-      let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'").uppercased()
+      let id = try TestAdmin.query("SELECT upper(id::text) FROM revisions WHERE requested_by_user_id = '\(user)'")
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         // The thread says who suggested it, its size and what it changed,
         // each linked, and offers an admin its verdicts.
@@ -458,7 +457,7 @@ struct RevisePagesTests {
         try await expect(page.locator(".list-sentence-view.thread-event-changed")).toHaveCount(1)
         try await expect(changed).toHaveCSS("border-top-style", "solid")
       }
-      let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'").uppercased()
+      let id = try TestAdmin.query("SELECT upper(id::text) FROM revisions WHERE requested_by_user_id = '\(user)'")
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated("\(palinode.path)/revisions/\(id)")
         // Its page's Prompts: its process alone, its pairs nested; the
@@ -657,7 +656,7 @@ struct RevisePagesTests {
     let word = try ScratchWord(owner: contributor, pending: true)
     // Translation is only of a record not in English: the epilogue's.
     let french = try ScratchWord(owner: contributor, language: "fra")
-    let epilogue = UUID().uuidString.lowercased()
+    let epilogue = UUID().uuidString
     func remove() {
       _ = try? TestAdmin.query(
         """
@@ -671,14 +670,14 @@ struct RevisePagesTests {
     }
     func content() throws -> String {
       try TestAdmin.query(
-        "SELECT proposed_content_json FROM lexicographic_madrigals WHERE id = '\(word.madrigalID.lowercased())'")
+        "SELECT proposed_content_json FROM lexicographic_madrigals WHERE id = '\(word.madrigalID)'")
     }
     do {
       _ = try TestAdmin.query(
         """
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, tei,
             target, status, submitted_by_user_id, summary, value_translation_json)
-          VALUES ('\(epilogue)', '\(french.recordID.lowercased())', '\(french.versionID.lowercased())', '\(french.leaf)',
+          VALUES ('\(epilogue)', '\(french.recordID)', '\(french.versionID)', '\(french.leaf)',
             '<sense><def>A leaf sense.</def></sense>', 'value', 'committed', (SELECT id FROM users WHERE username = 'gnorium'), 'Web tests.',
             '{"languageCode":"fra","tei":"<def xml:lang=\\"fr\\">Un sens feuille.</def>","confidence":"clear","reason":"Web tests."}');
         """)
@@ -713,8 +712,8 @@ struct RevisePagesTests {
           .toHaveURL("the madrigal at its locution", where: Self.atLocution(madrigalPath))
       }
       let id = try TestAdmin.query(
-        "SELECT id FROM revisions WHERE requested_by_user_id = '\(user)' AND revisable_type = 'lexicographicMadrigal' AND content_json IS NOT NULL AND status = 'pending'"
-      ).uppercased()
+        "SELECT upper(id::text) FROM revisions WHERE requested_by_user_id = '\(user)' AND revisable_type = 'lexicographicMadrigal' AND content_json IS NOT NULL AND status = 'pending'"
+      )
       #expect(!id.isEmpty, "A revision of the madrigal is filed")
       #expect(try content().contains("<def>A leaf sense.</def>"), "The madrigal stands until it is accepted")
 
@@ -807,16 +806,14 @@ struct RevisePagesTests {
           .toHaveURL("the epilogue at its locution", where: Self.atLocution(epiloguePath))
       }
       let epilogueRevision = try TestAdmin.query(
-        "SELECT id FROM revisions WHERE requested_by_user_id = '\(user)' AND revisable_type = 'lexicographicEpilogue' AND content_json IS NOT NULL"
-      ).uppercased()
+        "SELECT upper(id::text) FROM revisions WHERE requested_by_user_id = '\(user)' AND revisable_type = 'lexicographicEpilogue' AND content_json IS NOT NULL"
+      )
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(epiloguePath)
         let event = page.locator("#revision-\(epilogueRevision)")
         try await expect(event.locator(".thread-event-changed"))
           .toHaveText("Modified Sentiment 1.1 Value.")
-        // Its revision's page, named as the server names it (ids upper case).
-        let epilogueRevisionPath =
-          "/mission-control/epilogues/lexicographic/\(epilogue.uppercased())/revisions/\(epilogueRevision)"
+        let epilogueRevisionPath = "\(epiloguePath)/revisions/\(epilogueRevision)"
         try await expect(
           event.locator(".thread-event-changed a[href='\(epilogueRevisionPath)?source=code#sentiment-translation']")
         ).toHaveCount(2)
@@ -872,8 +869,8 @@ struct RevisePagesTests {
     let palinode = try ScratchPromptOverture(slot: slot, owner: admin)
     let palinodePath = palinode.path
     let user = try admin.column("id")
-    let a = UUID().uuidString.uppercased()
-    let b = UUID().uuidString.uppercased()
+    let a = UUID().uuidString
+    let b = UUID().uuidString
     let refused = "A later accepted revision changed the same lines, so revert that one first."
     func remove() {
       palinode.remove()
@@ -895,7 +892,7 @@ struct RevisePagesTests {
           // Accepted, the server answers with the page at the revision
           // (`#revision-<id>`): waited for, then its verdict read there.
           try await expect(page).toHaveURL("at #revision-\(id)") {
-            $0.fragment?.lowercased() == "revision-\(id)".lowercased()
+            $0.fragment == "revision-\(id)"
           }
           try await page.waitForLoadState()
           try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("as accepted")
@@ -953,9 +950,9 @@ struct RevisePagesTests {
     let palinode = try ScratchPromptOverture(slot: slot, owner: admin)
     let path = palinode.path
     let user = try admin.column("id")
-    let a = UUID().uuidString.uppercased()
-    let b = UUID().uuidString.uppercased()
-    let c = UUID().uuidString.uppercased()
+    let a = UUID().uuidString
+    let b = UUID().uuidString
+    let c = UUID().uuidString
     let refused =
       "This change clashes with one accepted or put in force since it was suggested: see its Old diff and New diff, and suggest it again."
     func remove() { palinode.remove() }
@@ -1051,7 +1048,7 @@ struct RevisePagesTests {
     for link in links {
       let parts = link.split(separator: "#", maxSplits: 1).map(String.init)
       #expect(
-        parts.count == 2 && parts[0].lowercased() == "\(revisionPath)?source=code".lowercased(),
+        parts.count == 2 && parts[0] == "\(revisionPath)?source=code",
         "\(link) is on \(revisionPath) in source mode")
       guard parts.count == 2, !parts[1].hasPrefix("image-") else { continue }
       // A canvas path's XML step: the reader, its XML on (user, 2026-10-16).

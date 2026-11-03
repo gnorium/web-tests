@@ -18,11 +18,11 @@ struct BibliographicExplicationSessionsTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
-    let antiphonID = UUID().uuidString.lowercased()
-    let nocturneID = UUID().uuidString.lowercased()
+    let antiphonID = UUID().uuidString
+    let nocturneID = UUID().uuidString
     do {
       let user = try admin.column("id")
-      let autoID = try TestAdmin.query("SELECT vignette_id FROM active_prompt_vignettes WHERE slot = 'bibliographic_explication'").trimmingCharacters(in: .whitespacesAndNewlines)
+      let autoID = try TestAdmin.query("SELECT upper(vignette_id::text) FROM active_prompt_vignettes WHERE slot = 'bibliographic_explication'").trimmingCharacters(in: .whitespacesAndNewlines)
       let blocks: [[String: String]] = [
         ["type": "image_url", "content": "https://example.org/iiif/web-tests/full/1300,/0/default.jpg"],
         ["type": "thinking", "content": "Reading the first page of the `chunk`."],
@@ -44,9 +44,9 @@ struct BibliographicExplicationSessionsTests {
         """
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
-          VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
+          VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
-         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1–2')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1–2', 1)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1–2')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)'), 'explication', '1–2', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
         VALUES ('\(nocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1–2')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), 1200, now());
@@ -196,8 +196,8 @@ struct BibliographicExplicationSessionsTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
-    let antiphonID = UUID().uuidString.lowercased()
-    let nocturneID = UUID().uuidString.lowercased()
+    let antiphonID = UUID().uuidString
+    let nocturneID = UUID().uuidString
     func image(_ width: Int, _ height: Int) -> String {
       let svg = "<svg xmlns='http://www.w3.org/2000/svg' width='\(width)' height='\(height)'><rect width='100%' height='100%' fill='#ccc'/></svg>"
       return "data:image/svg+xml;base64," + Data(svg.utf8).base64EncodedString()
@@ -229,9 +229,9 @@ struct BibliographicExplicationSessionsTests {
         """
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
-          VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
+          VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
-         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 1)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)'), 'explication', '1', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
         VALUES ('\(nocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), 1200, now());
@@ -308,10 +308,10 @@ struct BibliographicExplicationSessionsTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
-    let antiphonID = UUID().uuidString.lowercased()
-    let nocturneID = UUID().uuidString.lowercased()
-    let otherNocturneID = UUID().uuidString.lowercased()
-    let failedNocturneID = UUID().uuidString.lowercased()
+    let antiphonID = UUID().uuidString
+    let nocturneID = UUID().uuidString
+    let otherNocturneID = UUID().uuidString
+    let failedNocturneID = UUID().uuidString
     do {
       let user = try admin.column("id")
       let blocks: [[String: String]] = [
@@ -329,21 +329,21 @@ struct BibliographicExplicationSessionsTests {
       _ = try TestAdmin.query("""
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
-          VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
+          VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
-         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 1)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)'), 'explication', '1', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
         VALUES ('\(nocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, 2, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), 3000, now());
         \(try SessionTrace.append(blocks, table: Self.nocturnes, id: nocturneID, stepMs: 300))
         INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
-         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 1)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)'), 'explication', '1', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
         VALUES ('\(failedNocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'failed', gen_random_uuid(), 500, now() - interval '1 second');
         \(try SessionTrace.append([["type": "thinking", "content": "Historical partial thought."]], table: Self.nocturnes, id: failedNocturneID))
         INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
-         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('2')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '2', 1)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('2')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)'), 'explication', '2', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
         VALUES ('\(otherNocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('2')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), 100, now());
@@ -448,20 +448,20 @@ struct BibliographicExplicationSessionsTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
-    let antiphonID = UUID().uuidString.lowercased()
-    let nocturneIDs = (0..<3).map { _ in UUID().uuidString.lowercased() }
+    let antiphonID = UUID().uuidString
+    let nocturneIDs = (0..<3).map { _ in UUID().uuidString }
     func cleanup() {
       remove(nocturneID: nocturneIDs[0], antiphonID: antiphonID, work: work)
     }
     do {
       let user = try admin.column("id")
-      let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())')"
+      let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)')"
       let columns = "(id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)"
       func text(_ content: String) -> [[String: String]] { [["type": "text", "content": content]] }
       _ = try TestAdmin.query("""
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
-          VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
+          VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
          VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', \(batch), 'explication', '1', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
@@ -568,34 +568,34 @@ struct BibliographicExplicationSessionsTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
-    let antiphonID = UUID().uuidString.lowercased()
-    let nocturneIDs = (0..<2).map { _ in UUID().uuidString.lowercased() }
+    let antiphonID = UUID().uuidString
+    let nocturneIDs = (0..<2).map { _ in UUID().uuidString }
     func cleanup() {
       remove(nocturneID: nocturneIDs[0], antiphonID: antiphonID, work: work)
     }
     do {
       let user = try admin.column("id")
       let vignette = try TestAdmin.query(
-        "SELECT vignette_id FROM active_prompt_vignettes WHERE slot = 'bibliographic_explication'"
+        "SELECT upper(vignette_id::text) FROM active_prompt_vignettes WHERE slot = 'bibliographic_explication'"
       ).trimmingCharacters(in: .whitespacesAndNewlines)
       let template = try TestAdmin.query("SELECT task_prompt FROM prompt_vignettes WHERE id = '\(vignette)'")
         .trimmingCharacters(in: .whitespacesAndNewlines)
       let sent = "Transcribe the image \"1\", shown above, exactly as it appears on its surface.\n\nThe last sentence of the image before: none (this is the witness's first canvas image)"
       let recorded: [[String: String]] = [
         ["type": "image_url", "content": "https://example.org/iiif/web-tests/full/1300,/0/default.jpg"],
-        ["type": "task_prompt_instance", "content": sent, "system_prompt": "Read the image as sent.", "template_id": vignette.uppercased()],
+        ["type": "task_prompt_instance", "content": sent, "system_prompt": "Read the image as sent.", "template_id": vignette],
         ["type": "text", "content": "Saved."],
       ]
       let old: [[String: String]] = [
         ["type": "image_url", "content": "https://example.org/iiif/web-tests/full/1300,/0/default.jpg"],
         ["type": "text", "content": "Saved."],
       ]
-      let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())')"
+      let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)')"
       let columns = "(id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, prompt_vignette_id, created_at)"
       _ = try TestAdmin.query("""
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
-          VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
+          VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
          VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', \(batch), 'explication', '1', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
@@ -649,12 +649,12 @@ struct BibliographicExplicationSessionsTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
-    let antiphonID = UUID().uuidString.lowercased()
-    let nocturneID = UUID().uuidString.lowercased()
+    let antiphonID = UUID().uuidString
+    let nocturneID = UUID().uuidString
     do {
       let user = try admin.column("id")
       let vignette = try TestAdmin.query(
-        "SELECT vignette_id FROM active_prompt_vignettes WHERE slot = 'bibliographic_explication'"
+        "SELECT upper(vignette_id::text) FROM active_prompt_vignettes WHERE slot = 'bibliographic_explication'"
       ).trimmingCharacters(in: .whitespacesAndNewlines)
       let sent = "Continue from the **retained** conversation.\n\n- Do not repeat completed tool writes."
       let sentJSON = String(decoding: try JSONEncoder().encode(sent), as: UTF8.self)
@@ -666,9 +666,9 @@ struct BibliographicExplicationSessionsTests {
       _ = try TestAdmin.query("""
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
-          VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
+          VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
-         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 1)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)'), 'explication', '1', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
         VALUES ('\(nocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), 300, now());

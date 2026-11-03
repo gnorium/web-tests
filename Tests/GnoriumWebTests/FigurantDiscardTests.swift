@@ -14,9 +14,9 @@ struct FigurantDiscardTests {
   func anOverturesDiscardAndRecoverCarryItsFigurant(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let submission = UUID().uuidString.lowercased()
-    let figurant = UUID().uuidString.lowercased()
-    let overture = UUID().uuidString.lowercased()
+    let submission = UUID().uuidString
+    let figurant = UUID().uuidString
+    let overture = UUID().uuidString
     func remove() {
       _ = try? TestAdmin.query(
         """
@@ -67,10 +67,9 @@ struct FigurantDiscardTests {
 
         // Gone from the register; there with the State filter.
         try await tab.openHydrated(register)
-        // The register spells ids in capitals; the match ignores case.
-        try await expect(tab.locator("a[href='\(page)' i]")).toHaveCount(0)
+        try await expect(tab.locator("a[href='\(page)']")).toHaveCount(0)
         try await tab.openHydrated(register + "?status=discarded")
-        try await expect(tab.locator("a[href='\(page)' i]").first).toBeVisible()
+        try await expect(tab.locator("a[href='\(page)']").first).toBeVisible()
 
         try await tab.openHydrated("/mission-control/overtures/lexicographic/\(overture)")
         // Its page again once the Recover is through (it checks the node is

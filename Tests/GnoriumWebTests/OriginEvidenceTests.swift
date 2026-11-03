@@ -73,7 +73,7 @@ struct OriginEvidenceTests {
         revisedOverture.remove()
       }
       if let reading {
-        let record = reading.work.recordID.lowercased()
+        let record = reading.work.recordID
         _ = try? TestAdmin.query(
           """
           BEGIN;
@@ -88,7 +88,7 @@ struct OriginEvidenceTests {
             (SELECT id FROM biblio_record_origins WHERE biblio_record_id = '\(record)');
           DELETE FROM biblio_record_origins WHERE biblio_record_id = '\(record)';
           DELETE FROM biblio_record_versions WHERE biblio_record_id = '\(record)'
-            AND id <> '\(reading.work.versionID.lowercased())';
+            AND id <> '\(reading.work.versionID)';
           COMMIT;
           """)
         reading.remove()
@@ -109,8 +109,8 @@ struct OriginEvidenceTests {
       let indexed = await Self.post(
         "/index",
         [
-          "biblio_record_id": quoted.reading.work.recordID.lowercased(), "version_id": quoted.versionID,
-          "testament_id": UUID().uuidString.lowercased(), "language_code": "eng",
+          "biblio_record_id": quoted.reading.work.recordID, "version_id": quoted.versionID,
+          "testament_id": UUID().uuidString, "language_code": "eng",
           "permitted_at": ISO8601DateFormatter().string(from: Date()), "permitter_id": try admin.column("id"),
           "images": [["image_id": image, "tei_xml": Self.tei(image: image)]],
         ])
@@ -123,7 +123,7 @@ struct OriginEvidenceTests {
       // Its image 1, as its survey numbers it, read in its permitted
       // version: what a quote's image number is found on.
       let witness = try TestAdmin.query(
-        "SELECT bibliographic_figurant_id FROM bibliographic_overtures WHERE id = '\(quoted.reading.work.overtureID)';"
+        "SELECT upper(bibliographic_figurant_id::text) FROM bibliographic_overtures WHERE id = '\(quoted.reading.work.overtureID)';"
       ).trimmingCharacters(in: .whitespacesAndNewlines)
       _ = try TestAdmin.query(
         """
@@ -194,15 +194,15 @@ struct OriginEvidenceTests {
         }
         try await page.locator("button[type='submit']").filter(hasText: "Suggest").click()
         try await expect(page, timeout: .seconds(20)).toHaveURL("the overture at its locution") { url in
-          url.path.lowercased() == overture.lowercased() && (url.fragment ?? "").hasPrefix("revision-")
+          url.path == overture && (url.fragment ?? "").hasPrefix("revision-")
         }
         let revision = try TestAdmin.query(
-          "SELECT id FROM revisions WHERE revisable_id = '\(scratch.overtureID)' ORDER BY created_at DESC LIMIT 1;"
+          "SELECT upper(id::text) FROM revisions WHERE revisable_id = '\(scratch.overtureID)' ORDER BY created_at DESC LIMIT 1;"
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(!revision.isEmpty, "no revision was filed")
         // Read into an anchor in the permitted testament, never kept typed.
         let content = try TestAdmin.query("SELECT content_json FROM revisions WHERE id = '\(revision)';")
-        #expect(content.lowercased().contains(quoted.versionID), "the quote is not anchored: \(content)")
+        #expect(content.contains(quoted.versionID), "the quote is not anchored: \(content)")
         #expect(!content.contains(Self.words), "the typed words were kept: \(content)")
         #expect(content.contains("\"forms\""), "its form carried onto its anchor: \(content)")
 
@@ -229,7 +229,7 @@ struct OriginEvidenceTests {
         let origins = try TestAdmin.query(
           "SELECT content_json::json -> 'origins' FROM revisions WHERE id = '\(revision)';"
         ).trimmingCharacters(in: .whitespacesAndNewlines)
-        #expect(origins.lowercased().contains(quoted.versionID), "\(origins)")
+        #expect(origins.contains(quoted.versionID), "\(origins)")
         let revised = try ScratchReading(owner: admin, tei: Self.tei(image: image + "-revised"))
         reading = revised
         let settled = origins.replacingOccurrences(of: "'", with: "''")
@@ -238,18 +238,17 @@ struct OriginEvidenceTests {
         let madrigal = revised.path
 
         // Permit refuses a quote no permitted testament holds.
-        let stranger = UUID().uuidString.lowercased()
+        let stranger = UUID().uuidString
         _ = try TestAdmin.query(
           """
-          UPDATE bibliographic_madrigals SET origins_json = replace(replace(origins_json, '\(quoted.versionID)', '\(stranger)'),
-            '\(quoted.versionID.uppercased())', '\(stranger)')
+          UPDATE bibliographic_madrigals SET origins_json = replace(origins_json, '\(quoted.versionID)', '\(stranger)')
             WHERE id = '\(revised.madrigalID)';
           """)
         try await page.openHydrated(madrigal)
         try await page.locator("button[form='madrigal-permit']").click()
         try await expect(page.locator("body"), timeout: .seconds(15)).toContainText("names no permitted testament")
         let refused = try TestAdmin.query(
-          "SELECT count(*) FROM biblio_record_versions WHERE biblio_record_id = '\(revised.work.recordID.lowercased())';"
+          "SELECT count(*) FROM biblio_record_versions WHERE biblio_record_id = '\(revised.work.recordID)';"
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(refused == "1", "the refused Permit published a version")
 

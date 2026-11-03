@@ -19,8 +19,9 @@ struct UntreatedRecordsTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let citing = try ScratchWork(owner: admin)
-    let made = UUID().uuidString.lowercased()
-    let suffix = String(made.prefix(8))
+    let made = UUID().uuidString
+    // Text, not an id: the title's and the slug's lower-case hex.
+    let suffix = made.prefix(8).lowercased()
     let title = "Web tests untreated \(suffix)"
     let path = "/biblio-records/eng/web-tests-untreated-\(suffix)/journal"
     func cleanUp() async throws {
@@ -43,8 +44,8 @@ struct UntreatedRecordsTests {
           VALUES ('\(made)', \(ScratchWork.corpusID), '\(title)',
             'web-tests-untreated-\(suffix)', 'journal', 'eng', '[]', '');
         INSERT INTO record_provenances (id, biblio_record_id, source, work_record_id, biblio_record_version_id, page, printed, created_at)
-          VALUES (gen_random_uuid(), '\(made)', 'citation', '\(citing.recordID.lowercased())',
-            '\(citing.versionID.lowercased())', 2, 'Web tests Journ.', now());
+          VALUES (gen_random_uuid(), '\(made)', 'citation', '\(citing.recordID)',
+            '\(citing.versionID)', 2, 'Web tests Journ.', now());
         """ + EntriesAndCitationsTests.read(citing) + EntriesAndCitationsTests.cite(2, by: citing, work: made)
           + "\nCOMMIT;")
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in

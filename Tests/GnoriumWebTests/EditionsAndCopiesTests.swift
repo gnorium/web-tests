@@ -89,13 +89,13 @@ struct EditionsAndCopiesTests {
 
   /// The former owners' list as posted (`former-owner-json`): its rows
   /// without their ids, as JSON, and their ids in order, nil unless each
-  /// is a UUID of its own.
+  /// is a UUID of its own, in upper case.
   static func formerOwners(_ page: Page) async throws -> (rest: String, ids: String?) {
     let read = try await page.evaluate(
       """
       (() => { const input = document.querySelector("input[name='former-owner-json']");
         let rows = []; try { rows = JSON.parse(input?.value || '[]'); } catch (e) { return { rest: input.value, ids: '' }; }
-        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const uuid = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/;
         const ids = rows.map((row) => row.id);
         const own = ids.every((id) => typeof id === 'string' && uuid.test(id)) && new Set(ids).size === ids.length;
         return { rest: JSON.stringify(rows.map(({ id, ...rest }) => rest)), ids: own ? ids.join(',') : '' }; })()

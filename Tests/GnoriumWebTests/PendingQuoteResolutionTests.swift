@@ -41,7 +41,7 @@ struct PendingQuoteResolutionTests {
     func clean() {
       if let holder { holder.remove() }
       if let reading {
-        let record = reading.work.recordID.lowercased()
+        let record = reading.work.recordID
         _ = try? TestAdmin.query(
           """
           BEGIN;
@@ -49,7 +49,7 @@ struct PendingQuoteResolutionTests {
             WHERE id = '\(reading.work.overtureID)');
           DELETE FROM inferred_citation_jobs WHERE record_id = '\(record)';
           DELETE FROM biblio_record_versions WHERE biblio_record_id = '\(record)'
-            AND id <> '\(reading.work.versionID.lowercased())';
+            AND id <> '\(reading.work.versionID)';
           COMMIT;
           """)
         reading.remove()
@@ -61,7 +61,7 @@ struct PendingQuoteResolutionTests {
       let scratch = try ScratchReading(owner: admin, tei: Self.tei(first, second), sourceURL: source)
       reading = scratch
       let witness = try TestAdmin.query(
-        "SELECT bibliographic_figurant_id FROM bibliographic_overtures WHERE id = '\(scratch.work.overtureID)';"
+        "SELECT upper(bibliographic_figurant_id::text) FROM bibliographic_overtures WHERE id = '\(scratch.work.overtureID)';"
       ).trimmingCharacters(in: .whitespacesAndNewlines)
       _ = try TestAdmin.query(
         """

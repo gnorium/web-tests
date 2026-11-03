@@ -10,7 +10,7 @@ struct ScratchTestament {
   init(owner: TestAdmin, tei: String, sourceURL: String = "https://example.org/web-tests") throws {
     reading = try ScratchReading(owner: owner, tei: tei, sourceURL: sourceURL)
     let user = try owner.column("id")
-    versionID = UUID().uuidString.lowercased()
+    versionID = UUID().uuidString
     let work = reading.work
     _ = try TestAdmin.query(
       """
@@ -19,7 +19,7 @@ struct ScratchTestament {
         WHERE id = '\(reading.madrigalID)';
       INSERT INTO biblio_record_versions (id, biblio_record_id, bibliographic_madrigal_id, metadata_json, shape_json, status, created_at)
         SELECT '\(versionID)', biblio_record_id, '\(reading.madrigalID)', metadata_json, shape_json, 1, now()
-        FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())';
+        FROM biblio_record_versions WHERE id = '\(work.versionID)';
       COMMIT;
       """)
   }

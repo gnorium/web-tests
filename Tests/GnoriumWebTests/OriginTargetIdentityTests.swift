@@ -11,10 +11,10 @@ struct OriginTargetIdentityTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let source = try ScratchWord(owner: admin)
-    let submission = UUID().uuidString.lowercased()
-    let figurant = UUID().uuidString.lowercased()
-    let overture = UUID().uuidString.lowercased()
-    let revision = UUID().uuidString.lowercased()
+    let submission = UUID().uuidString
+    let figurant = UUID().uuidString
+    let overture = UUID().uuidString
+    let revision = UUID().uuidString
     let step = UUID().uuidString
     let label = unnamed ? "" : "A shared source label."
     func remove() {
@@ -45,7 +45,7 @@ struct OriginTargetIdentityTests {
           '{senses,0,label}', '"\(label)"'), '{senses,1,label}', '"\(label)"'),
           '{senses,0,tei}', '"<sense><def>\(label)</def></sense>"'),
           '{senses,1,tei}', '"<sense><def>\(label)</def></sense>"')::text
-          WHERE id = '\(source.versionID.lowercased())';
+          WHERE id = '\(source.versionID)';
         INSERT INTO submissions (id, user_id) VALUES ('\(submission)', '\(user)');
         INSERT INTO lexicographic_figurants (id, batch_id, language, order_in_batch, processing_status,
           title_form_json, anchors_json, created_at)

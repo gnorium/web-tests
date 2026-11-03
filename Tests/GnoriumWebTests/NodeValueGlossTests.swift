@@ -26,7 +26,7 @@ struct NodeValueGlossTests {
         UPDATE lexico_record_versions
           SET record_json = replace(record_json, '<def>A leaf sense.</def>',
             '<def>A leaf sense, as in <ref target=\\"\(work.path)\\">\(work.title)</ref>.</def>')
-          WHERE id = '\(word.versionID.lowercased())';
+          WHERE id = '\(word.versionID)';
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(word.path)

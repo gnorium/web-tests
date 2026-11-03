@@ -241,7 +241,7 @@ struct AccountTests {
 
       // Opening the link: the link's token is only ever in the email, so
       // the test gives the row one it knows.
-      let token = UUID().uuidString.lowercased()
+      let token = UUID().uuidString
       _ = try TestAdmin.query(
         "UPDATE email_verification_tokens SET token_hash = encode(sha256(convert_to('\(token)', 'UTF8')), 'hex') FROM users WHERE users.id = email_verification_tokens.user_id AND users.username = '\(account.username)';"
       )

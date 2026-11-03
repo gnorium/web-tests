@@ -23,7 +23,7 @@ struct ScratchLine {
   init(owner: TestAdmin, links: Int = 60) throws {
     let user = try owner.column("id")
     self.owner = owner.username
-    func id() -> String { UUID().uuidString.lowercased() }
+    func id() -> String { UUID().uuidString }
     submissionID = id()
     figurantID = id()
     overtureID = id()

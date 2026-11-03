@@ -22,10 +22,10 @@ struct OriginDiffTests {
     guard gnorium.engines.contains(.chrome) else { try Test.cancel("Chrome is not among the engines.") }
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let submission = UUID().uuidString.lowercased()
-    let figurant = UUID().uuidString.lowercased()
-    let overture = UUID().uuidString.lowercased()
-    let revision = UUID().uuidString.lowercased()
+    let submission = UUID().uuidString
+    let figurant = UUID().uuidString
+    let overture = UUID().uuidString
+    let revision = UUID().uuidString
     func remove() {
       _ = try? TestAdmin.query(
         """
@@ -174,7 +174,7 @@ struct OriginDiffTests {
         try await expect(link).toHaveCount(1)
         let href = try await link.evaluate("(el) => el.getAttribute('href')")
         #expect(
-          (href.string ?? "").lowercased() == "\(page)/revisions/\(revision)?source=code#apparatus-origin-tree",
+          href.string == "\(page)/revisions/\(revision)?source=code#apparatus-origin-tree",
           "the thread's Origin does not link to the revision's diff: \(href)")
         if let target = href.string {
           try await tab.openHydrated(target)

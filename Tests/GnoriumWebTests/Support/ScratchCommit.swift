@@ -24,7 +24,7 @@ struct ScratchCommit {
   private let owner: String
   private let chain = ScratchChain()
   /// The serenade `addEpilogue` committed the madrigal to.
-  private let serenadeID = UUID().uuidString.lowercased()
+  private let serenadeID = UUID().uuidString
 
   /// The work's title, which its objects' rows are titled by.
   var title: String { "Web tests commit \(figurantID.prefix(8))" }
@@ -36,7 +36,7 @@ struct ScratchCommit {
   init(owner: TestAdmin, sourceURL: String = ScratchCommit.sourceURL) throws {
     let user = try owner.column("id")
     self.owner = owner.username
-    func id() -> String { UUID().uuidString.lowercased() }
+    func id() -> String { UUID().uuidString }
     submissionID = id()
     figurantID = id()
     pendingOvertureID = id()
@@ -68,7 +68,7 @@ struct ScratchCommit {
   /// service in `translated` (the services are the manifest's `page-1` to
   /// `page-3`), the rest stale where named.
   func addEpilogue(base: String, translated: [Int], stale: [Int] = []) throws {
-    let id = UUID().uuidString.lowercased()
+    let id = UUID().uuidString
     let pages: [[String: Any]] = translated.map { number in
       [
         "service": "\(base)/page-\(number)", "label": "\(number)", "sourceDigest": "d",
@@ -79,7 +79,7 @@ struct ScratchCommit {
     let layer: [String: Any] = ["sourceLanguage": "ita", "targetLanguage": "eng", "tei": "", "pages": pages]
     let json = String(decoding: try JSONSerialization.data(withJSONObject: layer), as: UTF8.self)
       .replacingOccurrences(of: "'", with: "''")
-    let user = try TestAdmin.query("SELECT id FROM users WHERE username = '\(owner)'")
+    let user = try TestAdmin.query("SELECT upper(id::text) FROM users WHERE username = '\(owner)'")
       .trimmingCharacters(in: .whitespacesAndNewlines)
     _ = try TestAdmin.query(
       """
@@ -101,9 +101,9 @@ struct ScratchCommit {
   /// locked; a processed page not integrated stays open, and ticking it runs
   /// its Integration. It replaces the level's Integration made before.
   func integrate(_ level: IntegratedLevel, base: String, pages: [Int]) throws {
-    let user = try TestAdmin.query("SELECT id FROM users WHERE username = '\(owner)'")
+    let user = try TestAdmin.query("SELECT upper(id::text) FROM users WHERE username = '\(owner)'")
       .trimmingCharacters(in: .whitespacesAndNewlines)
-    let id = UUID().uuidString.lowercased()
+    let id = UUID().uuidString
     let scope = "[" + pages.map { "\"\(base)/page-\($0)\"" }.joined(separator: ",") + "]"
     let (table, column, row) = level == .explication
       ? ("bibliographic_antiphons", "bibliographic_antiphon_id", chain.antiphonID)
@@ -130,15 +130,15 @@ struct ScratchCommit {
   /// The epilogue `addEpilogue` made last.
   func epiloguePath() throws -> String {
     let id = try TestAdmin.query(
-      "SELECT id FROM bibliographic_epilogues WHERE bibliographic_serenade_id = '\(serenadeID)'")
+      "SELECT upper(id::text) FROM bibliographic_epilogues WHERE bibliographic_serenade_id = '\(serenadeID)'")
       .trimmingCharacters(in: .whitespacesAndNewlines)
     return "/mission-control/epilogues/bibliographic/\(id)"
   }
 
   /// A revision filed on the madrigal, still open (pending); its id.
   func addOpenRevision() throws -> String {
-    let id = UUID().uuidString.lowercased()
-    let user = try TestAdmin.query("SELECT id FROM users WHERE username = '\(owner)'")
+    let id = UUID().uuidString
+    let user = try TestAdmin.query("SELECT upper(id::text) FROM users WHERE username = '\(owner)'")
       .trimmingCharacters(in: .whitespacesAndNewlines)
     _ = try TestAdmin.query("""
       INSERT INTO revisions (id, revisable_type, revisable_id, prompt_changes_json, status, requested_by_user_id, created_at)

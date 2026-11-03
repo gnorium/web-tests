@@ -62,7 +62,7 @@ struct SentenceSelectionTests {
         _ = try await box.evaluate(
           """
           (b) => { const input = b.querySelector("input[name='quote-s1-record']");
-            input.value = '\(scratch.reading.work.recordID.lowercased())';
+            input.value = '\(scratch.reading.work.recordID)';
             input.dispatchEvent(new Event('change', { bubbles: true })); return true; }
           """)
         let words = box.locator(".quote-passage-reader .artifact-markup .tei-word")

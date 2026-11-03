@@ -192,9 +192,9 @@ struct TestamentLevelsTests {
   func aRevisedManuscriptKeepsItsProductionAndItsAcquisition(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let submission = UUID().uuidString.lowercased()
-    let figurant = UUID().uuidString.lowercased()
-    let overture = UUID().uuidString.lowercased()
+    let submission = UUID().uuidString
+    let figurant = UUID().uuidString
+    let overture = UUID().uuidString
     func remove() {
       _ = try? TestAdmin.query(
         """

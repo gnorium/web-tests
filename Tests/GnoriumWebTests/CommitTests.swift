@@ -201,7 +201,7 @@ struct CommitTests {
             return form.dataset.refused + '|' + document.querySelector('.commit-trigger').closest('.tooltip-view').dataset.tooltipOff })()
           """, as: String.self)
         #expect(refusal.hasPrefix("Accept or reject its open revision first: "), "the reason: \(refusal)")
-        #expect(refusal.lowercased().contains(revisionID), "The reason names the open revision: \(refusal)")
+        #expect(refusal.contains(revisionID), "The reason names the open revision: \(refusal)")
         #expect(refusal.hasSuffix("|false"), "its tooltip is on: \(refusal)")
         #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
         #expect(try await Self.posted(page) == nil, "a refused Commit was sent")

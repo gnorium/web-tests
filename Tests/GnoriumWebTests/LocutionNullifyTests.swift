@@ -23,8 +23,8 @@ struct LocutionNullifyTests {
     let reader = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let scratch: ScratchCommit
     do { scratch = try ScratchCommit(owner: reader) } catch { try await reader.remove(after: error) }
-    let locutionID = UUID().uuidString.lowercased()
-    let madrigalID = scratch.madrigalID.lowercased()
+    let locutionID = UUID().uuidString
+    let madrigalID = scratch.madrigalID
     func removeLocutions() {
       _ = try? TestAdmin.query("""
         BEGIN;
@@ -44,7 +44,7 @@ struct LocutionNullifyTests {
           VALUES (gen_random_uuid(), '\(locutionID)', 1, '\(Self.words[0])', '\(readerID)', now() - interval '1 minute');
         COMMIT;
         """)
-      let id = locutionID.uppercased()
+      let id = locutionID
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [reader.cookie]) { page in
         try await page.openHydrated(scratch.madrigalPath)
         let locution = page.locator("#locution-\(id)")

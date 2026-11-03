@@ -11,7 +11,7 @@ struct ReviewNavigationTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let userID = try admin.column("id")
-    let ids = (0..<101).map { _ in UUID().uuidString.uppercased() }
+    let ids = (0..<101).map { _ in UUID().uuidString }
     let values = ids.enumerated().map { index, id in
       """
       ('\(id)', '\(id)', 'bibliographic_explication', 'Web tests comparison \(index)', 'Web tests task',
@@ -205,7 +205,7 @@ struct ReviewNavigationTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let line = try ScratchLine(owner: admin, links: 1)
     let word = try ScratchWord(owner: admin)
-    let overtureID = try TestAdmin.query("SELECT id FROM bibliographic_overtures WHERE bibliographic_figurant_id = '\(line.figurantID)';")
+    let overtureID = try TestAdmin.query("SELECT upper(id::text) FROM bibliographic_overtures WHERE bibliographic_figurant_id = '\(line.figurantID)';")
     do {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         for (kind, path) in [

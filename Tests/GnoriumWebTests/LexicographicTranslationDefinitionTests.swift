@@ -31,8 +31,8 @@ struct LexicographicTranslationDefinitionTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let word = try ScratchWord(owner: admin, language: "deu")
     let arabic = try ScratchWord(owner: admin, language: "ara")
-    let amendment = UUID().uuidString.lowercased()
-    let arabicAmendment = UUID().uuidString.lowercased()
+    let amendment = UUID().uuidString
+    let arabicAmendment = UUID().uuidString
     let definition = #"{"confidence":"clear","tei":"<def xml:lang=\"de\">\#(Self.german)</def>","languageCode":"deu","reason":"The English says it plainly."}"#
     do {
       _ = try TestAdmin.query(
@@ -40,12 +40,12 @@ struct LexicographicTranslationDefinitionTests {
         BEGIN;
         UPDATE lexico_record_versions SET record_json = jsonb_set(record_json::jsonb, '{senses,1,usage,grammar}',
             '["in seafaring use"]')::text
-          WHERE id = '\(word.versionID.lowercased())';
+          WHERE id = '\(word.versionID)';
         -- The Arabic record translated: a version (status 2) permitted
         -- from a lexicographic epilogue, as the antecedent check requires.
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, tei, target,
             status, submitted_by_user_id, summary, value_translation_json, evaluated_at, evaluated_by_user_id)
-          VALUES ('\(arabicAmendment)', '\(arabic.recordID.lowercased())', '\(arabic.versionID.lowercased())', '\(arabic.leaf)',
+          VALUES ('\(arabicAmendment)', '\(arabic.recordID)', '\(arabic.versionID)', '\(arabic.leaf)',
             '<sense><def>A leaf sense.</def></sense>', 'value', 'permitted', (SELECT id FROM users WHERE username = 'gnorium'),
             'Wrote the Arabic definition.', '{"languageCode":"ara","tei":"<def xml:lang=\\"ar\\">\(Self.arabic)</def>","confidence":"clear","reason":"Web tests."}', now(),
             (SELECT id FROM users WHERE username = 'gnorium'));
@@ -54,10 +54,10 @@ struct LexicographicTranslationDefinitionTests {
               jsonb_set(record_json::jsonb, '{senses,1,tei}',
                 '"<sense><def>A leaf sense.</def><def xml:lang=\\"ar\\">\(Self.arabic)</def></sense>"')::text,
               now() + interval '1 second'
-            FROM lexico_record_versions WHERE id = '\(arabic.versionID.lowercased())';
+            FROM lexico_record_versions WHERE id = '\(arabic.versionID)';
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, tei, target,
             status, submitted_by_user_id, summary, value_translation_json)
-          VALUES ('\(amendment)', '\(word.recordID.lowercased())', '\(word.versionID.lowercased())', '\(word.leaf)',
+          VALUES ('\(amendment)', '\(word.recordID)', '\(word.versionID)', '\(word.leaf)',
             '<sense><def>A leaf sense.</def></sense>', 'value', 'committed', (SELECT id FROM users WHERE username = 'gnorium'),
             'Wrote the German definition.', '\(definition)');
         COMMIT;
@@ -143,7 +143,7 @@ struct LexicographicTranslationDefinitionTests {
   }
 
   private func remove(words: [ScratchWord]) {
-    let records = words.map { "'\($0.recordID.lowercased())'" }.joined(separator: ", ")
+    let records = words.map { "'\($0.recordID)'" }.joined(separator: ", ")
     _ = try? TestAdmin.query(
       """
       BEGIN;

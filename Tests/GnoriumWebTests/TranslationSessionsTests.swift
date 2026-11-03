@@ -37,9 +37,9 @@ struct TranslationSessionsTests {
     let reading: ScratchReading
     do { reading = try ScratchReading(owner: admin, tei: Self.tei) }
     catch { try await admin.remove(after: error) }
-    let epilogue = UUID().uuidString.lowercased()
-    let serenade = UUID().uuidString.lowercased()
-    let nocturne = UUID().uuidString.lowercased()
+    let epilogue = UUID().uuidString
+    let serenade = UUID().uuidString
+    let nocturne = UUID().uuidString
     do {
       let user = try admin.column("id")
       // Failed: no worker takes it up, nothing is spent.
@@ -92,9 +92,9 @@ struct TranslationSessionsTests {
     let reading: ScratchReading
     do { reading = try ScratchReading(owner: admin, tei: Self.tei) }
     catch { try await admin.remove(after: error) }
-    let epilogue = UUID().uuidString.lowercased()
-    let serenade = UUID().uuidString.lowercased()
-    let nocturne = UUID().uuidString.lowercased()
+    let epilogue = UUID().uuidString
+    let serenade = UUID().uuidString
+    let nocturne = UUID().uuidString
     let stopped = "The bibliographic translation worker was stopped."
     do {
       let user = try admin.column("id")
@@ -142,9 +142,9 @@ struct TranslationSessionsTests {
     let reading: ScratchReading
     do { reading = try ScratchReading(owner: admin, tei: Self.tei) }
     catch { try await admin.remove(after: error) }
-    let epilogue = UUID().uuidString.lowercased()
-    let serenade = UUID().uuidString.lowercased()
-    let nocturne = UUID().uuidString.lowercased()
+    let epilogue = UUID().uuidString
+    let serenade = UUID().uuidString
+    let nocturne = UUID().uuidString
     do {
       let user = try admin.column("id")
       _ = try TestAdmin.query(

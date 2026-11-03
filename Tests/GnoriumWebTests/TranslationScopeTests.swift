@@ -22,9 +22,9 @@ struct TranslationScopeTests {
     let reading: ScratchReading
     do { reading = try ScratchReading(owner: admin, tei: tei, sourceURL: fixture.baseURL + "/manifest.json") }
     catch { try await admin.remove(after: error) }
-    let firstEpilogue = UUID().uuidString.lowercased()
-    let epilogue = UUID().uuidString.lowercased()
-    let serenade = UUID().uuidString.lowercased()
+    let firstEpilogue = UUID().uuidString
+    let epilogue = UUID().uuidString
+    let serenade = UUID().uuidString
     defer {
       _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_integration_nocturnes WHERE id = '\(serenade)'; DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';")
       reading.remove()
@@ -48,7 +48,7 @@ struct TranslationScopeTests {
         INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, image_service_ids_json, requested_by_user_id, processing_status)
           VALUES ('\(serenade)', '\(firstEpilogue)', 'eng', '[]', '\(user)', 'submitted');
         INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id, proposed_content_json, metadata_json, translation_json, processing_status)
-          SELECT '\(epilogue)', '\(firstEpilogue)', '\(reading.work.overtureID.lowercased())', '\(serenade)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
+          SELECT '\(epilogue)', '\(firstEpilogue)', '\(reading.work.overtureID)', '\(serenade)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
           FROM bibliographic_madrigals p WHERE p.id = '\(reading.madrigalID)';
         -- Page 2's translation integrated (user, 2026-10-24): locked.
         UPDATE bibliographic_serenades SET integrates = true WHERE id = '\(serenade)';
@@ -153,9 +153,9 @@ struct TranslationScopeTests {
     let reading: ScratchReading
     do { reading = try ScratchReading(owner: admin, tei: tei, sourceURL: fixture.baseURL + "/manifest.json") }
     catch { try await admin.remove(after: error) }
-    let firstEpilogue = UUID().uuidString.lowercased()
-    let epilogue = UUID().uuidString.lowercased()
-    let serenade = UUID().uuidString.lowercased()
+    let firstEpilogue = UUID().uuidString
+    let epilogue = UUID().uuidString
+    let serenade = UUID().uuidString
     func clean() {
       _ = try? TestAdmin.query("DELETE FROM bibliographic_epilogues WHERE id = '\(epilogue)'; DELETE FROM bibliographic_integration_nocturnes WHERE id = '\(serenade)'; DELETE FROM bibliographic_serenades WHERE id = '\(serenade)';")
       reading.remove()
@@ -179,7 +179,7 @@ struct TranslationScopeTests {
         INSERT INTO bibliographic_serenades (id, bibliographic_epilogue_id, target_language, image_service_ids_json, requested_by_user_id, processing_status)
           VALUES ('\(serenade)', '\(firstEpilogue)', 'eng', '[]', '\(user)', 'submitted');
         INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id, proposed_content_json, metadata_json, translation_json, processing_status)
-          SELECT '\(epilogue)', '\(firstEpilogue)', '\(reading.work.overtureID.lowercased())', '\(serenade)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
+          SELECT '\(epilogue)', '\(firstEpilogue)', '\(reading.work.overtureID)', '\(serenade)', p.proposed_content_json, p.metadata_json, '\(layer)', 'pending'
           FROM bibliographic_madrigals p WHERE p.id = '\(reading.madrigalID)';
         -- Page 2's translation integrated (user, 2026-10-24): locked.
         UPDATE bibliographic_serenades SET integrates = true WHERE id = '\(serenade)';

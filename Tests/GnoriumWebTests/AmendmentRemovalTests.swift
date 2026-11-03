@@ -21,15 +21,15 @@ struct AmendmentRemovalTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
-    let record = work.recordID.lowercased()
+    let record = work.recordID
     func clean() {
       // Its Palinodes are submitted input, frozen: they stay.
       _ = try? TestAdmin.query(
         """
         BEGIN;
         DELETE FROM revisions WHERE revisable_id IN
-          (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())');
-        DELETE FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())';
+          (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID)');
+        DELETE FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID)';
         COMMIT;
         """)
     }
@@ -138,7 +138,7 @@ struct AmendmentRemovalTests {
         let stored = try TestAdmin.query(
           """
           SELECT shape_json FROM bibliographic_madrigals
-            WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID.lowercased())';
+            WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID)';
           """
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(stored.contains("\"work\"") && stored.contains("edition-") && !stored.contains("manifest-"), "\(stored)")

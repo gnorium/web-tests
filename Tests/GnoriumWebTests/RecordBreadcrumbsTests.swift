@@ -220,9 +220,10 @@ struct ScratchRecord {
     title shared: (title: String, slug: String)? = nil, author sharedAuthor: String? = nil, voiced: Bool = false,
     homograph: Int? = nil
   ) throws {
-    recordID = UUID().uuidString.lowercased()
-    authorshipID = UUID().uuidString.lowercased()
-    let suffix = String(recordID.prefix(8))
+    recordID = UUID().uuidString
+    authorshipID = UUID().uuidString
+    // Text, not an id: the title's and the slug's lower-case hex.
+    let suffix = recordID.prefix(8).lowercased()
     title = shared?.title ?? "Web tests crumbs \(suffix)"
     author = sharedAuthor ?? "Web Tests Crumbs Author \(suffix)"
     let slug = shared?.slug ?? "web-tests-crumbs-\(suffix)"

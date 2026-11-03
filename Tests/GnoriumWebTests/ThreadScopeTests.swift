@@ -17,10 +17,10 @@ struct ThreadScopeTests {
     let scratch: ScratchCommit
     do { scratch = try ScratchCommit(owner: contributor) }
     catch { try await contributor.remove(after: error) }
-    let antiphonID = UUID().uuidString.lowercased()
-    let laterID = UUID().uuidString.lowercased()
-    let earlierLocutionID = UUID().uuidString.lowercased()
-    let laterLocutionID = UUID().uuidString.lowercased()
+    let antiphonID = UUID().uuidString
+    let laterID = UUID().uuidString
+    let earlierLocutionID = UUID().uuidString
+    let laterLocutionID = UUID().uuidString
     func removeLater() {
       _ = try? TestAdmin.query(
         """
@@ -43,7 +43,7 @@ struct ThreadScopeTests {
         INSERT INTO bibliographic_madrigals (id, thread_id, bibliographic_antiphon_id, proposed_content_json, metadata_json, processing_status, created_at, updated_at)
           VALUES ('\(laterID)', '\(scratch.madrigalID)', '\(antiphonID)', '{"teiXml":""}', '{"language":"eng","sourceUrl":"\(ScratchCommit.sourceURL)","sourceKind":"iiif-manifest"}', 'pending', now(), now());
         INSERT INTO locutions (id, locutable_type, locutable_id, author_id, content, created_at)
-          VALUES ('\(earlierLocutionID)', 'bibliographic_madrigal', '\(scratch.madrigalID.lowercased())', '\(user)', 'On the earlier reading.', now()),
+          VALUES ('\(earlierLocutionID)', 'bibliographic_madrigal', '\(scratch.madrigalID)', '\(user)', 'On the earlier reading.', now()),
                  ('\(laterLocutionID)', 'bibliographic_madrigal', '\(laterID)', '\(user)', 'On the later reading.', now());
         COMMIT;
         """)
@@ -52,20 +52,20 @@ struct ThreadScopeTests {
         try await page.openHydrated("/mission-control/madrigals/bibliographic/\(laterID)")
         let events = page.locator(".thread-event")
         try await expect(events).toHaveCount(1)
-        try await expect(page.locator("#creation-\(laterID.uppercased())")).toHaveCount(1)
-        try await expect(page.locator("#locution-\(laterLocutionID.uppercased())")).toHaveCount(1)
-        try await expect(page.locator("#locution-\(earlierLocutionID.uppercased())")).toHaveCount(0)
+        try await expect(page.locator("#creation-\(laterID)")).toHaveCount(1)
+        try await expect(page.locator("#locution-\(laterLocutionID)")).toHaveCount(1)
+        try await expect(page.locator("#locution-\(earlierLocutionID)")).toHaveCount(0)
         // Its one locution: the events beside it are not counted.
         try await expect(page.locator(".thread-count")).toHaveText("1")
 
         // The earlier one: its creation and its commit, never the later's.
         try await page.openHydrated(scratch.madrigalPath)
         try await expect(events).toHaveCount(2)
-        try await expect(page.locator("#creation-\(scratch.madrigalID.uppercased())")).toHaveCount(1)
-        try await expect(page.locator("#creation-\(antiphonID.uppercased())")).toHaveCount(1)
-        try await expect(page.locator("#creation-\(laterID.uppercased())")).toHaveCount(0)
-        try await expect(page.locator("#locution-\(earlierLocutionID.uppercased())")).toHaveCount(1)
-        try await expect(page.locator("#locution-\(laterLocutionID.uppercased())")).toHaveCount(0)
+        try await expect(page.locator("#creation-\(scratch.madrigalID)")).toHaveCount(1)
+        try await expect(page.locator("#creation-\(antiphonID)")).toHaveCount(1)
+        try await expect(page.locator("#creation-\(laterID)")).toHaveCount(0)
+        try await expect(page.locator("#locution-\(earlierLocutionID)")).toHaveCount(1)
+        try await expect(page.locator("#locution-\(laterLocutionID)")).toHaveCount(0)
         try await expect(page.locator(".thread-count")).toHaveText("1")
         try await page.expectNoErrors()
       }
@@ -91,7 +91,7 @@ struct ThreadScopeTests {
     let scratch: ScratchCommit
     do { scratch = try ScratchCommit(owner: contributor) }
     catch { try await contributor.remove(after: error) }
-    let antiphonID = UUID().uuidString.lowercased()
+    let antiphonID = UUID().uuidString
     func removeCommit() {
       _ = try? TestAdmin.query("DELETE FROM bibliographic_antiphons WHERE id = '\(antiphonID)'")
     }
@@ -113,7 +113,7 @@ struct ThreadScopeTests {
         // The tab shown again.
         _ = try await page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
         let commit = page.locator(".thread-timeline > .thread-entry").last
-        try await expect(commit).toHaveAttribute("id", "creation-\(antiphonID.uppercased())")
+        try await expect(commit).toHaveAttribute("id", "creation-\(antiphonID)")
         try await expect(commit).toContainText("committed")
         try await expect(page.locator(".thread-compose")).toHaveCount(0)
         try await expect(page.locator(".thread-view .thread-timeline + .thread-settled")).toHaveCount(1)
@@ -149,18 +149,18 @@ struct ThreadScopeTests {
     let other: TestAdmin
     do { other = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false) }
     catch { scratch.remove(); try await contributor.remove(after: error) }
-    let quotedID = UUID().uuidString.lowercased()
+    let quotedID = UUID().uuidString
     func removeLocutions() {
-      _ = try? TestAdmin.query("DELETE FROM locutions WHERE locutable_id = '\(scratch.madrigalID.lowercased())'")
+      _ = try? TestAdmin.query("DELETE FROM locutions WHERE locutable_id = '\(scratch.madrigalID)'")
     }
     do {
       let user = try other.column("id")
       _ = try TestAdmin.query(
         """
         INSERT INTO locutions (id, locutable_type, locutable_id, author_id, content, created_at)
-          VALUES ('\(quotedID)', 'bibliographic_madrigal', '\(scratch.madrigalID.lowercased())', '\(user)', 'The **first** page is misread.', now() - interval '1 minute')
+          VALUES ('\(quotedID)', 'bibliographic_madrigal', '\(scratch.madrigalID)', '\(user)', 'The **first** page is misread.', now() - interval '1 minute')
         """)
-      let quoted = "#locution-\(quotedID.uppercased())"
+      let quoted = "#locution-\(quotedID)"
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated(scratch.madrigalPath)
         // Nothing above the thread moves once drawn (user, 2026-10-11): the
@@ -185,10 +185,10 @@ struct ThreadScopeTests {
         #expect(shifted == 0, "No layout shift in the thread: \(shifted)")
         let replyButton = page.locator("\(quoted) .locution-reply-button")
         try await expect(replyButton).toBeVisible()
-        try await expect(replyButton).toHaveAttribute("href", "?reply=\(quotedID.uppercased())#thread-form")
+        try await expect(replyButton).toHaveAttribute("href", "?reply=\(quotedID)#thread-form")
         try await replyButton.click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("the page answering it", where: {
-          $0.absoluteString.contains("reply=\(quotedID.uppercased())")
+          $0.absoluteString.contains("reply=\(quotedID)")
         })
         let replying = page.locator(".thread-replying")
         try await expect(replying.locator(".locution-quote-author")).toHaveText(other.username)
@@ -201,19 +201,19 @@ struct ThreadScopeTests {
           if count.trimmingCharacters(in: .whitespacesAndNewlines) == "1" { break }
           try await Task.sleep(for: .milliseconds(250))
         }
-        let replyID = try TestAdmin.query("SELECT id FROM locutions WHERE parent_id = '\(quotedID)'")
-          .trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let replyID = try TestAdmin.query("SELECT upper(id::text) FROM locutions WHERE parent_id = '\(quotedID)'")
+          .trimmingCharacters(in: .whitespacesAndNewlines)
         try await page.openHydrated(scratch.madrigalPath)
         let reply = page.locator("#locution-\(replyID)")
         let card = reply.locator(".locution-quote-view a")
-        try await expect(card).toHaveAttribute("href", "#locution-\(quotedID.uppercased())")
+        try await expect(card).toHaveAttribute("href", "#locution-\(quotedID)")
         try await expect(card.locator(".locution-quote-text")).toHaveText("The first page is misread.")
         try await expect(reply.locator(".locution-body")).toContainText("Agreed; it reads 1611.")
         // In time order: the reply after what it answers.
         let order = try await page.evaluate(
           "[...document.querySelectorAll('.thread-entry')].map(e => e.id).join(' ')"
         ).string ?? ""
-        let answered = order.range(of: "locution-\(quotedID.uppercased())")?.lowerBound
+        let answered = order.range(of: "locution-\(quotedID)")?.lowerBound
         let answering = order.range(of: "locution-\(replyID)")?.lowerBound
         #expect(answered != nil && answering != nil && answered! < answering!, "In time order: \(order)")
         // Edited: the quote keeps what it quoted.

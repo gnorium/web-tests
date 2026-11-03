@@ -15,9 +15,9 @@ struct LexicographicOvertureOriginsReviseTests {
   func aRevisionEditsTheOrigins(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let submission = UUID().uuidString.lowercased()
-    let figurant = UUID().uuidString.lowercased()
-    let overture = UUID().uuidString.lowercased()
+    let submission = UUID().uuidString
+    let figurant = UUID().uuidString
+    let overture = UUID().uuidString
     func remove() {
       _ = try? TestAdmin.query(
         """
@@ -60,10 +60,10 @@ struct LexicographicOvertureOriginsReviseTests {
         try await tab.locator("button[type='submit']").filter(hasText: "Suggest").click()
         // Suggest lands on the overture, at the suggestion's locution.
         try await expect(tab, timeout: .seconds(15)).toHaveURL("the overture at its locution") { url in
-          url.path.lowercased() == page.lowercased() && (url.fragment ?? "").hasPrefix("revision-")
+          url.path == page && (url.fragment ?? "").hasPrefix("revision-")
         }
         let revision = try TestAdmin.query(
-          "SELECT id FROM revisions WHERE revisable_id = '\(overture)' ORDER BY created_at DESC LIMIT 1;")
+          "SELECT upper(id::text) FROM revisions WHERE revisable_id = '\(overture)' ORDER BY created_at DESC LIMIT 1;")
         #expect(!revision.isEmpty, "no revision was filed")
         // The revision's page: the origins proposed.
         try await tab.openHydrated("\(page)/revisions/\(revision)")

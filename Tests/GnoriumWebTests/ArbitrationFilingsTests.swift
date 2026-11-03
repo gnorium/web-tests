@@ -30,9 +30,9 @@ struct ArbitrationFilingsTests {
         """
         INSERT INTO arbitration_filings (id, locution_id, arbitration_session_id, locutable_type, locutable_id, filed,
           kind, filed_id, created_type, created_id, filed_at)
-          VALUES ('\(UUID().uuidString.lowercased())', '\(UUID().uuidString.lowercased())', '\(UUID().uuidString.lowercased())',
-            'bibliographic_madrigal', '\(object)', '\(filed)', '\(kind)', '\(id.uuidString.lowercased())', '\(type)',
-            '\(created.uuidString.lowercased())', \(at));
+          VALUES ('\(UUID().uuidString)', '\(UUID().uuidString)', '\(UUID().uuidString)',
+            'bibliographic_madrigal', '\(object)', '\(filed)', '\(kind)', '\(id.uuidString)', '\(type)',
+            '\(created.uuidString)', \(at));
         """
       }
       _ = try TestAdmin.query(
@@ -45,17 +45,17 @@ struct ArbitrationFilingsTests {
           .filter(hasText: "submitted figurant \(figurant.uuidString) creating overture \(overture.uuidString)")
         try await expect(filed, timeout: .seconds(15)).toHaveCount(1)
         try await expect(filed).toContainText("gnorium")
-        try await expect(filed.locator("a[href='/mission-control/figurants/bibliographic/\(figurant.uuidString)' i]"))
+        try await expect(filed.locator("a[href='/mission-control/figurants/bibliographic/\(figurant.uuidString)']"))
           .toHaveCount(1)
-        try await expect(filed.locator("a[href='/mission-control/overtures/bibliographic/\(overture.uuidString)' i]"))
+        try await expect(filed.locator("a[href='/mission-control/overtures/bibliographic/\(overture.uuidString)']"))
           .toHaveCount(1)
         let amended = page.locator(".thread-event-line")
           .filter(hasText: "submitted palinode \(palinode.uuidString) creating overture \(amendment.uuidString)")
         try await expect(amended).toHaveCount(1)
-        try await expect(amended.locator("a[href='/mission-control/palinodes/lexicographic/\(palinode.uuidString)' i]"))
+        try await expect(amended.locator("a[href='/mission-control/palinodes/lexicographic/\(palinode.uuidString)']"))
           .toHaveCount(1)
         try await expect(
-          amended.locator("a[href='/mission-control/overtures/lexicographic/amendments/\(amendment.uuidString)' i]")
+          amended.locator("a[href='/mission-control/overtures/lexicographic/amendments/\(amendment.uuidString)']")
         ).toHaveCount(1)
         // In thread order: the figurant first, filed first.
         let order = try await page.evaluate(

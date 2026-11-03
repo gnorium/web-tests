@@ -46,11 +46,11 @@ struct ColorTourTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchCommit(owner: admin)
     let user = try admin.column("id")
-    let a = UUID().uuidString.uppercased(), b = UUID().uuidString.uppercased(), c = UUID().uuidString.uppercased()
-    let call = UUID().uuidString.lowercased()
+    let a = UUID().uuidString, b = UUID().uuidString, c = UUID().uuidString
+    let call = UUID().uuidString
     func remove() {
       _ = try? TestAdmin.query("DELETE FROM revisions WHERE id IN ('\(a)', '\(b)', '\(c)')")
-      _ = try? TestAdmin.query("DELETE FROM locutions WHERE locutable_id = '\(work.madrigalID.lowercased())'")
+      _ = try? TestAdmin.query("DELETE FROM locutions WHERE locutable_id = '\(work.madrigalID)'")
       work.remove()
     }
     do {
@@ -75,7 +75,7 @@ struct ColorTourTests {
       }
       _ = try TestAdmin.query("""
         INSERT INTO locutions (id, locutable_type, locutable_id, author_id, content, kind, call_status, query, evidence_id, evidence_kind, call_process, created_at)
-        VALUES ('\(call)', 'bibliographic_madrigal', '\(work.madrigalID.lowercased())', '\(user)', '@gnorium check the [first page](#).', 'call', 'pending', 'check the first page', 'https://web-tests.invalid/iiif/p1', 'canvas', 'explication', now())
+        VALUES ('\(call)', 'bibliographic_madrigal', '\(work.madrigalID)', '\(user)', '@gnorium check the [first page](#).', 'call', 'pending', 'check the first page', 'https://web-tests.invalid/iiif/p1', 'canvas', 'explication', now())
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         try await page.openHydrated(work.madrigalPath)
@@ -93,7 +93,7 @@ struct ColorTourTests {
         try await viewer.locator(".testament-find-button button").click()
         try await Self.shots(page, "roster", "#madrigal-images")
         try await Self.shots(page, "thread", "#revision-\(b)")
-        try await Self.shots(page, "chip-links", "#locution-\(call.uppercased())")
+        try await Self.shots(page, "chip-links", "#locution-\(call)")
         try await page.openHydrated("\(work.madrigalPath)/revisions/\(c)")
         try await Self.shots(page, "alert-diff", ".prompt-clash-view")
         try await page.openHydrated("\(work.madrigalPath)/revisions/\(b)")

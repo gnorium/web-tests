@@ -46,15 +46,15 @@ struct TestamentFormsTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
-    let version = work.versionID.lowercased()
-    let record = work.recordID.lowercased()
+    let version = work.versionID
+    let record = work.recordID
     // The edition by its UUID, as every node is named (gnorium-server
     // 9eb095fd, 2026-10-12).
     let edition = try TestAdmin.query(
       "SELECT shape_json::jsonb -> key ->> 'uuid' FROM biblio_record_versions, jsonb_object_keys(shape_json::jsonb) AS key WHERE id = '\(version)' AND key LIKE 'edition-%';"
     ).trimmingCharacters(in: .whitespacesAndNewlines)
-    let extraction = UUID().uuidString.lowercased()
-    let citations = [UUID().uuidString.lowercased(), UUID().uuidString.lowercased()]
+    let extraction = UUID().uuidString
+    let citations = [UUID().uuidString, UUID().uuidString]
     func cite(_ id: String, _ surface: String, word: Int, node: String?) -> String {
       """
       INSERT INTO citations (id, biblio_record_version_id, biblio_record_id, testament_id, permitted_at, image_id, page,

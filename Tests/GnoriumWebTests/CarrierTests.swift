@@ -35,7 +35,7 @@ struct CarrierTests {
         UPDATE biblio_record_versions
           SET metadata_json = replace(metadata_json, '"edition":"First edition"',
             '"edition":"First edition","carrier":"print","container":{"record":"\(host.recordID)","title":"\(host.title)","volume":"1","pages":"3-5"}')
-          WHERE id = '\(article.versionID.lowercased())';
+          WHERE id = '\(article.versionID)';
         """)
       try await run(engine: engine, layout: layout, admin: admin, host: host, article: article)
     } catch {

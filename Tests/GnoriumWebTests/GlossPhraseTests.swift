@@ -51,7 +51,7 @@ struct GlossPhraseTests {
         try await page.openHydrated(scratch.reading.work.path)
         _ = try await page.evaluate(
           """
-          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-node')
+          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)']").closest('.record-node')
             .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
           """)
         // Its words are clicked once it has opened: while it grows, what

@@ -7,9 +7,9 @@ import Foundation
 /// header, the skeleton and the fields. The first madrigal names the
 /// antiphon. Inserted and deleted as SQL inside a fixture's own transaction.
 struct ScratchChain {
-  let quatrainID = UUID().uuidString.lowercased()
-  let halftoneID = UUID().uuidString.lowercased()
-  let antiphonID = UUID().uuidString.lowercased()
+  let quatrainID = UUID().uuidString
+  let halftoneID = UUID().uuidString
+  let antiphonID = UUID().uuidString
 
   /// The statements that make the chain under `overture`, committed by
   /// `user`; `metadata` (a JSON object, quotes doubled) the halftone's

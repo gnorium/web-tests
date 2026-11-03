@@ -96,7 +96,7 @@ struct PromptVignetteComparisonTests {
               && side.lastElementChild.classList.contains('vignette-identifier')
               && side.lastElementChild.classList.contains('tooltip-view')
               // Its bubble portaled to <body> once hydrated.
-              && [...document.querySelectorAll('.tooltip-content a.link-view')].some(a => a.textContent.trim().toUpperCase() === [\(old.debugDescription), \(new.debugDescription)][i].toUpperCase())
+              && [...document.querySelectorAll('.tooltip-content a.link-view')].some(a => a.textContent.trim() === [\(old.debugDescription), \(new.debugDescription)][i])
               && getComputedStyle(side).alignItems === 'center');
         })()
         """, as: Bool.self)

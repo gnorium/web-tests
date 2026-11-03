@@ -31,7 +31,7 @@ struct FirstPassPermitTests {
           "[...document.querySelectorAll('.disputorium-core-actions .button-view')].map(b => b.textContent.trim()).join(' ')",
           as: String.self)
         #expect(actions == "Revise Commit Permit Discard", "\(actions)")
-        try await expect(tab.locator("form#overture-permit[action='\(page)/permit' i]")).toHaveCount(1)
+        try await expect(tab.locator("form#overture-permit[action='\(page)/permit']")).toHaveCount(1)
 
         try await tab.locator("button[form='overture-permit']").click()
         try await expect(tab, timeout: .seconds(15)).toHaveURL("/lexico-records/eng/\(pass.title)/noun")
@@ -83,10 +83,10 @@ struct FirstPassPermitTests {
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { tab in
         // A person's Submit Sentiment, a working copy.
         let user = try admin.column("id")
-        let submission = UUID().uuidString.lowercased()
-        let figurant = UUID().uuidString.lowercased()
-        let overture = UUID().uuidString.lowercased()
-        let form = #"{"title":"webtestsperson\#(overture.prefix(8))","languageCode":"eng","class":"noun","origin":{"etymons":[],"citations":[],"derivation":""}}"#
+        let submission = UUID().uuidString
+        let figurant = UUID().uuidString
+        let overture = UUID().uuidString
+        let form = #"{"title":"webtestsperson\#(overture.prefix(8).lowercased())","languageCode":"eng","class":"noun","origin":{"etymons":[],"citations":[],"derivation":""}}"#
         _ = try TestAdmin.query(
           """
           BEGIN;

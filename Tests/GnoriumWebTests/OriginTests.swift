@@ -36,21 +36,21 @@ struct OriginTests {
     do {
       // The translation's origin, as a permit writes it: a typed Old
       // English step, which is a translation of the original's record.
-      let step = UUID().uuidString.lowercased()
-      let deeper = UUID().uuidString.lowercased()
+      let step = UUID().uuidString
+      let deeper = UUID().uuidString
       _ = try TestAdmin.query(
         """
         INSERT INTO biblio_record_origins (id, step_id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
-          VALUES ('\(step)', gen_random_uuid(), '\(translation.recordID.lowercased())', NULL, 0, NULL,
+          VALUES ('\(step)', gen_random_uuid(), '\(translation.recordID)', NULL, 0, NULL,
             '{"language":"ang","title":"\(typed)","type":"treatise","date":{"era":"anno_domini","year":890,"yearQualifier":"circa"}}', now());
         INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
-          VALUES ('\(UUID().uuidString.lowercased())', '\(step)', 0, 'translation_of'),
-            ('\(UUID().uuidString.lowercased())', '\(step)', 1, 'abridgment_of');
+          VALUES ('\(UUID().uuidString)', '\(step)', 0, 'translation_of'),
+            ('\(UUID().uuidString)', '\(step)', 1, 'abridgment_of');
         INSERT INTO biblio_record_origins (id, step_id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
-          VALUES ('\(deeper)', gen_random_uuid(), '\(translation.recordID.lowercased())', '\(step)', 0,
-            '\(original.recordID.lowercased())', NULL, now());
+          VALUES ('\(deeper)', gen_random_uuid(), '\(translation.recordID)', '\(step)', 0,
+            '\(original.recordID)', NULL, now());
         INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
-          VALUES ('\(UUID().uuidString.lowercased())', '\(deeper)', 0, 'translation_of');
+          VALUES ('\(UUID().uuidString)', '\(deeper)', 0, 'translation_of');
         """)
       try await run(
         engine: engine, viewport: layout.viewport(for: engine), admin: admin, original: original,
@@ -84,28 +84,28 @@ struct OriginTests {
       var sql = ""
       var parent = "NULL"
       for level in 0..<typedDepth {
-        let step = UUID().uuidString.lowercased()
+        let step = UUID().uuidString
         sql += """
           INSERT INTO biblio_record_origins (id, step_id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
-            VALUES ('\(step)', gen_random_uuid(), '\(first.recordID.lowercased())', \(parent), 0, NULL,
+            VALUES ('\(step)', gen_random_uuid(), '\(first.recordID)', \(parent), 0, NULL,
               '{"language":"ang","title":"Web tests deep \(level + 1) \(first.suffix)","type":"treatise"}', now());
           INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
-            VALUES ('\(UUID().uuidString.lowercased())', '\(step)', 0, 'translation_of');
+            VALUES ('\(UUID().uuidString)', '\(step)', 0, 'translation_of');
 
           """
         parent = "'\(step)'"
       }
-      let toSecond = UUID().uuidString.lowercased()
-      let back = UUID().uuidString.lowercased()
+      let toSecond = UUID().uuidString
+      let back = UUID().uuidString
       sql += """
         INSERT INTO biblio_record_origins (id, step_id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
-          VALUES ('\(toSecond)', gen_random_uuid(), '\(first.recordID.lowercased())', \(parent), 0, '\(second.recordID.lowercased())', NULL, now());
+          VALUES ('\(toSecond)', gen_random_uuid(), '\(first.recordID)', \(parent), 0, '\(second.recordID)', NULL, now());
         INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
-          VALUES ('\(UUID().uuidString.lowercased())', '\(toSecond)', 0, 'translation_of');
+          VALUES ('\(UUID().uuidString)', '\(toSecond)', 0, 'translation_of');
         INSERT INTO biblio_record_origins (id, step_id, biblio_record_id, parent_id, position, target_record_id, typed_json, created_at)
-          VALUES ('\(back)', gen_random_uuid(), '\(second.recordID.lowercased())', NULL, 0, '\(first.recordID.lowercased())', NULL, now());
+          VALUES ('\(back)', gen_random_uuid(), '\(second.recordID)', NULL, 0, '\(first.recordID)', NULL, now());
         INSERT INTO biblio_record_origin_relations (id, origin_id, position, relation)
-          VALUES ('\(UUID().uuidString.lowercased())', '\(back)', 0, 'based_on');
+          VALUES ('\(UUID().uuidString)', '\(back)', 0, 'based_on');
         """
       _ = try TestAdmin.query(sql)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in

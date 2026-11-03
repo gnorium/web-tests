@@ -242,7 +242,7 @@ struct QuoteSourcesTests {
         _ = try await box.evaluate(
           """
           (b) => { const input = b.querySelector("input[name='quote-s1-record']");
-            input.value = '\(scratch.reading.work.recordID.lowercased())';
+            input.value = '\(scratch.reading.work.recordID)';
             input.dispatchEvent(new Event('change', { bubbles: true })); return true; }
           """)
         let words = box.locator(".quote-passage-reader .artifact-markup .tei-word")
@@ -259,7 +259,7 @@ struct QuoteSourcesTests {
           (b) => { const field = b.querySelector("[name='quote-s1-record-node']").closest('.dropdown-view');
             const options = [...field.querySelectorAll('[data-dropdown-option]')];
             return options.length > 0 && options.every((o) =>
-              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(o.dataset.value)
+              /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/.test(o.dataset.value)
               && o.dataset.number.length > 0 && o.dataset.display.length > 0
               && o.querySelector('.dropdown-option-number')?.textContent === o.dataset.number
               && o.textContent.includes(o.dataset.display)); }

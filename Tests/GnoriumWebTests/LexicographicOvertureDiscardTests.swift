@@ -14,9 +14,9 @@ struct LexicographicOvertureDiscardTests {
   func anAdminDiscardsAndRecoversAnOvertureAndPostsALocutionOnIt(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
-    let submission = UUID().uuidString.lowercased()
-    let figurant = UUID().uuidString.lowercased()
-    let overture = UUID().uuidString.lowercased()
+    let submission = UUID().uuidString
+    let figurant = UUID().uuidString
+    let overture = UUID().uuidString
     func remove() {
       _ = try? TestAdmin.query(
         """
@@ -50,7 +50,7 @@ struct LexicographicOvertureDiscardTests {
         try await expect(tab.locator("button[form='overture-recover']")).toHaveCount(0)
 
         // The thread: its opening, and the box that posts to the overture.
-        try await expect(tab.locator("[id='creation-\(overture)' i]")).toHaveCount(1)
+        try await expect(tab.locator("#creation-\(overture)")).toHaveCount(1)
         try await tab.locator("#thread-locution-body").fill("The class is a verb here.")
         try await tab.locator(".thread-submit").click()
         try await expect(tab.locator(".thread")).toContainText("The class is a verb here.")

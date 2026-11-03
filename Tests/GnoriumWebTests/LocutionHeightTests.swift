@@ -11,7 +11,7 @@ struct LocutionHeightTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let word = try ScratchWord(owner: admin, pending: true)
-    let locution = UUID().uuidString.lowercased()
+    let locution = UUID().uuidString
     func remove() {
       _ = try? TestAdmin.query("DELETE FROM locutions WHERE id = '\(locution)';")
       word.remove()
@@ -21,11 +21,11 @@ struct LocutionHeightTests {
       let content = (1...100).map { "Paragraph \($0) keeps this long locution readable inside its own scrollport." }.joined(separator: "\n\n")
       _ = try TestAdmin.query("""
         INSERT INTO locutions (id, locutable_type, locutable_id, author_id, content, created_at)
-        VALUES ('\(locution)', 'lexicographic_madrigal', '\(word.madrigalID.lowercased())', '\(user)', '\(content)', now());
+        VALUES ('\(locution)', 'lexicographic_madrigal', '\(word.madrigalID)', '\(user)', '\(content)', now());
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated("/mission-control/madrigals/lexicographic/\(word.madrigalID)")
-        let body = page.locator("#locution-\(locution.uppercased()) .locution-body")
+        let body = page.locator("#locution-\(locution) .locution-body")
         try await expect(body).toContainText("Paragraph 100")
         // No cap (user, 2026-10-12): the locution grows to its content, the
         // page the one scrollport, so nothing nested fights it for the wheel.

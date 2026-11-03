@@ -173,7 +173,7 @@ struct TestAdmin: Sendable {
   /// This account's newest session row's id.
   func newestSessionID() throws -> String {
     try Self.query(
-      "SELECT sessions.id FROM sessions JOIN users ON users.id = sessions.user_id WHERE users.username = '\(username)' ORDER BY sessions.created_at DESC LIMIT 1;"
+      "SELECT upper(sessions.id::text) FROM sessions JOIN users ON users.id = sessions.user_id WHERE users.username = '\(username)' ORDER BY sessions.created_at DESC LIMIT 1;"
     )
   }
 
@@ -185,9 +185,12 @@ struct TestAdmin: Sendable {
       ).trimmingCharacters(in: .whitespacesAndNewlines)) ?? -1
   }
 
-  /// One column of this account's row, as psql prints it ("" for null).
+  /// One column of this account's row, as psql prints it ("" for null)—a
+  /// uuid in upper case, its one text form (psql prints it lower).
   func column(_ name: String) throws -> String {
-    try Self.query("SELECT COALESCE(\(name)::text, '') FROM users WHERE username = '\(username)';")
+    try Self.query(
+      "SELECT COALESCE(CASE WHEN pg_typeof(\(name)) = 'uuid'::regtype THEN upper(\(name)::text) ELSE \(name)::text END, '') FROM users WHERE username = '\(username)';"
+    )
   }
 
   // MARK: - HTTP

@@ -80,8 +80,8 @@ struct BaselinesTests {
   func baselinesArePublicWithTheirScoresCostAndDiffs(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
-    let datasetID = UUID().uuidString.lowercased()
-    let runID = UUID().uuidString.lowercased()
+    let datasetID = UUID().uuidString
+    let runID = UUID().uuidString
     let name = "web-tests-\(UUID().uuidString.prefix(8).lowercased())"
     try Self.insert(datasetID: datasetID, runID: runID, name: name)
     defer { Self.remove(datasetID: datasetID, runID: runID) }

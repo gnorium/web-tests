@@ -17,8 +17,8 @@ struct CompactionUnitsTests {
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
-    let antiphonID = UUID().uuidString.lowercased()
-    let nocturneID = UUID().uuidString.lowercased()
+    let antiphonID = UUID().uuidString
+    let nocturneID = UUID().uuidString
     func cleanUp() async throws {
       _ = try? TestAdmin.query(
         SessionTrace.delete(table: "bibliographic_explication_nocturne_instances", where: "id='\(nocturneID)'")
@@ -43,9 +43,9 @@ struct CompactionUnitsTests {
         """
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
-          VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
+          VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
-         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())'), 'explication', '1', 1)
+         VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)'), 'explication', '1', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
         VALUES ('\(nocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), 1200, now());

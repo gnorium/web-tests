@@ -80,7 +80,7 @@ struct ReplyRawToggleTests {
       }
       window.__total = chunks.length
       window.__emitted = 0
-      window.__label = () => document.querySelector('#locution-\(replyID.uppercased()) .computorium-session-view')
+      window.__label = () => document.querySelector('#locution-\(replyID) .computorium-session-view')
         ?.dataset.computoriumSessionImage ?? ''
       const Real = window.EventSource
       window.EventSource = class {
@@ -159,22 +159,22 @@ struct ReplyRawToggleTests {
         try await expect(page.locator(".locution-call-page"), timeout: .seconds(15)).toHaveCount(1)
       }
       let callID = try TestAdmin.query("""
-        SELECT id FROM locutions WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)' AND kind = 'call'
+        SELECT upper(id::text) FROM locutions WHERE locutable_type = 'bibliographic_madrigal' AND locutable_id = '\(objectID)' AND kind = 'call'
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         // Committed: the session queued, its reply submitted with it.
         try await page.openHydrated(reading.path)
-        try await page.locator("#locution-\(callID.uppercased()) .locution-commit").click()
+        try await page.locator("#locution-\(callID) .locution-commit").click()
         var sessionID = ""
         for _ in 0..<300 {
           sessionID = try TestAdmin.query(
-            "SELECT id FROM bibliographic_arbitration_sessions WHERE call_locution_id = '\(callID)' AND result = 'queued'")
+            "SELECT upper(id::text) FROM bibliographic_arbitration_sessions WHERE call_locution_id = '\(callID)' AND result = 'queued'")
           if !sessionID.isEmpty { break }
           try await Task.sleep(for: .milliseconds(100))
         }
         guard UUID(uuidString: sessionID) != nil else { throw WebTestError("Commit did not create the waiting session.") }
         let replyID = try TestAdmin.query(
-          "SELECT id FROM locutions WHERE arbitration_session_id = '\(sessionID)' AND kind = 'reply'")
+          "SELECT upper(id::text) FROM locutions WHERE arbitration_session_id = '\(sessionID)' AND kind = 'reply'")
         guard UUID(uuidString: replyID) != nil else { throw WebTestError("The Commit submitted no reply.") }
         // Running, its long trace recorded so far; held so the resumer
         // leaves it be.
@@ -188,7 +188,7 @@ struct ReplyRawToggleTests {
           """)
         try await page.addInitScript(Self.mock(replyID: replyID))
         try await page.openHydrated(reading.path + "#reply-raw-test")
-        let reply = "#locution-\(replyID.uppercased())"
+        let reply = "#locution-\(replyID)"
         // Mid-stream: the watch a third through its frames.
         #expect(try await page.evaluate("""
           (async () => {

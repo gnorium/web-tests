@@ -62,7 +62,7 @@ struct GlossTests {
         BEGIN;
         UPDATE lexico_record_versions SET record_json = jsonb_set(record_json::jsonb, '{senses,1,equivalents}',
             '[{"form":"\(german.title)","languageCode":"deu","recordPath":"\(german.path)#record-row-\(german.leaf)","equivalence":"broader"}]')::text
-          WHERE id = '\(english.versionID.lowercased())';
+          WHERE id = '\(english.versionID)';
         COMMIT;
         """)
       // The word's sentiment, assigned by its xml:id.
@@ -74,7 +74,7 @@ struct GlossTests {
         try await page.openHydrated(scratch.reading.work.path)
         _ = try await page.evaluate(
           """
-          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)' i]").closest('.record-node')
+          (() => { document.querySelector("[data-reader-url*='\(scratch.versionID)']").closest('.record-node')
             .querySelector(':scope > .accordion-details > .accordion-summary').click(); return true; })()
           """)
         // Its words are clicked once it has opened: while it grows, what

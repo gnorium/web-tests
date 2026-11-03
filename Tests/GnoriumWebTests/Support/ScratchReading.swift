@@ -10,14 +10,14 @@ struct ScratchReading {
   let madrigalID: String
   private let ownerID: String
   /// The serenade `translation(to:)` committed the madrigal to.
-  private let serenadeID = UUID().uuidString.lowercased()
+  private let serenadeID = UUID().uuidString
 
   init(owner: TestAdmin, tei: String, sourceURL: String = "https://example.org/web-tests") throws {
     work = try ScratchWork(owner: owner, sourceURL: sourceURL)
     let user = try owner.column("id")
     ownerID = user
-    antiphonID = UUID().uuidString.lowercased()
-    madrigalID = UUID().uuidString.lowercased()
+    antiphonID = UUID().uuidString
+    madrigalID = UUID().uuidString
     path = "/mission-control/madrigals/bibliographic/\(madrigalID)"
     let content = try String(
       decoding: JSONSerialization.data(withJSONObject: ["teiXml": tei]), as: UTF8.self
@@ -26,10 +26,10 @@ struct ScratchReading {
       """
       BEGIN;
       INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status, created_at, updated_at)
-        VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted', now(), now());
+        VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted', now(), now());
       INSERT INTO bibliographic_madrigals (id, proposed_content_json, processing_status, biblio_record_id, bibliographic_antiphon_id, thread_id, metadata_json, created_at, updated_at)
-        VALUES ('\(madrigalID)', '\(content)', 'pending', '\(work.recordID.lowercased())', '\(antiphonID)', '\(madrigalID)',
-          (SELECT metadata_json FROM biblio_record_versions WHERE id = '\(work.versionID.lowercased())'), now(), now());
+        VALUES ('\(madrigalID)', '\(content)', 'pending', '\(work.recordID)', '\(antiphonID)', '\(madrigalID)',
+          (SELECT metadata_json FROM biblio_record_versions WHERE id = '\(work.versionID)'), now(), now());
       COMMIT;
       """)
   }
@@ -47,7 +47,7 @@ struct ScratchReading {
       VALUES ('\(serenadeID)', '\(madrigalID)', 'eng', '[]', '\(ownerID)', 'submitted');
     INSERT INTO bibliographic_epilogues (id, thread_id, bibliographic_overture_id, bibliographic_serenade_id,
       biblio_record_id, proposed_content_json, metadata_json, shape_json, translation_json, processing_status)
-      SELECT '\(epilogue)', '\(epilogue)', '\(work.overtureID.lowercased())', '\(serenadeID)', p.biblio_record_id,
+      SELECT '\(epilogue)', '\(epilogue)', '\(work.overtureID)', '\(serenadeID)', p.biblio_record_id,
         p.proposed_content_json, p.metadata_json, p.shape_json,
         json_build_object('sourceLanguage', p.metadata_json::jsonb->>'language', 'targetLanguage', 'eng', 'tei', '', 'pages', '[]'::json)::text,
         'pending'

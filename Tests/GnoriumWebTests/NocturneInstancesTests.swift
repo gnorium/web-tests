@@ -14,10 +14,10 @@ struct NocturneInstancesTests {
   private func check(instances: Int, hidden: Bool, engine: BrowserEngine) async throws {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
-    let antiphonID = UUID().uuidString.lowercased()
-    let instanceIDs = (0..<instances).map { _ in UUID().uuidString.lowercased() }
+    let antiphonID = UUID().uuidString
+    let instanceIDs = (0..<instances).map { _ in UUID().uuidString }
     let head = "md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid"
-    let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID.lowercased())')"
+    let batch = "(SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)')"
     func cleanUp() async throws {
       for id in instanceIDs {
         _ = try? TestAdmin.query(SessionTrace.delete(table: "bibliographic_explication_nocturne_instances", where: "id='\(id)'"))
@@ -32,7 +32,7 @@ struct NocturneInstancesTests {
       var statements = """
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
-          VALUES ('\(antiphonID)', '\(work.madrigalID.lowercased())', '\(user)', '[]', 'submitted');
+          VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
         INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
           VALUES (\(head), '\(antiphonID)', \(batch), 'explication', '1', \(instances));
         """

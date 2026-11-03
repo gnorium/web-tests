@@ -90,7 +90,7 @@ struct LexicoRecordArtifactsTests {
       assignment = try ScratchAssignment(
         owner: admin, testament: scratch, word: scratchWord, image: Self.service, wordID: "webtests-artifact-word",
         surface: "scratchword", lemma: "scratchword", wordClass: "noun")
-      let leaf = scratchWord.leaf.lowercased()
+      let leaf = scratchWord.leaf
       try await withPage(engine, gnorium, viewport: width.viewport) { page in
         try await page.openHydrated(scratchWord.path)
 

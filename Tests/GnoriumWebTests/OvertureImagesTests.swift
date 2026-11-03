@@ -240,9 +240,9 @@ struct OvertureImagesTests {
         try await expect(prompts.locator(".field-diff-diff").first).toContainText("Web tests legend suggestion.")
         try await page.locator(".revision-form button[type='submit']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL(
-          "the overture at its locution", where: { url in url.path.lowercased() == palinode.path.lowercased() })
+          "the overture at its locution", where: { url in url.path == palinode.path })
       }
-      let id = try TestAdmin.query("SELECT id FROM revisions WHERE requested_by_user_id = '\(user)'").uppercased()
+      let id = try TestAdmin.query("SELECT upper(id::text) FROM revisions WHERE requested_by_user_id = '\(user)'")
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [admin.cookie]) { page in
         // Accepted from the thread.
         try await page.openHydrated(palinode.path)
@@ -251,7 +251,7 @@ struct OvertureImagesTests {
         try await accept.click()
         try await expect(page, timeout: .seconds(15)).toHaveURL(
           "the overture at its locution",
-          where: { url in url.path.lowercased() == palinode.path.lowercased() && (url.fragment ?? "").hasPrefix("revision-") })
+          where: { url in url.path == palinode.path && (url.fragment ?? "").hasPrefix("revision-") })
         try await expect(page.locator("#revision-\(id)-verdict-1")).toContainText("as accepted")
         try await expect(page.locator("#prompt-overture-body")).toContainText("Web tests legend suggestion.")
 

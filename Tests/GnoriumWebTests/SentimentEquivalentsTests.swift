@@ -22,7 +22,7 @@ struct SentimentEquivalentsTests {
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let english = try ScratchWord(owner: admin)
     let german = try ScratchWord(owner: admin, language: "deu")
-    let vignette = UUID().uuidString.lowercased()
+    let vignette = UUID().uuidString
     let term = #"[{"form":"\#(german.title)","languageCode":"deu","recordPath":"\#(german.path)#record-row-\#(german.leaf)","equivalence":"broader"}]"#
     do {
       // A later vignette of the English record: its sense lists the German word.
@@ -32,7 +32,7 @@ struct SentimentEquivalentsTests {
         INSERT INTO lexico_record_versions (id, lexico_record_id, lexicographic_madrigal_id, status, provisional, record_json, created_at)
           SELECT '\(vignette)', lexico_record_id, NULL, status, true,
               jsonb_set(record_json::jsonb, '{senses,1,equivalents}', '\(term)')::text, now() + interval '1 second'
-            FROM lexico_record_versions WHERE id = '\(english.versionID.lowercased())';
+            FROM lexico_record_versions WHERE id = '\(english.versionID)';
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         // The English record lists the German word under the sentiment's Translations.

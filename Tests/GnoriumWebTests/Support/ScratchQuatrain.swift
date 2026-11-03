@@ -34,7 +34,7 @@ struct ScratchQuatrain {
     precondition(["calibrating", "failed", "submitted"].contains(status))
     self.owner = owner.username
     let user = try owner.column("id")
-    func id() -> String { UUID().uuidString.lowercased() }
+    func id() -> String { UUID().uuidString }
     submissionID = id()
     figurantID = id()
     overtureID = id()

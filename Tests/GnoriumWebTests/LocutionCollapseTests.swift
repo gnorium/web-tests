@@ -18,7 +18,7 @@ struct LocutionCollapseTests {
   static func press(_ locutionID: String) -> String {
     """
     (async () => {
-      const root = document.getElementById('locution-\(locutionID.uppercased())');
+      const root = document.getElementById('locution-\(locutionID)');
       const fold = root.querySelector('.locution-fold');
       const height = () => fold.getBoundingClientRect().height;
       const gap = () => parseFloat(getComputedStyle(root.querySelector('.locution-content')).rowGap);
@@ -39,7 +39,7 @@ struct LocutionCollapseTests {
     let reader = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let scratch: ScratchCommit
     do { scratch = try ScratchCommit(owner: reader) } catch { try await reader.remove(after: error) }
-    let locutionID = UUID().uuidString.lowercased()
+    let locutionID = UUID().uuidString
     func removeLocution() {
       _ = try? TestAdmin.query("DELETE FROM locutions WHERE id = '\(locutionID)';")
     }
@@ -48,12 +48,12 @@ struct LocutionCollapseTests {
       _ = try TestAdmin.query(
         """
         INSERT INTO locutions (id, locutable_type, locutable_id, author_id, content, created_at)
-          VALUES ('\(locutionID)', 'bibliographic_madrigal', '\(scratch.madrigalID.lowercased())', '\(readerID)',
+          VALUES ('\(locutionID)', 'bibliographic_madrigal', '\(scratch.madrigalID)', '\(readerID)',
                   'The long s is consistent through the page.', now());
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [reader.cookie]) { page in
         try await page.openHydrated(scratch.madrigalPath)
-        let locution = page.locator("#locution-\(locutionID.uppercased())")
+        let locution = page.locator("#locution-\(locutionID)")
         let toggle = locution.locator("button.locution-collapse")
         let overlay = toggle.locator(".locution-collapse-overlay")
         let body = locution.locator(".locution-body")
@@ -159,14 +159,14 @@ struct LocutionCollapseTests {
     let reader = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let scratch: ScratchCommit
     do { scratch = try ScratchCommit(owner: reader) } catch { try await reader.remove(after: error) }
-    let openID = UUID().uuidString.lowercased()
-    let foldedID = UUID().uuidString.lowercased()
+    let openID = UUID().uuidString
+    let foldedID = UUID().uuidString
     func removeLocutions() {
       _ = try? TestAdmin.query("DELETE FROM locutions WHERE id IN ('\(openID)', '\(foldedID)');")
     }
     do {
       let readerID = try reader.column("id")
-      let madrigalID = scratch.madrigalID.lowercased()
+      let madrigalID = scratch.madrigalID
       _ = try TestAdmin.query(
         """
         INSERT INTO locutions (id, locutable_type, locutable_id, author_id, content, created_at)
@@ -177,8 +177,8 @@ struct LocutionCollapseTests {
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [reader.cookie]) { page in
         try await page.openHydrated(scratch.madrigalPath)
-        let open = page.locator("#locution-\(openID.uppercased())")
-        let folded = page.locator("#locution-\(foldedID.uppercased())")
+        let open = page.locator("#locution-\(openID)")
+        let folded = page.locator("#locution-\(foldedID)")
         let toggle = page.locator(".thread-collapse")
         let section = page.locator(".thread-view")
         let content = page.locator(".thread-section-content")
@@ -265,14 +265,14 @@ struct LocutionCollapseTests {
     let reader = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let scratch: ScratchCommit
     do { scratch = try ScratchCommit(owner: reader) } catch { try await reader.remove(after: error) }
-    let madrigalID = scratch.madrigalID.lowercased()
-    let firstID = UUID().uuidString.lowercased()
-    let lastID = UUID().uuidString.lowercased()
-    let hundredthID = UUID().uuidString.lowercased()
+    let madrigalID = scratch.madrigalID
+    let firstID = UUID().uuidString
+    let lastID = UUID().uuidString
+    let hundredthID = UUID().uuidString
     // Drumrolls (antiphons' creations) either side of the 100th locution's
     // boundary: one just before it, one just after.
-    let beforeID = UUID().uuidString.lowercased()
-    let afterID = UUID().uuidString.lowercased()
+    let beforeID = UUID().uuidString
+    let afterID = UUID().uuidString
     func removeLocutions() {
       _ = try? TestAdmin.query(
         """
@@ -312,28 +312,28 @@ struct LocutionCollapseTests {
         try await expect(page.locator(".table-pagination-controls")).toBeVisible()
 
         // A link to an item on another page opens the page holding it.
-        try await page.openHydrated(scratch.madrigalPath + "#locution-\(firstID.uppercased())")
-        try await expect(page.locator("#locution-\(firstID.uppercased())")).toBeInViewport()
+        try await page.openHydrated(scratch.madrigalPath + "#locution-\(firstID)")
+        try await expect(page.locator("#locution-\(firstID)")).toBeInViewport()
         try await expect(page.locator(".pagination-info")).toHaveText("1–100 of 150 locutions")
         // And back to the last page for the newest: where a posted reply or
         // any new item lands (the page after posting has no page asked for).
-        try await page.openHydrated(scratch.madrigalPath + "#locution-\(lastID.uppercased())")
-        try await expect(page.locator("#locution-\(lastID.uppercased())")).toBeInViewport()
+        try await page.openHydrated(scratch.madrigalPath + "#locution-\(lastID)")
+        try await expect(page.locator("#locution-\(lastID)")).toBeInViewport()
         try await expect(page.locator(".pagination-info")).toHaveText("101–150 of 150 locutions")
 
         // The boundary falls right after the 100th locution: page 2 begins
         // with the drumroll that follows it, page 1 ends with locution 100
         // and holds the drumroll before it.
         try await expect(page.locator(".thread-timeline > *").first)
-          .toHaveAttribute("id", "creation-\(afterID.uppercased())")
+          .toHaveAttribute("id", "creation-\(afterID)")
         try await page.openHydrated(scratch.madrigalPath + "?locutions=1")
         try await expect(page.locator(".thread-timeline > *").last)
-          .toHaveAttribute("id", "locution-\(hundredthID.uppercased())")
-        try await expect(page.locator("#creation-\(beforeID.uppercased())")).toHaveCount(1)
-        try await expect(page.locator("#creation-\(afterID.uppercased())")).toHaveCount(0)
+          .toHaveAttribute("id", "locution-\(hundredthID)")
+        try await expect(page.locator("#creation-\(beforeID)")).toHaveCount(1)
+        try await expect(page.locator("#creation-\(afterID)")).toHaveCount(0)
         // A link to the drumroll after the boundary opens page 2.
-        try await page.openHydrated(scratch.madrigalPath + "?locutions=1#creation-\(afterID.uppercased())")
-        try await expect(page.locator("#creation-\(afterID.uppercased())")).toHaveCount(1)
+        try await page.openHydrated(scratch.madrigalPath + "?locutions=1#creation-\(afterID)")
+        try await expect(page.locator("#creation-\(afterID)")).toHaveCount(1)
         try await page.openHydrated(scratch.madrigalPath + "?locutions=1")
 
         // The first page by its query: a hundred.

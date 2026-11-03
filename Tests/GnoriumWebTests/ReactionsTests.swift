@@ -25,7 +25,7 @@ struct ReactionsTests {
       try? await other.remove()
       try await reader.remove(after: error)
     }
-    let locutionID = UUID().uuidString.lowercased()
+    let locutionID = UUID().uuidString
     func removeLocution() {
       _ = try? TestAdmin.query(
         """
@@ -42,7 +42,7 @@ struct ReactionsTests {
         """
         BEGIN;
         INSERT INTO locutions (id, locutable_type, locutable_id, author_id, content, created_at)
-          VALUES ('\(locutionID)', 'bibliographic_madrigal', '\(scratch.madrigalID.lowercased())', '\(readerID)',
+          VALUES ('\(locutionID)', 'bibliographic_madrigal', '\(scratch.madrigalID)', '\(readerID)',
                   'The long s is consistent through the page.', now());
         INSERT INTO reactions (id, reactable_type, reactable_id, author_id, emoji, created_at)
           VALUES (gen_random_uuid(), 'locution', '\(locutionID)', '\(readerID)', '🎉', now() - interval '2 hours'),
@@ -52,11 +52,11 @@ struct ReactionsTests {
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [reader.cookie]) { page in
         try await page.openHydrated(scratch.madrigalPath)
-        let locution = page.locator("#locution-\(locutionID.uppercased())")
+        let locution = page.locator("#locution-\(locutionID)")
         try await expect(locution).toBeAttached()
         // Reactions are only on locutions: the thread's acts—here the
         // madrigal's creation—carry no picker and no pills.
-        let creation = page.locator("#creation-\(scratch.madrigalID.uppercased())")
+        let creation = page.locator("#creation-\(scratch.madrigalID)")
         try await expect(creation).toBeAttached()
         try await expect(creation.locator(".reaction-picker-trigger")).toHaveCount(0)
         try await expect(creation.locator(".reactions-reaction")).toHaveCount(0)
@@ -208,7 +208,7 @@ struct ReactionsTests {
         // and the picker trigger are (user, 2026-10-15).
         let picker = locution.locator(".reaction-picker-choices")
         let frame = """
-          (() => { const el = document.querySelector('#locution-\(locutionID.uppercased())');
+          (() => { const el = document.querySelector('#locution-\(locutionID)');
             return [el.querySelector('.reaction-picker-choices').getBoundingClientRect().height,
               el.querySelector('.reactions-reaction button').getBoundingClientRect().height
                 - el.querySelector('.reaction-picker-trigger').getBoundingClientRect().height]; })()

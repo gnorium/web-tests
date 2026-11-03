@@ -64,13 +64,13 @@ struct QuatrainTests {
         try await expect(row).toContainText(scratch.title)
         try await expect(row).toContainText("Calibrating")
         try await expect(row).toContainText("4")
-        try await expect(row.locator("a[href='\(scratch.overturePath)' i]")).toHaveCount(1)
+        try await expect(row.locator("a[href='\(scratch.overturePath)']")).toHaveCount(1)
         // The lexicographic tab is empty for now.
         try await page.openHydrated("/mission-control/quatrains/lexicographic")
         try await expect(page.getByText("No lexicographic quatrains.")).toBeVisible()
         // The ID opens its page.
         try await page.openHydrated("/mission-control/quatrains/bibliographic")
-        try await page.locator("a[href='\(scratch.path)' i]").first.click()
+        try await page.locator("a[href='\(scratch.path)']").first.click()
         try await expect(page.locator("h1").first).toHaveText("Bibliographic Quatrain")
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
