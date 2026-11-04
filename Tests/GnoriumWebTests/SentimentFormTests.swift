@@ -61,7 +61,7 @@ struct SentimentFormTests {
       for gone in ["[id^='quote-accordion']", "input[name='coins[]']", "[data-derived-scope]", "input[name='anchors']"] {
         try await expect(form.locator(gone)).toHaveCount(0)
       }
-      try await expect(form.locator(".framed-accordion-view, #sentiment-accordion, #sentiment-placement"))
+      try await expect(form.locator("#sentiment-accordion, #sentiment-placement"))
         .toHaveCount(0)
       // Language a dropdown, English; placeholders their labels.
       try await expect(form.locator("#language")).toHaveValue("eng")

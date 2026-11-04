@@ -245,7 +245,7 @@ struct RecordTreeTests {
         // A node's Metadata holds its fields alone (user, 2026-10-09): no
         // image count, no other fact that is none of its fields.
         try await expect(tree.locator(".record-node-metadata > .datum-view")).toHaveCount(0)
-        try await expect(tree.locator(".record-node-metadata").getByText("Images", exact: true)).toHaveCount(0)
+        try await expect(tree.locator(".record-node-metadata").getByText("Frames", exact: true)).toHaveCount(0)
         // Focused from the keyboard, its ring is the focus ring every
         // control wears, as a locution's avatar's (user, 2026-11-03).
         try await fold.press("Enter")

@@ -93,7 +93,7 @@ struct GlossTests {
         let sheet = page.locator(".gloss-sheet")
         try await expect(sheet).toHaveCount(1)
         try await expect(sheet).toHaveAttribute("data-state", "open")
-        let pane = page.locator(".artifact-markup-frame").first
+        let pane = page.locator(".artifact-markup-viewport").first
         if layout == .phone {
           // The pane's frame holds it (which neither scrolls nor zooms), the
           // image and the page's chrome stay outside it.

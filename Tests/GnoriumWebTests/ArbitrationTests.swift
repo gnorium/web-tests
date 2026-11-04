@@ -11,7 +11,7 @@ struct ArbitrationTests {
   static let reply = "The selected evidence supports this reading."
   static let task = "Answer this query about the evidence item shown: Evidence fixture 2."
   /// The image the fixture session records as sent: gone at its source,
-  /// with no archived copy, so its chip shows an empty frame.
+  /// with no archived copy, so its chip shows an empty box.
   static let sentImage = "http://127.0.0.1:9/sent-page-1.jpg"
   static let toolDefinition =
     #"[{"type":"function","function":{"name":"read_record","description":"Read the exact human Revise fields and attached evidence.","parameters":{"type":"object","properties":{},"additionalProperties":false}}}]"#
@@ -166,8 +166,8 @@ struct ArbitrationTests {
           """).bool == true, "Commit sits between the call's words and its reactions")
         // Its byline names the page its writer was on, and nothing else,
         // linked to the page turned to it (user, 2026-10-17): "… submitted
-        // locution ‹id› on Image 3", not the page it ticked.
-        try await expect(call.locator(".locution-header")).toContainText("submitted locution \(callID) on Image 3")
+        // locution ‹id› on Frame 3", not the page it ticked.
+        try await expect(call.locator(".locution-header")).toContainText("submitted locution \(callID) on Frame 3")
         try await expect(call.locator("a:has(.locution-call-page)")).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID)?image=2")
         // Its body stays as typed; what it ticked is one sentence in a box
         // after it, as a revision's Modified line is: "Attached Image
@@ -180,7 +180,7 @@ struct ArbitrationTests {
         try await expect(attachments).toHaveCount(1)
         let words = try await attachments.evaluate(
           "e => e.querySelector('.list-sentence-lead').textContent + '|' + [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|') + '|' + e.querySelector('.locution-attachments-item a').textContent").string
-        #expect(words == "Attached| |.|Image 1", Comment(rawValue: words ?? "—"))
+        #expect(words == "Attached| |.|Frame 1", Comment(rawValue: words ?? "—"))
         try await expect(attachments).toHaveCSS("border-top-style", "solid")
         let attached = attachments.locator(".locution-attachment")
         try await expect(attached).toHaveCount(1)
@@ -386,7 +386,7 @@ struct ArbitrationTests {
         // call it answers instead.
         try await expect(call.locator(".locution-call-status")).toHaveCount(0)
         try await expect(call.locator(".locution-commit")).toHaveCount(0)
-        try await expect(call.locator(".locution-call-page")).toHaveText("Image 3")
+        try await expect(call.locator(".locution-call-page")).toHaveText("Frame 3")
         try await expect(reply.locator(".locution-call-page")).toHaveCount(0)
         try await expect(reply.locator(".locution-header")).toContainText("gnorium submitted locution \(replyID) replying to locution \(callID)")
         try await expect(reply.locator(".locution-header a[href='#locution-\(callID)']")).toHaveCount(1)
@@ -504,8 +504,8 @@ struct ArbitrationTests {
         try await expect(session.locator(".computorium-session-sent-images")).toHaveCount(0)
         #expect(try await taskImages.evaluate("""
           el => { const s = getComputedStyle(el), inner = el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight)
-            const frame = el.querySelector('.expandable-attachment-image-frame').getBoundingClientRect()
-            return frame.width > 0 && Math.abs(frame.width - inner) <= 1 }
+            const stage = el.querySelector('.expandable-attachment-image-stage').getBoundingClientRect()
+            return stage.width > 0 && Math.abs(stage.width - inner) <= 1 }
           """).bool == true, "The received stage spans its message's width")
         // The address sent is gone and no copy is archived yet: the stage
         // shows the page as the reader does, never a broken image.
@@ -1399,15 +1399,15 @@ struct ArbitrationTests {
         // The byline names the page on screen alone (user, 2026-10-17); both
         // ticked pages are its Attachments, each image a line-high chip.
         try await expect(page.locator(".locution-call-page")).toHaveCount(1)
-        try await expect(page.locator(".locution-header").first).toContainText("on Image 1")
-        try await expect(page.locator(".locution-header").first).not.toContainText("Image 2")
+        try await expect(page.locator(".locution-header").first).toContainText("on Frame 1")
+        try await expect(page.locator(".locution-header").first).not.toContainText("Frame 2")
         let both = try await page.locator(".locution-attachments").first.evaluate("""
           el => [...el.querySelectorAll('.locution-attachments-item')].map(item => {
             const path = item.querySelector('.thread-path')
             return path ? [...path.children].filter(c => !c.classList.contains('breadcrumb-separator-view'))
               .map(c => c.textContent.trim()).join(' › ') : item.querySelector('a').textContent.trim() }).join(' | ')
           """).string
-        #expect(both == "Image 1 | Image 2", Comment(rawValue: both ?? "—"))
+        #expect(both == "Frame 1 | Frame 2", Comment(rawValue: both ?? "—"))
         try await expect(page.locator(".locution-attachments .locution-attachment[data-presentation='line']"))
           .toHaveCount(2)
         try await page.expectNoErrors()
@@ -1512,8 +1512,8 @@ struct ArbitrationTests {
         // in the order its message carries them—Metadata, evidence,
         // locutions—the page's image a line-high chip.
         let call = page.locator(".locution-view").last
-        try await expect(call.locator(".locution-header")).toContainText("on Image 1")
-        try await expect(call.locator(".locution-header")).not.toContainText("Image 2")
+        try await expect(call.locator(".locution-header")).toContainText("on Frame 1")
+        try await expect(call.locator(".locution-header")).not.toContainText("Frame 2")
         try await expect(call.locator(".locution-body-rendered")).toHaveText("@gnorium Is the title right?")
         let attachments = call.locator(".list-sentence-view.locution-attachments")
         try await expect(attachments).toContainText("Attached ")
@@ -1527,7 +1527,7 @@ struct ArbitrationTests {
           "e => e.querySelector('.list-sentence-lead').textContent + '|' + [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|')").string
         #expect(joined == "Attached| |, |, and |.", Comment(rawValue: joined ?? "—"))
         // Metadata by its node's heading, as its accordion names it.
-        #expect(crumbs?.hasPrefix("Metadata › ") == true && crumbs?.hasSuffix(" | Image 2 | Locution \(firstID)") == true
+        #expect(crumbs?.hasPrefix("Metadata › ") == true && crumbs?.hasSuffix(" | Frame 2 | Locution \(firstID)") == true
           && crumbs?.components(separatedBy: " | ").count == 3, Comment(rawValue: crumbs ?? "—"))
         try await expect(attachments.locator(".locution-attachments-item a[href='#locution-\(firstID)']")).toHaveCount(1)
         try await expect(attachments.locator(".locution-attachments-item").nth(1)

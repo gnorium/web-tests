@@ -254,7 +254,7 @@ struct BibliographicExplicationSessionsTests {
         try await expect(turn.locator(".message-blocks-text")).toHaveText("Region")
         let received = turn.locator(".expandable-attachment-view[data-presentation='received']")
         try await expect(received).toHaveCount(1)
-        try await expect(received.locator(".expandable-attachment-image-frame")).toBeVisible()
+        try await expect(received.locator(".expandable-attachment-image-stage")).toBeVisible()
         let sent = received.locator("img.expandable-attachment-image-received")
         try await expect(sent).toHaveAttribute("src", region)
         try await expect(sent).toHaveAttribute("width", "600")
@@ -265,8 +265,8 @@ struct BibliographicExplicationSessionsTests {
             const turn = document.querySelector('.computorium-session-view .computorium-session-image-turn');
             const blocks = turn.querySelector('.message-blocks-view'), s = getComputedStyle(blocks);
             const inner = blocks.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight);
-            const frame = turn.querySelector('.expandable-attachment-image-frame').getBoundingClientRect();
-            return Math.abs(frame.width - inner) <= 1;
+            const stage = turn.querySelector('.expandable-attachment-image-stage').getBoundingClientRect();
+            return Math.abs(stage.width - inner) <= 1;
           })()
           """, as: Bool.self)
         #expect(fullWidth, "The received stage spans its message's width")

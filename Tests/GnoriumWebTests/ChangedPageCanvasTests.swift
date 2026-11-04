@@ -288,7 +288,7 @@ struct ChangedPageCanvasTests {
         // The notice no longer says the archived image is shown: it could
         // not be loaded.
         try await expect(said).toHaveText(
-          "The archived image that was sent could not be loaded, so no image is shown.")
+          "The archived frame that was sent could not be loaded, so no frame is shown.")
         try await Task.sleep(for: .milliseconds(600))
         let alone = try await Self.panes(page)
         #expect(
@@ -346,7 +346,7 @@ struct ChangedPageCanvasTests {
         _ = try TestAdmin.query("UPDATE wayback_saves SET status = 'saved' WHERE url = '\(full)'")
         try await page.openHydrated(commit.madrigalPath)
         try await expect(shownImage).toHaveAttribute("href", archived)
-        try await expect(said).toHaveText("The image shown is the one that was sent, as archived.")
+        try await expect(said).toHaveText("The frame shown is the one that was sent, as archived.")
         #expect(try await Self.readerRequests(page, "\(base)/page-1/") == 0, "never the image now")
 
         // Not archived (`"blank":true`): the text alone at once, no copy
@@ -354,7 +354,7 @@ struct ChangedPageCanvasTests {
         _ = try TestAdmin.query("DELETE FROM wayback_saves WHERE url = '\(full)'")
         try await page.openHydrated(commit.madrigalPath)
         try await expect(toggle).toHaveAttribute("aria-disabled", "true")
-        try await expect(said).toHaveText("The image that was sent isn’t archived, so no image is shown.")
+        try await expect(said).toHaveText("The frame that was sent isn’t archived, so no frame is shown.")
         try await Task.sleep(for: .milliseconds(600))
         let blank = try await Self.panes(page)
         #expect(

@@ -200,6 +200,67 @@ struct LexicographicAmendmentTests {
     try await clean()
   }
 
+  /// A new sentiment needs no quote (user, 2026-11-05), as Submit
+  /// Sentiment's does not: its one Source box goes by "− Source", and the
+  /// amendment files with its value alone, its palinode's sentiment holding
+  /// no quotes; an admin permits it.
+  @Test(arguments: [BrowserEngine.chrome])
+  func aNewSentimentMayHaveNoQuotes(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let word = try ScratchWord(owner: admin)
+    func clean() async throws {
+      _ = try? TestAdmin.query(
+        """
+        BEGIN;
+        DELETE FROM locutions WHERE locutable_id IN
+          (SELECT id FROM lexicographic_record_overtures WHERE lexico_record_id = '\(word.recordID)');
+        DELETE FROM lexicographic_record_overtures WHERE lexico_record_id = '\(word.recordID)';
+        DELETE FROM sentiments WHERE lexicographic_palinode_id IN
+          (SELECT id FROM lexicographic_palinodes WHERE lexico_record_id = '\(word.recordID)');
+        DELETE FROM lexicographic_palinodes WHERE lexico_record_id = '\(word.recordID)';
+        DELETE FROM sentiment_inventories WHERE lemma = '\(word.title)';
+        COMMIT;
+        """)
+      word.remove()
+      try await admin.remove()
+    }
+    do {
+      try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine), cookies: [admin.cookie]) {
+        page in
+        try await page.openHydrated("\(word.path)/amendments/new")
+        let form = page.locator("form.submit-lexicographic-amendment-form")
+        let draft = form.locator(".sentiment-outliner-view .outliner-item[data-outliner-id='new']")
+        let steps = TreeStepper(page, tree: "sentiment-outline")
+        try await steps.add("Add sentiment 2.")
+        try await expect(draft).toBeVisible()
+        try await form.locator("textarea[name='new-sentiment-value']").fill("A sense no quote attests.")
+        // Its one Source box removable, as on Submit Sentiment.
+        let boxes = draft.locator(".quote-sources-view .quote-source")
+        try await expect(boxes).toHaveCount(1)
+        let removeSource = boxes.first.locator(".quote-passage-source-remove")
+        try await expect(removeSource).toBeVisible()
+        try await removeSource.click()
+        try await expect(boxes).toHaveCount(0)
+        try await form.locator(".record-actions button[type='submit']").click()
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the overture's page") {
+          $0.path.hasPrefix("/mission-control/overtures/lexicographic/amendments/")
+        }
+        let sentiment = try TestAdmin.query(
+          "SELECT sentiment_json FROM lexicographic_palinodes WHERE lexico_record_id = '\(word.recordID)'")
+        #expect(sentiment.contains("A sense no quote attests."), "\(sentiment)")
+        #expect(!sentiment.contains(#""quotes""#), "\(sentiment)")
+        try await expect(page.locator("button").filter(hasText: "Permit").first).toBeVisible()
+        try await page.expectNoErrors()
+      }
+    } catch {
+      try await clean()
+      throw error
+    }
+    try await clean()
+  }
+
   /// A refused Submit—a new sentiment without the image its quote is on
   /// and its testament's Source URL—draws the form again (422), never the
   /// error page: why in one sentence above Submit, the new sentiment's

@@ -199,14 +199,14 @@ struct QuoteSourcesTests {
         // the row is its Citation card's (user, 2026-11-03), disabled:
         // "+ Quote" and "− Citation".
         let shape = try await pending.evaluate(
-          "(v) => { const frame = v.querySelector('.quote-source-frame'); return [...frame.children].map((n) => n.matches('.source-accordion-frame') ? 'source' : n.matches('.quote-source-quote') ? 'quote' : n.matches('.quote-source-actions') ? 'row' : 'other').join(',') }"
+          "(v) => { const box = v.querySelector('.quote-source-box'); return [...box.children].map((n) => n.matches('.source-accordion-wrapper') ? 'source' : n.matches('.quote-source-quote') ? 'quote' : n.matches('.quote-source-actions') ? 'row' : 'other').join(',') }"
         ).string
         #expect(shape == "source,quote", "a pending quote shows its Source accordion and its Quote card")
         let citation = page.locator(".outgoing-citation:has(.pending-quote-view)").first
         try await expect(citation.locator(".outgoing-citation-actions button[disabled]")).toHaveCount(2)
         try await expect(pending.locator(".quote-source-quote .testament-view")).toHaveCount(1)
         try await expect(pending.locator(".info-chip-text")).toHaveCount(0)
-        try await expect(pending).not.toContainText("Images")
+        try await expect(pending).not.toContainText("Frames")
         try await expect(pending.locator(".pending-quote-status")).toHaveCount(0)
       }
     } catch {

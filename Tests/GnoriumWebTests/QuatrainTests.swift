@@ -148,7 +148,7 @@ struct QuatrainTests {
         try await page.openHydrated(scratch.path)
         try await expect(page.locator(".computorium-core-header-status-chip").first).toContainText("Failed")
         try await expect(page.getByRole(.button, name: "Continue")).toHaveCount(0)
-        try await expect(page.locator("div.computorium-core-view")).toContainText("Image 2 cannot be measured.")
+        try await expect(page.locator("div.computorium-core-view")).toContainText("Frame 2 cannot be measured.")
         // It opens on the page that failed it; the failed page's mark is
         // calibration's target mark in red: the red ring.
         try await Self.expectRoster(
@@ -180,7 +180,7 @@ struct QuatrainTests {
         // stay open until it has: wait for the move. Dev has no model
         // service, so the runner may fail it again at once, for another
         // reason than the one it had: either way it was taken up.
-        let before = "Image 2 cannot be measured."
+        let before = "Frame 2 cannot be measured."
         var status = try scratch.status()
         var error = try scratch.error()
         for _ in 0..<40 where status == "failed" && error == before {

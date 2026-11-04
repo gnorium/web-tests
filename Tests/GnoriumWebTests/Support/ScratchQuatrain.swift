@@ -50,7 +50,7 @@ struct ScratchQuatrain {
     let pagesJSON = "[\(pages)]"
     let source = "https://web-tests.invalid/\(figurantID).pdf"
     let scope = "[" + images.map { "\"\($0.components(separatedBy: "/full/")[0])\"" }.joined(separator: ",") + "]"
-    let error = status == "failed" ? "'Image 2 cannot be measured.'" : "NULL"
+    let error = status == "failed" ? "'Frame 2 cannot be measured.'" : "NULL"
     let services = images.map { $0.components(separatedBy: "/full/")[0] }
     let measured: [[String: String]] = [
       ["type": "thinking", "content": "Measuring the first page."],
@@ -86,7 +86,7 @@ struct ScratchQuatrain {
        ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_calibration_nocturnes.instance_count + 1;
       INSERT INTO bibliographic_calibration_nocturne_instances (id, nocturne_id, instance, provider, model, result, error_message, duration_ms, created_at, finished_at)
       VALUES ('\(nocturneIDs[0])', md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[0])')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'passed', NULL, 1500, now(), now()),
-        ('\(nocturneIDs[1])', md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[1])')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'failed', 'Image 2 cannot be measured.', 900, now(), now()),
+        ('\(nocturneIDs[1])', md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[1])')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'failed', 'Frame 2 cannot be measured.', 900, now(), now()),
         ('\(nocturneIDs[2])', md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[2])')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', '\(status == "submitted" ? "passed" : "running")', NULL, NULL, now(), NULL);
       INSERT INTO scan_layouts (id, image_url, fetched_url, bytes_sha256, width, height, measuring_version, layout, fetch_ms, measure_ms)
         VALUES ('\(layoutID)', '\(images[0])', '\(images[0])', '\(String(repeating: "a", count: 64))', 100, 100, '\(String(repeating: "b", count: 64))', '{}'::jsonb, 1, 1);

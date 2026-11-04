@@ -97,7 +97,7 @@ struct QuoteTests {
         ])
         try await expect(heading.locator(".quote-source-fields")).toContainText(work.title)
         try await expect(heading.locator(".quote-source-fields")).not.toContainText("Quote")
-        try await expect(heading.locator(".quote-source-fields")).not.toContainText("Images start")
+        try await expect(heading.locator(".quote-source-fields")).not.toContainText("Frames start")
         let headingAbove = try await attestation.evaluate(
           "(view) => { const h = view.querySelector('.quote-source-view').getBoundingClientRect(); const q = view.querySelector('.testament-view').getBoundingClientRect(); return h.bottom <= q.top }")
         #expect(headingAbove == .bool(true), "the Source box is not above the quote")

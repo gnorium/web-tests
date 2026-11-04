@@ -153,7 +153,7 @@ struct ImageTests {
         #expect(abs(row.height - (control + 16)) < 1, "the header's row is \(control + 16)")
         for (name, control, icon) in [
           ("Find", find, find.locator("svg")),
-          ("Image", toggle, toggle.locator("svg")),
+          ("Frame", toggle, toggle.locator("svg")),
         ] {
           let box = try #require(try await control.boundingBox())
           let iconBox = try #require(try await icon.boundingBox())
@@ -164,8 +164,8 @@ struct ImageTests {
         }
 
         // Off: the transcript alone, the whole width, and no image asked for.
-        // The switch is the image icon alone, named "Image".
-        try await expect(toggle).toHaveAccessibleName("Image")
+        // The switch is the image icon alone, named "Frame".
+        try await expect(toggle).toHaveAccessibleName("Frame")
         try await expect(viewer.locator(".artifact-canvas-toggle .toggle-button-label")).toHaveCount(0)
         try await expect(toggle.locator("svg.image-icon-view")).toHaveCount(1)
         try await expect(toggle).toHaveAttribute("aria-pressed", "false")

@@ -13,7 +13,7 @@ struct ArtifactOverlayTests {
       try String(contentsOf: assets.appendingPathComponent("style-sheets/" + $0), encoding: .utf8)
     }.joined(separator: "\n")
     let html = "<html><head><style>" + css + #"""
-      body{margin:0}.artifact-view{width:100%;height:440px}.artifact-viewer-container{height:400px;flex:none}.image-view,.image-viewport{width:100%;height:100%;position:relative;overflow:hidden}.image-tile-surface{position:absolute;inset:0;width:100%;height:100%}.tei-line{font-family:serif!important}</style><link rel="icon" href="data:,"></head><body><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest"><div class="artifact-viewer-container"><div class="artifact-markup-frame"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan"><div class="tei-page-text" data-layer="rendering"><span class="tei-line">Overlay text</span></div></div></div></div></div><div class="artifact-object"><div class="image-view" data-service-id="/scan"><div class="image-viewport"><div class="image-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
+      body{margin:0}.artifact-view{width:100%;height:440px}.artifact-viewer-container{height:400px;flex:none}.image-view,.image-viewport{width:100%;height:100%;position:relative;overflow:hidden}.image-tile-surface{position:absolute;inset:0;width:100%;height:100%}.tei-line{font-family:serif!important}</style><link rel="icon" href="data:,"></head><body><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest"><div class="artifact-viewer-container"><div class="artifact-markup-viewport"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan"><div class="tei-page-text" data-layer="rendering"><span class="tei-line">Overlay text</span></div></div></div></div></div><div class="artifact-object"><div class="image-view" data-service-id="/scan"><div class="image-viewport"><div class="image-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
       """#
     let server = try await FixtureServer(files: [
       "/": .init(contentType: "text/html", body: Data(html.utf8)),
@@ -31,7 +31,7 @@ struct ArtifactOverlayTests {
       try await page.evaluate("new Promise(resolve=>setTimeout(resolve,700))")
       let checks = try await page.evaluate(#"""
         (async()=>{
-            let r=document.querySelector('.artifact-view'),f=r.querySelector('.artifact-markup-frame'),o=r.querySelector('.artifact-object'),l=r.querySelector('[data-layer=rendering]'),v=r.querySelector('.image-viewport'),d=r.querySelector('.artifact-detach-toggle');
+            let r=document.querySelector('.artifact-view'),f=r.querySelector('.artifact-markup-viewport'),o=r.querySelector('.artifact-object'),l=r.querySelector('[data-layer=rendering]'),v=r.querySelector('.image-viewport'),d=r.querySelector('.artifact-detach-toggle');
             const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));const size=()=>[f.getBoundingClientRect().width,f.getBoundingClientRect().height,o.getBoundingClientRect().width,o.getBoundingClientRect().height];const toggle=on=>r.querySelector('.artifact-overlay-toggle').dispatchEvent(new CustomEvent('toggle-button-update',{detail:on?'true':'false'}));
             let before=size();
             const pane=r.querySelector('.artifact-markup');let pb=pane.getBoundingClientRect();
@@ -84,15 +84,15 @@ struct ArtifactOverlayTests {
   /// transform taking four points to four (each [x, y]), and `apply`.
   static let shared = #"""
     const inkBox=layer => inkOf(layer, layer.querySelector('.tei-text-block') || layer, true);
-    // One element's text's ink (a line's), no rule or frame.
+    // One element's text's ink (a line's), no rule or box.
     const inkIn=element => inkOf(element, element, false);
-    const inkOf=(layer, frame, ruled) => {
+    const inkOf=(layer, textBlock, ruled) => {
       const box = layer.getBoundingClientRect();
       const context = document.createElement('canvas').getContext('2d');
       let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
       const take = (l, t, r, b) => { if (!(r > l && b > t)) return; left = Math.min(left, l); top = Math.min(top, t); right = Math.max(right, r); bottom = Math.max(bottom, b); };
       const blank = code => code === 32 || code === 9 || code === 10 || code === 13;
-      const walker = document.createTreeWalker(frame, NodeFilter.SHOW_TEXT);
+      const walker = document.createTreeWalker(textBlock, NodeFilter.SHOW_TEXT);
       const range = document.createRange();
       const rectOf = (node, start, end) => { range.setStart(node, start); range.setEnd(node, end); return range.getBoundingClientRect(); };
       for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -127,13 +127,13 @@ struct ArtifactOverlayTests {
           take(inkLeft, inkTop, inkRight, inkBottom);
         }
       }
-      if (ruled) for (const drawn of frame.querySelectorAll('.tei-rule, .tei-figure-image, .tei-frame')) {
+      if (ruled) for (const drawn of textBlock.querySelectorAll('.tei-rule, .tei-figure-image, .tei-box')) {
         const style = getComputedStyle(drawn);
         const ruled = ['top', 'right', 'bottom', 'left'].some(side => style.getPropertyValue('border-' + side + '-style') !== 'none' && parseFloat(style.getPropertyValue('border-' + side + '-width')) > 0);
-        if (drawn.matches('.tei-frame') && !ruled) continue;
+        if (drawn.matches('.tei-box') && !ruled) continue;
         const rect = drawn.getBoundingClientRect(); take(rect.left, rect.top, rect.right, rect.bottom);
       }
-      if (frame !== layer) { const edges = frame.getBoundingClientRect(); left = Math.max(left, edges.left); right = Math.min(right, edges.right); }
+      if (textBlock !== layer) { const edges = textBlock.getBoundingClientRect(); left = Math.max(left, edges.left); right = Math.min(right, edges.right); }
       return right > left && bottom > top ? [left, top, right, bottom] : null;
     };
     const homography=(source,destination)=>{const rows=[];source.forEach(([x,y],i)=>{const [u,v]=destination[i];rows.push([x,y,1,0,0,0,-u*x,-u*y,u]);rows.push([0,0,0,x,y,1,-v*x,-v*y,v])});
@@ -145,8 +145,8 @@ struct ArtifactOverlayTests {
     const laidOn=(zone,[L,T,R,B])=>{const across=Math.hypot(zone[1][0]-zone[0][0],zone[1][1]-zone[0][1]),down=Math.hypot(zone[3][0]-zone[0][0],zone[3][1]-zone[0][1]),half=across*(B-T)/down/2,mid=(L+R)/2;return [mid-half,T,mid+half,B]};
     """#
 
-  /// The synthetic page the structure tests read: thirty lines in a work
-  /// frame, its text block measured on a blank scan four times the text's
+  /// The synthetic page the structure tests read: thirty lines in a work's
+  /// type area, its text block measured on a blank scan four times the text's
   /// actual size; `blankPage`, a second page after it laid in blank, with
   /// no markup of its own (`data-has-markup`), on a canvas of its own;
   /// `blankCanvas`, a second page with markup whose canvas the manifest
@@ -182,9 +182,9 @@ struct ArtifactOverlayTests {
       : ""
     let blank: String =
       if blankPage {
-        #"<div class="tei-page" data-service-id="/blank" data-active="false" data-has-markup="false"><div class="tei-page-text" data-layer="rendering" data-framed="false"></div></div>"#
+        #"<div class="tei-page" data-service-id="/blank" data-active="false" data-has-markup="false"><div class="tei-page-text" data-layer="rendering" data-type-area="false"></div></div>"#
       } else if blankCanvas {
-        #"<div class="tei-page" data-service-id="/blank" data-active="false" data-has-markup="true"><div class="tei-page-text" data-layer="rendering" data-framed="false"><div class="tei-text-block">"#
+        #"<div class="tei-page" data-service-id="/blank" data-active="false" data-has-markup="true"><div class="tei-page-text" data-layer="rendering" data-type-area="false"><div class="tei-text-block">"#
           + lines + "</div></div></div>"
       } else {
         ""
@@ -199,8 +199,8 @@ struct ArtifactOverlayTests {
       }
     let html = "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>" + css + #"""
       body{margin:0}.artifact-view{width:100%;height:600px}.artifact-viewer-container{height:560px;flex:none}.tei-line{display:block;font-family:serif!important;white-space:nowrap;letter-spacing:0.3em}</style><link rel="icon" href="data:,"></head><body><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest">
-      """# + (imageSwitch ? #"<header><div class="artifact-canvas-toggle"><button>Image</button></div></header>"# : "") + #"""
-      <div class="artifact-viewer-container"><div class="artifact-markup-frame"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan" data-active="true" data-has-markup="true" data-text-block="300,240 700,248 694,700 294,692"\#(wordData)><div class="tei-page-text" data-layer="rendering" data-framed="true" style="--tei-frame-measure: 30; --tei-frame-height: 40; --tei-frame-margin: 5; --tei-page-width: 0; --tei-page-height: 0"><div class="tei-text-block">
+      """# + (imageSwitch ? #"<header><div class="artifact-canvas-toggle"><button>Frame</button></div></header>"# : "") + #"""
+      <div class="artifact-viewer-container"><div class="artifact-markup-viewport"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan" data-active="true" data-has-markup="true" data-text-block="300,240 700,248 694,700 294,692"\#(wordData)><div class="tei-page-text" data-layer="rendering" data-type-area="true" style="--tei-type-area-measure: 30; --tei-type-area-height: 40; --tei-type-area-margin: 5; --tei-page-width: 0; --tei-page-height: 0"><div class="tei-text-block">
       """# + lines + "</div></div></div>" + blank + #"""
       </div></div></div><div class="artifact-object"><div class="image-view" data-service-id="/scan"><div class="image-viewport"><div class="image-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
       """#
@@ -756,7 +756,7 @@ struct ArtifactOverlayTests {
   }
 
   /// Skeat's first ten canvases with a text block zone and the tools'
-  /// measured layout (canvas 2's zone derived: the work frame placed on a
+  /// measured layout (canvas 2's zone derived: the work's type area placed on a
   /// scan with no main text) (design-notes/skeat: each one's TEI with its
   /// zones and the witness's renditions, `header.xml`; its scan), rendered
   /// by the dev server's TEI preview (its words marked, as a reader's) and
@@ -820,7 +820,7 @@ struct ArtifactOverlayTests {
       return
     }
     let html = "<!doctype html><html><head><meta charset=\"utf-8\"><style>" + css + "</style>" + styles + #"""
-      <style>body{margin:0}.artifact-view{width:100%;height:100vh}.artifact-viewer-container{height:calc(100vh - 40px);flex:none}</style><link rel="icon" href="data:,"></head><body><script type="application/json" id="manifest-size">[\#(size.width),\#(size.height)]</script><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest"><div class="artifact-viewer-container"><div class="artifact-markup-frame"><div class="artifact-markup">
+      <style>body{margin:0}.artifact-view{width:100%;height:100vh}.artifact-viewer-container{height:calc(100vh - 40px);flex:none}</style><link rel="icon" href="data:,"></head><body><script type="application/json" id="manifest-size">[\#(size.width),\#(size.height)]</script><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest"><div class="artifact-viewer-container"><div class="artifact-markup-viewport"><div class="artifact-markup">
       """# + view + #"""
       </div></div><div class="artifact-object"><div class="image-view" data-service-id="/scan"><div class="image-viewport"><div class="image-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
       """#

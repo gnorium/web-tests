@@ -7,7 +7,7 @@ import WebTestsTesting
 /// (user, 2026-11-03: Hamlet Q1's front cover, image 1 of 81, overlay on:
 /// its tooled frame and corner ornaments drawn at 0.63 of the cover's gilt
 /// frame, hung toward its top center). A page with no type of its own is
-/// framed by its leaf, 38 em across it (xml-utilities `TEIPage.leafFrame`),
+/// set in its leaf as its type area, 38 em across it (xml-utilities `TEIPage.leafTypeArea`),
 /// so its scan's em, the overlay's type scale (`data-scan-em`), is its
 /// leaf's (`TEIPage.scanWidth`), never its work's, whose text pages'
 /// photographs run 80.61 em across. The cover as dev holds it, its scan

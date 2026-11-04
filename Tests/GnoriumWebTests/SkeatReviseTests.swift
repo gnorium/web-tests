@@ -77,7 +77,7 @@ struct SkeatReviseTests {
         let shown = try await raw.evaluate("e => e.textContent").string ?? ""
         #expect(shown.hasPrefix(#"<TEI xmlns="http://www.tei-c.org/ns/1.0">"#), "Raw is not headed: \(shown.prefix(120))")
         try await page.locator(".artifact-header-toggle button").first.click()
-        let header = page.locator(".artifact-markup-frame > .artifact-document-header .code-code").first
+        let header = page.locator(".artifact-markup-viewport > .artifact-document-header .code-code").first
         try await expect(header).toBeVisible()
         let headerShown = try await header.evaluate("e => e.textContent").string ?? ""
         #expect(headerShown.contains("<tagsDecl>") && headerShown.contains(#"xml:id="text-block""#), "The header has no renditions")

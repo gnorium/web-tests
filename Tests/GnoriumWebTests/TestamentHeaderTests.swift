@@ -324,15 +324,15 @@ struct TestamentHeaderTests {
         try await expect(toggle).toBeVisible()
         try await expect(view.locator(".artifact-xml-toggle")).toHaveCount(0)
         try await expect(view.locator(".artifact-markup")).toHaveCount(0)
-        let frame = view.locator(".artifact-markup-frame[data-header-only='true']")
-        try await expect(frame).toBeHidden()
+        let viewport = view.locator(".artifact-markup-viewport[data-header-only='true']")
+        try await expect(viewport).toBeHidden()
         var state = try await Self.state(page)
         #expect(!state.hasXML && !state.disabled && state.pressed == "false" && !state.shown, "calibrated: \(state)")
         #expect(state.objectWidth >= state.bodyWidth - 1, "the images are not the whole viewer: \(state)")
 
         try await toggle.click()
         try await expect(view).toHaveAttribute("data-header", "true")
-        try await expect(frame).toBeVisible()
+        try await expect(viewport).toBeVisible()
         state = try await Self.state(page)
         #expect(state.shown && state.headerCount == Self.headerLines && !state.headerEditable, "calibrated, on: \(state)")
         #expect(state.headerReset == "code-line 0")
@@ -340,7 +340,7 @@ struct TestamentHeaderTests {
 
         try await toggle.click()
         try await expect(view).toHaveAttribute("data-header", "false")
-        try await expect(frame).toBeHidden()
+        try await expect(viewport).toBeHidden()
         // The images widen back once the viewer has laid itself out again.
         state = try await Self.settled(page) { $0.objectWidth >= $0.bodyWidth - 1 }
         #expect(state.objectWidth >= state.bodyWidth - 1, "the images are not the whole viewer again: \(state)")

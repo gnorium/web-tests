@@ -44,7 +44,7 @@ struct ReceivedImageZoomTests {
   static func stage(_ src: String, _ size: (width: Int, height: Int)) -> String {
     """
     <div class="expandable-attachment-view chat-template-raw-image" data-kind="image" data-fallback-src="" data-presentation="received">\
-    <div class="expandable-attachment-image-frame" role="img" tabindex="0" aria-label="Image sent to the model">\
+    <div class="expandable-attachment-image-stage" role="img" tabindex="0" aria-label="Image sent to the model">\
     <img src="\(src)" alt="" loading="lazy" class="expandable-attachment-image-received" width="\(size.width)" height="\(size.height)"/>\
     <span class="expandable-attachment-image-loading"></span></div></div>
     """
@@ -80,7 +80,7 @@ struct ReceivedImageZoomTests {
     <div class="below"></div>
     <script>
     window.zt = {
-      stage: (i = 0) => document.querySelectorAll('.expandable-attachment-image-frame')[i],
+      stage: (i = 0) => document.querySelectorAll('.expandable-attachment-image-stage')[i],
       state(i = 0) {
         const st = this.stage(i), img = st.querySelector('img'), s = st.getBoundingClientRect(), r = img.getBoundingClientRect();
         const cs = getComputedStyle(st);
@@ -422,7 +422,7 @@ struct ReceivedImageZoomTests {
       let ring = try await page.evaluate(
         """
         (() => { const el = document.activeElement, cs = getComputedStyle(el);
-          return { stage: el.classList.contains('expandable-attachment-image-frame'), role: el.getAttribute('role'),
+          return { stage: el.classList.contains('expandable-attachment-image-stage'), role: el.getAttribute('role'),
             label: el.getAttribute('aria-label'), outline: cs.outlineStyle, width: cs.outlineWidth, visible: el.matches(':focus-visible') } })()
         """)
       #expect(ring["stage"].bool == true, "Tab did not reach the stage")

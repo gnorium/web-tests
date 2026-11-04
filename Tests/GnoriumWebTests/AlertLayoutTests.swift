@@ -89,15 +89,15 @@ struct AlertLayoutTests {
   static let notice = """
     <div class="source-change-notice"><div class="alert-view alert-orange alert-inline" id="notice" aria-live="polite">\
     <div class="alert-motion-content">\(icon)<div class="alert-content">\
-    <span>This image changed at its source since it was sent (seen <time>Oct 17, 2026</time>)</span>\
-    <span>; the source’s image now: </span>\
+    <span>This frame changed at its source since it was sent (seen <time>Oct 17, 2026</time>)</span>\
+    <span>; the source’s frame now: </span>\
     <div class="expandable-attachment-view" data-kind="image" data-fallback-src="" data-presentation="line">\
     <button type="button" class="expandable-attachment-trigger expandable-attachment-image-trigger" \
-    aria-label="The image as its source serves it now">\
-    <img src="/page.svg" alt="The image as its source serves it now" loading="lazy" class="expandable-attachment-image-thumb" \
+    aria-label="The frame as its source serves it now">\
+    <img src="/page.svg" alt="The frame as its source serves it now" loading="lazy" class="expandable-attachment-image-thumb" \
     style="display: block; flex-shrink: 0; width: var(--line-height-small-22); height: var(--line-height-small-22); \
     object-fit: contain"/>\
-    </button></div><span>.</span><span> The image shown is the one that was sent, as archived.</span>\
+    </button></div><span>.</span><span> The frame shown is the one that was sent, as archived.</span>\
     </div></div></div></div>
     """
 
@@ -114,7 +114,7 @@ struct AlertLayoutTests {
   static func faults(detail: String) -> String {
     """
     <div class="alert-view alert-orange" id="faults"><div class="alert-motion-content">\(icon)<div class="alert-content">\
-    <div class="alert-line-view" data-heading="true" id="heading"><div class="alert-line-words">Page 5: 1 fault</div></div>\
+    <div class="alert-line-view" data-heading="true" id="heading"><div class="alert-line-words">Frame 5: 1 fault</div></div>\
     <div class="alert-line-view" id="line"><div class="alert-line-words" id="words">Box without its zone:</div>\
     <div class="alert-line-aside" id="aside"><span class="image-fault-detail" id="detail" data-edge-fade-view="expand" \
     style="min-width:0;font-family:ui-monospace,monospace;white-space:nowrap;overflow:hidden">\(detail)</span></div></div>\

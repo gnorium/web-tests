@@ -102,7 +102,7 @@ struct TestamentLevelsTests {
       ).string
       #expect(order == "ok", "\(order ?? "")")
       // No card, no rule: the levels' groups are fields of the one node.
-      try await expect(form.locator(".framed-accordion-view, .bibliographic-level-divider, .accordion-divider"))
+      try await expect(form.locator(".bibliographic-level-divider, .accordion-divider"))
         .toHaveCount(0)
       let draft = form.locator("[data-submission-draft='true']")
       // The carrier shows the one event it calls for: a print its

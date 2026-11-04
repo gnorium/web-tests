@@ -84,7 +84,7 @@ struct TextPaneGesturesTests {
         let panned = try await page.evaluate(Self.state, as: Pane.self)
         #expect(panned.left > start.left, "the drag did not pan the text: \(start.left) → \(panned.left)")
         #expect(panned.selection.isEmpty, "the drag selected text")
-        try await expect(page.locator(".artifact-markup-frame .gloss-sheet[data-state='open']")).toHaveCount(0)
+        try await expect(page.locator(".artifact-markup-viewport .gloss-sheet[data-state='open']")).toHaveCount(0)
 
         // A drag from the text selects it, and pans nothing.
         let line = lineBox.y + lineBox.height / 2

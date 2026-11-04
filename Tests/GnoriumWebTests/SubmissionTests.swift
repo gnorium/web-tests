@@ -174,7 +174,6 @@ struct SubmissionTests {
       try await expect(row(tree, level).locator(".record-node-heading .node-value-view textarea").first).toHaveValue("")
     }
     // No card and no level named: its fields in its open Metadata.
-    try await expect(form.locator(".framed-accordion-view")).toHaveCount(0)
     try await expect(row(tree, "edition").locator(".metadata-accordion-view .accordion-details").first)
       .toHaveAttribute("data-expanded", "true")
 
@@ -418,7 +417,7 @@ struct SubmissionTests {
     try await handle.press("Space")
     try await handle.press("ArrowRight")
     try await expect(tree.locator(".outliner-feedback .alert-content"))
-      .toHaveText("Nothing can go under a digitization: its images attest it.")
+      .toHaveText("Nothing can go under a digitization: its frames attest it.")
     try await handle.press("Escape")
     try await expect(number).toHaveText("1.2")
 
@@ -682,11 +681,15 @@ struct SubmissionTests {
           "SELECT sentiment_json FROM lexicographic_figurants WHERE title_form_json::json ->> 'title' = '\(title)'")
         #expect(sentiment.contains(#""register":["formal"]"#), "\(sentiment)")
         #expect(!sentiment.contains(#""quotes""#), "\(sentiment)")
-        // Its date and its forms, unknown: "—" in its row and its Metadata.
+        // Its date and its forms, unknown: empty, each its placeholder, as
+        // every empty frozen field reads, never "—" (user, 2026-11-05).
         let row = page.locator(".outliner-item[data-outliner-id] .record-node-heading").first
-        try await expect(row.locator(".node-value-date")).toHaveText("—")
+        try await expect(row.locator(".node-value-date")).toHaveText("Date")
+        try await expect(row.locator(".node-value-date.node-value-date-placeholder")).toHaveCount(1)
         let forms = page.locator(".sentiment-view .derived-forms-view").first
-        try await expect(forms).toContainText("—")
+        try await expect(forms.locator("input")).toHaveValue("")
+        try await expect(forms.locator("input")).toHaveAttribute("placeholder", "Forms")
+        try await expect(forms).not.toContainText("—")
         // No quotes, so no roster to tick.
         try await expect(page.locator("#arbitration-evidence")).toHaveCount(0)
         // Commit refused: nothing to calibrate until a quote is added.
@@ -698,7 +701,9 @@ struct SubmissionTests {
           """
         ).string ?? ""
         #expect(commit.hasPrefix("400"), "\(commit)")
-        #expect(commit.contains("A sentiment is calibrated once it has a quote"), "\(commit)")
+        // The need alone, never how to meet it (user, 2026-11-05).
+        #expect(commit.contains("A sentiment is calibrated once it has a quote."), "\(commit)")
+        #expect(!commit.contains("Revise") && !commit.contains("arbitration"), "\(commit)")
         // Permit is people's: an admin permits it as it stands.
         let permit = page.locator("button[form='overture-permit']").first
         try await expect(permit).toBeVisible()
@@ -706,8 +711,13 @@ struct SubmissionTests {
         try await expect(page, timeout: .seconds(15)).toHaveURL("its record's page") {
           $0.path.hasPrefix("/lexico-records/")
         }
+        // Its date and its forms on the record page too: shown, each its
+        // placeholder.
         try await expect(page.locator(".outliner-item[data-outliner-id] .record-node-heading .node-value-date").first)
-          .toHaveText("—")
+          .toHaveText("Date")
+        let recordForms = page.locator(".sentiment-view .derived-forms-view").first
+        try await expect(recordForms.locator("input")).toHaveAttribute("placeholder", "Forms")
+        try await expect(recordForms).not.toContainText("—")
         // Its usage carried into the record.
         try await expect(page.locator(".sentiment-view").first).toContainText("formal")
         // Its row in the Lexico-records list: its date "—".
@@ -738,7 +748,6 @@ struct SubmissionTests {
     let draft = tree.locator("[data-submission-draft='true']")
     let title = draft.locator(".record-node-heading .node-value-view textarea").first
     try await expect(title).toHaveValue("")
-    try await expect(form.locator(".framed-accordion-view")).toHaveCount(0)
     let apparatus = form.locator(".submit-sentiment-apparatus")
     // Its first attestation's fields, bare (no group headings: user,
     // 2026-11-03).
