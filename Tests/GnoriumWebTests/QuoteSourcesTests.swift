@@ -8,9 +8,10 @@ import WebTestsTesting
 /// its source (a permitted record › any of its nodes, or a URL) and its
 /// Pages where the quote is typed; its Quote cards under it, outside it,
 /// each its artifact; then one row, "+ Quote" and "− Source". "+ Source"
-/// stamps another from the page's template, each "− Source" shown while
-/// there is more than one; the keys post in order. No Image URL field, and
-/// no "range" anywhere in the form.
+/// stamps another from the page's template; a sentiment needs no quote
+/// (user, 2026-11-05), so every "− Source" shows, the first one's too, and
+/// the list can be emptied; the keys post in order. No Image URL field,
+/// and no "range" anywhere in the form.
 @Suite("Quote sources")
 struct QuoteSourcesTests {
   static let sentimentForm = "/mission-control/submit/lexicographic/sentiment"
@@ -86,8 +87,8 @@ struct QuoteSourcesTests {
       try await expect(first.locator(".quote-passage-reader .quote-passage-text"), timeout: .seconds(15)).toBeVisible()
       let text = try await sources.evaluate("(el) => el.textContent.toLowerCase()").string ?? ""
       #expect(!text.contains("range"), "the Source box says range")
-      // One box: no "− Source".
-      try await expect(first.locator(".quote-passage-source-remove")).toBeHidden()
+      // One box, its "− Source" shown: a sentiment needs no quote.
+      try await expect(first.locator(".quote-passage-source-remove")).toBeVisible()
 
       // "+ Source": a second box at once, both removable, the keys in order.
       let add = sources.locator(".quote-sources-add-btn")
@@ -109,11 +110,16 @@ struct QuoteSourcesTests {
       try await expect(first.locator(".quote-passage-actions .button-label")).toHaveTexts(["Quote", "Source"])
       try await page.expectArtifactsUnclipped()
 
-      // "− Source": the first goes, the second stays, alone again.
+      // "− Source": the first goes, the second stays, alone again, still
+      // removable; then it goes too, "+ Source" left.
       try await first.locator(".quote-passage-source-remove").click()
       try await expect(boxes).toHaveCount(1)
       try await expect(keys).toHaveValue(key)
-      try await expect(boxes.first.locator(".quote-passage-source-remove")).toBeHidden()
+      try await expect(boxes.first.locator(".quote-passage-source-remove")).toBeVisible()
+      try await boxes.first.locator(".quote-passage-source-remove").click()
+      try await expect(boxes).toHaveCount(0)
+      try await expect(keys).toHaveValue("")
+      try await expect(add).toBeVisible()
       try await page.expectNoErrors()
     }
   }

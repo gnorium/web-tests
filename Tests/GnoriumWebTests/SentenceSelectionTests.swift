@@ -209,12 +209,13 @@ struct SentenceSelectionTests {
         try await expect(forms).toHaveValue(#"[[["w1.4"],["w1.7"]]]"#)
 
         // Its Quote card IS its artifact (legend "Quote"), never its text;
-        // no "− Quote" while alone.
+        // its "− Quote" even while alone, a sentiment needing no quote
+        // (user, 2026-11-05).
         let groups = box.locator(".quote-passage-quotes > .quote-passage-quote")
         try await expect(groups).toHaveCount(1)
         try await expect(groups.first.locator(".form-item-legend")).toHaveText("Quote")
         try await expect(box.locator(".quote-passage-quote-text")).toHaveCount(0)
-        try await expect(groups.first.locator(".quote-passage-quote-remove")).toBeHidden()
+        try await expect(groups.first.locator(".quote-passage-quote-remove")).toBeVisible()
         let add = box.locator(".quote-passage-actions .quote-passage-quote-add")
         try await expect(add).toHaveAttribute("aria-label", "Add quote")
         try await expect(add).toHaveText("Quote")

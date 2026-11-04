@@ -601,6 +601,129 @@ struct SubmissionTests {
     try await admin.remove()
   }
 
+  /// A sentiment with no quotes (user, 2026-11-05): an unattested sense (a
+  /// word known only from glossaries, a reconstructed meaning), filed with
+  /// its value and usage alone, as a testament with no digitization is
+  /// filed from its metadata alone. Its Quote card and its Source box go
+  /// with "− Quote" and "− Source", the first one's too ("+ Quote" and "+
+  /// Source" put them back); submitted, its overture's Commit is refused
+  /// with why (nothing to calibrate) and its Permit is people's; what it
+  /// derives from quotes, its forms and its date, reads "—" on its overture
+  /// and on its record page.
+  @Test(arguments: [BrowserEngine.chrome])
+  func aSentimentMayHaveNoQuotes(engine: BrowserEngine) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    guard gnorium.engines.contains(engine) else { return }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    let title = "webtestsbare\(String(UUID().uuidString.prefix(8)).lowercased())"
+    func clean() {
+      _ = try? TestAdmin.query(
+        """
+        BEGIN;
+        DELETE FROM lexico_record_versions WHERE lexico_record_id IN (SELECT id FROM lexico_records WHERE title = '\(title)');
+        DELETE FROM sentiments WHERE lemma = '\(title)';
+        DELETE FROM lexicographic_overtures WHERE lexicographic_figurant_id IN
+          (SELECT id FROM lexicographic_figurants WHERE title_form_json::json ->> 'title' = '\(title)');
+        DELETE FROM url_histories WHERE entity_id IN (SELECT id FROM lexico_records WHERE title = '\(title)');
+        CREATE TEMP TABLE gone_lemmas AS SELECT lemma_id FROM lexico_records WHERE title = '\(title)';
+        DELETE FROM lexico_records WHERE title = '\(title)';
+        DELETE FROM lemmas WHERE id IN (SELECT lemma_id FROM gone_lemmas);
+        DELETE FROM sentiment_inventories WHERE lemma = '\(title)';
+        COMMIT;
+        """)
+    }
+    do {
+      try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine), cookies: [admin.cookie]) {
+        page in
+        try await page.openHydrated(Self.sentimentForm)
+        let form = page.locator(".submit-sentiment-form")
+        try await form.locator(".submit-sentiment-apparatus input[name='title']").fill(title)
+        try await set(page, [("type", "noun"), ("usage-register", "formal")])
+        try await form.locator("textarea[name='value']").fill("What the unattested word means")
+        let sources = form.locator(".quote-sources-view")
+        let boxes = sources.locator(".quote-source")
+        try await expect(boxes).toHaveCount(1)
+        let box = boxes.first
+        // Its one Quote card's "− Quote", and "+ Quote" puts one back.
+        let cards = box.locator(".quote-passage-quotes > .quote-passage-quote")
+        try await expect(cards).toHaveCount(1)
+        let removeQuote = cards.first.locator(".quote-passage-quote-remove")
+        try await expect(removeQuote).toBeVisible()
+        try await expect(removeQuote).toHaveText("Quote")
+        try await removeQuote.click()
+        try await expect(cards).toHaveCount(0)
+        try await box.locator(".quote-passage-quote-add").click()
+        try await expect(cards).toHaveCount(1)
+        // Left in place and empty, the box posts nothing: it names no quote.
+        let posted = try await form.evaluate(
+          """
+          (f) => [...new FormData(f)].filter(([k, v]) => k.startsWith('quote-s1-') && String(v).trim() !== '')
+            .map(([k]) => k).join(',')
+          """
+        ).string ?? "?"
+        #expect(posted == "", "an empty Source box posts \(posted)")
+        // Its one Source box's "− Source": the list empty, "+ Source" left.
+        let removeSource = box.locator(".quote-passage-source-remove")
+        try await expect(removeSource).toBeVisible()
+        try await expect(removeSource).toHaveAttribute("aria-label", "Remove source")
+        try await removeSource.click()
+        try await expect(boxes).toHaveCount(0)
+        try await expect(sources.locator("input[name='quote-keys']")).toHaveValue("")
+        try await expect(sources.locator(".quote-sources-add-btn")).toBeVisible()
+        // Its Forms, none: the frozen form's field, its placeholder.
+        try await expect(form.locator("#sentiment-derived-forms")).toHaveValue("")
+        try await expect(form.locator("#sentiment-derived-forms")).toHaveAttribute("placeholder", "Forms")
+        try await form.locator(".record-actions button[type='submit']").click()
+        try await expect(page, timeout: .seconds(15)).toHaveURL("its overture's page") {
+          $0.path.hasPrefix("/mission-control/overtures/lexicographic/")
+        }
+        // Filed with its value and usage alone.
+        let sentiment = try TestAdmin.query(
+          "SELECT sentiment_json FROM lexicographic_figurants WHERE title_form_json::json ->> 'title' = '\(title)'")
+        #expect(sentiment.contains(#""register":["formal"]"#), "\(sentiment)")
+        #expect(!sentiment.contains(#""quotes""#), "\(sentiment)")
+        // Its date and its forms, unknown: "—" in its row and its Metadata.
+        let row = page.locator(".outliner-item[data-outliner-id] .record-node-heading").first
+        try await expect(row.locator(".node-value-date")).toHaveText("—")
+        let forms = page.locator(".sentiment-view .derived-forms-view").first
+        try await expect(forms).toContainText("—")
+        // No quotes, so no roster to tick.
+        try await expect(page.locator("#arbitration-evidence")).toHaveCount(0)
+        // Commit refused: nothing to calibrate until a quote is added.
+        let commit = try await page.evaluate(
+          """
+          (async () => { const form = document.getElementById('commit-form');
+            const r = await fetch(form.action, { method: 'POST', body: new URLSearchParams(new FormData(form)) });
+            return r.status + ' ' + await r.text(); })()
+          """
+        ).string ?? ""
+        #expect(commit.hasPrefix("400"), "\(commit)")
+        #expect(commit.contains("A sentiment is calibrated once it has a quote"), "\(commit)")
+        // Permit is people's: an admin permits it as it stands.
+        let permit = page.locator("button[form='overture-permit']").first
+        try await expect(permit).toBeVisible()
+        try await permit.click()
+        try await expect(page, timeout: .seconds(15)).toHaveURL("its record's page") {
+          $0.path.hasPrefix("/lexico-records/")
+        }
+        try await expect(page.locator(".outliner-item[data-outliner-id] .record-node-heading .node-value-date").first)
+          .toHaveText("—")
+        // Its usage carried into the record.
+        try await expect(page.locator(".sentiment-view").first).toContainText("formal")
+        // Its row in the Lexico-records list: its date "—".
+        try await page.openHydrated("/lexico-records?q=\(title)")
+        let listed = page.locator("tr").filter(hasText: title).first
+        try await expect(listed).toContainText("—")
+        try await page.expectNoErrors(ignoring: ["/commit"])
+      }
+    } catch {
+      clean()
+      try await admin.remove(after: error)
+    }
+    clean()
+    try await admin.remove()
+  }
+
   /// A new record: its language, title and type typed, its tree the new
   /// sentiment alone, "—": its description is the machine's, never typed
   /// (user, 2026-10-09); a label chosen; submitted, an evidence and its
