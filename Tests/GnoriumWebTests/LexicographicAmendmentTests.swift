@@ -432,8 +432,8 @@ struct LexicographicAmendmentTests {
         // Drawn as a page that reads draws its fields, never greyed out nor
         // faded (user, 2026-11-03): its Value box a disabled field's ground,
         // its labels and its accordions' headers in their own colors, its
-        // buttons disabled, its marker ringed in the disabled border; its
-        // info still its own, and its accordions still open and close.
+        // buttons disabled, its marker ringed as every marker is, its fold
+        // control still; its info its own, its accordions still opening.
         let drawn = try await item.evaluate(
           """
           (i) => {
@@ -452,7 +452,7 @@ struct LexicographicAmendmentTests {
               getComputedStyle(row.querySelector('.metadata-accordion .accordion-title')).color === base,
               [...row.querySelectorAll('.label-view:not([data-disabled=true]) > .label-text, .dropdown-label-text')]
                 .every(l => getComputedStyle(l).color === base),
-              getComputedStyle(marker, '::after').borderTopColor === token('borderTopColor', '--border-color-disabled'),
+              getComputedStyle(marker, '::after').borderTopColor === token('borderTopColor', '--border-color-base'),
               faded, row.querySelector('.node-value-info').closest('[inert]') === null
             ].join(' ')
           }
