@@ -439,7 +439,7 @@ struct ArbitrationTests {
             const r = tail.getBoundingClientRect(), s = getComputedStyle(content.parentElement)
             const line = parseFloat(s.lineHeight) || parseFloat(s.fontSize) * 1.2
             // Above the playback bar, which sticks over the viewport's foot.
-            const bar = document.querySelector('.replay-seek-view:not([hidden])')
+            const bar = document.querySelector('.playback-bar-view:not([hidden])')
             const foot = bar ? Math.min(innerHeight, bar.getBoundingClientRect().top) : innerHeight
             return r.bottom >= 0 && r.bottom - foot <= line })()
           """
@@ -819,7 +819,7 @@ struct ArbitrationTests {
     try await page.openHydrated(path + "?pace=1#pace-test")
     // Drawn hidden in the reply's bar; the bar moves to the foot of the
     // page's content column once Replay is pressed.
-    let group = page.locator("\(reply) .replay-seek-view .replay-speed-view, .layout-content-area > .replay-seek-view .replay-speed-view")
+    let group = page.locator("\(reply) .playback-bar-view .playback-speed-view, .layout-content-area > .playback-bar-view .playback-speed-view")
     try await expect(group).toHaveCount(1)
     try await expect(group).toBeHidden()
     try await expect(group).toHaveAttribute("role", "group")
@@ -838,7 +838,7 @@ struct ArbitrationTests {
             if (text.includes('Pace ' + word + '.') && !window.__paced[word]) {
               window.__paced[word] = performance.now()
               const speed = { one: '2', two: '4' }[word]
-              if (speed) document.querySelector('.layout-content-area > .replay-seek-view .replay-speed-view [data-value="' + speed + '"]').click()
+              if (speed) document.querySelector('.layout-content-area > .playback-bar-view .playback-speed-view [data-value="' + speed + '"]').click()
             }
         }).observe(content, { childList: true, subtree: true, characterData: true })
         return true })()
@@ -922,27 +922,27 @@ struct ArbitrationTests {
     let session = page.locator("\(reply) .computorium-session-view")
     // Drawn hidden with the reply; moved, once shown, to the page's
     // content column.
-    try await expect(page.locator("\(reply) .replay-seek-view")).toHaveCount(1)
-    try await expect(page.locator("\(reply) .replay-seek-view")).toBeHidden()
-    try await expect(page.locator(".replay-seek-view:not([hidden])")).toHaveCount(0)
-    let seek = page.locator(".layout-content-area > .replay-seek-view")
-    let slider = seek.locator(".replay-seek-slider")
-    let toggle = seek.locator(".replay-seek-toggle")
-    let time = seek.locator(".replay-seek-time")
-    let close = seek.locator(".replay-seek-close")
+    try await expect(page.locator("\(reply) .playback-bar-view")).toHaveCount(1)
+    try await expect(page.locator("\(reply) .playback-bar-view")).toBeHidden()
+    try await expect(page.locator(".playback-bar-view:not([hidden])")).toHaveCount(0)
+    let seek = page.locator(".layout-content-area > .playback-bar-view")
+    let slider = seek.locator(".playback-bar-slider")
+    let toggle = seek.locator(".playback-bar-toggle")
+    let time = seek.locator(".playback-bar-time")
+    let close = seek.locator(".playback-bar-close")
     _ = try await page.locator("\(reply) .replay-btn").evaluate("el => el.click()")
     try await expect(seek).toBeVisible()
-    try await expect(page.locator("\(reply) .replay-seek-view")).toHaveCount(0)
+    try await expect(page.locator("\(reply) .playback-bar-view")).toHaveCount(0)
     // One bar, holding all of playback: Pause, track, clock, speed, ×.
-    try await expect(page.locator(".replay-seek-view:not([hidden])")).toHaveCount(1)
-    try await expect(seek.locator(".replay-speed-view")).toHaveCount(1)
+    try await expect(page.locator(".playback-bar-view:not([hidden])")).toHaveCount(1)
+    try await expect(seek.locator(".playback-speed-view")).toHaveCount(1)
     try await expect(close).toHaveAttribute("aria-label", "Close replay")
     let parts = try await seek.evaluate("""
-      el => [...el.children].map(e => e.classList.contains('replay-seek-toggle') ? 'toggle'
-        : e.classList.contains('replay-seek-slider') ? 'slider'
-        : e.classList.contains('replay-seek-time') ? 'time'
-        : e.classList.contains('replay-speed-view') ? 'speed'
-        : e.classList.contains('replay-seek-close') ? 'close' : 'other').join(' ')
+      el => [...el.children].map(e => e.classList.contains('playback-bar-toggle') ? 'toggle'
+        : e.classList.contains('playback-bar-slider') ? 'slider'
+        : e.classList.contains('playback-bar-time') ? 'time'
+        : e.classList.contains('playback-speed-view') ? 'speed'
+        : e.classList.contains('playback-bar-close') ? 'close' : 'other').join(' ')
       """).string
     #expect(parts == "toggle slider time speed close", Comment(rawValue: parts ?? "—"))
     // Sticky at the foot of the viewport over the page, within the
@@ -1029,7 +1029,7 @@ struct ArbitrationTests {
     #expect((86000...94000).contains(clicked), "The track's 3/4 is 90s: \(clicked)")
     try await expect(toggle).toHaveAttribute("aria-label", "Play")
     // At 4×, from 115s: the last frame 5 recorded seconds on, about 1.25s.
-    _ = try await seek.locator(".replay-speed-view [data-value='4']").evaluate("el => el.click()")
+    _ = try await seek.locator(".playback-speed-view [data-value='4']").evaluate("el => el.click()")
     try await slider.focus()
     try await page.keyboard.press("End")
     try await page.keyboard.press("ArrowLeft")
@@ -1039,7 +1039,7 @@ struct ArbitrationTests {
     // the page's end (user, 2026-10-22).
     #expect(try await page.evaluate("""
       (() => { const box = document.querySelector('\(reply) .process-container, [data-computorium-core-process]')
-        const bar = document.querySelector('.replay-seek-view:not([hidden])')
+        const bar = document.querySelector('.playback-bar-view:not([hidden])')
         if (!box || !bar) return true
         return box.getBoundingClientRect().bottom <= bar.getBoundingClientRect().top + 2 })()
       """, as: Bool.self) == true, "A seek leaves the session's end above the bar")
@@ -1070,7 +1070,7 @@ struct ArbitrationTests {
     // × cancels it: the bar put away, the session's finished view whole.
     try await close.click()
     try await expect(seek).toBeHidden()
-    try await expect(page.locator(".replay-seek-view:not([hidden])")).toHaveCount(0)
+    try await expect(page.locator(".playback-bar-view:not([hidden])")).toHaveCount(0)
     try await expect(session).toContainText("Seek three.")
     try await expect(session).toHaveAttribute("data-computorium-session-status", "succeeded")
     let replay = page.locator("\(reply) .replay-btn")
@@ -1084,7 +1084,7 @@ struct ArbitrationTests {
     try await expect(session).not.toContainText("Seek two.")
     try await expect(toggle).toHaveAttribute("aria-label", "Pause")
     // 1× again for what follows, and the page as freshly loaded.
-    _ = try await seek.locator(".replay-speed-view [data-value='1']").evaluate("el => el.click()")
+    _ = try await seek.locator(".playback-speed-view [data-value='1']").evaluate("el => el.click()")
     #expect(try await page.evaluate("localStorage.getItem('gnorium:replay-speed')", as: String.self) == "1")
     try await page.openHydrated(path)
   }
@@ -1129,10 +1129,10 @@ struct ArbitrationTests {
       """)
     try await page.openHydrated(path + "?scrub=1#scrub-test")
     let session = page.locator("\(reply) .computorium-session-view")
-    let seek = page.locator(".layout-content-area > .replay-seek-view")
-    let slider = seek.locator(".replay-seek-slider")
-    let toggle = seek.locator(".replay-seek-toggle")
-    let time = seek.locator(".replay-seek-time")
+    let seek = page.locator(".layout-content-area > .playback-bar-view")
+    let slider = seek.locator(".playback-bar-slider")
+    let toggle = seek.locator(".playback-bar-toggle")
+    let time = seek.locator(".playback-bar-time")
     let expected = (0..<10000).map { "w\($0) " }.joined()
     let rendered = """
       [...document.querySelectorAll('\(reply) .computorium-session-output-rendered')].map(e => e.textContent).join('').trim()
@@ -1143,9 +1143,9 @@ struct ArbitrationTests {
     _ = try await page.locator("\(reply) .replay-btn").evaluate("el => el.click()")
     try await expect(seek, timeout: .milliseconds(1000)).toBeVisible()
     let before = try await page.evaluate("""
-      (() => { const bar = document.querySelector('.layout-content-area > .replay-seek-view')
+      (() => { const bar = document.querySelector('.layout-content-area > .playback-bar-view')
         return [performance.now() - window.__pressedAt, bar.dataset.replayDurationMs ?? '',
-          bar.querySelector('.replay-seek-slider').getAttribute('aria-valuemax')] })()
+          bar.querySelector('.playback-bar-slider').getAttribute('aria-valuemax')] })()
       """)
     #expect((before[0].double ?? 9999) < 1500, "The bar shows before the frames come: \(before[0].double ?? -1)ms")
     if let hint = before[1].string, !hint.isEmpty {
@@ -1172,7 +1172,7 @@ struct ArbitrationTests {
     var landed = ""
     for key in ["Home", "End", "PageDown"] {
       let result = try await page.evaluate("""
-        (async () => { const slider = document.querySelector('.layout-content-area > .replay-seek-view .replay-seek-slider')
+        (async () => { const slider = document.querySelector('.layout-content-area > .playback-bar-view .playback-bar-slider')
           slider.focus()
           const start = performance.now()
           slider.dispatchEvent(new KeyboardEvent('keydown', { key: '\(key)', bubbles: true }))

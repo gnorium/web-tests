@@ -512,7 +512,7 @@ struct BibliographicExplicationSessionsTests {
             // followed only by its replay's bar, drawn hidden until Replay
             // moves it to the viewport's foot (user, 2026-10-21).
             const session = document.querySelector('.computorium-session-view');
-            const foot = session.lastElementChild?.classList.contains('replay-seek-view')
+            const foot = session.lastElementChild?.classList.contains('playback-bar-view')
               ? session.lastElementChild.previousElementSibling : session.lastElementChild;
             if (!foot?.classList.contains('computorium-session-controls')) out.push('controls not at the foot');
             if (Math.abs(raw.left - card.left) > 1) out.push('raw not at the start: ' + (raw.left - card.left));
