@@ -1323,12 +1323,13 @@ struct ArbitrationTests {
   /// The Evidence roster's two modes (user, 2026-10-10). Commit: boxes on
   /// the pending items alone. Attach, while the locution box has focus or
   /// holds "@gnorium": boxes on the processed items alone, none ticked
-  /// (user, 2026-10-15), at most two, neighbors; a tick apart or a third
-  /// is refused under the box. A call may tick nothing (user, 2026-10-21):
-  /// no refusal. Submit attaches the ticked items in order, and the call names
-  /// each, linked. The box left empty, the roster is back in commit mode.
+  /// (user, 2026-10-15), any of them up to ten (user, 2026-11-05: an
+  /// eleventh is refused under the box). A call may tick nothing (user,
+  /// 2026-10-21): no refusal. Submit attaches the ticked items in order, and
+  /// the call names each, linked. The box left empty, the roster is back in
+  /// commit mode.
   @Test(arguments: [BrowserEngine.chrome])
-  func attachModeTicksTwoConsecutiveProcessedItems(engine: BrowserEngine) async throws {
+  func attachModeTicksAnyProcessedItems(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let fixture = try await FixtureServer.threePageManifest()
@@ -1360,21 +1361,20 @@ struct ArbitrationTests {
         try await expect(rows.nth(1).locator(".checkbox-input")).toBeChecked(false)
         try await expect(rows.nth(3).locator(".checkbox-icon-wrapper")).toBeHidden()
         try await expect(rows.nth(3).locator(".checkbox-input")).toBeDisabled()
-        // A tick apart from the first is refused; its neighbor is taken; a
-        // third is refused.
+        // Any of them is taken, apart from the first or beside it (up to
+        // ten; user, 2026-11-05).
         try await rows.nth(0).locator("input").click()
         try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked()
         try await rows.nth(2).locator("input").click()
-        try await expect(rows.nth(2).locator(".checkbox-input")).toBeChecked(false)
-        try await expect(page.locator(".field-validation-message-view")).toContainText("consecutive")
+        try await expect(rows.nth(2).locator(".checkbox-input")).toBeChecked()
         try await rows.nth(1).locator("input").click()
         try await expect(rows.nth(1).locator(".checkbox-input")).toBeChecked()
         // A tick keeps the box focused and the roster attaching (user,
         // 2026-10-16): the box still empty, nothing closes under the pointer.
         try await expect(body).toBeFocused()
         try await expect(roster).toHaveAttribute("data-mode", "attach")
-        try await rows.nth(2).locator("input").click()
-        try await expect(rows.nth(2).locator(".checkbox-input")).toBeChecked(false)
+        try await rows.nth(1).locator("input").click()
+        try await expect(rows.nth(1).locator(".checkbox-input")).toBeChecked(false)
         // Back to commit mode when the box is left empty; attach again on
         // "@gnorium" typed.
         try await page.locator(".thread-title, h3").first.click()
@@ -1387,7 +1387,7 @@ struct ArbitrationTests {
         try await expect(roster).toHaveAttribute("data-mode", "attach")
         try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked(false)
         try await rows.nth(0).locator("input").click()
-        try await rows.nth(1).locator("input").click()
+        try await rows.nth(2).locator("input").click()
         try await page.locator(".thread-submit").click()
         // Pending: no status chip; an admin's Commit stands under the call's words.
         try await expect(page.locator(".locution-said + .locution-call-actions .locution-commit"), timeout: .seconds(15))
@@ -1395,19 +1395,19 @@ struct ArbitrationTests {
         try await expect(page.locator(".locution-call-status")).toHaveCount(0)
         let stored = try TestAdmin.query(
           "SELECT evidence_id || '|' || coalesce(evidence_ids, '') FROM locutions WHERE locutable_id = '\(objectID)' AND kind = 'call'")
-        #expect(stored == "\(fixture.baseURL)/page-1|[\"\(fixture.baseURL)/page-1\",\"\(fixture.baseURL)/page-2\"]", Comment(rawValue: stored))
+        #expect(stored == "\(fixture.baseURL)/page-1|[\"\(fixture.baseURL)/page-1\",\"\(fixture.baseURL)/page-3\"]", Comment(rawValue: stored))
         // The byline names the page on screen alone (user, 2026-10-17); both
         // ticked pages are its Attachments, each image a line-high chip.
         try await expect(page.locator(".locution-call-page")).toHaveCount(1)
         try await expect(page.locator(".locution-header").first).toContainText("on Frame 1")
-        try await expect(page.locator(".locution-header").first).not.toContainText("Frame 2")
+        try await expect(page.locator(".locution-header").first).not.toContainText("Frame 3")
         let both = try await page.locator(".locution-attachments").first.evaluate("""
           el => [...el.querySelectorAll('.locution-attachments-item')].map(item => {
             const path = item.querySelector('.thread-path')
             return path ? [...path.children].filter(c => !c.classList.contains('breadcrumb-separator-view'))
               .map(c => c.textContent.trim()).join(' › ') : item.querySelector('a').textContent.trim() }).join(' | ')
           """).string
-        #expect(both == "Frame 1 | Frame 2", Comment(rawValue: both ?? "—"))
+        #expect(both == "Frame 1 | Frame 3", Comment(rawValue: both ?? "—"))
         try await expect(page.locator(".locution-attachments .locution-attachment[data-presentation='line']"))
           .toHaveCount(2)
         try await page.expectNoErrors()
