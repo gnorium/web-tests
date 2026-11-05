@@ -14,9 +14,9 @@ import WebTestsTesting
 /// folds nothing, nor does its info, which opens its tooltip. A node's stretch of the spine runs
 /// from under its marker beside what it would fold, darkens under the
 /// pointer, and a click on it, at its very top too, folds the node. Below
-/// the tree's last node the spine runs on a little, fading out: the
-/// stretch of its last node in sight, at any depth, open or folded, which
-/// folds or opens it too. Closing a row hides the rows under it with its
+/// the marker of the tree's last node in sight, at any depth, open or
+/// folded, the line hangs from no node: dashed whole, on a little past the
+/// tree's foot, that node's stretch, which folds or opens it too. Closing a row hides the rows under it with its
 /// body; opening it shows them again. The fixture work holds an edition
 /// and its manifest.
 @Suite("Record tree", .serialized)
@@ -128,39 +128,39 @@ struct RecordTreeTests {
         #expect(restRing == "rest", "the marker is not ringed as an avatar is: \(restRing)")
 
         // The spine: one line down the tree's start, a thread's, through
-        // the middle of every marker, from under the first marker to 32px
-        // past the last node's foot.
+        // the middle of every marker, solid from under the first marker to
+        // the last node's in sight, where the dashed hang starts
+        // (`expectHanging`).
         let spine = try await tree.locator(":scope > .outliner-list").evaluate(
           """
           (list) => {
             const s = getComputedStyle(list, '::before')
             const first = list.querySelector('.outliner-marker').getBoundingClientRect()
             return [s.width, parseFloat(s.left) >= 0,
-              Math.abs(list.getBoundingClientRect().top + parseFloat(s.top) - first.bottom) < 1,
-              Math.round(parseFloat(s.bottom))].join(' ')
+              Math.abs(list.getBoundingClientRect().top + parseFloat(s.top) - first.bottom) < 1].join(' ')
           }
           """).string
-        #expect(spine == "1px true true -32", "the tree has no continuous spine: \(String(describing: spine))")
+        #expect(spine == "1px true true", "the tree has no continuous spine: \(String(describing: spine))")
         // The hang is the tree's own room (user, 2026-11-03): reserved at
         // its end, so nothing after the tree meets the fade.
         let room = try await tree.evaluate("(t) => getComputedStyle(t).paddingBottom").string
         #expect(room == "32px", "the tree keeps no room for its spine's hang: \(String(describing: room))")
 
         // A node's stretch of it: from directly under its marker, beside
-        // its body and the rows under it, darkening under the pointer.
+        // its body and the rows under it, darkening under the pointer; the
+        // last node's in sight, the hang, its own (user, 2026-11-05).
         let rail = edition.locator(":scope > .outliner-rail")
         try await expect(rail).toHaveAttribute("aria-hidden", "true")
         try await expect(rail).toHaveCSS("cursor", "pointer")
         let railBox = try #require(try await rail.boundingBox())
-        let inner = try #require(try await manifest.boundingBox())
         #expect(abs(railBox.x + railBox.width / 2 + 0.5 - spineX) < 1, "the rail is not on the spine")
         #expect(abs(railBox.y - (marker.y + marker.height)) < 1, "the rail does not start directly under the marker")
         #expect(
-          abs(railBox.y + railBox.height - (inner.y + inner.height)) < 1,
-          "the rail does not run beside the rows under it to its foot, and no further")
+          abs(railBox.y + railBox.height - (innerMarker.y + innerMarker.height)) < 1,
+          "the rail does not run beside the rows under it to where the hang starts, and no further")
         // The closed manifest, the tree's last node in sight: its stretch is
-        // the part hanging below the tree alone, fading out as the spine
-        // does (user, 2026-11-03).
+        // the hang, from under its marker past the tree's foot, dashed
+        // whole (user, 2026-11-05).
         try await Self.expectHanging(below: manifest)
         let line = rail.locator(".rail-line")
         let resting = try await line.evaluate("(l) => getComputedStyle(l).backgroundColor").string
@@ -230,8 +230,8 @@ struct RecordTreeTests {
         try await expect(fold).toHaveAttribute("aria-expanded", "true")
         // Folded, the manifest's stretch is the hang below the tree, and a
         // click there opens the manifest, as its chevron would, never folds
-        // the edition (user, 2026-11-03); open, its stretch runs on into
-        // the hang, so the pointer darkens it on into the fade.
+        // the edition (user, 2026-11-03); open, its stretch is still the
+        // hang, dashed from under its marker beside its body.
         let manifestRail = manifest.locator(":scope > .outliner-rail")
         _ = try await manifestRail.evaluate(
           "(rail) => { window.scrollBy(0, rail.getBoundingClientRect().top - innerHeight / 2); return true }")
@@ -264,25 +264,37 @@ struct RecordTreeTests {
     try await admin.remove()
   }
 
-  /// The tree's last node in sight: its stretch (its rail) runs 32px on
-  /// below its foot, as the spine does, both dashed there (hanging from no node),
-  /// and folds or opens it under the pointer.
+  /// The tree's last node in sight: its stretch (its rail) is the hang
+  /// (user, 2026-11-05), the whole of the line below where the node leaves
+  /// it, hanging from no node: from directly under its marker to the
+  /// line's end, 32px past its foot, one native dashed border its whole
+  /// length, over no other line (the solid spine above it ends where it
+  /// starts), and it folds or opens the node under the pointer.
   static func expectHanging(below item: Locator) async throws {
     let hang = try await item.evaluate(
       """
       (item) => {
         const rail = item.querySelector(':scope > .outliner-rail');
+        const marker = item.querySelector(':scope > .outliner-row .outliner-marker').getBoundingClientRect();
         const list = item.closest('.outliner-view > .outliner-list');
         const r = rail.getBoundingClientRect(), i = item.getBoundingClientRect();
+        const l = list.getBoundingClientRect();
+        const near = (a, b) => Math.abs(a - b) < 1;
         const spine = getComputedStyle(list, '::before');
-        const dashed = (style) => style.getPropertyValue('border-inline-start-style') === 'dashed';
-        const line = getComputedStyle(rail.querySelector('.rail-line'), '::after');
-        const hangOfSpine = getComputedStyle(list, '::after');
-        return [getComputedStyle(rail).cursor, Math.round(r.bottom - i.bottom),
-          Math.round(parseFloat(spine.bottom)), dashed(hangOfSpine), dashed(line)].join(' ');
+        const line = rail.querySelector('.rail-line');
+        const drawn = getComputedStyle(line), d = line.getBoundingClientRect();
+        return [getComputedStyle(rail).cursor,
+          near(r.top, marker.bottom) ? 'from-marker' : `from ${r.top - marker.bottom}`,
+          Math.round(r.bottom - i.bottom), near(d.top, r.top) && near(d.bottom, r.bottom),
+          drawn.borderInlineStartStyle, drawn.borderInlineStartWidth, drawn.backgroundImage,
+          spine.borderInlineStartStyle,
+          near(l.bottom - parseFloat(spine.bottom), r.top) ? 'solid-to-hang' : `solid-to ${l.bottom - parseFloat(spine.bottom) - r.top}`,
+          getComputedStyle(list, '::after').content].join(' ');
       }
       """
     ).string
-    #expect(hang == "pointer 32 -32 true true", "the last node's stretch does not hang below it, dashed: \(String(describing: hang))")
+    #expect(
+      hang == "pointer from-marker 32 true dashed 1px none none solid-to-hang none",
+      "the last node's stretch is not the whole hang, dashed: \(String(describing: hang))")
   }
 }
