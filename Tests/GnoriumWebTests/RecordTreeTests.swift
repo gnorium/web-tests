@@ -265,7 +265,7 @@ struct RecordTreeTests {
   }
 
   /// The tree's last node in sight: its stretch (its rail) runs 32px on
-  /// below its foot, as the spine does, both solid to their end (no fade),
+  /// below its foot, as the spine does, both dashed there (hanging from no node),
   /// and folds or opens it under the pointer.
   static func expectHanging(below item: Locator) async throws {
     let hang = try await item.evaluate(
@@ -275,12 +275,13 @@ struct RecordTreeTests {
         const list = item.closest('.outliner-view > .outliner-list');
         const r = rail.getBoundingClientRect(), i = item.getBoundingClientRect();
         const spine = getComputedStyle(list, '::before');
-        const mask = getComputedStyle(rail.querySelector('.rail-line')).maskImage;
+        const line = getComputedStyle(rail.querySelector('.rail-line'));
+        const dashed = (style) => /repeating-linear-gradient/.test(style.maskImage || style.webkitMaskImage || '');
         return [getComputedStyle(rail).cursor, Math.round(r.bottom - i.bottom),
-          Math.round(parseFloat(spine.bottom)), spine.backgroundImage, mask].join(' ');
+          Math.round(parseFloat(spine.bottom)), dashed(spine), dashed(line)].join(' ');
       }
       """
     ).string
-    #expect(hang == "pointer 32 -32 none none", "the last node's stretch does not hang below it, unfaded: \(String(describing: hang))")
+    #expect(hang == "pointer 32 -32 true true", "the last node's stretch does not hang below it, dashed: \(String(describing: hang))")
   }
 }
