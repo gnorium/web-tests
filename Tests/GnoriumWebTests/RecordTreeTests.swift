@@ -275,10 +275,11 @@ struct RecordTreeTests {
         const list = item.closest('.outliner-view > .outliner-list');
         const r = rail.getBoundingClientRect(), i = item.getBoundingClientRect();
         const spine = getComputedStyle(list, '::before');
-        const line = getComputedStyle(rail.querySelector('.rail-line'));
-        const dashed = (style) => /repeating-linear-gradient/.test(style.maskImage || style.webkitMaskImage || '');
+        const dashed = (style) => style.getPropertyValue('border-inline-start-style') === 'dashed';
+        const line = getComputedStyle(rail.querySelector('.rail-line'), '::after');
+        const hangOfSpine = getComputedStyle(list, '::after');
         return [getComputedStyle(rail).cursor, Math.round(r.bottom - i.bottom),
-          Math.round(parseFloat(spine.bottom)), dashed(spine), dashed(line)].join(' ');
+          Math.round(parseFloat(spine.bottom)), dashed(hangOfSpine), dashed(line)].join(' ');
       }
       """
     ).string
