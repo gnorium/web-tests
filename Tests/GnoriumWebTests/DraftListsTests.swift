@@ -115,6 +115,8 @@ struct DraftListsTests {
       // Two genres: one of the list's, by its name; one typed.
       try await Self.shown(page, "work-genre-item1-text-input").fill("Comedy")
       try await expect(Self.field(page, "work-genre-item1-text-input")).toHaveValue("comedy")
+      // Its open option list would take the Add button's click.
+      try await page.keyboard.press("Escape")
       try await page.locator("[data-item-list='work-genre'] > [data-item-add-btn='true'] .item-add-btn").click()
       try await expect(Self.rows(body, "work-genre")).toHaveCount(2)
       try await Self.shown(page, "work-genre-item2-text-input").fill("Web tests typed genre")
