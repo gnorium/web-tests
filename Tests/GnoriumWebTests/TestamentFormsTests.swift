@@ -4,7 +4,9 @@ import WebTests
 import WebTestsTesting
 
 /// Forms are never typed (user, 2026-10-03): a testament's are derived
-/// from the citations of it in the corpus, shown read-only on the record
+/// from the citations of it in the corpus and from its own title page as
+/// printed (its title, and its edition statements, user, 2026-11-05: its
+/// fields hold them in their best-known form), shown read-only on the record
 /// page and frozen in an amendment. Submit Testament has no Form rows, at
 /// any level, nor the work. Nothing is submitted.
 @Suite("Testament forms")
