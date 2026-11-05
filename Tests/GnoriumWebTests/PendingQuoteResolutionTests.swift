@@ -45,7 +45,7 @@ struct PendingQuoteResolutionTests {
         _ = try? TestAdmin.query(
           """
           BEGIN;
-          DELETE FROM survey_images WHERE witness_id = (SELECT bibliographic_figurant_id FROM bibliographic_overtures
+          DELETE FROM survey_frames WHERE witness_id = (SELECT bibliographic_figurant_id FROM bibliographic_overtures
             WHERE id = '\(reading.work.overtureID)');
           DELETE FROM inferred_citation_jobs WHERE record_id = '\(record)';
           DELETE FROM biblio_record_versions WHERE biblio_record_id = '\(record)'
@@ -66,7 +66,7 @@ struct PendingQuoteResolutionTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO survey_images (id, witness_id, ordinal, label, image_url) VALUES
+        INSERT INTO survey_frames (id, witness_id, ordinal, label, frame_url) VALUES
           (gen_random_uuid(), '\(witness)', 1, '1', '\(first)/full/1300,/0/default.jpg'),
           (gen_random_uuid(), '\(witness)', 2, '2', '\(second)/full/1300,/0/default.jpg');
         UPDATE bibliographic_madrigals SET page_readings_json = '{"\(first)": "web-tests", "\(second)": "web-tests"}'

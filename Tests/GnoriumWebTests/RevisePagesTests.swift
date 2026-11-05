@@ -22,7 +22,7 @@ struct RevisePagesTests {
 
   /// Revise opens on the image the object's reader is showing (user,
   /// 2026-10-10): the Evidence roster's selected row, carried as
-  /// `?image=` into the Revise link as the reader turns; the Revise
+  /// `?frame=` into the Revise link as the reader turns; the Revise
   /// page's reader and editor open there, and its way back to the object
   /// (the breadcrumb) names the image on screen too.
   @Test(arguments: [BrowserEngine.chrome])
@@ -45,19 +45,19 @@ struct RevisePagesTests {
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         try await page.openHydrated(commit.madrigalPath)
-        let rows = page.locator("#madrigal-images .roster-row")
+        let rows = page.locator("#madrigal-frames .roster-row")
         try await expect(rows).toHaveCount(3)
         let revise = page.locator("a[data-value='revise']")
         try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise")
         // Item 3 selected: the reader on image 3, Revise opening there.
         try await rows.nth(2).click()
-        try await expect(page).toHaveURL("the madrigal at image 3") { $0.query == "image=2" }
-        try await expect(page.locator("#madrigal-images .roster-row-selected"))
+        try await expect(page).toHaveURL("the madrigal at image 3") { $0.query == "frame=2" }
+        try await expect(page.locator("#madrigal-frames .roster-row-selected"))
           .toHaveAttribute("data-computorium-session-id", "2")
-        try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise?image=2")
+        try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise?frame=2")
         try await revise.click()
         try await expect(page).toHaveURL("the Revise page at image 3") {
-          $0.path == "\(objectURL)/revise" && $0.query == "image=2"
+          $0.path == "\(objectURL)/revise" && $0.query == "frame=2"
         }
         let viewer = page.locator(".revise-bibliographic-object .artifact-view")
         try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
@@ -65,29 +65,29 @@ struct RevisePagesTests {
         try await expect(viewer.locator(".tei-page[data-active='true']")).toHaveAttribute("data-service-id", services[2])
         try await expect(viewer.locator(".tei-page[data-active='true'] .tei-page-edit textarea")).toHaveCount(1)
         // The way back names the image on screen, and follows the pager.
-        let back = page.locator(".breadcrumb-link[href='\(objectURL)?image=2']")
+        let back = page.locator(".breadcrumb-link[href='\(objectURL)?frame=2']")
         try await expect(back).toHaveCount(1)
         try await viewer.locator(".pagination-prev").first.click()
         try await expect(viewer.locator("#artifact-page-input")).toHaveValue("2")
-        try await expect(page).toHaveURL("the Revise page at image 2") { $0.query == "image=1" }
-        let backAtTwo = page.locator(".breadcrumb-link[href='\(objectURL)?image=1']")
+        try await expect(page).toHaveURL("the Revise page at image 2") { $0.query == "frame=1" }
+        let backAtTwo = page.locator(".breadcrumb-link[href='\(objectURL)?frame=1']")
         try await expect(backAtTwo).toHaveCount(1)
         try await backAtTwo.click()
         try await expect(page).toHaveURL("the madrigal at image 2") {
-          $0.path == commit.madrigalPath && $0.query == "image=1"
+          $0.path == commit.madrigalPath && $0.query == "frame=1"
         }
-        try await expect(page.locator("#madrigal-images .roster-row-selected"))
+        try await expect(page.locator("#madrigal-frames .roster-row-selected"))
           .toHaveAttribute("data-computorium-session-id", "1")
         // The object's pager turns the roster and the Revise link alike.
         let reader = page.locator(".madrigal-object .artifact-view")
         try await expect(reader).toHaveAttribute("data-artifact-hydrated", "true")
         try await reader.locator(".pagination-next").first.click()
-        try await expect(page.locator("#madrigal-images .roster-row-selected"))
+        try await expect(page.locator("#madrigal-frames .roster-row-selected"))
           .toHaveAttribute("data-computorium-session-id", "2")
-        try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise?image=2")
+        try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise?frame=2")
         try await reader.locator(".pagination-prev").first.click()
         try await reader.locator(".pagination-prev").first.click()
-        try await expect(page.locator("#madrigal-images .roster-row-selected"))
+        try await expect(page.locator("#madrigal-frames .roster-row-selected"))
           .toHaveAttribute("data-computorium-session-id", "0")
         try await expect(revise).toHaveAttribute("href", "\(objectURL)/revise")
       }
@@ -245,7 +245,7 @@ struct RevisePagesTests {
           (() => {
             const slot = document.querySelector(".testament-diff[data-edited='true']")
             if (!slot) return 'no diff'
-            const boxed = [slot, ...slot.querySelectorAll('.image-diff-view')].filter((el) => {
+            const boxed = [slot, ...slot.querySelectorAll('.frame-diff-view')].filter((el) => {
               const style = getComputedStyle(el)
               return style.borderTopStyle !== 'none' || style.outlineStyle !== 'none'
             })
@@ -373,7 +373,7 @@ struct RevisePagesTests {
         // The madrigal's Evidence roster marks explication (user,
         // 2026-10-09): a first reading's pages green discs, markup added;
         // never a Computorium status.
-        let roster = page.locator("#madrigal-images")
+        let roster = page.locator("#madrigal-frames")
         try await expect(roster.locator(".roster-status[data-mark='disc'][data-tone='green']").first).toBeAttached()
         try await expect(roster.locator(".roster-status[data-status]")).toHaveCount(0)
         try await page.locator("#revision-\(id) form[action$='/accept'] button").click()

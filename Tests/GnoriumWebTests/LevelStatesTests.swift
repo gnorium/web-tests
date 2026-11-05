@@ -281,7 +281,7 @@ struct LevelStatesTests {
         try await expect(Self.chip(page)).toHaveText("Pending")
         try await expect(page.locator(".level-progress-line-view")).toHaveCount(0)
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_explication")
-        let rows = page.locator("#madrigal-images").first.locator(".roster-row")
+        let rows = page.locator("#madrigal-frames").first.locator(".roster-row")
         for index in 0..<3 { try await expect(rows.nth(index)).toHaveAttribute("data-locked", "false") }
 
         // The two read, integrated: locked, the page missing open.
@@ -317,7 +317,7 @@ struct LevelStatesTests {
           .toHaveTexts(["Revise", "Commit", "Permit"])
         // The two integrated pages ticked, Commit posts their translation.
         _ = try await page.evaluate(
-          "(() => { [...document.querySelectorAll(\"#madrigal-images .roster-row input[form='commit-form']\")].slice(0, 2).forEach(box => box.click()); return true })()",
+          "(() => { [...document.querySelectorAll(\"#madrigal-frames .roster-row input[form='commit-form']\")].slice(0, 2).forEach(box => box.click()); return true })()",
           as: Bool.self)
         try await expect(page.locator(".commit-ticked")).toHaveAttribute("value", "0-1")
         #expect(try await page.evaluate(CommitTests.interceptScript, as: Bool.self))
@@ -361,7 +361,7 @@ struct LevelStatesTests {
         try await expect(Self.chip(page)).toHaveText("Pending")
         try await expect(page.locator(".level-progress-line-view")).toHaveCount(0)
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_translation")
-        let rows = page.locator("#epilogue-images").first.locator(".roster-row")
+        let rows = page.locator("#epilogue-frames").first.locator(".roster-row")
         try await expect(rows).toHaveCount(3)
         for index in 0..<3 { try await expect(rows.nth(index)).toHaveAttribute("data-locked", "false") }
         // Permit is offered untranslated.

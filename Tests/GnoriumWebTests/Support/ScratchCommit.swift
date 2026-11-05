@@ -114,7 +114,7 @@ struct ScratchCommit {
       DELETE FROM bibliographic_integration_nocturnes WHERE \(column) = '\(row)';
       UPDATE \(table) SET integrates = true WHERE id = '\(row)';
       INSERT INTO bibliographic_integration_nocturnes (id, \(column)) VALUES ('\(id)', '\(row)');
-      INSERT INTO bibliographic_integration_nocturne_instances (id, nocturne_id, instance, provider, model, result, requested_by_id, image_ids_json, duration_ms, created_at, finished_at)
+      INSERT INTO bibliographic_integration_nocturne_instances (id, nocturne_id, instance, provider, model, result, requested_by_id, frame_ids_json, duration_ms, created_at, finished_at)
         VALUES ('\(id)', '\(id)', 1, 'DeepSeek', 'deepseek-flash', 'passed', '\(user)', '\(scope)', 1500, now(), now());
       COMMIT;
       """)

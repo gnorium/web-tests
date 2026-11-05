@@ -13,7 +13,7 @@ struct ArtifactOverlayTests {
       try String(contentsOf: assets.appendingPathComponent("style-sheets/" + $0), encoding: .utf8)
     }.joined(separator: "\n")
     let html = "<html><head><style>" + css + #"""
-      body{margin:0}.artifact-view{width:100%;height:440px}.artifact-viewer-container{height:400px;flex:none}.image-view,.image-viewport{width:100%;height:100%;position:relative;overflow:hidden}.image-tile-surface{position:absolute;inset:0;width:100%;height:100%}.tei-line{font-family:serif!important}</style><link rel="icon" href="data:,"></head><body><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest"><div class="artifact-viewer-container"><div class="artifact-markup-viewport"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan"><div class="tei-page-text" data-layer="rendering"><span class="tei-line">Overlay text</span></div></div></div></div></div><div class="artifact-object"><div class="image-view" data-service-id="/scan"><div class="image-viewport"><div class="image-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
+      body{margin:0}.artifact-view{width:100%;height:440px}.artifact-viewer-container{height:400px;flex:none}.frame-view,.frame-viewport{width:100%;height:100%;position:relative;overflow:hidden}.frame-tile-surface{position:absolute;inset:0;width:100%;height:100%}.tei-line{font-family:serif!important}</style><link rel="icon" href="data:,"></head><body><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest"><div class="artifact-viewer-container"><div class="artifact-markup-viewport"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan"><div class="tei-page-text" data-layer="rendering"><span class="tei-line">Overlay text</span></div></div></div></div></div><div class="artifact-object"><div class="frame-view" data-service-id="/scan"><div class="frame-viewport"><div class="frame-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
       """#
     let server = try await FixtureServer(files: [
       "/": .init(contentType: "text/html", body: Data(html.utf8)),
@@ -31,7 +31,7 @@ struct ArtifactOverlayTests {
       try await page.evaluate("new Promise(resolve=>setTimeout(resolve,700))")
       let checks = try await page.evaluate(#"""
         (async()=>{
-            let r=document.querySelector('.artifact-view'),f=r.querySelector('.artifact-markup-viewport'),o=r.querySelector('.artifact-object'),l=r.querySelector('[data-layer=rendering]'),v=r.querySelector('.image-viewport'),d=r.querySelector('.artifact-detach-toggle');
+            let r=document.querySelector('.artifact-view'),f=r.querySelector('.artifact-markup-viewport'),o=r.querySelector('.artifact-object'),l=r.querySelector('[data-layer=rendering]'),v=r.querySelector('.frame-viewport'),d=r.querySelector('.artifact-detach-toggle');
             const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));const size=()=>[f.getBoundingClientRect().width,f.getBoundingClientRect().height,o.getBoundingClientRect().width,o.getBoundingClientRect().height];const toggle=on=>r.querySelector('.artifact-overlay-toggle').dispatchEvent(new CustomEvent('toggle-button-update',{detail:on?'true':'false'}));
             let before=size();
             const pane=r.querySelector('.artifact-markup');let pb=pane.getBoundingClientRect();
@@ -40,7 +40,7 @@ struct ArtifactOverlayTests {
             const fitted=Number(l.dataset.zoom);const fittedBox=l.getBoundingClientRect(),paneBox=pane.getBoundingClientRect();
             const whole=fittedBox.width<=paneBox.width+1&&fittedBox.height<=paneBox.height+1&&pane.scrollLeft===0&&pane.scrollTop===0&&getComputedStyle(pane).overflow==='hidden';
             const zoomAnimated=zoomStart>zoomMid&&zoomMid>fitted;
-            const values=()=>r.querySelector('.image-tile-compositor').getAttribute('transform');
+            const values=()=>r.querySelector('.frame-tile-compositor').getAttribute('transform');
             // Held still: no wheel, drag, touch, pinch or key moves the scan or the text.
             let fixed=()=>{let b=l.getBoundingClientRect();return JSON.stringify([Number(l.dataset.zoom),b.x,b.y,b.width,b.height,values()])};const still=fixed();
             const vb=v.getBoundingClientRect(),cx=vb.x+vb.width/2,cy=vb.y+vb.height/2;
@@ -157,7 +157,7 @@ struct ArtifactOverlayTests {
   ) async throws -> FixtureServer {
     let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let assets = root.appendingPathComponent("gnorium-web/Public")
-    let css = try ["layout-view.css", "tei-view.css", "artifact-view.css", "image-view.css"].map {
+    let css = try ["layout-view.css", "tei-view.css", "artifact-view.css", "frame-view.css"].map {
       try String(contentsOf: assets.appendingPathComponent("style-sheets/" + $0), encoding: .utf8)
     }.joined(separator: "\n")
     // With `words`, the page as the tools write it before the reader reads it (`data-scan-layout`,
@@ -202,7 +202,7 @@ struct ArtifactOverlayTests {
       """# + (imageSwitch ? #"<header><div class="artifact-canvas-toggle"><button>Frame</button></div></header>"# : "") + #"""
       <div class="artifact-viewer-container"><div class="artifact-markup-viewport"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan" data-active="true" data-has-markup="true" data-text-block="300,240 700,248 694,700 294,692"\#(wordData)><div class="tei-page-text" data-layer="rendering" data-type-area="true" style="--tei-type-area-measure: 30; --tei-type-area-height: 40; --tei-type-area-margin: 5; --tei-page-width: 0; --tei-page-height: 0"><div class="tei-text-block">
       """# + lines + "</div></div></div>" + blank + #"""
-      </div></div></div><div class="artifact-object"><div class="image-view" data-service-id="/scan"><div class="image-viewport"><div class="image-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
+      </div></div></div><div class="artifact-object"><div class="frame-view" data-service-id="/scan"><div class="frame-viewport"><div class="frame-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
       """#
     var files: [String: FixtureServer.File] = [
       "/": .init(contentType: "text/html", body: Data(html.utf8)),
@@ -254,7 +254,7 @@ struct ArtifactOverlayTests {
       let checks = try await page.evaluate("(async()=>{" + Self.shared + #"""
           const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),r=document.querySelector('.artifact-view');
           const toggle=on=>r.querySelector('.artifact-overlay-toggle').dispatchEvent(new CustomEvent('toggle-button-update',{detail:on?'true':'false'}));
-          const surface=()=>r.querySelector('.image-tile-surface'),viewport=r.querySelector('.image-viewport'),object=r.querySelector('.artifact-object');
+          const surface=()=>r.querySelector('.frame-tile-surface'),viewport=r.querySelector('.frame-viewport'),object=r.querySelector('.artifact-object');
           const pane=r.querySelector('.artifact-markup'),layer=()=>r.querySelector('[data-layer=rendering]'),pageEl=r.querySelector('.tei-page');
           // A scan four times the text's actual size: room to zoom the overlay past twice its fit.
           const W=4800,H=6400,zone=pageEl.dataset.textBlock.split(' ').map(p=>p.split(',').map(Number)).map(([x,y])=>[x/1000*W,y/1000*H]);
@@ -279,7 +279,7 @@ struct ArtifactOverlayTests {
             return p.getAttribute('points').split(' ').map(q=>q.split(',').map(Number)).map(([x,y])=>{const q=new DOMPoint(x,y).matrixTransform(m);return [q.x,q.y]})};
           // The image's place on screen (its pan and zoom), and its text block's corners there: where the
           // scan's structure, laid on the edition laid on the image, must land (user, 2026-10-28).
-          const imageBox=()=>{const c=r.querySelector('.image-tile-compositor'),b=c.getBoundingClientRect();return [b.x,b.y,b.width,b.height,b.width/W]};
+          const imageBox=()=>{const c=r.querySelector('.frame-tile-compositor'),b=c.getBoundingClientRect();return [b.x,b.y,b.width,b.height,b.width/W]};
           // The edition turned as the scan is photographed: the scan's structure on the image's text block's own
           // four corners (user, 2026-10-28).
           const target=()=>{const [x,y,w,h]=imageBox();return zone.map(([zx,zy])=>[x+zx/W*w,y+zy/H*h])};
@@ -398,8 +398,8 @@ struct ArtifactOverlayTests {
       let cycles = try await page.evaluate(#"""
         (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),r=document.querySelector('.artifact-view'),W=4800,H=6400;
           const toggle=on=>r.querySelector('.artifact-overlay-toggle').dispatchEvent(new CustomEvent('toggle-button-update',{detail:on?'true':'false'}));
-          const viewport=r.querySelector('.image-viewport'),object=r.querySelector('.artifact-object');
-          const image=()=>{const v=viewport.getBoundingClientRect(),g=r.querySelector('.image-tile-compositor').getAttribute('transform').match(/-?[\d.]+(e-?\d+)?/g).map(Number);return [v.x+g[0],v.y+g[1],W*g[2],H*g[2]]};
+          const viewport=r.querySelector('.frame-viewport'),object=r.querySelector('.artifact-object');
+          const image=()=>{const v=viewport.getBoundingClientRect(),g=r.querySelector('.frame-tile-compositor').getAttribute('transform').match(/-?[\d.]+(e-?\d+)?/g).map(Number);return [v.x+g[0],v.y+g[1],W*g[2],H*g[2]]};
           const pane=()=>{const b=object.getBoundingClientRect();return [b.x,b.y,b.width,b.height]};
           if(!REGISTERED)r.querySelector('.tei-page').removeAttribute('data-text-block');
           const m=r.querySelector('.artifact-markup'),mb=m.getBoundingClientRect();
@@ -490,7 +490,7 @@ struct ArtifactOverlayTests {
       try await page.evaluate("new Promise(resolve=>setTimeout(resolve,700))")
       let states = try await page.evaluate((Self.atTheFit + #"""
           // The image's zoom over its fit: its drawn width over its viewport's fit width.
-          const imageOver=()=>{const vp=[...document.querySelectorAll('.image-viewport')].find(e=>e.getBoundingClientRect().width>0),c=vp.querySelector('.image-tile-compositor')||vp.firstElementChild,r=c.getBoundingClientRect(),b=vp.getBoundingClientRect();return Math.max(r.width/b.width,r.height/b.height)};
+          const imageOver=()=>{const vp=[...document.querySelectorAll('.frame-viewport')].find(e=>e.getBoundingClientRect().width>0),c=vp.querySelector('.frame-tile-compositor')||vp.firstElementChild,r=c.getBoundingClientRect(),b=vp.getBoundingClientRect();return Math.max(r.width/b.width,r.height/b.height)};
           const fit=state(),imageBefore=imageOver();toggle(true);await wait(900);const imageOn=imageOver();
           const o=pane.getBoundingClientRect();
           for(let i=0;i<6;i++){pane.dispatchEvent(new WheelEvent('wheel',{deltaY:-40,clientX:o.x+o.width/2,clientY:o.y+o.height/2,bubbles:true,cancelable:true}));await wait(30)}
@@ -633,7 +633,7 @@ struct ArtifactOverlayTests {
         (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),r=document.querySelector('.artifact-view');
           const page=r.querySelector('.tei-page');
           // Planted before the reader read the page (`structureServer(words:)`).
-          const bands=()=>[...document.querySelectorAll('.image-word')].filter(b=>!b.hidden).map(b=>b.getBoundingClientRect());
+          const bands=()=>[...document.querySelectorAll('.frame-word')].filter(b=>!b.hidden).map(b=>b.getBoundingClientRect());
           const words=[...page.querySelectorAll('.tei-word')],object=r.querySelector('.artifact-object');
           words[0].dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await wait(100);
           const of=bands();
@@ -698,7 +698,7 @@ struct ArtifactOverlayTests {
           probe.style.backgroundColor='color-mix(in srgb, var(--color-blue) calc(var(--opacity-low) * 100%), transparent)';
           const mixed=getComputedStyle(probe).backgroundColor;
           probe.style.backgroundColor='var(--color-blue)';const solid=getComputedStyle(probe).backgroundColor;probe.remove();
-          const scanBand=[...document.querySelectorAll('.image-word')].find(b=>!b.hidden),scanStyle=getComputedStyle(scanBand);
+          const scanBand=[...document.querySelectorAll('.frame-word')].find(b=>!b.hidden),scanStyle=getComputedStyle(scanBand);
           const lowOpacity=getComputedStyle(document.documentElement).getPropertyValue('--opacity-low').trim();
           const marked=page.querySelector('.tei-word[data-corresponding="true"]');
           const blue=!!scanBand&&scanStyle.backgroundColor===solid&&Math.abs(parseFloat(scanStyle.opacity)-parseFloat(lowOpacity))<0.001
@@ -798,7 +798,7 @@ struct ArtifactOverlayTests {
     let styles = preview[..<open.lowerBound].matches(of: #/<style[^>]*>[\s\S]*?<\/style>/#).map { String($0.output) }.joined()
     let view = String(preview[open.upperBound..<close.lowerBound]).replacing(#/data-service-id="[^"]*"/#, with: #"data-service-id="/scan""#)
     let css = try [
-      "layout-view.css", "tei-view.css", "artifact-view.css", "image-view.css", "tooltip-view.css", "sheet-view.css",
+      "layout-view.css", "tei-view.css", "artifact-view.css", "frame-view.css", "tooltip-view.css", "sheet-view.css",
       "dialog-sheet-view.css", "gloss-sheet-view.css",
     ].map {
       try String(contentsOf: assets.appendingPathComponent("style-sheets/" + $0), encoding: .utf8)
@@ -822,7 +822,7 @@ struct ArtifactOverlayTests {
     let html = "<!doctype html><html><head><meta charset=\"utf-8\"><style>" + css + "</style>" + styles + #"""
       <style>body{margin:0}.artifact-view{width:100%;height:100vh}.artifact-viewer-container{height:calc(100vh - 40px);flex:none}</style><link rel="icon" href="data:,"></head><body><script type="application/json" id="manifest-size">[\#(size.width),\#(size.height)]</script><div class="artifact-view" data-canvas-shown="true" data-manifest-url="/manifest"><div class="artifact-viewer-container"><div class="artifact-markup-viewport"><div class="artifact-markup">
       """# + view + #"""
-      </div></div><div class="artifact-object"><div class="image-view" data-service-id="/scan"><div class="image-viewport"><div class="image-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
+      </div></div><div class="artifact-object"><div class="frame-view" data-service-id="/scan"><div class="frame-viewport"><div class="frame-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
       """#
     var files: [String: FixtureServer.File] = [
       "/": .init(contentType: "text/html", body: Data(html.utf8)),
@@ -850,7 +850,7 @@ struct ArtifactOverlayTests {
         let words = try await page.evaluate(#"""
           (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),words=[...document.querySelectorAll('.tei-page[data-active=true] .tei-word')];let paired=0,round=0,broken=0;
             const place=w=>w.dataset.line+':'+w.dataset.word,o=document.querySelector('.artifact-object');
-            const bands=()=>[...document.querySelectorAll('.image-word')].filter(b=>!b.hidden);
+            const bands=()=>[...document.querySelectorAll('.frame-word')].filter(b=>!b.hidden);
             for(const word of words){word.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await wait(5);const shown=bands();
               if(!shown.length)continue;paired++;
               const parts=words.filter(w=>place(w)===place(word));
@@ -871,7 +871,7 @@ struct ArtifactOverlayTests {
           _ = try await page.evaluate(#"""
             (async()=>{const words=[...document.querySelectorAll('.tei-page[data-active=true] .tei-word')];
               for(const word of words.slice(Math.floor(words.length/2)).concat(words)){word.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await new Promise(r=>setTimeout(r,5));
-                const band=document.querySelector('.image-word');if(band&&!band.hidden){word.dataset.corresponding='true';break}}return 1})()
+                const band=document.querySelector('.frame-word');if(band&&!band.hidden){word.dataset.corresponding='true';break}}return 1})()
             """#)
           try await page.screenshot(to: URL(fileURLWithPath: directory).appendingPathComponent("skeat-canvas-\(canvas)-words-\(width).png"))
         }
@@ -901,7 +901,7 @@ struct ArtifactOverlayTests {
             document.querySelector('.tei-view').dataset.gloss='/gloss';
             const words=[...p.querySelectorAll('.tei-page[data-active=true] .tei-word')],word=words[Math.floor(words.length/2)];
             word.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await wait(100);
-            const band=[...document.querySelectorAll('.image-word')].find(b=>!b.hidden);if(!band)return 'noband';
+            const band=[...document.querySelectorAll('.frame-word')].find(b=>!b.hidden);if(!band)return 'noband';
             const b=R(band),x=b.x+b.width/2,y=b.y+b.height/2;
             o.dispatchEvent(new MouseEvent('mouseleave',{bubbles:true}));
             // The pointer off the word before its hover's preview opens (a wide screen's gloss, GlossSheetView.hoverDelay):

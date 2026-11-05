@@ -45,7 +45,7 @@ struct ScratchQuatrain {
     let base = "https://web-tests.invalid/iiif/\(figurantID)"
     images = (1...4).map { "\(base)/p\($0)/full/1300,/0/default.jpg" }
     let pages = Self.labels.enumerated().map { index, label in
-      "{\"label\":\"\(label)\",\"imageURL\":\"\(images[index])\"}"
+      "{\"label\":\"\(label)\",\"frameURL\":\"\(images[index])\"}"
     }.joined(separator: ",")
     let pagesJSON = "[\(pages)]"
     let source = "https://web-tests.invalid/\(figurantID).pdf"
@@ -75,13 +75,13 @@ struct ScratchQuatrain {
         VALUES ('\(overtureID)', '\(submissionID)', '\(figurantID)', '\(source)', 'pdf', '\(pagesJSON)', 'eng', 'pending', '\(title)', '\(user)', now(), now());
       INSERT INTO bibliographic_quatrains (id, bibliographic_overture_id, requested_by_user_id, image_service_ids_json, processing_status, processing_error, created_at, updated_at)
         VALUES ('\(quatrainID)', '\(overtureID)', '\(user)', '\(scope)', '\(status)', \(error), now(), now());
-      INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, image, instance_count)
+      INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, frame, instance_count)
        VALUES (md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[0])')::text, ''))::uuid, '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[0])', 1)
        ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_calibration_nocturnes.instance_count + 1;
-      INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, image, instance_count)
+      INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, frame, instance_count)
        VALUES (md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[1])')::text, ''))::uuid, '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[1])', 1)
        ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_calibration_nocturnes.instance_count + 1;
-      INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, image, instance_count)
+      INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, frame, instance_count)
        VALUES (md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[2])')::text, ''))::uuid, '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[2])', 1)
        ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_calibration_nocturnes.instance_count + 1;
       INSERT INTO bibliographic_calibration_nocturne_instances (id, nocturne_id, instance, provider, model, result, error_message, duration_ms, created_at, finished_at)
@@ -90,7 +90,7 @@ struct ScratchQuatrain {
         ('\(nocturneIDs[2])', md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[2])')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', '\(status == "submitted" ? "passed" : "running")', NULL, NULL, now(), NULL);
       INSERT INTO scan_layouts (id, image_url, fetched_url, bytes_sha256, width, height, measuring_version, layout, fetch_ms, measure_ms)
         VALUES ('\(layoutID)', '\(images[0])', '\(images[0])', '\(String(repeating: "a", count: 64))', 100, 100, '\(String(repeating: "b", count: 64))', '{}'::jsonb, 1, 1);
-      INSERT INTO calibration_pages (id, calibration_nocturne_instance_id, bibliographic_overture_id, image, ordinal, label, layout_id, measuring_version, em, judgment_json, tool_hashes_json, tei, facts_json)
+      INSERT INTO calibration_pages (id, calibration_nocturne_instance_id, bibliographic_overture_id, frame, ordinal, label, layout_id, measuring_version, em, judgment_json, tool_hashes_json, tei, facts_json)
         VALUES (gen_random_uuid(), '\(nocturneIDs[0])', '\(overtureID)', '\(services[0])', 1, '1', '\(layoutID)', '\(String(repeating: "b", count: 64))', 20.5, '{}', '{}', '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><pb n="1"/></body></text></TEI>', '{"width":2000.0,"body":45.4,"measure":55.1,"height":76.4}');
       \(try SessionTrace.append(measured, table: "bibliographic_calibration_nocturne_instances", id: nocturneIDs[0]))
       \(try SessionTrace.append(failedTrace, table: "bibliographic_calibration_nocturne_instances", id: nocturneIDs[1]))
@@ -123,7 +123,7 @@ struct ScratchQuatrain {
       DELETE FROM \(table) WHERE bibliographic_quatrain_id = '\(quatrainID)';
       DELETE FROM scan_layouts WHERE id = '\(layoutID)';
       DELETE FROM bibliographic_quatrains WHERE id = '\(quatrainID)';
-      DELETE FROM survey_images WHERE witness_id = '\(figurantID)';
+      DELETE FROM survey_frames WHERE witness_id = '\(figurantID)';
       DELETE FROM bibliographic_overtures WHERE id = '\(overtureID)';
       UPDATE bibliographic_figurants SET discarded_at = now(), discarded_by = '\(owner)' WHERE id = '\(figurantID)';
       COMMIT;

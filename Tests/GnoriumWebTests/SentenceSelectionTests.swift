@@ -101,7 +101,7 @@ struct SentenceSelectionTests {
           .toHaveCount(3)
         let taken = try await quote.evaluate("(q) => q.value").string ?? ""
         #expect(taken == "The scratchwords stood.", "the sentence taken, its stop too: \(taken)")
-        try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1")
+        try await expect(box.locator("input[name='quote-s1-start-frame']")).toHaveValue("1")
         try await expect(box.locator(".quote-passage-reader [data-highlight='title']")).toHaveCount(0)
         try await expect(forms).toHaveValue("")
         try await expect(page.locator(".gloss-sheet[data-state='open']")).toHaveCount(0)
@@ -189,7 +189,7 @@ struct SentenceSelectionTests {
         try await words.nth(3).click()
         let extended = try await quote.evaluate("(q) => q.value").string ?? ""
         #expect(extended == "They fel.\nA scratchword lay.", "the quote extended: \(extended)")
-        try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1,1")
+        try await expect(box.locator("input[name='quote-s1-start-frame']")).toHaveValue("1,1")
 
         // Its first sentence holds no form (user, 2026-11-03): a Submit is
         // refused, the message at the bottom of the node; a form clears it.
@@ -229,7 +229,7 @@ struct SentenceSelectionTests {
         try await others.nth(0).click()
         let second = try await quote.evaluate("(q) => q.value").string ?? ""
         #expect(second == "They fel.\nA scratchword lay.\n\nThe scratchwords stood.", "two quotes: \(second)")
-        try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1,1,1")
+        try await expect(box.locator("input[name='quote-s1-start-frame']")).toHaveValue("1,1,1")
         try await expect(forms).toHaveValue(#"[[["w1.4"],["w1.7"]],[]]"#)
         try await page.addForm(in: groups.nth(1), from: ".tei-word[data-word-id='w1.2']")
         try await expect(forms).toHaveValue(#"[[["w1.4"],["w1.7"]],[["w1.2"]]]"#)
@@ -248,7 +248,7 @@ struct SentenceSelectionTests {
         try await words.nth(0).click()
         let one = try await quote.evaluate("(q) => q.value").string ?? ""
         #expect(one == "The scratchwords stood.\nThey fel.\nA scratchword lay.", "one run: \(one)")
-        try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1,1,1")
+        try await expect(box.locator("input[name='quote-s1-start-frame']")).toHaveValue("1,1,1")
         // The middle tapped: the bar over it.
         try await words.nth(4).click()
 

@@ -45,7 +45,7 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, frame, instance_count)
          VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1–2')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)'), 'explication', '1–2', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
@@ -230,7 +230,7 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, frame, instance_count)
          VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)'), 'explication', '1', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
@@ -330,19 +330,19 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, frame, instance_count)
          VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)'), 'explication', '1', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
         VALUES ('\(nocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, 2, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), 3000, now());
         \(try SessionTrace.append(blocks, table: Self.nocturnes, id: nocturneID, stepMs: 300))
-        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, frame, instance_count)
          VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)'), 'explication', '1', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
         VALUES ('\(failedNocturneID)', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'failed', gen_random_uuid(), 500, now() - interval '1 second');
         \(try SessionTrace.append([["type": "thinking", "content": "Historical partial thought."]], table: Self.nocturnes, id: failedNocturneID))
-        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, frame, instance_count)
          VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('2')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)'), 'explication', '2', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
@@ -351,7 +351,7 @@ struct BibliographicExplicationSessionsTests {
         COMMIT;
         """)
       try await withPage(engine, gnorium, cookies: [admin.cookie]) { page in
-        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?image=1")
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?frame=1")
         let session = page.locator(".computorium-session-view")
         let replay = page.locator(".replay-btn")
         let snapshot = """
@@ -416,7 +416,7 @@ struct BibliographicExplicationSessionsTests {
         }
         // An older failed instance remains failed in the card, while the list
         // continues to report the session's later successful result.
-        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?image=1&instance=1")
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?frame=1&instance=1")
         try await expect(session).toHaveAttribute("data-computorium-session-status", "failed")
         let currentRows = page.locator(".roster-row[data-computorium-session-label='1']")
         try await expect(currentRows.first).toHaveAttribute("data-computorium-session-status", "succeeded")
@@ -462,19 +462,19 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, frame, instance_count)
          VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', \(batch), 'explication', '1', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances \(columns)
         VALUES ('\(nocturneIDs[0])', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, 2, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), 300, now());
         \(try SessionTrace.append(text("The second instance."), table: Self.nocturnes, id: nocturneIDs[0]))
-        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, frame, instance_count)
          VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', \(batch), 'explication', '1', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances \(columns)
         VALUES ('\(nocturneIDs[1])', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), 300, now() - interval '1 second');
         \(try SessionTrace.append(text("The first instance."), table: Self.nocturnes, id: nocturneIDs[1]))
-        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, frame, instance_count)
          VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('2')::text, ''))::uuid, '\(antiphonID)', \(batch), 'explication', '2', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances \(columns)
@@ -483,7 +483,7 @@ struct BibliographicExplicationSessionsTests {
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?image=1")
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?frame=1")
         try await expect(page.locator(".computorium-session-title-block .computorium-session-page-nav")).toBeVisible()
         try await expect(page.locator(".computorium-session-controls .computorium-session-page-nav")).toHaveCount(0)
         let instances = page.locator(".computorium-session-controls-start .computorium-session-instance-nav")
@@ -596,13 +596,13 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, frame, instance_count)
          VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', \(batch), 'explication', '1', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances \(columns)
         VALUES ('\(nocturneIDs[0])', md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'passed', gen_random_uuid(), 300, '\(vignette)', now());
         \(try SessionTrace.append(recorded, table: Self.nocturnes, id: nocturneIDs[0]))
-        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, frame, instance_count)
          VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('2')::text, ''))::uuid, '\(antiphonID)', \(batch), 'explication', '2', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances \(columns)
@@ -613,7 +613,7 @@ struct BibliographicExplicationSessionsTests {
       let task = ".computorium-session-view .computorium-session-task-fieldset .computorium-session-prompt-body"
       let system = ".computorium-session-view .computorium-session-prompt-fieldset:not(.computorium-session-task-fieldset) .computorium-session-prompt-body"
       try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine), cookies: [admin.cookie]) { page in
-        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?image=1")
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?frame=1")
         let shown = try await page.evaluate("document.querySelector('\(task)')?.textContent ?? ''", as: String.self)
         #expect(shown == sent, "The task prompt as sent: \(shown)")
         #expect(!shown.contains("{"), "No slot is left in the task prompt: \(shown)")
@@ -623,7 +623,7 @@ struct BibliographicExplicationSessionsTests {
         #expect(systemShown == "Read the image as sent.", "The system prompt as sent: \(systemShown)")
         try await page.expectNoErrors()
 
-        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?image=2")
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?frame=2")
         let before = try await page.evaluate("document.querySelector('\(task)')?.textContent ?? ''", as: String.self)
         #expect(before.trimmingCharacters(in: .whitespacesAndNewlines) == template && before.contains("{evidence}"),
           "A nocturne that did not record its task shows its vignette's template")
@@ -667,7 +667,7 @@ struct BibliographicExplicationSessionsTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, frame, instance_count)
          VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)'), 'explication', '1', 1)
          ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
         INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
@@ -676,7 +676,7 @@ struct BibliographicExplicationSessionsTests {
         COMMIT;
         """)
       try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine), cookies: [admin.cookie]) { page in
-        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?image=1")
+        try await page.openHydrated("/mission-control/antiphons/bibliographic/\(antiphonID)?frame=1")
         let check = """
           (() => {
             const out = [];

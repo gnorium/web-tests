@@ -60,7 +60,7 @@ struct ScratchOverture {
     let base = "https://web-tests.invalid/iiif/\(figurantID)"
     images = (1...4).map { "\(base)/p\($0)/full/1300,/0/default.jpg" }
     let pages = Self.labels.enumerated().map { index, label in
-      "{\"label\":\"\(label)\",\"imageURL\":\"\(images[index])\"}"
+      "{\"label\":\"\(label)\",\"frameURL\":\"\(images[index])\"}"
     }.joined(separator: ",")
     let pagesJSON = "[\(pages)]"
     let source = "https://web-tests.invalid/\(figurantID).pdf"
@@ -89,12 +89,12 @@ struct ScratchOverture {
       for index in 0..<calibrated {
         statements += """
 
-          INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, image, instance_count)
+          INSERT INTO bibliographic_calibration_nocturnes (id, bibliographic_quatrain_id, submission_id, process, frame, instance_count)
            VALUES (md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[index])')::text, ''))::uuid, '\(quatrainID)', '\(submissionID)', 'calibration', '\(services[index])', 1)
            ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_calibration_nocturnes.instance_count + 1;
           INSERT INTO bibliographic_calibration_nocturne_instances (id, nocturne_id, instance, provider, model, result, duration_ms, created_at, finished_at)
           VALUES ('\(nocturneIDs[index])', md5('head:' || ('\(quatrainID)'):: text || ':' || coalesce(('\(services[index])')::text, ''))::uuid, 1, 'DeepSeek', 'deepseek-flash', 'passed', 1500, now() - interval '1 minute', now() - interval '1 minute');
-          INSERT INTO calibration_pages (id, calibration_nocturne_instance_id, bibliographic_overture_id, image, ordinal, label, layout_id, measuring_version, em, judgment_json, tool_hashes_json, tei, facts_json, structure_json, transcription_json, created_at)
+          INSERT INTO calibration_pages (id, calibration_nocturne_instance_id, bibliographic_overture_id, frame, ordinal, label, layout_id, measuring_version, em, judgment_json, tool_hashes_json, tei, facts_json, structure_json, transcription_json, created_at)
             VALUES (gen_random_uuid(), '\(nocturneIDs[index])', '\(overtureID)', '\(services[index])', \(index + 1), '\(index + 1)', '\(layoutID)', '\(String(repeating: "b", count: 64))', 20.5, '{}', '{}', '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><pb n="\(index + 1)"/></body></text></TEI>', '{"width":2000.0,"body":45.4,"measure":55.1,"height":76.4}', '{"entries":[],"excluded":{}}', '{"gaps":[],"lines":{}}', now() - interval '1 minute');
           """
       }
@@ -105,7 +105,7 @@ struct ScratchOverture {
 
           INSERT INTO bibliographic_integration_nocturnes (id, bibliographic_quatrain_id)
             VALUES ('\(integrationID)', '\(quatrainID)');
-          INSERT INTO bibliographic_integration_nocturne_instances (id, nocturne_id, instance, provider, model, result, requested_by_id, image_ids_json, duration_ms, created_at, finished_at)
+          INSERT INTO bibliographic_integration_nocturne_instances (id, nocturne_id, instance, provider, model, result, requested_by_id, frame_ids_json, duration_ms, created_at, finished_at)
             VALUES ('\(integrationID)', '\(integrationID)', 1, 'DeepSeek', 'deepseek-flash', 'passed', '\(user)', '\(scope)', 1500, now(), now());
           UPDATE bibliographic_quatrains SET accepted_fit_json = '{}', accepted_fit_pages_json = '[]', accepted_fit_at = now(),
             accepted_fit_by_id = '\(integrationID)' WHERE id = '\(quatrainID)';
@@ -151,7 +151,7 @@ struct ScratchOverture {
       DELETE FROM \(table) WHERE bibliographic_quatrain_id = '\(quatrainID)';
       DELETE FROM scan_layouts WHERE id = '\(layoutID)';
       DELETE FROM bibliographic_quatrains WHERE id = '\(quatrainID)';
-      DELETE FROM survey_images WHERE witness_id = '\(figurantID)';
+      DELETE FROM survey_frames WHERE witness_id = '\(figurantID)';
       DELETE FROM bibliographic_overtures WHERE id = '\(overtureID)';
       UPDATE bibliographic_figurants SET discarded_at = now(), discarded_by = '\(owner)' WHERE id = '\(figurantID)';
       COMMIT;

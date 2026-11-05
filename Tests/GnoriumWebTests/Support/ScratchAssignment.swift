@@ -29,7 +29,7 @@ struct ScratchAssignment {
       BEGIN;
       INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
         VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
-      INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+      INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, frame, instance_count)
        VALUES (md5('head:' || ('\(antiphonID)'):: text || ':' || coalesce(('1')::text, ''))::uuid, '\(antiphonID)', (SELECT batch_id FROM bibliographic_overtures WHERE id = '\(work.overtureID)'), 'explication', '1', 1)
        ON CONFLICT (id) DO UPDATE SET instance_count = bibliographic_explication_nocturnes.instance_count + 1;
       INSERT INTO bibliographic_explication_nocturne_instances (id, nocturne_id, instance, provider, model, result, nocturne_batch_id, duration_ms, created_at)
@@ -38,7 +38,7 @@ struct ScratchAssignment {
       INSERT INTO sentiments (uuid, lexico_record_id, language_code, lemma, class, inventory_version, value_text, value_key, provisional)
         VALUES ('\(leaf)', '\(word.recordID)', 'eng', '\(word.title)', '\(wordClass)', 1,
           'A leaf sense.', 'a leaf sense', false);
-      INSERT INTO sentiment_assignments (reading_id, image, word_id, surface, language_code, lemma, class, sentiment_uuid, assigned_by)
+      INSERT INTO sentiment_assignments (reading_id, frame, word_id, surface, language_code, lemma, class, sentiment_uuid, assigned_by)
         VALUES ('\(nocturneID)', '\(image)', '\(wordID)', '\(surface)', 'eng', '\(lemma)', '\(wordClass)', '\(leaf)',
           'bibliographic_explication');
       UPDATE biblio_record_versions SET page_readings_json = '{"\(image)": "\(nocturneID)"}' WHERE id = '\(testament.versionID)';

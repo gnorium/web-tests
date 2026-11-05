@@ -53,7 +53,7 @@ struct TranslationScopeTests {
         -- Page 2's translation integrated (user, 2026-10-24): locked.
         UPDATE bibliographic_serenades SET integrates = true WHERE id = '\(serenade)';
         INSERT INTO bibliographic_integration_nocturnes (id, bibliographic_serenade_id) VALUES ('\(serenade)', '\(serenade)');
-        INSERT INTO bibliographic_integration_nocturne_instances (id, nocturne_id, instance, provider, model, result, requested_by_id, image_ids_json, duration_ms, created_at, finished_at)
+        INSERT INTO bibliographic_integration_nocturne_instances (id, nocturne_id, instance, provider, model, result, requested_by_id, frame_ids_json, duration_ms, created_at, finished_at)
           VALUES ('\(serenade)', '\(serenade)', 1, 'DeepSeek', 'deepseek-flash', 'passed', '\(user)', '["\(fixture.baseURL)/page-2"]', 1500, now(), now());
         COMMIT;
         """)
@@ -108,7 +108,7 @@ struct TranslationScopeTests {
         // commit, its checkbox gone (user, 2026-10-09); page 1's is stale,
         // and ticks.
         // (The navbar clones the sidebar into its menu: the first roster.)
-        let rows = page.locator("#epilogue-images").first.locator(".roster-row")
+        let rows = page.locator("#epilogue-frames").first.locator(".roster-row")
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "false")
         try await expect(rows.nth(1)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(1).locator(".checkbox-icon-wrapper")).toBeHidden()
@@ -184,7 +184,7 @@ struct TranslationScopeTests {
         -- Page 2's translation integrated (user, 2026-10-24): locked.
         UPDATE bibliographic_serenades SET integrates = true WHERE id = '\(serenade)';
         INSERT INTO bibliographic_integration_nocturnes (id, bibliographic_serenade_id) VALUES ('\(serenade)', '\(serenade)');
-        INSERT INTO bibliographic_integration_nocturne_instances (id, nocturne_id, instance, provider, model, result, requested_by_id, image_ids_json, duration_ms, created_at, finished_at)
+        INSERT INTO bibliographic_integration_nocturne_instances (id, nocturne_id, instance, provider, model, result, requested_by_id, frame_ids_json, duration_ms, created_at, finished_at)
           VALUES ('\(serenade)', '\(serenade)', 1, 'DeepSeek', 'deepseek-flash', 'passed', '\(user)', '["\(fixture.baseURL)/page-2"]', 1500, now(), now());
         COMMIT;
         """)

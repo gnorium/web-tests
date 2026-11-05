@@ -71,7 +71,7 @@ struct PromptPreviewFillingTests {
         // Page 3, unexplicated: the madrigal's one process, explication, and
         // its prompt, the neighbor's edge sentence filled as its session
         // fills it, no slot left.
-        try await page.locator("#madrigal-images .roster-row .roster-label").nth(2).click()
+        try await page.locator("#madrigal-frames .roster-row .roster-label").nth(2).click()
         try await expect(page.locator("#artifact-page-input").first).toHaveValue("3")
         try await expect(explication, timeout: .seconds(20)).toContainText("Beta page sentence.")
         try await expect(page.locator(".prompt-previews-process")).toHaveCount(2)
@@ -112,7 +112,7 @@ struct PromptPreviewFillingTests {
         // its slot and the task a template while no call is typed.
         let box = page.locator("#thread-locution-body")
         try await box.focus()
-        try await page.locator("#madrigal-images .roster-row").nth(1).locator("input").click()
+        try await page.locator("#madrigal-frames .roster-row").nth(1).locator("input").click()
         try await expect(arbitration, timeout: .seconds(20)).toContainText("Beta page sentence.")
         try await expect(arbitration).not.toContainText("Alpha page sentence.")
         try await expect(arbitration).toContainText("{query}")
@@ -170,7 +170,7 @@ struct PromptPreviewFillingTests {
         let images = arbitrationSection.locator(
           ".prompt-preview-task .prompt-preview-images .expandable-attachment-view[data-presentation='line']")
         let sent = try await images.count()
-        try await page.locator("#madrigal-images .roster-row").nth(1).locator("input").click()
+        try await page.locator("#madrigal-frames .roster-row").nth(1).locator("input").click()
         try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt")
         try await expect(arbitration).toContainText("{evidence}")
         try await expect(arbitration).toContainText("{query}")
@@ -201,7 +201,7 @@ struct PromptPreviewFillingTests {
           as: Bool.self)
         #expect(swapped, "the Arbitration section was redrawn")
         // Page 2 ticked again: its prompt, and the images it sends.
-        try await page.locator("#madrigal-images .roster-row").nth(1).locator("input").click()
+        try await page.locator("#madrigal-frames .roster-row").nth(1).locator("input").click()
         try await expect(taskTitle, timeout: .seconds(20)).toHaveText("Task Prompt")
         try await expect(arbitration).toContainText("Beta page sentence.")
         try await expect(images).toHaveCount(sent)

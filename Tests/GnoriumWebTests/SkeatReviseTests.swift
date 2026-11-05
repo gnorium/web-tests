@@ -67,7 +67,7 @@ struct SkeatReviseTests {
         "UPDATE bibliographic_madrigals SET proposed_content_json = '\(json.replacingOccurrences(of: "'", with: "''"))' WHERE id = '\(commit.madrigalID)'")
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         // The madrigal's own Raw: the page headed.
-        try await page.openHydrated("\(commit.madrigalPath)?image=1")
+        try await page.openHydrated("\(commit.madrigalPath)?frame=1")
         try await page.locator(".artifact-xml-toggle button").first.click()
         // The page's code, never the document's header: that is the
         // reader's Header pane's, as code, under its own switch, the two
@@ -100,7 +100,7 @@ struct SkeatReviseTests {
           "Raw's facsimile is not the page's own surface ahead of its text")
 
         // The Revise page's editor: the same text.
-        try await page.openHydrated("\(commit.madrigalPath)/revise?image=1")
+        try await page.openHydrated("\(commit.madrigalPath)/revise?frame=1")
         if try await page.locator(".artifact-xml-toggle button").first.getAttribute("aria-pressed") != "true" {
           try await page.locator(".artifact-xml-toggle button").first.click()
         }

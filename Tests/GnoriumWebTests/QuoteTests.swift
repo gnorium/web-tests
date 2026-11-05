@@ -114,7 +114,7 @@ struct QuoteTests {
         let linked = try await value.locator("a").count()
         if linked > 0 {
           let href = try await value.locator("a").getAttribute("href") ?? ""
-          #expect(href.hasPrefix("\(work.path)?image=2#record-row-"), "the Value links to its testament's row: \(href)")
+          #expect(href.hasPrefix("\(work.path)?frame=2#record-row-"), "the Value links to its testament's row: \(href)")
         } else {
           try await expect(value).toContainText("—")
         }
@@ -186,7 +186,7 @@ struct QuoteTests {
           fetch(document.querySelector('.gloss-sheet[data-state=open] .chicago-citation-view a').href)
             .then(r => (r.ok ? '' : 'HTTP ' + r.status + ' ') + new URL(r.url).pathname + new URL(r.url).search)
           """)
-        #expect(landed == .string("\(scratch.reading.work.path)/vignettes/\(scratch.versionID)?image=2"))
+        #expect(landed == .string("\(scratch.reading.work.path)/vignettes/\(scratch.versionID)?frame=2"))
         try await page.keyboard.press("Escape")
         try await expect(page.locator(".gloss-sheet[data-state='open']")).toHaveCount(0)
 

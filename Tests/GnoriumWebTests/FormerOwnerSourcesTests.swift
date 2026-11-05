@@ -198,7 +198,7 @@ struct FormerOwnerSourcesTests {
       try await expect(quotes).toHaveCount(1)
       let pane = quotes.first.locator(".quote-passage-text .tei-page-text")
       try await expect(pane, timeout: .seconds(15)).toBeAttached()
-      try await expect(quotes.first.locator(".artifact-canvas .image-view")).toHaveCount(0)
+      try await expect(quotes.first.locator(".artifact-canvas .frame-view")).toHaveCount(0)
       try await pane.fill("Found by Sir H. E. Bunbury at Barton, 1823.")
       // Nothing marked till a person picks it: the name as printed.
       try await expect(quotes.first.locator("[data-highlight='title']")).toHaveCount(0)

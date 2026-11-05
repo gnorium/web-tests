@@ -116,7 +116,7 @@ struct AlertLayoutTests {
     <div class="alert-view alert-orange" id="faults"><div class="alert-motion-content">\(icon)<div class="alert-content">\
     <div class="alert-line-view" data-heading="true" id="heading"><div class="alert-line-words">Frame 5: 1 fault</div></div>\
     <div class="alert-line-view" id="line"><div class="alert-line-words" id="words">Box without its zone:</div>\
-    <div class="alert-line-aside" id="aside"><span class="image-fault-detail" id="detail" data-edge-fade-view="expand" \
+    <div class="alert-line-aside" id="aside"><span class="frame-fault-detail" id="detail" data-edge-fade-view="expand" \
     style="min-width:0;font-family:ui-monospace,monospace;white-space:nowrap;overflow:hidden">\(detail)</span></div></div>\
     </div></div></div>
     """

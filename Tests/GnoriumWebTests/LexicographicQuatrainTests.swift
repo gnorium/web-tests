@@ -87,7 +87,7 @@ struct LexicographicQuatrainTests {
           VALUES ('\(quatrainID)', '\(overtureID)', '\(user)', '["\(sentimentID)"]', 17, '{"budget":6000}',
             '\(selection)', 'submitted', now(), now(), now());
         INSERT INTO lexicographic_calibration_scores (lexicographic_quatrain_id, sentiment_uuid, quote_id, version_id,
-          image_id, word_id, step, selected, rank, gate, dated_year, surprise, surface, lemma, class, testament, date,
+          frame_id, word_id, step, selected, rank, gate, dated_year, surprise, surface, lemma, class, testament, date,
           cert, row_json)
           VALUES \(scores);
         INSERT INTO lexicographic_calibration_nocturnes (id, lexicographic_quatrain_id, process, instance_count)

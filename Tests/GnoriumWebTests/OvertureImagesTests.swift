@@ -81,7 +81,7 @@ struct OvertureImagesTests {
         try await expect(viewer.locator("#artifact-page-input")).toHaveValue("2")
         try await expect(rows.nth(1)).toHaveAttribute("class", "roster-row roster-row-check roster-row-selected")
         try await expect(rows.nth(0)).toHaveAttribute("class", "roster-row roster-row-check")
-        #expect(try await page.url().hasSuffix("?image=1"))
+        #expect(try await page.url().hasSuffix("?frame=1"))
 
         if layout == .desktop {
           // A row moves the reader, and the preview follows; it ticks nothing.

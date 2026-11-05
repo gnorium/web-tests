@@ -145,7 +145,7 @@ struct EpilogueTranslationTests {
         try await expect(slot.locator(".testament-translation-diff")).toBeVisible()
         try await expect(slot.locator(".testament-translation-diff")).toContainText("The rule of three for numbers")
         try await expect(slot.locator(".testament-translation-diff")).toContainText("Rule of three")
-        try await expect(slot.locator(".image-diff-view")).toHaveCount(0)
+        try await expect(slot.locator(".frame-diff-view")).toHaveCount(0)
         if let shots = Self.shots { try await page.screenshot(to: URL(fileURLWithPath: shots + "/translation-diff.png")) }
         // Raw off: no diff; the noted block opens its note in the gloss.
         try await viewer.locator(".artifact-xml-toggle button").first.click()

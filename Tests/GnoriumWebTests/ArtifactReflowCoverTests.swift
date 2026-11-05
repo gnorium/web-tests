@@ -140,7 +140,7 @@ struct ArtifactReflowCoverTests {
       _ = try TestAdmin.query(
         "UPDATE bibliographic_madrigals SET proposed_content_json = '\(json.replacingOccurrences(of: "'", with: "''"))' WHERE id = '\(commit.madrigalID)'")
       try await withPage(engine, gnorium, viewport: viewport, cookies: [contributor.cookie]) { page in
-        try await page.openHydrated("\(commit.madrigalPath)?image=1")
+        try await page.openHydrated("\(commit.madrigalPath)?frame=1")
         let view = page.locator(".artifact-view").first
         try await expect(page.locator(".artifact-markup .tei-page[data-active='true'] .tei-block")).toHaveCount(4)
         try await page.locator(".artifact-reflow-toggle button").first.click()
@@ -225,7 +225,7 @@ struct ArtifactReflowCoverTests {
       _ = try TestAdmin.query(
         "UPDATE bibliographic_madrigals SET proposed_content_json = '\(json.replacingOccurrences(of: "'", with: "''"))' WHERE id = '\(commit.madrigalID)'")
       try await withPage(engine, gnorium, viewport: viewport, cookies: [contributor.cookie]) { page in
-        try await page.openHydrated("\(commit.madrigalPath)?image=1")
+        try await page.openHydrated("\(commit.madrigalPath)?frame=1")
         let view = page.locator(".artifact-view").first
         try await expect(page.locator(".artifact-markup .tei-page[data-active='true'] .tei-block")).toHaveCount(5)
         try await page.locator(".artifact-reflow-toggle button").first.click()

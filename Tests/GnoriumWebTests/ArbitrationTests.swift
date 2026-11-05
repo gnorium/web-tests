@@ -88,15 +88,15 @@ struct ArbitrationTests {
         // to tick, and the page on screen is never read unticked (user,
         // 2026-10-15). A call may tick nothing (user, 2026-10-21): it posts,
         // reading no page.
-        try await page.openHydrated(reading.path + "?image=1")
+        try await page.openHydrated(reading.path + "?frame=1")
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".disputorium-core-object #artifact-page-total"), timeout: .seconds(20)).toHaveText("3")
-        try await expect(page.locator("#thread-locution-image")).toHaveValue("1")
+        try await expect(page.locator("#thread-locution-frame")).toHaveValue("1")
         try await expect(page.locator("#thread-process")).toHaveValue("explication")
         try await expect(page.locator(".thread-form input[type='checkbox']")).toHaveCount(0)
         try await expect(page.locator(".thread-submit")).toHaveText("Submit")
-        try await expect(page.locator("#madrigal-images .roster-row").nth(1).locator(".checkbox-input")).toBeDisabled()
+        try await expect(page.locator("#madrigal-frames .roster-row").nth(1).locator(".checkbox-input")).toBeDisabled()
         try await page.locator("#thread-locution-body").fill("@gnorium Hi")
         try await page.locator(".thread-submit").click()
         try await expect(page.locator(".locution-view"), timeout: .seconds(15)).toHaveCount(1)
@@ -110,13 +110,13 @@ struct ArbitrationTests {
         // Image 1 has markup: explicated, queryable—and locked against a
         // commit: its row keeps its mark and loses its checkbox. Ticked
         // from page 3, the page on screen (user, 2026-10-17).
-        try await page.openHydrated(reading.path + "?image=2")
+        try await page.openHydrated(reading.path + "?frame=2")
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         try await expect(page.locator(".disputorium-core-object #artifact-page-total"), timeout: .seconds(20)).toHaveText("3")
-        try await expect(page.locator("#thread-locution-image")).toHaveValue("2")
+        try await expect(page.locator("#thread-locution-frame")).toHaveValue("2")
         try await page.locator("#thread-locution-body").fill("@gnorium What does the selected evidence support?")
-        try await page.locator("#madrigal-images .roster-row").nth(0).locator("input").click()
+        try await page.locator("#madrigal-frames .roster-row").nth(0).locator("input").click()
         try await page.locator(".thread-submit").click()
         // Posted pending: no status chip on a call (user, 2026-10-11), and
         // no Commit for a contributor.
@@ -137,7 +137,7 @@ struct ArbitrationTests {
           .toHaveAttribute("aria-busy", "false")
         // The admin's roster: the explicated page has no checkbox, the
         // blank ones do.
-        let rows = page.locator("#madrigal-images .roster-row")
+        let rows = page.locator("#madrigal-frames .roster-row")
         try await expect(rows).toHaveCount(3)
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(0).locator(".checkbox-icon-wrapper")).toBeHidden()
@@ -147,7 +147,7 @@ struct ArbitrationTests {
         // Its checkbox's column kept, the locked row's ordinal, mark and
         // label line up with an unlocked row's (user, 2026-10-10).
         #expect(try await page.evaluate("""
-          (() => { const rows = document.querySelectorAll('#madrigal-images .roster-row')
+          (() => { const rows = document.querySelectorAll('#madrigal-frames .roster-row')
             const x = (row, s) => row.querySelector(s).getBoundingClientRect().left
             return ['.roster-marker', '.roster-status', '.roster-label'].every(s => x(rows[0], s) === x(rows[1], s)) })()
           """, as: Bool.self), "Locked and unlocked rows align")
@@ -168,7 +168,7 @@ struct ArbitrationTests {
         // linked to the page turned to it (user, 2026-10-17): "… submitted
         // locution ‹id› on Frame 3", not the page it ticked.
         try await expect(call.locator(".locution-header")).toContainText("submitted locution \(callID) on Frame 3")
-        try await expect(call.locator("a:has(.locution-call-page)")).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID)?image=2")
+        try await expect(call.locator("a:has(.locution-call-page)")).toHaveAttribute("href", "/mission-control/madrigals/bibliographic/\(objectID)?frame=2")
         // Its body stays as typed; what it ticked is one sentence in a box
         // after it, as a revision's Modified line is: "Attached Image
         // 1.", the page's image a line-high chip opening the lightbox (user,
@@ -702,7 +702,7 @@ struct ArbitrationTests {
         // An admin submits through exactly the same pending process, the
         // page ticked as any caller ticks it.
         try await page.locator("#thread-locution-body").fill("@gnorium Read this evidence again.")
-        try await page.locator("#madrigal-images .roster-row").nth(0).locator("input").click()
+        try await page.locator("#madrigal-frames .roster-row").nth(0).locator("input").click()
         try await page.locator(".thread-submit").click()
         try await expect(page.locator(".locution-commit"), timeout: .seconds(15)).toHaveCount(1)
         try await expect(page.locator(".locution-call-status")).toHaveCount(0)
@@ -1344,7 +1344,7 @@ struct ArbitrationTests {
         try await page.openHydrated(reading.path)
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
-        let roster = page.locator("#madrigal-images")
+        let roster = page.locator("#madrigal-frames")
         let rows = roster.locator(".roster-row")
         try await expect(rows).toHaveCount(4)
         // Commit mode: the three read pages locked, the blank one ticked for.
@@ -1496,7 +1496,7 @@ struct ArbitrationTests {
         #expect(isOpen == wasOpen, "a tick in the header leaves the accordion as it was")
         try await body.fill("@gnorium Is the title right?")
         // And an image on another page than the one on screen (page 1).
-        let page2 = page.locator("#madrigal-images .roster-row").nth(1).locator("input")
+        let page2 = page.locator("#madrigal-frames .roster-row").nth(1).locator("input")
         try await page2.click()
         try await expect(page2).toBeChecked()
         try await page.locator(".thread-submit").click()
@@ -1565,7 +1565,7 @@ struct ArbitrationTests {
         try await page.openHydrated(reading.path)
         let viewer = page.locator(".artifact-view").first
         try await expect(viewer).toHaveAttribute("data-artifact-hydrated", "true")
-        let roster = page.locator("#madrigal-images")
+        let roster = page.locator("#madrigal-frames")
         let body = page.locator("#thread-locution-body")
         // Submit at the right, under the box's right edge (user, 2026-10-10).
         let field = try #require(try await body.boundingBox())
@@ -1579,7 +1579,7 @@ struct ArbitrationTests {
         // The page images on; the ticked image takes a box.
         let toggle = viewer.locator(".artifact-canvas-toggle button")
         if try await toggle.getAttribute("aria-pressed") != "true" { try await toggle.click() }
-        let image = viewer.locator(".image-view[data-active='true'] .image-viewport")
+        let image = viewer.locator(".frame-view[data-active='true'] .frame-viewport")
         try await expect(image).toHaveAttribute("data-cropping", "true")
         let box = try #require(try await image.boundingBox())
         let (x0, y0) = (box.x + box.width * 0.4, box.y + box.height * 0.4)
@@ -1590,7 +1590,7 @@ struct ArbitrationTests {
           try await page.mouse.move(x: x0 + (x1 - x0) * Double(step) / 5, y: y0 + (y1 - y0) * Double(step) / 5)
         }
         try await page.mouse.up(x: x1, y: y1)
-        try await expect(image.locator(".image-crop")).toBeVisible()
+        try await expect(image.locator(".frame-crop")).toBeVisible()
         try await expect(roster).toHaveAttribute("data-mode", "attach")
         try await page.locator(".thread-submit").click()
         // Pending: no status chip; an admin's Commit stands under the call's words.

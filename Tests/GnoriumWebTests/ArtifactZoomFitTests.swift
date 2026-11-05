@@ -42,8 +42,8 @@ struct ArtifactZoomFitTests {
 
   static let shownScript = """
     () => {
-      const v = document.querySelector('.image-view[data-active="true"] .image-viewport'), vb = v.getBoundingClientRect();
-      const t = v.querySelector('.image-tile-compositor').getAttribute('transform').match(/-?[\\d.]+(e-?\\d+)?/g).map(Number);
+      const v = document.querySelector('.frame-view[data-active="true"] .frame-viewport'), vb = v.getBoundingClientRect();
+      const t = v.querySelector('.frame-tile-compositor').getAttribute('transform').match(/-?[\\d.]+(e-?\\d+)?/g).map(Number);
       return {zoom: t[2], fit: Math.min(vb.width / 2820, vb.height / 3781), width: 2820 * t[2], height: 3781 * t[2],
         paneWidth: vb.width, paneHeight: vb.height};
     }
@@ -51,7 +51,7 @@ struct ArtifactZoomFitTests {
 
   static let gestures = """
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-    const viewport = () => document.querySelector('.image-view[data-active="true"] .image-viewport');
+    const viewport = () => document.querySelector('.frame-view[data-active="true"] .frame-viewport');
     const wheel = (dy, fx, fy, ctrlKey) => {
       const v = viewport(), b = v.getBoundingClientRect();
       v.dispatchEvent(new WheelEvent('wheel', {deltaY: dy, ctrlKey, clientX: b.x + b.width * fx, clientY: b.y + b.height * fy, bubbles: true, cancelable: true}));
@@ -69,7 +69,7 @@ struct ArtifactZoomFitTests {
     guard FileManager.default.fileExists(atPath: wasm.path),
       FileManager.default.fileExists(atPath: assets.appendingPathComponent("loader.js").path)
     else { try Test.cancel("Build gnorium-web's local client assets with make client first") }
-    let css = try ["layout-view.css", "artifact-view.css", "image-view.css"].map {
+    let css = try ["layout-view.css", "artifact-view.css", "frame-view.css"].map {
       try String(contentsOf: assets.appendingPathComponent("style-sheets/" + $0), encoding: .utf8)
     }.joined(separator: "\n")
     let w = pane.width, h = pane.height
@@ -79,12 +79,12 @@ struct ArtifactZoomFitTests {
       body { margin: 0; }
       .artifact-view { display: flex; flex-direction: column; width: \(w)px; height: \(h)px; border: 0; }
       .artifact-object { width: \(w)px; height: \(h)px; flex: none; display: flex; }
-      .image-view { width: \(w)px; height: \(h)px; }
-      .image-viewport { width: \(w)px; height: \(h)px; position: relative; overflow: hidden; }
+      .frame-view { width: \(w)px; height: \(h)px; }
+      .frame-viewport { width: \(w)px; height: \(h)px; position: relative; overflow: hidden; }
       </style></head><body>
       <div class="artifact-view" data-manifest-url="/manifest">
-        <div class="artifact-object"><div class="image-view" data-service-id="/svc/1" data-active="true">
-          <div class="image-viewport"><div class="image-spinner" data-visible="false"></div></div>
+        <div class="artifact-object"><div class="frame-view" data-service-id="/svc/1" data-active="true">
+          <div class="frame-viewport"><div class="frame-spinner" data-visible="false"></div></div>
         </div></div>
       </div><script src="/loader.js"></script></body></html>
       """
@@ -102,7 +102,7 @@ struct ArtifactZoomFitTests {
     try await withPage(.chrome, config, viewport: pane.viewport) { page in
       try await page.goto("/")
       try await expect(page.locator("html")).toHaveAttribute("data-wasm-status", "started")
-      try await expect(page.locator(".image-tile-image[data-loaded='true']").first).toBeAttached()
+      try await expect(page.locator(".frame-tile-image[data-loaded='true']").first).toBeAttached()
       func shown() async throws -> Shown { try await page.evaluate("(\(Self.shownScript))()", as: Shown.self) }
       func gesture(_ body: String) async throws {
         _ = try await page.evaluate("(async () => { \(Self.gestures) \(body); return 1 })()")

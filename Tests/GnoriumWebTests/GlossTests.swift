@@ -219,7 +219,7 @@ struct GlossTests {
         // The gloss's address answers JSON too: its data and the same body.
         let json = try await page.evaluate(
           """
-          fetch('\(scratch.reading.work.path)/testaments/\(scratch.versionID)/glosses?image='
+          fetch('\(scratch.reading.work.path)/testaments/\(scratch.versionID)/glosses?frame='
             + encodeURIComponent('\(Self.service)') + '&line=1&word=2', { headers: { Accept: 'application/json' } })
             .then(r => r.json())
             .then(j => [j.surface, j.lemma, j.class, j.morphology, j.record.title, j.sentiment.id,

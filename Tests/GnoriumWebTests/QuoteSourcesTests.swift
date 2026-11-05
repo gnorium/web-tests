@@ -67,8 +67,8 @@ struct QuoteSourcesTests {
       try await expect(sources.locator("[name$='image-url']")).toHaveCount(0)
       let order = try await first.evaluate(
         """
-        (box) => ['.quote-passage-record', "[name='quote-s1-source-url']", "[name='quote-s1-start-image']",
-          "[name='quote-s1-end-image']", "[name='quote-s1-quote']"]
+        (box) => ['.quote-passage-record', "[name='quote-s1-source-url']", "[name='quote-s1-start-frame']",
+          "[name='quote-s1-end-frame']", "[name='quote-s1-quote']"]
           .map((s) => box.querySelector(s))
           .every((el, i, all) => el && (i === 0 || (all[i - 1].compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)))
         """
@@ -141,7 +141,7 @@ struct QuoteSourcesTests {
         """
         (b) => {
           const note = document.querySelector("textarea[name='digitization_note']");
-          return !b.querySelector("[name='testament-start-image'], [name='testament-end-image'], textarea")
+          return !b.querySelector("[name='testament-start-frame'], [name='testament-end-frame'], textarea")
             && !!note && !!(note.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
         }
         """
@@ -310,8 +310,8 @@ struct QuoteSourcesTests {
           """)
         // The whole sentence the selection touches (user, 2026-11-02).
         try await expect(box.locator("input[name='quote-s1-quote']")).toHaveValue("The scratchwords stood.")
-        try await expect(box.locator("input[name='quote-s1-start-image']")).toHaveValue("1")
-        try await expect(box.locator("input[name='quote-s1-end-image']")).toHaveValue("")
+        try await expect(box.locator("input[name='quote-s1-start-frame']")).toHaveValue("1")
+        try await expect(box.locator("input[name='quote-s1-end-frame']")).toHaveValue("")
         try await expect(box.locator(".quote-passage-reader .tei-word.tei-highlight")).toHaveCount(3)
         // No form guessed: the second step is the person's, a selection
         // and "+ Form", its word magenta, posted by its xml:id.

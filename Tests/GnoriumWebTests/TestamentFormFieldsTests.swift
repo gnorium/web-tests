@@ -22,7 +22,7 @@ struct TestamentFormFieldsTests {
         try await page.openHydrated(Self.form)
         let form = page.locator(".submit-testament-form")
         try await expect(form.locator("input[name='title']")).toHaveCount(1)
-        for gone in ["[name='notes']", ".former-owners-view", "#testament-image-count"] {
+        for gone in ["[name='notes']", ".former-owners-view", "#testament-frame-count"] {
           try await expect(form.locator(gone)).toHaveCount(0)
         }
         // Back on their levels (user, 2026-11-01): the edition's format and

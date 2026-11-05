@@ -96,7 +96,7 @@ struct OriginEvidenceTests {
       if let testament {
         _ = try? TestAdmin.query(
           """
-          DELETE FROM survey_images WHERE witness_id = (SELECT bibliographic_figurant_id FROM bibliographic_overtures
+          DELETE FROM survey_frames WHERE witness_id = (SELECT bibliographic_figurant_id FROM bibliographic_overtures
             WHERE id = '\(testament.reading.work.overtureID)');
           """)
       }
@@ -128,7 +128,7 @@ struct OriginEvidenceTests {
       _ = try TestAdmin.query(
         """
         BEGIN;
-        INSERT INTO survey_images (id, witness_id, ordinal, label, image_url)
+        INSERT INTO survey_frames (id, witness_id, ordinal, label, frame_url)
           VALUES (gen_random_uuid(), '\(witness)', 1, '1', '\(image)/full/1300,/0/default.jpg');
         UPDATE biblio_record_versions SET page_readings_json = '{"\(image)": "web-tests"}' WHERE id = '\(quoted.versionID)';
         COMMIT;

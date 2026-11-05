@@ -151,10 +151,10 @@ struct ReplyRawToggleTests {
     do {
       // The call: a contributor's, on the explicated page.
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        try await page.openHydrated(reading.path + "?image=2")
+        try await page.openHydrated(reading.path + "?frame=2")
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20)).toHaveAttribute("aria-busy", "false")
         try await page.locator("#thread-locution-body").fill("@gnorium What does the selected evidence support?")
-        try await page.locator("#madrigal-images .roster-row").nth(0).locator("input").click()
+        try await page.locator("#madrigal-frames .roster-row").nth(0).locator("input").click()
         try await page.locator(".thread-submit").click()
         try await expect(page.locator(".locution-call-page"), timeout: .seconds(15)).toHaveCount(1)
       }

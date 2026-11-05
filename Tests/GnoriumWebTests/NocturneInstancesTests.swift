@@ -33,7 +33,7 @@ struct NocturneInstancesTests {
         BEGIN;
         INSERT INTO bibliographic_antiphons (id, bibliographic_madrigal_id, requested_by_user_id, image_service_ids_json, processing_status)
           VALUES ('\(antiphonID)', '\(work.madrigalID)', '\(user)', '[]', 'submitted');
-        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, image, instance_count)
+        INSERT INTO bibliographic_explication_nocturnes (id, bibliographic_antiphon_id, submission_id, process, frame, instance_count)
           VALUES (\(head), '\(antiphonID)', \(batch), 'explication', '1', \(instances));
         """
       for (index, id) in instanceIDs.enumerated() {

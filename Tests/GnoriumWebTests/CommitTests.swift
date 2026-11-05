@@ -122,7 +122,7 @@ struct CommitTests {
         try await expect(page.locator(".mission-control-object-header-action-buttons > *"))
           .toHaveTexts(["Revise", "Commit", "Permit"])
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_explication")
-        let rows = page.locator("#madrigal-images").first.locator(".roster-row")
+        let rows = page.locator("#madrigal-frames").first.locator(".roster-row")
         try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
         try await expect(rows.nth(2)).toHaveAttribute("data-locked", "false")
 
@@ -135,7 +135,7 @@ struct CommitTests {
         try await page.openHydrated(scratch.madrigalPath)
         try await expect(page.locator(".commit-process")).toHaveAttribute("value", "bibliographic_translation")
         _ = try await page.evaluate(
-          "(() => { [...document.querySelectorAll(\"#madrigal-images .roster-row input[form='commit-form']\")].slice(0, 2).forEach(box => box.click()); return true })()",
+          "(() => { [...document.querySelectorAll(\"#madrigal-frames .roster-row input[form='commit-form']\")].slice(0, 2).forEach(box => box.click()); return true })()",
           as: Bool.self)
         #expect(try await page.evaluate(Self.interceptScript, as: Bool.self))
         try await page.locator(".commit-trigger").click()
@@ -192,7 +192,7 @@ struct CommitTests {
         let trigger = page.locator(".commit-trigger").first
         // Ticked or not, the open revision is the reason it is disabled.
         _ = try await page.evaluate(
-          "(() => { document.querySelector(\"#madrigal-images .roster-row input[form='commit-form']\").click(); return true })()",
+          "(() => { document.querySelector(\"#madrigal-frames .roster-row input[form='commit-form']\").click(); return true })()",
           as: Bool.self)
         try await expect(trigger).toBeDisabled()
         let refusal = try await page.evaluate(

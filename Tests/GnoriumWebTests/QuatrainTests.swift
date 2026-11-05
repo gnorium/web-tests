@@ -159,7 +159,7 @@ struct QuatrainTests {
             ("3", "running", "roster-status-running", "rotating-ring-sector-view"),
             ("4", "queued", "roster-status-pending", "dotted-ring-view"),
           ])
-        try await page.openHydrated(scratch.path + "?image=1")
+        try await page.openHydrated(scratch.path + "?frame=1")
         let colors = try await (page.locator(".computorium-core-sessions-slot").first.evaluate(
           "(el) => [...el.querySelectorAll('.roster-status')].map(m => getComputedStyle(m).color).join('|')"
         ).string ?? "").split(separator: "|").map(String.init)

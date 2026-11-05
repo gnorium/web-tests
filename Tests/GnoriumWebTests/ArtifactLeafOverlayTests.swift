@@ -45,7 +45,7 @@ struct ArtifactLeafOverlayTests {
     (() => {
       const page = document.querySelector(".artifact-markup .tei-page[data-active='true']");
       const figure = page.querySelector('.tei-figure[data-zone]');
-      const image = document.querySelector('.image-view[data-active="true"] .image-tile-compositor');
+      const image = document.querySelector('.frame-view[data-active="true"] .frame-tile-compositor');
       const f = figure.getBoundingClientRect(), b = image.getBoundingClientRect();
       const [l, t, r, bt] = figure.dataset.zone.split(' ').map(Number);
       const zone = [b.x + l / 1000 * b.width, b.y + t / 1000 * b.height, b.x + r / 1000 * b.width, b.y + bt / 1000 * b.height];
@@ -90,13 +90,13 @@ struct ArtifactLeafOverlayTests {
       _ = try TestAdmin.query(
         "UPDATE bibliographic_madrigals SET proposed_content_json = '\(json.replacingOccurrences(of: "'", with: "''"))' WHERE id = '\(commit.madrigalID)'")
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
-        try await page.openHydrated("\(commit.madrigalPath)?image=1")
+        try await page.openHydrated("\(commit.madrigalPath)?frame=1")
         let view = page.locator(".artifact-view").first
         if try await view.getAttribute("data-canvas-shown") != "true" {
           try await page.locator(".artifact-canvas-toggle button").first.click()
         }
         try await expect(view).toHaveAttribute("data-canvas-shown", "true")
-        try await expect(page.locator(".image-view[data-active='true'] .image-tile-image[data-loaded='true']").first).toBeAttached()
+        try await expect(page.locator(".frame-view[data-active='true'] .frame-tile-image[data-loaded='true']").first).toBeAttached()
         try await page.locator(".artifact-overlay-toggle button").first.click()
         try await expect(view).toHaveAttribute("data-overlay-active", "true")
         try await Task.sleep(for: .milliseconds(1500))

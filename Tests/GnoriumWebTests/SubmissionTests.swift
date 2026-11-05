@@ -702,7 +702,7 @@ struct SubmissionTests {
         ).string ?? ""
         #expect(commit.hasPrefix("400"), "\(commit)")
         // The need alone, never how to meet it (user, 2026-11-05).
-        #expect(commit.contains("A sentiment is calibrated once it has a quote."), "\(commit)")
+        #expect(commit.contains("A sentiment is calibrated once it has a range."), "\(commit)")
         #expect(!commit.contains("Revise") && !commit.contains("arbitration"), "\(commit)")
         // Permit is people's: an admin permits it as it stands.
         let permit = page.locator("button[form='overture-permit']").first
@@ -769,7 +769,7 @@ struct SubmissionTests {
     // place and surface), as the reader fills them.
     _ = try await box.evaluate(
       """
-      (b) => { b.querySelector("input[name='quote-s1-start-image']").value = '1';
+      (b) => { b.querySelector("input[name='quote-s1-start-frame']").value = '1';
         b.querySelector("input[name='quote-s1-quote']").value = 'A web tests quote.';
         b.querySelector("input[name='quote-s1-forms']").value = '[[[{"surface":"web","word":2}]]]';
         // A source Gnorium lacks gives its Title, Language and Class
