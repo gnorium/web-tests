@@ -77,12 +77,15 @@ struct TestamentHeaderTests {
     let boxShown: Bool
     let underShown: Bool
     let headerCount: Int
-    let headerReset: String
+    /// "from 1" where every line of the header's code carries its own
+    /// number, 1, 2, 3… (`CodeLines.numberAttribute`); else the first few.
+    let headerNumbers: String
     let headerGround: String
     let markupGround: String
     let headerEditable: Bool
-    /// The page's code: its counter start, and whether it holds a header.
-    let pageReset: String
+    /// The page's code: its numbers (as `headerNumbers`), and whether it
+    /// holds a header.
+    let pageNumbers: String
     let pageHoldsHeader: Bool
     /// Headers drawn in a page's code, and rendered header boxes.
     let pageHeaders: Int
@@ -106,6 +109,11 @@ struct TestamentHeaderTests {
         const pane = view.querySelector(".tei-page[data-active='true'] .tei-page-raw[data-layer='markup']")
         const own = pane ? pane.querySelector(':scope > .code-view, :scope > form .code-view') : null
         const visible = (e) => !!e && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().height > 0
+        const numbers = (code) => {
+          const lines = [...code.querySelectorAll('.code-line')]
+          const marks = lines.map((line) => line.getAttribute('data-code-number') || '')
+          return lines.length > 0 && marks.every((n, i) => n === String(i + 1)) ? 'from 1' : marks.slice(0, 5).join(',')
+        }
         const shown = visible(head)
         const under = view.querySelector('.artifact-under-markup')
         const object = view.querySelector('.artifact-object')
@@ -123,11 +131,11 @@ struct TestamentHeaderTests {
           boxShown: visible(box),
           underShown: visible(under),
           headerCount: head ? head.querySelectorAll('.code-line').length : 0,
-          headerReset: head ? getComputedStyle(head.querySelector('.code-code')).counterReset : '',
+          headerNumbers: head ? numbers(head) : '',
           headerGround: head ? getComputedStyle(head.querySelector('.code-view')).backgroundColor : '',
           markupGround: markup ? getComputedStyle(markup).backgroundColor : '',
           headerEditable: !!head?.querySelector('[contenteditable], textarea, input'),
-          pageReset: own ? getComputedStyle(own.querySelector('.code-code')).counterReset : '',
+          pageNumbers: own ? numbers(own) : '',
           pageHoldsHeader: !!own && own.textContent.includes('teiHeader'),
           pageHeaders: document.querySelectorAll('.tei-page-header').length,
           boxes: document.querySelectorAll('.header-view, .header-entry-view').length,
@@ -247,7 +255,7 @@ struct TestamentHeaderTests {
         #expect(state.header == "true" && state.pressed == "true" && state.raw == "false", "header on: \(state)")
         #expect(state.shown && !state.boxShown && !state.underShown, "the header is not alone in the column: \(state)")
         #expect(state.headerCount == Self.headerLines, "the header has \(state.headerCount) lines")
-        #expect(state.headerReset == "code-line 0")
+        #expect(state.headerNumbers == "from 1", "the header is numbered \(state.headerNumbers)")
         #expect(state.headerGround != state.markupGround, "the header is on the page's ground")
         #expect(!state.headerEditable)
         try await page.expectNoHorizontalOverflow()
@@ -258,7 +266,7 @@ struct TestamentHeaderTests {
         try await expect(view).toHaveAttribute("data-header", "false")
         state = try await Self.state(page)
         #expect(state.pressed == "false" && !state.shown && state.boxShown, "XML on kept the header: \(state)")
-        #expect(state.pageReset == "code-line 0", "the page is numbered from \(state.pageReset)")
+        #expect(state.pageNumbers == "from 1", "the page is numbered \(state.pageNumbers)")
         #expect(!state.pageHoldsHeader, "the page's code holds the header")
 
         // Header on again: the XML off, the header alone.
@@ -335,7 +343,7 @@ struct TestamentHeaderTests {
         try await expect(viewport).toBeVisible()
         state = try await Self.state(page)
         #expect(state.shown && state.headerCount == Self.headerLines && !state.headerEditable, "calibrated, on: \(state)")
-        #expect(state.headerReset == "code-line 0")
+        #expect(state.headerNumbers == "from 1", "the header is numbered \(state.headerNumbers)")
         try await page.expectNoHorizontalOverflow()
 
         try await toggle.click()
