@@ -72,10 +72,10 @@ struct FigurantDiscardTests {
         try await expect(tab.locator("a[href='\(page)']").first).toBeVisible()
 
         try await tab.openHydrated("/mission-control/overtures/lexicographic/\(overture)")
+        try await tab.locator("button[form='overture-recover']").click()
         // Its page again once the Recover is through (it checks the node is
         // held by no other), before the next page is asked for.
         try await expect(status, timeout: .seconds(15)).toContainText("Pending")
-        try await tab.locator("button[form='overture-recover']").click()
         try await tab.openHydrated(page)
         try await expect(status).toContainText("Submitted")
         #expect(try TestAdmin.query("SELECT coalesce(discarded_by, '') FROM lexicographic_overtures WHERE id = '\(overture)';")
@@ -87,6 +87,7 @@ struct FigurantDiscardTests {
     }
     remove()
     try await admin.remove()
+  }
 
   /// Its submitter discards their own overture (user, 2026-11-03), nobody
   /// else: a plain account that submitted the figurant sees Discard, gray
@@ -278,6 +279,5 @@ struct FigurantDiscardTests {
     clean()
     work.remove()
     try await submitter.remove()
-  }
   }
 }

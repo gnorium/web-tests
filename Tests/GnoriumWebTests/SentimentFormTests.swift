@@ -70,9 +70,10 @@ struct SentimentFormTests {
       // No label: the machine writes it (user, 2026-10-09).
       try await expect(form.locator("#sentiment-0-label, textarea[name='sentiment-0-label']")).toHaveCount(0)
 
-      // No Form rows: a sentiment's forms are its quotes', never typed.
+      // No Form rows: a sentiment's forms are its quotes', never typed; its
+      // "+ Form" frozen, as a Genre's is (user, 2026-11-07).
       try await expect(form.locator("[data-item-list='title-form'], .title-form-json")).toHaveCount(0)
-      try await expect(form.locator("button[aria-label='Add Form']")).toHaveCount(0)
+      try await expect(form.locator("button[aria-label='Add Form']").first).toBeDisabled()
 
       // Grammar in lowercase; each region under its language.
       try await expect(page.locator(".dropdown-option[data-value='often_in_plural']"))

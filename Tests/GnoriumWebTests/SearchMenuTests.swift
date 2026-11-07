@@ -6,8 +6,8 @@ import WebTestsTesting
 /// The site's search offers a record as every record field does, in two rows:
 /// its language › its title, a breadcrumb with BreadcrumbView's own
 /// chevron, the name in the link's color; then its class alone, "—" when
-/// unknown, and no language: its voice names (a work's own, a word's those
-/// of the work holding its earliest attestation, both sent) and its homograph
+/// unknown, and no language: its voice names (a biblio-record's own, a lexico-record's
+/// those of the work holding its earliest attestation, both sent) and its homograph
 /// number only beside a namesake (the clash rule). The navbar's
 /// search menu on both tabs. A row is a link, never a dropdown option: a
 /// link's hover under the pointer, nothing left when it goes; the arrow
@@ -18,7 +18,7 @@ import WebTestsTesting
 /// The records pages' sidebar search offers nothing under its bar: it filters
 /// the page's table as it is typed.
 ///
-/// Every test searches for its own scratch work and word (a throwaway admin
+/// Every test searches for its own scratch biblio-record and lexico-record (a throwaway admin
 /// owns them, made by SQL and removed after), by names no other row has, so
 /// other suites' scratch rows, made and removed meanwhile, change nothing
 /// it asserts.
@@ -404,7 +404,7 @@ struct SearchMenuTests {
     #expect(line.bool == true, "the chevron left the language's line")
   }
 
-  /// A throwaway admin's scratch work and word for `body`, removed after
+  /// A throwaway admin's scratch biblio-record and lexico-record for `body`, removed after
   /// whatever it does. Skipped where no admin can be made.
   /// `anchored`: the word's quote is in the work's testament.
   private static func withScratch(anchored: Bool = false, _ body: (ScratchWork, ScratchWord) async throws -> Void)

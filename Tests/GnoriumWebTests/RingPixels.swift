@@ -3,8 +3,8 @@ import Testing
 import WebTests
 
 /// The ring read off the screen, not the style sheet: a computed style
-/// cannot say whether another layer paints over the inset outline, only
-/// the pixels can. The screenshot is decoded in the page (a canvas) and
+/// cannot say whether another layer paints over the outline, or a clip
+/// cuts it off (it is drawn outward, user 2026-11-05), only the pixels can. The screenshot is decoded in the page (a canvas) and
 /// each side of the pane's box is sampled across its edge.
 enum RingPixels {
   /// Per side, the device pixels of the ring color within a window across

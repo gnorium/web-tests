@@ -9,8 +9,10 @@ import WebTestsTesting
 /// control an origin sentence's term is: a click opens the record's preview
 /// in the gloss sheet (a popover on a wide screen, the sheet on a narrow
 /// one), the help cursor over it, never navigating and never opening or
-/// closing the row; a click elsewhere in the box opens the row. A value
-/// with no link stays plain. A throwaway admin's scratch word, its leaf's
+/// closing the row. A click elsewhere in the box leaves the row as it is
+/// too: a tree node's heading folds nothing, its marker on the spine does
+/// (user, 2026-11-03, `data-header-folds`), and a press on it opens the
+/// row. A value with no link stays plain. A throwaway admin's scratch word, its leaf's
 /// `<def>` pointing at a scratch work's record, removed after.
 @Suite("Node value gloss", .serialized)
 struct NodeValueGlossTests {
@@ -90,15 +92,23 @@ struct NodeValueGlossTests {
         try await page.keyboard.press("Escape")
         try await expect(sheet).toHaveAttribute("data-state", "closed")
         try await expect(leaf).toHaveAttribute("data-expanded", "false")
-        // A click elsewhere in the box opens the row, as before.
+        // A click elsewhere in the box (the box itself under the pointer)
+        // leaves the row as it is: its heading folds nothing.
         let corner = try await page.evaluate(
           """
           (() => {
-            const r = document.querySelector('#record-row-\(word.leaf) .record-node-heading .node-value-box').getBoundingClientRect();
-            return { x: r.left + 4, y: r.top + 4 };
+            const box = document.querySelector('#record-row-\(word.leaf) .record-node-heading .node-value-box');
+            const r = box.getBoundingClientRect();
+            const x = r.left + 4, y = r.top + 4;
+            return { x, y, onBox: document.elementFromPoint(x, y)?.closest('.node-value-box') === box };
           })()
           """)
+        #expect(corner["onBox"].bool == true, "The box's corner is the box's own: \(corner)")
         try await page.mouse.click(x: corner["x"].double ?? 0, y: corner["y"].double ?? 0)
+        try await expect(leaf).toHaveAttribute("data-expanded", "false")
+        try await expect(sheet).toHaveAttribute("data-state", "closed")
+        // Its marker on the spine opens it.
+        try await page.locator("#record-row-\(word.leaf)-fold").click()
         try await expect(leaf).toHaveAttribute("data-expanded", "true")
         try await expect(sheet).toHaveAttribute("data-state", "closed")
         try await page.expectNoHorizontalOverflow()

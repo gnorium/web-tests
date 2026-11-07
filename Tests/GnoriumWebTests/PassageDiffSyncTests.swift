@@ -24,8 +24,8 @@ struct PassageDiffSyncTests {
     case "code":
       source = "<form data-revise-form><div class='field-diff-view'><div class='diff-field-input'><div class='code-editor-view'><div class='scrollport'><div style='overflow:auto'><code class='code-code' contenteditable='plaintext-only'>\(text)</code></div></div><textarea hidden>\(text)</textarea></div></div><div class='diff-box'>\(rows)</div></div></form>"
     case "artifact-zone":
-      // Under the markup pane the diff is drawn whole and its zone scrolls
-      // it (user, 2026-10-16).
+      // Under the markup pane the diff's box fills its zone and scrolls
+      // itself, as the pane does; the zone never scrolls (user, 2026-11-05).
       source = "<div class='testament-view'><div class='artifact-markup scrollport'><div class='tei-page' data-active='true'><div data-layer='markup'><code class='code-code'>\(codeLines)</code></div></div></div><div class='artifact-under-markup'><div class='testament-diff' data-active='true'><div class='frame-diff-view diff-view'><div class='diff-box'><div class='diff-lines'>\(rows)</div></div></div></div></div></div>"
     case "artifact", "artifact-unwrapped":
       source = "<div class='testament-view'><div class='artifact-markup scrollport'><div class='tei-page' data-active='true'><div data-layer='markup'><code class='code-code'>\(codeLines)</code></div></div></div><div class='testament-diff' data-active='true'><div class='frame-diff-view diff-view'><div class='diff-box'><div class='diff-lines'>\(rows)</div></div></div></div></div>"
@@ -42,7 +42,7 @@ struct PassageDiffSyncTests {
     pre,code{display:block;white-space:pre-wrap;font:inherit;overflow-wrap:inherit;margin:0}
     .code-line{display:block;padding-inline-start:36px} [data-layer=markup]{zoom:0.75}
     .diff-box{height:160px;overflow:auto;width:280px}.diff-row{height:30px}
-    \(kind == "artifact-zone" ? ".artifact-under-markup{height:160px;overflow:auto;width:280px;padding:16px;box-sizing:border-box} .diff-box{height:auto;overflow:visible}" : "")
+    \(kind == "artifact-zone" ? ".artifact-under-markup{height:192px;width:280px;display:flex;flex-direction:column;overflow:clip;padding:16px 0;box-sizing:border-box} .artifact-under-markup *:not(.diff-lines):not(.diff-lines *){display:flex;flex-direction:column;flex:1 1 auto;min-height:0} .diff-box{height:auto;overflow:auto}" : "")
     \(kind == "artifact-unwrapped" ? ".scrollport{height:820px} .code-code{white-space:pre} [data-layer=markup]{zoom:1} .diff-row{height:auto} .diff-content{white-space:pre-wrap}" : "")
     </style></head><body>\(source)<script src='/loader.js'></script></body></html>
     """
@@ -59,18 +59,20 @@ struct PassageDiffSyncTests {
       try await expect(page.locator("[data-passage-pair]")).toHaveCount(1)
       let result = try await page.evaluate(#"""
       (async()=>{
-        const area=document.querySelector('.scrollport') ?? document.querySelector('textarea'), box=document.querySelector('.artifact-under-markup') ?? document.querySelector('.diff-box');
+        const area=document.querySelector('.scrollport') ?? document.querySelector('textarea'), box=document.querySelector('.diff-box');
         const frames=async()=>{for(let i=0;i<10;i++)await new Promise(requestAnimationFrame)};
         area.scrollTop=440;await frames();const editorDrives=box.scrollTop;
         box.scrollTop=600;await frames();const diffDrives=area.scrollTop;
         const values=[];for(let i=0;i<10;i++){await frames();values.push([area.scrollTop,box.scrollTop])}
         area.scrollTop=440;await frames();area.scrollTop=diffDrives;await frames();
-        return {editorDrives,diffDrives,values,returned:box.scrollTop,tolerance:1+Math.max(1,(box.scrollHeight-box.clientHeight)/Math.max(1,area.scrollHeight-area.clientHeight))/2,windowY:window.scrollY};
+        const zone=document.querySelector('.artifact-under-markup');
+        return {editorDrives,diffDrives,values,returned:box.scrollTop,tolerance:1+Math.max(1,(box.scrollHeight-box.clientHeight)/Math.max(1,area.scrollHeight-area.clientHeight))/2,windowY:window.scrollY,zoneY:zone?zone.scrollTop:0};
       })()
       """#, as: Result.self)
       #expect(result.editorDrives > 0)
       #expect(result.diffDrives > (kind == "artifact-unwrapped" ? 0 : 440))
       #expect(result.windowY == 0)
+      #expect(result.zoneY == 0, "the diff's zone scrolled: its box is the diff's one scroller")
       #expect(abs(result.returned - 600) <= result.tolerance, "a user can return to a previously matched position")
       for value in result.values { #expect(abs(value[0] - result.diffDrives) < 1); #expect(abs(value[1] - 600) < 1) }
       if kind == "artifact-unwrapped" {
@@ -164,5 +166,5 @@ struct PassageDiffSyncTests {
     }
   }
   struct Steps: Decodable { let back: Double; let leap: Double; let end: Double; let followRange: Double; let removed: Int }
-  struct Result: Decodable { let editorDrives: Double; let diffDrives: Double; let values: [[Double]]; let windowY: Double; let returned: Double; let tolerance: Double }
+  struct Result: Decodable { let editorDrives: Double; let diffDrives: Double; let values: [[Double]]; let windowY: Double; let returned: Double; let tolerance: Double; let zoneY: Double }
 }

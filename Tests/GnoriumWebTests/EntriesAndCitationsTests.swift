@@ -29,7 +29,7 @@ struct EntriesAndCitationsTests {
     """
   }
 
-  /// `count` citations of `cited` (a work, or a word) by `citing`'s version, in running text.
+  /// `count` citations of `cited` (a biblio-record or a lexico-record) by `citing`'s version, in running text.
   static func cite(_ count: Int, by citing: ScratchWork, work: String? = nil, word: String? = nil, entry: String? = nil)
     -> String
   {
@@ -48,7 +48,7 @@ struct EntriesAndCitationsTests {
     }.joined(separator: "\n")
   }
 
-  /// `canon`'s entry for a work or a word, headed `heading`, on page 3.
+  /// `canon`'s entry for a biblio-record or a lexico-record, headed `heading`, on page 3.
   static func entry(in canon: ScratchWork, heading: String, work: String? = nil, word: String? = nil) -> String {
     """
     INSERT INTO entries (id, biblio_record_version_id, work_record_id, testament_id, permitted_at, frame_id, page,
@@ -151,7 +151,7 @@ struct EntriesAndCitationsTests {
 
         // The pair's page: every citation between the two, the catalog's in the entry it stands in.
         try await page.openHydrated(
-          "\(cited.path)/citations?work=\(catalog.recordID)&direction=citations")
+          "\(cited.path)/citations?biblio-record=\(catalog.recordID)&direction=citations")
         try await expect(page.locator("h1")).toHaveText("Citations in \(catalog.title)")
         let table = page.locator(".record-citations-table")
         try await expect(table).toContainText("ANOTHER HEADING")

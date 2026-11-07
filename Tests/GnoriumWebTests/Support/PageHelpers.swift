@@ -78,6 +78,29 @@ extension Page {
     try await add.click()
   }
 
+  /// A form committed in a typed quote (user, 2026-11-05: "keep selected
+  /// text"): its word at `place` (from 1) selected from UTF-16 offset
+  /// `start` to `end` of its text, part of it as a hand's drag selects
+  /// it, then "+ Form" on the bar floating over it.
+  func addForm(in box: Locator, typedWord place: Int, from start: Int, to end: Int) async throws {
+    let selected = try await box.first.evaluate(
+      """
+      (b) => {
+        const w = b.querySelector(".quote-typed-word[data-typed-word='\(place)']"), t = w && w.firstChild;
+        if (!t || t.nodeType !== Node.TEXT_NODE || t.data.length < \(end)) return false;
+        w.scrollIntoView({ block: 'center' });
+        getSelection().setBaseAndExtent(t, \(start), t, \(end));
+        return !getSelection().isCollapsed;
+      }
+      """
+    ).bool ?? false
+    guard selected else { throw WebTestError("No typed word \(place) to select \(start)–\(end) of") }
+    let add = locator(".quote-passage-bar .quote-passage-form-add[data-visible='true']")
+    try await expect(add).toHaveCount(1)
+    try await expect(add).toBeVisible()
+    try await add.click()
+  }
+
   /// Loads a Gnorium page and waits for the client to hydrate it: the load
   /// event, then the WebAssembly client started
   /// (`<html data-wasm-status="started">`, set by loader.js). Not

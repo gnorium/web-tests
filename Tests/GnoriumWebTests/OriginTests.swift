@@ -112,21 +112,29 @@ struct OriginTests {
         try await page.openHydrated(first.path)
         let tree = page.locator("#origin .origin-view")
         try await expect(tree).toHaveCount(1)
-        // Every step: the typed ones, the second work, and the first again.
-        let steps = tree.locator(".origin-step-view")
+        // Every step: the typed ones, the second work, and the first again,
+        // each its fields as the form's step has them, read (user,
+        // 2026-11-05).
+        let steps = tree.locator(".origin-step-fields-view")
         try await expect(steps).toHaveCount(typedDepth + 2)
-        try await expect(steps.nth(typedDepth - 1).locator(".breadcrumb-label-text")).toHaveText(
+        try await expect(steps.nth(typedDepth - 1).locator("input[id$='-name']")).toHaveValue(
           "Web tests deep \(typedDepth) \(first.suffix)")
-        try await expect(steps.nth(typedDepth).locator("a[href='\(second.path)'] .breadcrumb-label-text"))
-          .toHaveText(second.title)
-        // The first work again: a plain row, linked, with nothing under it.
+        // A record step's record field names it, never a link (metadata
+        // never links to a record, user 2026-10-03).
+        let named = ".origin-record-field-view .dropdown-selected-text .breadcrumb-label-text"
+        try await expect(steps.nth(typedDepth).locator(named)).toHaveText(second.title)
+        try await expect(steps.nth(typedDepth).locator("a[href='\(second.path)']")).toHaveCount(0)
+        // The first work again: a plain row, its record field naming it,
+        // with nothing under it.
         let repeated = steps.last
-        try await expect(repeated.locator("a[href='\(first.path)'] .breadcrumb-label-text")).toHaveText(first.title)
-        // Its evidence is its Outgoing citations now (user, 2026-11-03),
-        // none drawn on a record's page for a step with none.
-        try await expect(repeated.locator(".datum-value")).toHaveTexts([
-          "Derivation", "AD 1958", "Certain", "\(first.author) (Author)",
-        ])
+        try await expect(repeated.locator(named)).toHaveText(first.title)
+        try await expect(repeated.locator("a[href='\(first.path)']")).toHaveCount(0)
+        // Its relation, and the record's own year and voice, in the form's
+        // controls. Its evidence is its Outgoing citations now (user,
+        // 2026-11-03), none drawn on a record's page for a step with none.
+        try await expect(repeated.locator("input[id$='-relation']")).toHaveValue("based_on")
+        try await expect(repeated.locator("input[id$='-year']")).toHaveValue("1958")
+        try await expect(repeated.locator("input[id$='-voice-item1-text-input']")).toHaveValue(first.author)
         try await expect(repeated.locator(".outgoing-citations-view")).toHaveCount(0)
         let shape = try await tree.evaluate(
           """
@@ -152,16 +160,25 @@ struct OriginTests {
         #expect(shape["page"].bool == false && shape["reach"].bool == false, "the page no wider than the screen: \(shape)")
 
         // The record field a form draws for the second work, filing for the
-        // first: its error under the field; filing for nothing, none.
+        // first: its error under the field; filing for nothing, none. (Its
+        // search's failure, drawn with it and shown only once a search
+        // fails, is not the field's error: `OptionsStatusView`.)
         let field = try await page.evaluate(
           """
           (async () => {
             const url = (own) => '/mission-control/record-choices/biblio-record/origin?name=origin-1-record&record=\(second.recordID)' + own;
-            const looped = await (await fetch(url('&own=\(first.recordID)'))).text();
-            const fresh = await (await fetch(url(''))).text();
+            const errors = (html) => {
+              const box = document.createElement('template');
+              box.innerHTML = html;
+              return [...box.content.querySelectorAll('.field-validation-message-view')]
+                .filter((message) => !message.closest('.options-status-view'))
+                .map((message) => message.textContent.trim());
+            };
+            const looped = errors(await (await fetch(url('&own=\(first.recordID)'))).text());
+            const fresh = errors(await (await fetch(url(''))).text());
             return {
-              looped: looped.includes('field-validation-message') && looped.includes('This origin leads back to this record.'),
-              fresh: fresh.includes('field-validation-message'),
+              looped: looped.some((text) => text.includes('This origin leads back to this record.')),
+              fresh: fresh.length > 0,
             };
           })()
           """)
@@ -181,7 +198,7 @@ struct OriginTests {
   /// the record page does (user, 2026-11-01), rebuilt as any origin field
   /// changes: hidden while no step names anything, then the relation, the
   /// language as a sentence names it, the term and its class, never a date.
-  /// A work's form and a word's alike.
+  /// The bibliographic form and the lexicographic one alike.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func theFormSaysItsOriginInOneSentence(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -225,6 +242,22 @@ struct OriginTests {
           try await relation
             .locator(".dropdown-option[data-value='\(field == "title" ? "translation_of" : "borrowed_from")']").click()
           try await page.keyboard.press("Escape")
+          // While its list is on its way, the open menu shows a wait under
+          // the options it draws, the rotating ring sector, gone once the
+          // list is in; a search typed meanwhile waits the same way
+          // (`OptionsStatusView`). Watched as what it says turns busy and
+          // back, since the list may come at once.
+          _ = try await page.evaluate(
+            """
+            (() => {
+              const status = document.querySelector('.dropdown-view:has(#\(key)-language) .dropdown-menu > .options-status-view');
+              const wait = status.querySelector(':scope > .options-status-loading');
+              window.languageWaits = [];
+              new MutationObserver(() => window.languageWaits.push(
+                `${status.dataset.state}:${getComputedStyle(wait).display}`
+              )).observe(status, { attributes: true, attributeFilter: ['data-state'] });
+            })()
+            """)
           for (suffix, value, name) in [("language", "lat", "Latin"), ("type", type, type)] {
             let dropdown = row.locator(".dropdown-view:has(#\(key)-\(suffix))")
             try await dropdown.locator(".dropdown-trigger").click()
@@ -239,7 +272,337 @@ struct OriginTests {
           // A date is data, never said.
           try await row.locator("#\(key)-year").fill("1200")
           try await expect(sentence).toHaveText(said)
+
+          // Every language comes from the server (user, 2026-11-05): the
+          // page draws only the chosen one, and the first open takes the
+          // first 100, the languages with the most records first, the note
+          // after them (asked once, whatever the page's language dropdowns).
+          let language = row.locator(".dropdown-view:has(#\(key)-language)")
+          let search = language.locator(".dropdown-search-input .search-input")
+          let results = language.locator(".dropdown-options-list[data-dropdown-results='true']")
+          let ownList = language.locator(".dropdown-options-list:not([data-dropdown-results])")
+          let own = ownList.locator(":scope > .dropdown-option")
+          try await expect(ownList.locator(":scope > .dropdown-note")).toHaveText("Showing the first 100.")
+          // The wait first, as the menu opened on the list's ask; nothing
+          // said at the end; never a failure.
+          let waits = (try await page.evaluate("window.languageWaits.join(' ')").string ?? "")
+            .split(separator: " ").map(String.init)
+          #expect(
+            waits.first == "busy:flex" && waits.last == "idle:none"
+              && waits.allSatisfy { $0 == "busy:flex" || $0 == "idle:none" },
+            "\(url): the wait while the list came: \(waits)")
+          let listed = try await own.count()
+          #expect((100...101).contains(listed), "the first 100, and Latin kept if they lack it: \(listed)")
+          // Middle French, which a search finds (it has no native name: its
+          // English name alone), chosen, stays chosen when the dropdown
+          // searches again (user, 2026-11-05): kept in its own list—first,
+          // where the first 100 lack it—where the sentence reads its name,
+          // which carries no date.
+          let ownMiddleFrench = ownList.locator(":scope > .dropdown-option[data-value='frm']")
+          let middleFrenchListed = try await ownMiddleFrench.count() > 0
+          try await language.locator(".dropdown-trigger").click()
+          try await search.fill("Middle French")
+          try await expect(results.locator(".dropdown-option[data-value='frm']")).toHaveText("Middle French")
+          try await results.locator(".dropdown-option[data-value='frm']").click()
+          let middleFrench = said.replacingOccurrences(of: "Latin", with: "Middle French")
+          try await expect(sentence).toHaveText(middleFrench)
+          try await language.locator(".dropdown-trigger").click()
+          try await search.fill("Latin")
+          try await expect(results.locator(".dropdown-option[data-value='lat']")).toBeVisible()
+          try await expect(results.locator(".dropdown-option[data-value='frm']")).toHaveCount(0)
+          try await page.keyboard.press("Escape")
+          if !middleFrenchListed { try await expect(own.first).toHaveAttribute("data-value", "frm") }
+          try await expect(ownMiddleFrench).toHaveAttribute("data-selected", "true")
+          try await expect(language.locator(".dropdown-option[data-value='frm']")).toHaveCount(1)
+          // Rebuilt as a field changes: the language still named.
+          try await row.locator("#\(key)-year").fill("1300")
+          try await expect(sentence).toHaveText(middleFrench)
+          try await expect(sentence.locator(".origin-sentence-language")).toHaveText("Middle French")
+
+          // The record's own Language takes the same list, never asked
+          // again: one ask a page, every language dropdown sharing it.
+          let recordLanguage = page.locator(
+            ".dropdown-view:has(\(field == "title" ? "#work-language" : "#language"))")
+          try await recordLanguage.locator(".dropdown-trigger").click()
+          try await expect(
+            recordLanguage.locator(".dropdown-options-list:not([data-dropdown-results]) > .dropdown-note")
+          ).toHaveText("Showing the first 100.")
+          // The list already in: no wait.
+          try await expect(recordLanguage.locator(".options-status-loading")).toBeHidden()
+          try await page.keyboard.press("Escape")
+          let asked = try await page.evaluate(
+            """
+            performance.getEntriesByType('resource')
+              .filter((entry) => new URL(entry.name).pathname === '/languages/options' && !new URL(entry.name).search)
+              .length
+            """
+          ).int
+          #expect(asked == 1, "\(url): the list asked \(asked ?? -1) times")
         }
+      }
+    } catch {
+      try await admin.remove(after: error)
+    }
+    try await admin.remove()
+  }
+
+  /// A first list that fails (user, 2026-11-05): the wait gives way to one
+  /// vague message in its place, a field's error, the reason in the log
+  /// alone; the menu keeps its search box. The next open asks again, the
+  /// message gone while it waits, and once the list is in the options show
+  /// and the message never comes back. The first ask is failed in the page
+  /// (`fetch` wrapped, as the registration tests stop theirs), shortly, as
+  /// a server's error would come; the second reaches the server.
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func aFailedListSaysSoAndIsAskedAgain(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated(Self.form)
+        let language = page.locator(".dropdown-view:has(#work-language)")
+        let menu = language.locator(".dropdown-menu")
+        let status = menu.locator(":scope > .options-status-view")
+        let wait = status.locator(":scope > .options-status-loading")
+        let failed = status.locator(":scope > .options-status-failed")
+        let ownList = menu.locator(":scope > .dropdown-options-list:not([data-dropdown-results])")
+        // Each change of what it says recorded as it turns busy or failed
+        // and back: what it says, then the wait's display and the message's.
+        #expect(
+          try await page.evaluate(
+            """
+            (() => {
+              window.listAsks = 0;
+              const fetched = window.fetch;
+              window.fetch = (url, options) => {
+                const asked = new URL(String(url), location.href);
+                if (asked.pathname === '/languages/options' && !asked.search && window.listAsks++ === 0) {
+                  return new Promise((resolve) => setTimeout(() => resolve(new Response('', { status: 503 })), 100));
+                }
+                return fetched(url, options);
+              };
+              const status = document.querySelector('.dropdown-view:has(#work-language) .dropdown-menu > .options-status-view');
+              const shown = (row) => getComputedStyle(status.querySelector(`:scope > .options-status-${row}`)).display;
+              window.listStates = [];
+              new MutationObserver(() => window.listStates.push(`${status.dataset.state}:${shown('loading')}:${shown('failed')}`))
+                .observe(status, { attributes: true, attributeFilter: ['data-state'] });
+              return true;
+            })()
+            """, as: Bool.self))
+
+        // The first open: the message in the wait's place, a one-line
+        // option's row right under the options the page drew, no note.
+        try await language.locator(".dropdown-trigger").click()
+        try await expect(failed).toBeVisible()
+        try await expect(failed.locator(".field-validation-message-text")).toHaveText(
+          "The options could not be loaded.")
+        try await expect(failed.locator(".field-validation-message-view")).toHaveAttribute("data-status", "error")
+        try await expect(wait).toBeHidden()
+        try await expect(ownList.locator(":scope > .dropdown-note")).toHaveCount(0)
+        try await expect(language.locator(".dropdown-search-input .search-input")).toBeVisible()
+        let place = try await menu.evaluate(
+          """
+          (menu) => {
+            const list = menu.querySelector(':scope > .dropdown-options-list').getBoundingClientRect();
+            const row = menu.querySelector(':scope > .options-status-view > .options-status-failed').getBoundingClientRect();
+            return { under: Math.abs(row.top - list.bottom) < 1, tall: row.height >= 40 };
+          }
+          """)
+        #expect(place["under"].bool == true && place["tall"].bool == true, "in the wait's place: \(place)")
+        // Why, in the log alone (the bridge's).
+        let logged = try await page.diagnostics().contains {
+          $0.kind == .consoleError && $0.message.contains("Fragment load failed")
+            && $0.message.contains("/languages/options")
+        }
+        #expect(logged, "the reason is logged")
+        try await page.keyboard.press("Escape")
+
+        // The next open asks again: the list comes, the message gone.
+        try await language.locator(".dropdown-trigger").click()
+        try await expect(ownList.locator(":scope > .dropdown-note")).toHaveText("Showing the first 100.")
+        try await expect(failed).toBeHidden()
+        try await expect(wait).toBeHidden()
+        let listed = try await ownList.locator(":scope > .dropdown-option").count()
+        #expect(listed >= 100, "the first 100: \(listed)")
+        try await page.keyboard.press("Escape")
+        // Once in, never asked again, and the message never back.
+        try await language.locator(".dropdown-trigger").click()
+        try await expect(ownList.locator(":scope > .dropdown-note")).toHaveText("Showing the first 100.")
+        try await expect(failed).toBeHidden()
+        try await page.keyboard.press("Escape")
+
+        let states = try await page.evaluate("window.listStates.join(' ')").string
+        #expect(
+          states == "busy:flex:none failed:none:flex busy:flex:none idle:none:none",
+          "the wait, the message, the wait again without it, then neither: \(states ?? "—")")
+        let asks = try await page.evaluate("window.listAsks").int
+        #expect(asks == 2, "asked, failed, and asked once more: \(asks ?? -1)")
+        let reached = try await page.evaluate(
+          """
+          performance.getEntriesByType('resource')
+            .filter((entry) => new URL(entry.name).pathname === '/languages/options' && !new URL(entry.name).search)
+            .length
+          """
+        ).int
+        #expect(reached == 1, "the second ask reached the server: \(reached ?? -1)")
+      }
+    } catch {
+      try await admin.remove(after: error)
+    }
+    try await admin.remove()
+  }
+
+  /// A search that fails says so as its list does (user, 2026-11-05): from
+  /// the key on, the wait under the options it shows, then one vague
+  /// message in the wait's place, a field's error, those options kept—the
+  /// language chosen among them still listed and chosen. The next open,
+  /// and the next key, ask again, the message gone. An earlier query's
+  /// answer, or its failure, never shows and ends no wait. The searches are
+  /// answered in the page (`fetch` wrapped, as the list's failure is), each
+  /// planned query as its plan says: failed after a moment, or passed on to
+  /// the server late.
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func aFailedSearchSaysSoAndALateOneNever(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated(Self.form)
+        let language = page.locator(".dropdown-view:has(#work-language)")
+        let menu = language.locator(".dropdown-menu")
+        let status = menu.locator(":scope > .options-status-view")
+        let wait = status.locator(":scope > .options-status-loading")
+        let failed = status.locator(":scope > .options-status-failed")
+        let search = language.locator(".dropdown-search-input .search-input")
+        let ownList = menu.locator(":scope > .dropdown-options-list:not([data-dropdown-results])")
+        let results = menu.locator(":scope > .dropdown-options-list[data-dropdown-results='true']")
+        let chosen = ownList.locator(":scope > .dropdown-option[data-value='frm']")
+        #expect(
+          try await page.evaluate(
+            """
+            (() => {
+              window.searchAsks = [];
+              window.searchAnswered = [];
+              const plans = {
+                'Web tests fails': { status: 503, delay: 300 },
+                'Web tests late': { status: 503, delay: 1500 },
+                'Old English': { delay: 1500 },
+              };
+              const fetched = window.fetch;
+              window.fetch = (url, options) => {
+                const asked = new URL(String(url), location.href);
+                const query = asked.searchParams.get('q');
+                const plan = asked.pathname === '/languages/options' && query !== null ? plans[query] : undefined;
+                if (query !== null) window.searchAsks.push(query);
+                if (!plan) return fetched(url, options);
+                return new Promise((resolve) => setTimeout(resolve, plan.delay))
+                  .then(() => plan.status ? new Response('', { status: plan.status }) : fetched(url, options))
+                  .then((response) => { window.searchAnswered.push(query); return response; });
+              };
+              const status = document.querySelector('.dropdown-view:has(#work-language) .dropdown-menu > .options-status-view');
+              window.searchStates = [];
+              new MutationObserver(() => window.searchStates.push(status.dataset.state))
+                .observe(status, { attributes: true, attributeFilter: ['data-state'] });
+              return true;
+            })()
+            """, as: Bool.self))
+        func states() async throws -> String {
+          try await page.evaluate("window.searchStates.splice(0).join(' ')").string ?? ""
+        }
+        func asked(_ query: String) async throws {
+          _ = try await page.evaluate(
+            """
+            new Promise((resolve) => {
+              const check = () => window.searchAsks.includes('\(query)') ? resolve(true) : setTimeout(check, 20);
+              check();
+            })
+            """)
+        }
+        // Its planned answer handed to the bridge, and a moment for the
+        // bridge to tell the dropdown.
+        func answered(_ query: String) async throws {
+          _ = try await page.evaluate(
+            """
+            new Promise((resolve) => {
+              const check = () => window.searchAnswered.includes('\(query)')
+                ? setTimeout(() => resolve(true), 300) : setTimeout(check, 20);
+              check();
+            })
+            """)
+        }
+
+        // Middle French, chosen by a search: kept in its own list.
+        try await language.locator(".dropdown-trigger").click()
+        try await expect(ownList.locator(":scope > .dropdown-note")).toHaveText("Showing the first 100.")
+        try await search.fill("Middle French")
+        try await results.locator(".dropdown-option[data-value='frm']").click()
+        try await expect(page.locator("#work-language")).toHaveValue("frm")
+        _ = try await states()
+
+        // A search that fails: the wait, then the message in its place, a
+        // one-line option's row under its own list, Middle French still
+        // listed and chosen there and in the field.
+        try await language.locator(".dropdown-trigger").click()
+        try await search.fill("Web tests fails")
+        try await expect(failed).toBeVisible()
+        try await expect(failed.locator(".field-validation-message-text")).toHaveText(
+          "The options could not be loaded.")
+        try await expect(failed.locator(".field-validation-message-view")).toHaveAttribute("data-status", "error")
+        try await expect(wait).toBeHidden()
+        try await expect(ownList).not.toHaveAttribute("hidden")
+        try await expect(chosen).toHaveAttribute("data-selected", "true")
+        try await expect(page.locator("#work-language")).toHaveValue("frm")
+        try await expect(language.locator(".dropdown-selected-text")).toHaveText("Middle French")
+        let place = try await menu.evaluate(
+          """
+          (menu) => {
+            const list = menu.querySelector(':scope > .dropdown-options-list:not([hidden])').getBoundingClientRect();
+            const row = menu.querySelector(':scope > .options-status-view > .options-status-failed').getBoundingClientRect();
+            return { under: Math.abs(row.top - list.bottom) < 1, tall: row.height >= 40 };
+          }
+          """)
+        #expect(place["under"].bool == true && place["tall"].bool == true, "in the wait's place: \(place)")
+        #expect(try await states() == "busy failed", "the wait, then the message")
+
+        // The next open asks nothing until a key, the message gone; the
+        // next key asks again.
+        try await page.keyboard.press("Escape")
+        try await language.locator(".dropdown-trigger").click()
+        try await expect(failed).toBeHidden()
+        try await search.fill("Web tests fails")
+        try await expect(failed).toBeVisible()
+        try await search.fill("Latin")
+        try await expect(results.locator(".dropdown-option[data-value='lat']")).toBeVisible()
+        try await expect(failed).toBeHidden()
+        try await expect(wait).toBeHidden()
+        #expect(
+          try await states() == "idle busy failed busy idle",
+          "closed, nothing said; the wait and the message again; the wait, then the answer")
+        let fails = try await page.evaluate("window.searchAsks.filter((q) => q === 'Web tests fails').length").int
+        #expect(fails == 2, "the failed query asked again: \(fails ?? -1)")
+
+        // An earlier query's failure, late, never shows, and ends no wait.
+        try await search.fill("Web tests late")
+        try await asked("Web tests late")
+        try await search.fill("Latin")
+        try await expect(results.locator(".dropdown-option[data-value='lat']")).toBeVisible()
+        try await answered("Web tests late")
+        try await expect(failed).toBeHidden()
+        try await expect(status).toHaveAttribute("data-state", "idle")
+        #expect(try await states() == "busy idle", "one wait, never the late failure")
+
+        // An earlier query's answer, late, never shows.
+        try await search.fill("Old English")
+        try await asked("Old English")
+        try await search.fill("Latin")
+        try await expect(results.locator(".dropdown-option[data-value='lat']")).toBeVisible()
+        try await answered("Old English")
+        try await expect(results.locator(".dropdown-option[data-value='ang']")).toHaveCount(0)
+        try await expect(results.locator(".dropdown-option[data-value='lat']")).toBeVisible()
+        try await page.keyboard.press("Escape")
+        // Chosen still, through every failure.
+        try await expect(page.locator("#work-language")).toHaveValue("frm")
+        try await expect(chosen).toHaveAttribute("data-selected", "true")
       }
     } catch {
       try await admin.remove(after: error)
@@ -308,7 +671,7 @@ struct OriginTests {
         try await expect(bubble).toHaveCount(0)
         return text
       }
-      #expect(try await tooltip() == "The way this record came from the one the row names.")
+      #expect(try await tooltip() == "The relation of the origin.")
       // A work's relations in FRBR's order: Transformation (another type of
       // work) after Adaptation (the same type).
       try await expect(relation.locator(".dropdown-option .dropdown-option-display-text")).toHaveTexts([
@@ -622,30 +985,39 @@ struct OriginTests {
         """
       ).bool
       #expect(order == true, "Origin is not after Metadata")
-      let steps = tree.locator(".origin-step-view")
+      // Each step's fields as the form's step has them, read (user,
+      // 2026-11-05): its labels in the form's order, on the record's own
+      // page only the fields it has.
+      let steps = tree.locator(".origin-step-fields-view")
       try await expect(steps).toHaveCount(2)
       let typedStep = steps.first
+      try await expect(typedStep.locator(".dropdown-label-text, .text-input-label")).toHaveTexts([
+        "Relation", "Certainty", "Language", "Title", "Class", "Year qualifier", "Era", "Year",
+      ])
+      try await expect(typedStep.locator("#origin-tree-step-1-relation")).toHaveValue("translation_of,abridgment_of")
+      try await expect(typedStep.locator("#origin-tree-step-1-language")).toHaveValue("ang")
+      try await expect(typedStep.locator("#origin-tree-step-1-name")).toHaveValue(typed)
+      try await expect(typedStep.locator("#origin-tree-step-1-type")).toHaveValue("treatise")
+      try await expect(typedStep.locator("#origin-tree-step-1-year-qualifier")).toHaveValue("circa")
+      try await expect(typedStep.locator("#origin-tree-step-1-year")).toHaveValue("890")
       // Its evidence is its Outgoing citations now (user, 2026-11-03), none
       // drawn on a record's page for a step with none.
-      try await expect(typedStep.locator(".datum-label")).toHaveTexts(["Relation", "Date", "Certainty", "Voices"])
-      try await expect(typedStep.locator(".datum-value")).toHaveTexts([
-        "Translation, Abridgment", "circa AD 890", "Certain", "—",
-      ])
       try await expect(typedStep.locator(".outgoing-citations-view")).toHaveCount(0)
-      try await expect(typedStep.locator(".breadcrumb-label-context")).toHaveText("Old English")
-      try await expect(typedStep.locator(".breadcrumb-label-text")).toHaveText(typed)
-      try await expect(typedStep.locator(".record-type-view")).toHaveText("treatise")
       try await expect(typedStep.locator("a")).toHaveCount(0)
-      // The original, a step under the typed one: its record linked, its
-      // voices its own.
+      // The original, a step under the typed one: its record field naming
+      // it, never a link (metadata never links to a record, user
+      // 2026-10-03), its own fields filled from it as the form fills them.
       let recordStep = tree.locator(
-        ".outliner-view > .outliner-list > .outliner-item > .outliner-list > .outliner-item .origin-step-view")
+        ".outliner-view > .outliner-list > .outliner-item > .outliner-list > .outliner-item .origin-step-fields-view")
       try await expect(recordStep).toHaveCount(1)
-      try await expect(recordStep.locator("a[href='\(original.path)'] .breadcrumb-label-text")).toHaveText(original.title)
-      try await expect(recordStep.locator(".record-type-view")).toHaveText("report")
-      try await expect(recordStep.locator(".datum-value")).toHaveTexts([
-        "Translation", "AD 1958", "Certain", "\(original.author) (Author)",
-      ])
+      try await expect(
+        recordStep.locator(".origin-record-field-view .dropdown-selected-text .breadcrumb-label-text")
+      ).toHaveText(original.title)
+      try await expect(recordStep.locator("a[href='\(original.path)']")).toHaveCount(0)
+      try await expect(recordStep.locator("#origin-tree-step-1-1-relation")).toHaveValue("translation_of")
+      try await expect(recordStep.locator("#origin-tree-step-1-1-type")).toHaveValue("report")
+      try await expect(recordStep.locator("#origin-tree-step-1-1-year")).toHaveValue("1958")
+      try await expect(recordStep.locator("#origin-tree-step-1-1-voice-item1-text-input")).toHaveValue(original.author)
       // Above the tree, the tree in one sentence: each step's relations,
       // its voice's, its language (at the prose's weight, never semibold:
       // user, 2026-11-03), its title (linked where it is

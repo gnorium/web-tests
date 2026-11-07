@@ -125,18 +125,25 @@ struct ReviseEditorTests {
 
   /// A real page (Skeat's page 5, paste-ready: headed, its side's break
   /// opening its body) pasted over the page as the document holds it, one
-  /// word changed: the diff shows that line alone, byte for byte.
+  /// word changed: the diff shows that line alone, byte for byte. The
+  /// document holds it formatted, as every writer stores a page now (user,
+  /// 2026-11-05), and the page pasted is as its editor shows it.
   @Test(arguments: [BrowserEngine.chrome])
   func aHeadedExplicationPageIsDiffedAgainstTheStoredPage(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
-    let headed = try String(
-      contentsOfFile: "/Users/Madhavik/Downloads/Gnorium/skeat-pages-2026-10-14/canvas-5.xml", encoding: .utf8)
-    // The page's bytes as the document stores them: the body between the
-    // headed view's frame (`TEIRendition.headedPage`), its side's break too.
-    let body = try #require(headed.range(of: "<text><body>\n"))
-    let end = try #require(headed.range(of: "\n</body></text>", options: .backwards))
-    let stored = headed[body.upperBound..<end.lowerBound]
+    let read = try String(contentsOfFile: "\(Self.skeatPages)/canvas-5.xml", encoding: .utf8)
+    let shown = try String(contentsOfFile: "\(Self.skeatPagesShown)/canvas-5.xml", encoding: .utf8)
+    // The page's bytes as the document stores them, formatted: the body
+    // between the headed view's frame (`TEIRendition.headedPage`), its
+    // side's break too.
+    let shownBody = try #require(shown.range(of: "<text><body>\n"))
+    let shownEnd = try #require(shown.range(of: "\n</body></text>", options: .backwards))
+    let stored = shown[shownBody.upperBound..<shownEnd.lowerBound]
+    // The explication's headed page: its header, then the page as stored.
+    let readBody = try #require(read.range(of: "<text><body>\n"))
+    let readEnd = try #require(read.range(of: "\n</body></text>", options: .backwards))
+    let headed = String(read[..<readBody.upperBound]) + stored + read[readEnd.lowerBound...]
     // The document declaring the witness's renditions in its one header,
     // as an explication assembles it: the paste's header is no change.
     let header = try #require(headed.range(of: #"<teiHeader>[\s\S]*?</teiHeader>"#, options: .regularExpression))
@@ -171,13 +178,29 @@ struct ReviseEditorTests {
     }
   }
 
+  /// Skeat's first ten pages, paste-ready, as read on 2026-10-14 (each
+  /// canvas headed, its side's break opening its body), kept beside the tests
+  /// (the workspace's `skeat-pages-2026-10-14` moved to its archive).
+  static let skeatPages = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+    .appendingPathComponent("Fixtures/skeat-pages").path
+
+  /// The same ten pages as the Revise editor and Raw show them now that
+  /// stored TEI is formatted (user, 2026-11-05: `TEIView.shownCode`,
+  /// xml-utilities `XMLFormatter.formatted`): each page's body one element
+  /// a line where its containers hold elements only, its mixed content
+  /// byte for byte. Skeat stored as production holds it (`skeatAsStored`,
+  /// before stored TEI was formatted) opens formatted, so its editor and
+  /// Raw never differ.
+  static let skeatPagesShown = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+    .appendingPathComponent("Fixtures/skeat-pages-shown").path
+
   /// Skeat as production holds it (user, 2026-10-15): 830 pages, the first
   /// ten read, each page's fragment as a laid-out document stores it (its
   /// side's `<pb n="N"/>`, its body indented), one header for the witness.
-  /// The paste-ready pages (`skeat-pages-2026-10-14`) are made by the
-  /// view's own serializer, so each is the headed page the editor shows.
+  /// The paste-ready pages (`skeatPages`) are made by the view's own
+  /// serializer, so each is the headed page the editor shows.
   static func skeatAsStored() throws -> String {
-    let folder = "/Users/Madhavik/Downloads/Gnorium/skeat-pages-2026-10-14"
+    let folder = Self.skeatPages
     let first = try String(contentsOfFile: "\(folder)/canvas-1.xml", encoding: .utf8)
     let header = try #require(first.range(of: #"<teiHeader>[\s\S]*?</teiHeader>"#, options: .regularExpression))
     var body = ""
@@ -236,8 +259,10 @@ struct ReviseEditorTests {
 
   /// The real Revise page of a production-sized witness: its editor's XML
   /// colored on the page it opens on and on each of the ten read pages it
-  /// turns to; each paste-ready page byte for byte what its editor shows;
-  /// a page pasted as it stands neither ringed nor diffed; laid out
+  /// turns to; each page stored before stored TEI was formatted opens
+  /// formatted, byte for byte the page as Raw shows it (`skeatPagesShown`);
+  /// a page pasted as it stands neither ringed nor diffed (formatting alone
+  /// is no change, user 2026-11-05); laid out
   /// otherwise (its header on one line, its body unindented) ringed at once
   /// and diffed, its changed blanks shown; a real change ringed, diffed
   /// under the reader, and colored. In Safari too (user, 2026-10-15).
@@ -246,7 +271,7 @@ struct ReviseEditorTests {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let json = String(decoding: try JSONSerialization.data(withJSONObject: ["teiXml": try Self.skeatAsStored()]), as: UTF8.self)
-    let folder = "/Users/Madhavik/Downloads/Gnorium/skeat-pages-2026-10-14"
+    let folder = Self.skeatPages
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let commit = try ScratchCommit(owner: contributor)
     do {
@@ -256,21 +281,29 @@ struct ReviseEditorTests {
         try await page.openHydrated("\(commit.madrigalPath)/revise")
         try await expect(page.locator("#artifact-page-total, .artifact-page-total").first).toHaveText("830")
         try await Self.xmlOn(page)
-        // Each page turned to: colored, and the paste-ready page is what
-        // the editor shows.
+        // Each page turned to: colored, and the editor shows the page
+        // formatted, as Raw does.
         for index in 0..<10 {
           if index > 0 { try await page.locator(".artifact-page-nav button[aria-label='Next page']").first.click() }
           let now = try await Self.expectColoredPage(page, index)
-          // The paste-ready page less its header: the document's header is
+          // The page as shown, less its header: the document's header is
           // drawn over the editor, read-only, never in it (user, 2026-10-20).
-          let ready = try String(contentsOfFile: "\(folder)/canvas-\(index + 1).xml", encoding: .utf8)
-            .replacingOccurrences(of: #"<teiHeader>[\s\S]*?</teiHeader>\n"#, with: "", options: .regularExpression)
-          #expect(now.text == ready, "page \(index + 1): the paste-ready page is not what the editor shows")
+          let ready = try String(contentsOfFile: "\(Self.skeatPagesShown)/canvas-\(index + 1).xml", encoding: .utf8)
+          #expect(now.text == ready, "page \(index + 1): the editor does not show the page formatted")
+          // Its body as stored, less its formatting: the stored page.
+          let stored = try String(contentsOfFile: "\(folder)/canvas-\(index + 1).xml", encoding: .utf8)
+          #expect(
+            ready.filter { !$0.isWhitespace } == stored
+              .replacingOccurrences(of: #"<teiHeader>[\s\S]*?</teiHeader>\n"#, with: "", options: .regularExpression)
+              .filter { !$0.isWhitespace },
+            "page \(index + 1): the formatted page holds other text than the stored one")
           // A page of ten lines and more (its header is not in the editor):
           // the third.
           guard index == 2 else { continue }
           // Its line numbers (user, 2026-10-15): right-aligned, the widest
-          // inset from the pane's edge as far as from the code, never touching.
+          // inset from the pane's edge as far as from the code, never touching;
+          // 4px either side (user, 2026-10-27: 8 left a wide margin before
+          // every line), so "1" stands a digit's width further in.
           let insets = try await page.evaluate(
             """
             (() => { const code = document.querySelector(".artifact-markup .tei-page[data-active='true'] .tei-page-edit .code-code");
@@ -282,7 +315,7 @@ struct ReviseEditorTests {
                 return [Math.round(b.left - view.left), Math.round(text - b.right)]; };
               return JSON.stringify({ one: of('1'), ten: of('10') }); })()
             """, as: String.self)
-          #expect(insets == #"{"one":[18,8],"ten":[8,8]}"#, "the gutter's insets: \(insets)")
+          #expect(insets == #"{"one":[14,4],"ten":[4,4]}"#, "the gutter's insets: \(insets)")
         }
         for _ in 0..<9 { try await page.locator(".artifact-page-nav button[aria-label='Previous page']").first.click() }
         let first = try await Self.expectColoredPage(page, 0)
@@ -312,9 +345,11 @@ struct ReviseEditorTests {
         let diff = page.locator(".testament-diff[data-active='true'] .diff-view[data-diff-mode='code']")
         try await expect(diff.locator(".diff-row[data-diff-line='inserted']")).toHaveCount(1)
         try await expect(diff.locator(".diff-row[data-diff-line='inserted']")).toContainText("illegible")
-        // The diff under the markup pane, in the reader; its zone the one
-        // scrollport between it and the reader (scrolled with the pane, user,
-        // 2026-10-16), and nothing wider than the page (user, 2026-10-15).
+        // The diff under the markup pane, in the reader; its box the one
+        // scrollport between it and the reader, both ways, as the pane is
+        // (scrolled with the pane, user, 2026-10-16; its zone never
+        // scrolls, user, 2026-11-05), and nothing wider than the page (user,
+        // 2026-10-15).
         let layout = try await page.evaluate(
           """
           (() => { const box = document.querySelector(".testament-diff[data-active='true'] .diff-box");
@@ -323,13 +358,13 @@ struct ReviseEditorTests {
             const scrolls = e => /(auto|scroll)/.test(getComputedStyle(e).overflowY + getComputedStyle(e).overflowX);
             // The scrollports from each zone's content up to the reader.
             const chain = start => { const out = []; for (let e = start; e && e !== reader; e = e.parentElement) if (scrolls(e)) out.push(e.className.split(' ')[0]); return out; };
-            const inside = [...box.querySelectorAll('*'), box].filter(scrolls).length + [...pane.querySelectorAll('*')].filter(e => scrolls(e) && e.closest('.artifact-markup') === pane && e !== pane && getComputedStyle(e).display !== 'none' && e.offsetParent).length;
+            const inside = [...box.querySelectorAll('*')].filter(scrolls).length + [...pane.querySelectorAll('*')].filter(e => scrolls(e) && e.closest('.artifact-markup') === pane && e !== pane && getComputedStyle(e).display !== 'none' && e.offsetParent).length;
             return JSON.stringify({ under: zone.getBoundingClientRect().top >= pane.getBoundingClientRect().bottom - 1,
               diff: chain(box), markup: chain(pane), nested: inside,
               overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth }); })()
           """, as: String.self)
         #expect(
-          layout == #"{"under":true,"diff":["artifact-under-markup"],"markup":["artifact-markup"],"nested":0,"overflow":0}"#,
+          layout == #"{"under":true,"diff":["diff-box"],"markup":["artifact-markup"],"nested":0,"overflow":0}"#,
           "one scrollport a zone, none nested, nothing wider than the page: \(layout)")
         // The markup pane and its diff, the column split evenly.
         let split = try await page.evaluate(
@@ -396,7 +431,8 @@ struct ReviseEditorTests {
 
   /// A changed page's XML and its diff under it, in the reader's one card
   /// (user, 2026-10-18): each part its own scrollport under the wheel. The
-  /// code's pane, ringed orange, scrolls as the diff's zone does: its ring
+  /// code's pane, ringed orange, scrolls as the diff's box does (its zone
+  /// never scrolls, user, 2026-11-05): its ring
   /// is the house ring on the pane's box (1px border and 1px outline of one
   /// color, no pseudo-element layer, no box-shadow), so nothing takes the
   /// wheel from the pane. Chrome and Safari.
@@ -421,7 +457,7 @@ struct ReviseEditorTests {
         #expect(now.ring == "changed" && now.diff, "the changed page: ring '\(now.ring)', diff \(now.diff)")
         struct Parts: Decodable {
           let pane: [Double]
-          let zone: [Double]
+          let diff: [Double]
           let overlay: String
           let ring: [String]
           let hit: Bool
@@ -430,12 +466,12 @@ struct ReviseEditorTests {
         let parts = try await page.evaluate(
           """
           (() => { const reader = document.querySelector('.artifact-view'); reader.scrollIntoView({ block: 'center' });
-            const pane = reader.querySelector('.artifact-markup'), zone = reader.querySelector('.artifact-under-markup');
-            const box = pane.parentElement; pane.scrollTop = 0; zone.scrollTop = 0;
+            const pane = reader.querySelector('.artifact-markup'), diff = reader.querySelector(".testament-diff[data-active='true'] .diff-box");
+            const box = pane.parentElement; pane.scrollTop = 0; diff.scrollTop = 0;
             const rect = e => { const b = e.getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; };
             const [x, y] = rect(pane);
             const style = getComputedStyle(box);
-            return { pane: rect(pane), zone: rect(zone), overlay: getComputedStyle(box, '::after').content,
+            return { pane: rect(pane), diff: rect(diff), overlay: getComputedStyle(box, '::after').content,
               ring: [style.borderTopWidth, style.borderTopColor, style.outlineWidth, style.outlineColor, style.boxShadow, getComputedStyle(pane).borderTopWidth],
               hit: document.elementFromPoint(x, y)?.closest('.artifact-markup') === pane,
               scrolls: /(auto|scroll)/.test(getComputedStyle(pane).overflowY) && pane.scrollHeight > pane.clientHeight + 1 }; })()
@@ -448,13 +484,30 @@ struct ReviseEditorTests {
         #expect(parts.scrolls, "the code's pane is not a scrollport with more to show")
         try await page.mouse.wheel(x: parts.pane[0], y: parts.pane[1], deltaY: 400)
         try await Task.sleep(for: .milliseconds(600))
-        let pane = try await page.evaluate("(() => document.querySelector('.artifact-markup').scrollTop)()", as: Double.self)
+        let paneTop = "(() => document.querySelector('.artifact-markup').scrollTop)()"
+        let pane = try await page.evaluate(paneTop, as: Double.self)
         #expect(pane > 0, "the wheel over the code did not scroll it")
-        let zoneBefore = try await page.evaluate("(() => document.querySelector('.artifact-under-markup').scrollTop)()", as: Double.self)
-        try await page.mouse.wheel(x: parts.zone[0], y: parts.zone[1], deltaY: 400)
+        let diffTop = "(() => document.querySelector(\".testament-diff[data-active='true'] .diff-box\").scrollTop)()"
+        let followed = try await page.evaluate(diffTop, as: Double.self)
+        #expect(followed > 0, "the diff's box did not follow the code: \(followed)")
+        // The page is short since stored TEI is formatted (one line per
+        // mixed-content element): that wheel took the code to its end, and
+        // the diff, following it, to its own end (the two ends meet), where
+        // a wheel down has nowhere to go. The code back at its top, the diff
+        // follows it there, and the wheel over the diff has its whole range.
+        _ = try await page.evaluate(
+          "(() => { document.querySelector('.artifact-markup').scrollTop = 0; return true; })()", as: Bool.self)
+        try await Task.sleep(for: .milliseconds(300))
+        let diffBefore = try await page.evaluate(diffTop, as: Double.self)
+        #expect(diffBefore == 0, "the diff's box did not follow the code back to its top: \(diffBefore)")
+        try await page.mouse.wheel(x: parts.diff[0], y: parts.diff[1], deltaY: 400)
         try await Task.sleep(for: .milliseconds(600))
+        let diff = try await page.evaluate(diffTop, as: Double.self)
+        #expect(diff > diffBefore, "the wheel over the diff did not scroll its box: \(diffBefore) → \(diff)")
+        let code = try await page.evaluate(paneTop, as: Double.self)
+        #expect(code > 0, "the code did not follow the diff's box: \(code)")
         let zone = try await page.evaluate("(() => document.querySelector('.artifact-under-markup').scrollTop)()", as: Double.self)
-        #expect(zone > zoneBefore, "the wheel over the diff did not scroll it: \(zoneBefore) → \(zone)")
+        #expect(zone == 0, "the diff's zone scrolled \(zone): its box is the diff's scroller")
         try await page.expectNoErrors()
       }
       commit.remove()

@@ -25,7 +25,8 @@ struct TestamentFormsTests {
         try await carrier.locator(".dropdown-trigger").click()
         try await carrier.locator(".dropdown-option[data-value='print']").click()
         try await expect(form.locator("[data-item-list='title-form'], .title-form-json")).toHaveCount(0)
-        try await expect(form.locator("button[aria-label='Add Form']")).toHaveCount(0)
+        // Its "+ Form" frozen, as a Genre's is (user, 2026-11-07).
+        try await expect(form.locator("button[aria-label='Add Form']").first).toBeDisabled()
         // A new testament has no citations yet: its Forms one frozen field,
         // the record's shape kept (derived, never typed).
         try await expect(form.locator(".derived-forms-view input[name='derived-forms']").first).toBeDisabled()
@@ -38,10 +39,11 @@ struct TestamentFormsTests {
     try await admin.remove()
   }
 
-  /// A record page shows each node's Forms read-only, after its description
-  /// fields: the work's from the citations linked to the record alone, the
-  /// edition's from those its explication placed at it, each with its testaments
-  /// linked and no date; a work naming itself counts. Chrome headless.
+  /// A record page shows each node's Forms frozen, after its description
+  /// fields, a card a form: the edition's from the citations its explication
+  /// placed at it, the work's from those linked to the record alone, each
+  /// with its testaments and no date; a work naming itself counts. Chrome
+  /// headless.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aRecordPageShowsItsDerivedForms(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -100,18 +102,23 @@ struct TestamentFormsTests {
           """
         ).string
         #expect(order == "ok", "\(order ?? "")")
-        let texts = try await page.evaluate(
-          "JSON.stringify([...document.querySelectorAll('.derived-forms-view')].map((v) => v.textContent.replace(/\\s+/g, ' ').trim()))"
+        // A frozen card a form, as a Genre's (user, 2026-11-07): its form,
+        // then its testaments.
+        let cards = try await page.evaluate(
+          "JSON.stringify([...document.querySelectorAll('.derived-forms-card')].map((c) => [...c.querySelectorAll('input')].map((i) => i.value).join(' | ')))"
         ).string ?? "[]"
-        #expect(texts.contains("The Placement Report: \(work.title)"), "\(texts)")
-        #expect(texts.contains("Placement Rep.: \(work.title)"), "\(texts)")
+        #expect(cards.contains("The Placement Report | \(work.title)"), "\(cards)")
+        #expect(cards.contains("Placement Rep. | \(work.title)"), "\(cards)")
         // Never a date: a testament's may be a range, and a span of ranges does not read.
-        #expect(!texts.contains("AD 1958"), "\(texts)")
-        // Each testament linked: the citing version's page.
-        try await expect(page.locator(".derived-forms-view a[href$='/vignettes/\(work.versionID)']")).toHaveCount(2)
-        // Read-only: no field, no item control.
-        try await expect(page.locator(".derived-forms-view input")).toHaveCount(0)
-        try await expect(page.locator("button[aria-label='Add Form']")).toHaveCount(0)
+        #expect(!cards.contains("AD 1958"), "\(cards)")
+        // The work's its own, none from its edition (user, 2026-11-07).
+        let workForms = page.locator(
+          "#record-metadata .bibliographic-work-identity .derived-forms-card input[name='derived-form']")
+        try await expect(workForms).toHaveCount(1)
+        try await expect(workForms).toHaveValue("The Placement Report")
+        // Frozen: every field and its "+ Form".
+        try await expect(page.locator(".derived-forms-card input:not([disabled])")).toHaveCount(0)
+        try await expect(page.locator("button[aria-label='Add Form']:not([disabled])")).toHaveCount(0)
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
       }

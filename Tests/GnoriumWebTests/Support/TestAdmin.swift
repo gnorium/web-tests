@@ -254,10 +254,15 @@ struct TestAdmin: Sendable {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: psqlPath)
     // A large seed (a long trace) goes by a file: an argument that long is
-    // past the system's limit (E2BIG). Others keep `-c`, whose one
-    // statement string prints only its last result.
+    // past the system's limit (E2BIG). So does any text beyond ASCII: a
+    // process's arguments are passed as file system names
+    // (`fileSystemRepresentation`), which decomposes them, so a precomposed
+    // é written by `-c` was stored as e and a combining acute, a text no
+    // row the server writes (in NFC, `IdentityText`) ever holds. Written
+    // to a file, it is stored byte for byte as given. Others keep `-c`,
+    // whose one statement string prints only its last result.
     var file: URL? = nil
-    if sql.utf8.count > 64 * 1024 {
+    if sql.utf8.count > 64 * 1024 || sql.utf8.contains(where: { $0 > 0x7F }) {
       let written = FileManager.default.temporaryDirectory.appendingPathComponent("web-tests-\(UUID().uuidString).sql")
       try sql.write(to: written, atomically: true, encoding: .utf8)
       file = written

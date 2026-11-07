@@ -71,11 +71,23 @@ struct TextOnlyReaderTests {
         ).int
         #expect(actions == 1, "Find alone at the header's end: \(String(describing: actions))")
         // A text pane: its lines as printed, one line each, never wrapped
-        // until Reflow; zoomed by the wheel as any text pane is.
+        // until Reflow; opened at its one size, and zoomed by a pinch (the
+        // browser's ctrl+wheel) as any text pane is, its plain wheel
+        // scrolling it.
         let markup = viewer.locator(".artifact-markup")
         try await expect(markup.locator(".tei-line")).toHaveCount(1)
         let unwrapped = try await markup.locator(".tei-line").first.evaluate("(l) => getComputedStyle(l).whiteSpace").string ?? ""
         #expect(unwrapped.hasPrefix("nowrap") || unwrapped.hasPrefix("pre"), "a line as printed: \(unwrapped)")
+        // All of it the quote, violet as a quote is (user, 2026-11-05).
+        let violet = try await markup.evaluate(
+          """
+          (m) => { const l = m.querySelector("[data-layer='rendering']");
+            const marks = [...l.querySelectorAll('.tei-highlight')].filter((e) => !e.parentElement.closest('.tei-highlight'));
+            return marks.length > 0 && marks.map((e) => e.textContent).join('').replace(/\\s+/g, '') === l.textContent.replace(/\\s+/g, '')
+              && marks.every((e) => getComputedStyle(e).backgroundColor !== 'rgba(0, 0, 0, 0)'); }
+          """
+        ).bool
+        #expect(violet == true, "all of its text the quote, violet")
         let zoom = """
           (m) => { const l = m.querySelector('.tei-line'); const z = [...m.querySelectorAll('[style*=zoom], [style*=transform]')].map((e) => e.className.split(' ')[0] + '=' + (e.style.zoom || '') + (e.style.transform || '')).join(';');
             return Math.round(l.getBoundingClientRect().width) + ' ' + z; }

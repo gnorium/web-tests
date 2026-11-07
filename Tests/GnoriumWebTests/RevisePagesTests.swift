@@ -153,14 +153,15 @@ struct RevisePagesTests {
 
         // The fields and a markup, each diff drawn as it is made.
         try await page.locator("[data-revise-form] input[name='title']").first.fill("Web tests title")
-        // The editor opens on the stored text as it is (a document is
-        // stored formatted; this one was written before, on one line),
-        // headed as every view of a page is (user, 2026-10-14): this
-        // document declares no renditions, so no header.
+        // The editor opens on the stored text formatted, as Raw shows it
+        // (`TEIView.shownCode`, user 2026-11-05: stored TEI is formatted;
+        // this one was written before, on one line), headed as every view
+        // of a page is (user, 2026-10-14): this document declares no
+        // renditions, so no header.
         let initial = try await page.evaluate(
           "(() => document.querySelector('.tei-page-edit textarea').value)()", as: String.self)
         #expect(
-          initial == "<TEI xmlns=\"http://www.tei-c.org/ns/1.0\">\n<text><body>\n<div><p>Old line</p></div>\n</body></text>\n</TEI>",
+          initial == "<TEI xmlns=\"http://www.tei-c.org/ns/1.0\">\n<text><body>\n<div>\n  <p>Old line</p>\n</div>\n</body></text>\n</TEI>",
           "The editor's initial text: \(initial)")
         _ = try await page.evaluate(
           """
@@ -172,13 +173,14 @@ struct RevisePagesTests {
           })()
           """, as: Bool.self)
         try await expect(page.locator(".testament-diff[data-edited='true']")).toHaveCount(1)
-        // Byte for byte, as stored (user, 2026-10-15): the page's one
-        // line changed.
+        // Byte for byte, against what the editor showed (user, 2026-10-15):
+        // the paragraph's one line changed.
         let code = page.locator(".testament-diff[data-edited='true'] .diff-view[data-diff-mode='code']")
         try await expect(code.locator(".diff-row[data-diff-line='removed']")).toHaveCount(1)
         try await expect(code.locator(".diff-row[data-diff-line='inserted']")).toHaveCount(1)
-        // Headed both sides: the document's four lines around it.
-        try await expect(code.locator(".diff-row[data-diff-line='unchanged']")).toHaveCount(4)
+        // Headed both sides: the document's four lines around it, and the
+        // division's two.
+        try await expect(code.locator(".diff-row[data-diff-line='unchanged']")).toHaveCount(6)
         if let directory = ProcessInfo.processInfo.environment["GNORIUM_SCREENSHOT_DIR"] {
           _ = try await page.evaluate(
             "(() => { document.querySelector(\".testament-diff[data-edited='true'] .diff-view\").scrollIntoView({block: 'center'}); return 1 })()",
@@ -261,13 +263,14 @@ struct RevisePagesTests {
           """, as: String.self)
         #expect(unringed == "ok", "The change ring is not on the markup pane alone: \(unringed)")
         // The ring on all four sides of the pane, border and outline in the
-        // state's color (a modification orange), the pane wearing the
-        // border, its frame's overlay both, the outline just inside the
-        // border, drawn over the scrollport so scrolled code cannot cover
-        // it; the pane itself without padding or inset, flush with the
-        // viewer that clips it; the TEI view 1px inside it, so the outline
-        // stays clear, the text's 16 inset its rendered layer's (user,
-        // 2026-10-10). With the image put away and shown alike.
+        // state's color (a modification orange), the pane's box wearing
+        // both, the outline just outside the border (user, 2026-11-05:
+        // "Draw the ring outside", so it never lies over the page's
+        // outermost pixel), in the 1px the box keeps clear inside the
+        // viewer that clips it; the pane itself without padding; the TEI
+        // view and its rendered layer with no inset of their own (user,
+        // 2026-11-05: none on any pane, the text edge to edge as the image
+        // is). With the image put away and shown alike.
         let ring = """
           (() => {
             const probe = document.createElement('span'); document.body.append(probe)
@@ -283,18 +286,19 @@ struct RevisePagesTests {
               if (getComputedStyle(pane)['padding' + side] !== '0px') return side + ' padding ' + getComputedStyle(pane)['padding' + side]
             }
             if (style.outlineStyle !== 'solid' || style.outlineColor !== orange) return 'outline ' + style.outlineStyle + ' ' + style.outlineColor
-            if (style.outlineWidth !== '1px' || style.outlineOffset !== '-2px') return 'outline ' + style.outlineWidth + ' at ' + style.outlineOffset
+            if (style.outlineWidth !== '1px' || style.outlineOffset !== '0px') return 'outline ' + style.outlineWidth + ' at ' + style.outlineOffset
             if (getComputedStyle(box, '::after').content !== 'none') return 'a ring layer stands over the pane'
             const viewer = card.querySelector('.artifact-viewer-container')
             const a = viewer.getBoundingClientRect(), b = box.getBoundingClientRect()
             const flush = (x, y) => Math.abs(x - y) < 1
-            if (!flush(a.left + viewer.clientLeft, b.left) || !flush(a.top + viewer.clientTop, b.top) || !flush(a.bottom - viewer.clientTop, b.bottom)) return 'inset'
-            if (card.dataset.canvasShown === 'false' && !flush(a.right - viewer.clientLeft, b.right)) return 'inset at the end'
+            // In from the viewer by the outline's 1px alone.
+            if (!flush(a.left + viewer.clientLeft + 1, b.left) || !flush(a.top + viewer.clientTop + 1, b.top) || !flush(a.bottom - viewer.clientTop - 1, b.bottom)) return 'inset ' + [b.left - a.left - viewer.clientLeft, b.top - a.top - viewer.clientTop, a.bottom - viewer.clientTop - b.bottom].join(' ')
+            if (card.dataset.canvasShown === 'false' && !flush(a.right - viewer.clientLeft - 1, b.right)) return 'inset at the end ' + (a.right - viewer.clientLeft - b.right)
             const view = pane.querySelector('.tei-view')
             const inner = getComputedStyle(view)
-            if (inner.paddingLeft !== '1px' || inner.paddingTop !== '1px') return 'view inset ' + inner.padding
+            if (inner.paddingLeft !== '0px' || inner.paddingTop !== '0px') return 'view inset ' + inner.padding
             const text = getComputedStyle(view.querySelector("[data-layer='rendering']"))
-            if (text.paddingLeft !== '16px' || text.paddingTop !== '16px') return 'text inset ' + text.padding
+            if (text.paddingLeft !== '0px' || text.paddingTop !== '0px') return 'text inset ' + text.padding
             if (!flush(view.getBoundingClientRect().left, b.left + 1)) return 'view ' + (view.getBoundingClientRect().left - b.left)
             return 'ok ' + card.dataset.canvasShown
           })()
@@ -304,27 +308,15 @@ struct RevisePagesTests {
         try await page.locator(".artifact-canvas-toggle button").first.click()
         try await expect(page.locator(".artifact-view")).toHaveAttribute("data-canvas-shown", "true")
         #expect(try await page.evaluate(ring, as: String.self) == "ok true", "Image shown")
-        // Ringed, the label still stands over the text: the box's 1px edge
-        // moves the text and the label alike (TEILayoutTests has it unringed).
-        let aligned = """
-          (() => {
-            const start = (el) => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().left };
-            const label = document.querySelector('.artifact-canvas-label')
-            const text = document.querySelector(".artifact-markup .tei-page[data-active='true'] .tei-page-text[data-layer='rendering']")
-            if (!label || !label.textContent.trim()) return 'no label'
-            if (!text) return 'no text'
-            const box = document.querySelector('.artifact-markup-box')
-            if (!box.dataset.ring) return 'unringed'
-            const pane = text.closest('.tei-page')
-            const paneStyle = getComputedStyle(pane), textStyle = getComputedStyle(text)
-            const edge = pane.getBoundingClientRect().left + parseFloat(paneStyle.borderLeftWidth) + parseFloat(paneStyle.paddingLeft)
-              + parseFloat(textStyle.borderLeftWidth) + parseFloat(textStyle.paddingLeft)
-            return Math.abs(start(label) - edge) < 0.5 ? 'ok' : start(label) + ' vs ' + edge
-          })()
-          """
-        #expect(try await page.evaluate(aligned, as: String.self) == "ok", "Ringed, label and text align: image put away")
-        let alignedAway = try await page.evaluate(aligned, as: String.self)
-        #expect(alignedAway == "ok", "Ringed, label and text: \(alignedAway)")
+        // Ringed, the label still stands at the header row's own padding, the
+        // ring moving nothing (user, 2026-11-05: "label without padding would
+        // look wack, remove additional padding we added but not 0 it, keep
+        // header overall padding"; TEILayoutTests has it unringed).
+        #expect(
+          try await page.evaluate("!!document.querySelector('.artifact-markup-box').dataset.ring", as: Bool.self),
+          "the pane's box is ringed")
+        let aligned = try await page.evaluate(TEILayoutTests.labelAtTheRowsPadding, as: String.self)
+        #expect(aligned == "ok", "Ringed, label and the header row's padding: \(aligned)")
         // Canvas shown: read the pixels.
         RingPixels.expectTwoPixels(try await RingPixels.read(page, colorVariable: "--border-color-orange"), "desktop, image shown")
         try await page.locator(".artifact-canvas-toggle button").first.click()

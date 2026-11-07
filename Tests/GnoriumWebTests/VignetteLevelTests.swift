@@ -5,8 +5,8 @@ import WebTestsTesting
 
 /// A record's vignette shows its level as the record's page does (user,
 /// 2026-10-20): the same level view in its sidebar, the mark and the word,
-/// and no status line under the vignette's title. The work's vignette is
-/// explicated: a disc beside "Explicated"; the word's counts its sentiments
+/// and no status line under the vignette's title. The biblio-record's vignette is
+/// explicated: a disc beside "Explicated"; the lexico-record's counts its sentiments
 /// per level instead (a lexico-record has no single level). On a phone the sidebar is
 /// reached through the menu. Nothing scrolls sideways. Chrome headless.
 @Suite("Vignette level", .serialized)

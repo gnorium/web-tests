@@ -70,9 +70,9 @@ struct TEILayoutTests {
         let blockBox = try #require(try await block.boundingBox())
         let pageBox = try #require(try await page.locator(".tei-page").first.boundingBox())
         #expect(first.x >= blockBox.x)
-        // The text pane's 16 inset, then the block: reflowed, the page's around its zoomed text (user,
-        // 2026-11-03), never the text's own, which its zoom shrinks.
-        #expect(abs(blockBox.x - (pageBox.x + 16)) < 0.5)
+        // The block at the page's start: no inset of a pane's (user, 2026-11-05: none on any pane), and this
+        // page, with no type area, has no margins of its own.
+        #expect(abs(blockBox.x - pageBox.x) < 0.5, "the block stands \(blockBox.x - pageBox.x) px into its page")
         try await expect(block).toHaveCSS("padding-inline-start", "24px")
         // The note's lines run on too, the block centered as its rend says.
         let note = text.locator(".tei-block[data-rend='align(center)']")
@@ -107,8 +107,10 @@ struct TEILayoutTests {
 
   /// An abbreviation with its expansion (`<choice><abbr>M.A.</abbr><expan>
   /// Master of Arts</expan></choice>`) is a word of its line: the line's
-  /// font, size and baseline, its expansion on hover. The view has no
-  /// padding; the text's 16 inset is its page's (user, 2026-10-10).
+  /// font, size and baseline. Its expansion is its gloss's, a madrigal's
+  /// reader opening glosses: one control on its line, never a tooltip first
+  /// (TEIView `runContents`, user, 2026-11-01). Neither the view nor the
+  /// page has an inset of the pane's (user, 2026-11-05).
   static let abbreviationTEI = #"""
     <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader><text><body>
     <pb n="4" facs="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/>
@@ -126,15 +128,20 @@ struct TEILayoutTests {
       try await withPage(engine, gnorium, viewport: .desktop) { page in
         try await page.openHydrated(reading.path)
         let view = page.locator(".tei-view").first
-        // 1px inside its pane, so the ring's inward outline stays clear;
-        // the rendered text's inset is its layer's 16.
-        try await expect(view).toHaveCSS("padding-top", "1px")
-        try await expect(view).toHaveCSS("padding-left", "1px")
+        // No inset on any pane (user, 2026-11-05): the view fills its pane
+        // and a page with no type area its view, edge to edge.
+        try await expect(view).toHaveCSS("padding-top", "0px")
+        try await expect(view).toHaveCSS("padding-left", "0px")
         try await expect(page.locator(".tei-page-text[data-layer='rendering']").first)
-          .toHaveCSS("padding-left", "16px")
+          .toHaveCSS("padding-left", "0px")
         let line = page.locator(".tei-page-text").first
-        let abbreviation = line.locator(".tei-run-alternative").first
-        try await expect(abbreviation).toContainText("M.A.")
+        // A word's control, as any token of text is (`TEIProjection.units`):
+        // its surface read whole, by its first word (`TEIRenderer`'s
+        // `choice`), never an element's.
+        let abbreviation = line.locator(".tei-word").filter(hasText: "M.A.").first
+        try await expect(abbreviation).toHaveAttribute("role", "button")
+        try await expect(abbreviation).toHaveAttribute("aria-haspopup", "dialog")
+        try await expect(line.locator(".tei-run-alternative")).toHaveCount(0)
         let word = line.locator(".tei-run").filter(hasText: "his").first
         let fontSize = try await word.evaluate("el => getComputedStyle(el).fontSize").string
         try await expect(abbreviation).toHaveCSS("font-size", try #require(fontSize))
@@ -145,7 +152,7 @@ struct TEILayoutTests {
         #expect(abs(abbreviated.height - neighbor.height) < 0.5)
 
         // Raw: the code box fills the view edge to edge, square: its gray
-        // starts at the pane's border plus 1 (the view's padding).
+        // starts at the pane's border (the view has no padding).
         try await page.locator(".artifact-xml-toggle").first.click()
         let code = page.locator(".tei-page-raw .code-view").first
         try await expect(code).toBeVisible()
@@ -159,7 +166,7 @@ struct TEILayoutTests {
             return [box.left - v.left, box.top - v.top, v.left - (p.left + pane.clientLeft)];
           }
           """).array?.compactMap(\.double) ?? []
-        #expect(inset.count == 3 && abs(inset[0] - 1) < 0.5 && abs(inset[1] - 1) < 0.5, "code at the view's 1px: \(inset)")
+        #expect(inset.count == 3 && abs(inset[0]) < 0.5 && abs(inset[1]) < 0.5, "code at the view's edge: \(inset)")
         #expect(inset.count == 3 && abs(inset[2]) < 0.5, "the view at the pane's inner edge: \(inset)")
       }
     } catch {
@@ -313,7 +320,8 @@ struct TEILayoutTests {
   /// A figure keeps its box through submission (user, 2026-09-29; FIGURES.md
   /// phase 2): a zone of the document's facsimile, named by the figure's
   /// facs, cut from the page's IIIF image as a crop in the madrigal's
-  /// transcript, its description as its alternative text and caption.
+  /// transcript, its description as its alternative text alone (user,
+  /// 2026-11-05: never a caption drawn under it).
   static let figureTEI = #"""
     <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc></teiHeader>
     <facsimile><surface n="1" ulx="0" uly="0" lrx="1000" lry="1000"><graphic url="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/><zone xml:id="p1-z1" ulx="100" uly="200" lrx="400" lry="600"/></surface></facsimile>
@@ -341,7 +349,11 @@ struct TEILayoutTests {
         try await expect(image).toHaveAttribute(
           "src", "https://example.org/iiif/web-tests/pct:10,20,30,40/!600,600/0/default.jpg")
         try await expect(image).toHaveAttribute("alt", "Woodcut of the bones of a hand.")
-        try await expect(figure.locator(".tei-figure-caption")).toHaveText("Woodcut of the bones of a hand.")
+        // Its <figDesc> is no caption on the page (user, 2026-11-05): its
+        // alternative text alone, nothing of it drawn.
+        try await expect(figure.locator("figcaption")).toHaveCount(0)
+        let drawn = try await figure.evaluate("(f) => f.innerText.trim()").string ?? ""
+        #expect(drawn.isEmpty, "the figure draws text: \(drawn)")
         // The printed caption stays text, after the crop.
         try await expect(text.locator(".tei-line-heading").last).toHaveText("Fig. 1")
         try await page.expectNoHorizontalOverflow()
@@ -403,11 +415,30 @@ struct TEILayoutTests {
     try await admin.remove()
   }
 
+  /// "ok" where the page label's text starts at its header row's content
+  /// edge (the row's border and padding, the label's own padding none),
+  /// else where each stands.
+  static let labelAtTheRowsPadding = """
+    (() => {
+      const label = document.querySelector('.artifact-canvas-label');
+      if (!label || !label.textContent.trim()) return 'no label';
+      const range = document.createRange(); range.selectNodeContents(label);
+      const start = range.getBoundingClientRect().left;
+      const row = label.closest('.artifact-header-row'), rowStyle = getComputedStyle(row);
+      const edge = row.getBoundingClientRect().left + parseFloat(rowStyle.borderLeftWidth) + parseFloat(rowStyle.paddingLeft);
+      if (getComputedStyle(label).paddingLeft !== '0px') return 'label padding ' + getComputedStyle(label).paddingLeft;
+      return Math.abs(start - edge) < 0.5 ? 'ok' : start + ' vs ' + edge;
+    })()
+    """
+
   /// Once the manifest has named the page, the header's page label starts
-  /// where the rendered text starts, left-aligned: the text's inner inset
-  /// (user, 2026-10-12), at every width.
+  /// at the header row's own padding, nothing added, at every width (user,
+  /// 2026-11-05: "label without padding would look wack, remove additional
+  /// padding we added but not 0 it, keep header overall padding"). It stood
+  /// over the text's start (user, 2026-10-12) while the text had its 16
+  /// inset; the text has none now.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
-  func theCanvasLabelStandsOverTheText(engine: BrowserEngine, layout: Layout) async throws {
+  func theCanvasLabelStandsAtTheHeaderRowsPadding(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let fixture = try await FixtureServer.threePageManifest()
@@ -418,26 +449,10 @@ struct TEILayoutTests {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [contributor.cookie]) { page in
         try await page.openHydrated(commit.madrigalPath)
         try await expect(page.locator(".artifact-canvas-label").first).not.toHaveText("")
-        // The page label's text over the rendered text's start edge.
-        let aligned = try await page.evaluate(
-          """
-          (() => {
-            const start = (el) => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().left; };
-            const label = document.querySelector('.artifact-canvas-label');
-            const text = document.querySelector(".artifact-markup .tei-page[data-active='true'] .tei-page-text[data-layer='rendering']");
-            if (!label.textContent.trim()) return 'no label';
-            if (!text) return 'no text';
-            // Where the text starts when it runs left-aligned: inside its
-            // page's content box, past its own inset (a short centered line
-            // stands further in).
-            const pane = text.closest('.tei-page');
-            const paneStyle = getComputedStyle(pane), textStyle = getComputedStyle(text);
-            const edge = pane.getBoundingClientRect().left + parseFloat(paneStyle.borderLeftWidth) + parseFloat(paneStyle.paddingLeft)
-              + parseFloat(textStyle.borderLeftWidth) + parseFloat(textStyle.paddingLeft);
-            return Math.abs(start(label) - edge) < 1 ? 'ok' : start(label) + ' vs ' + edge;
-          })()
-          """, as: String.self)
-        #expect(aligned == "ok", "label and text: \(aligned)")
+        // The page label's text at the header row's content edge: its
+        // padding, the label's own none.
+        let aligned = try await page.evaluate(Self.labelAtTheRowsPadding, as: String.self)
+        #expect(aligned == "ok", "label and the header row's padding: \(aligned)")
       }
     } catch {
       commit.remove()

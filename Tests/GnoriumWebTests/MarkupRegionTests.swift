@@ -16,8 +16,10 @@ struct MarkupRegionTests {
   /// Where the image on screen draws its region, against where the box
   /// (0–1000) falls on the image as displayed, with its dimmed backdrop and
   /// the 0–1000 grid laid over the image (its 500 line at the image's
-  /// midpoint): "none" when there is no region and no grid, "ok" within a
-  /// pixel, else what is wrong.
+  /// midpoint), its lines' layer naming its levels (`data-levels`, on the
+  /// layer over the part of the image the viewport shows since 2026-10-28):
+  /// "none" when there is no region and no grid, "ok" within a pixel, else
+  /// what is wrong.
   static let regionScript = """
     (box) => {
       const canvas = document.querySelector(".artifact-view .frame-view[data-active='true']");
@@ -25,15 +27,17 @@ struct MarkupRegionTests {
       const region = canvas && canvas.querySelector('.frame-region');
       const dim = canvas && canvas.querySelector('.frame-region-dim');
       const grid = canvas && canvas.querySelector('.frame-grid');
-      if (!shown(region)) return shown(grid) || shown(dim) ? 'grid or dim without a region' : 'none';
+      const lines = canvas && canvas.querySelector('.frame-grid-lines');
+      if (!shown(region)) return shown(grid) || shown(lines) || shown(dim) ? 'grid or dim without a region' : 'none';
       if (!shown(dim)) return 'no dim';
       if (!shown(grid)) return 'no grid';
+      if (!shown(lines)) return 'no grid lines';
       const image = canvas.querySelector('.frame-tile-compositor').getBoundingClientRect();
       const g = grid.getBoundingClientRect();
       const midpoint = g.left + g.width * 500 / 1000;
       if ([g.left - image.left, g.top - image.top, g.width - image.width, g.height - image.height,
         midpoint - (image.left + image.width / 2)].some((d) => Math.abs(d) > 1)) return 'grid off the image';
-      if (!(grid.dataset.levels || '').split(' ').includes('100')) return 'no 100 lines: ' + grid.dataset.levels;
+      if (!(lines.dataset.levels || '').split(' ').includes('100')) return 'no 100 lines: ' + lines.dataset.levels;
       const r = region.getBoundingClientRect();
       const want = [image.left + box[0] / 1000 * image.width, image.top + box[1] / 1000 * image.height,
         box[2] / 1000 * image.width, box[3] / 1000 * image.height];
@@ -232,7 +236,7 @@ struct MarkupRegionTests {
         #"""
         UPDATE bibliographic_madrigals SET
           metadata_json = (metadata_json::jsonb || '{"provider":"folger_shakespeare_library"}'::jsonb)::text,
-          proposed_content_json = '{"teiXml":"<TEI><facsimile><surface ulx="0" uly="0" lrx="1000" lry="1000"><zone xml:id="z1" ulx="100" uly="200" lrx="600" lry="400"/></surface></facsimile><text><body><pb n="1" facs="\#(fixture.baseURL)/page-1/full/1300,/0/default.jpg"/><p>Before</p></body></text></TEI>"}'
+          proposed_content_json = '{"teiXml":"<TEI><facsimile><surface n=\"1\" ulx=\"0\" uly=\"0\" lrx=\"1000\" lry=\"1000\"><zone xml:id=\"p1-z1\" ulx=\"100\" uly=\"200\" lrx=\"600\" lry=\"400\"/></surface></facsimile><text><body><pb n=\"1\" facs=\"\#(fixture.baseURL)/page-1/full/1300,/0/default.jpg\"/><p>Before</p></body></text></TEI>"}'
         WHERE id = '\#(commit.madrigalID)'
         """#)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
@@ -250,8 +254,15 @@ struct MarkupRegionTests {
         try await page.keyboard.press("Alt+ArrowDown")
         try await Self.expectEditor(
           page, contains: "ulx=\"101\" uly=\"200\" lrx=\"601\" lry=\"401\"", "Alt+ArrowDown grows it by 1")
+        // The crop follows the keys a frame behind the text, as the drawing
+        // follows the caret (`expectRegion`). Pressed before it has, the
+        // corner the drag holds still is the zone's as it was (100 200),
+        // and the drag writes that, never 101.
+        try await Self.expectRegion(page, [101, 200, 500, 201], "ok", "The crop follows the keys")
         // Its bottom-right handle dragged: lrx and lry follow.
         #expect(try await page.evaluate(Self.caretScript("ulx=\"10"), as: Bool.self))
+        try await Self.expectRegion(page, [101, 200, 500, 201], "ok", "The caret back in the zone")
+        try await expect(page.locator(".frame-view[data-active='true'] .frame-crop-handle")).toHaveCount(4)
         let corner = try await Self.screenPoint(page, 601, 401)
         let target = try await Self.screenPoint(page, 700, 500)
         try await page.mouse.move(x: corner.x, y: corner.y)
@@ -262,8 +273,10 @@ struct MarkupRegionTests {
         }
         try await page.mouse.up(x: target.x, y: target.y)
         var written: (Int, Int)?
+        var zoneTag = ""
         for _ in 0..<40 where written == nil {
           let text = try await page.evaluate(Self.editorText, as: String.self)
+          zoneTag = text.firstMatch(of: /<zone[^>]*>/).map { String($0.output) } ?? "no <zone> in the editor"
           if let match = text.firstMatch(of: /ulx="101" uly="200" lrx="(\d+)" lry="(\d+)"/),
             let right = Int(match.1), let bottom = Int(match.2), abs(right - 700) <= 1, abs(bottom - 500) <= 1
           {
@@ -272,7 +285,7 @@ struct MarkupRegionTests {
             try await Task.sleep(for: .milliseconds(50))
           }
         }
-        #expect(written != nil, "The drag writes the corners into the TEI text")
+        #expect(written != nil, "The drag writes the corners into the TEI text: \(zoneTag)")
         try await page.expectNoErrors()
       }
     } catch {
@@ -330,13 +343,19 @@ struct MarkupRegionTests {
         let zone = [100, 200, 300, 400]
         try await Self.expectRegion(page, zone, "none", "No region before the pointer is on one")
         let figure = try await point("illustration")
-        print("DEBUG", try await page.evaluate("(() => { const t = document.querySelector(\".tei-page[data-active='true']\"); const p = document.caretPositionFromPoint(\(figure.x), \(figure.y)); return JSON.stringify({zones: t.dataset.zones, node: p && p.offsetNode.textContent, off: p && p.offset, code: t.querySelector('.tei-page-raw .code-code').textContent.slice(0, 300)}) })()", as: String.self))
         try await page.mouse.move(x: figure.x, y: figure.y)
         try await Self.expectRegion(page, zone, "ok", "The pointer on the figure draws its zone")
         let after = try await point("After")
         try await page.mouse.move(x: after.x, y: after.y)
         try await Self.expectRegion(page, zone, "none", "The pointer left the figure")
-        try await page.mouse.move(x: figure.x, y: figure.y)
+        // The figure's tag where it stands now: the code stays put under the
+        // pointer, and the pointer goes back to the tag, wherever a move of
+        // the code took it.
+        let back = try await point("illustration")
+        #expect(
+          abs(back.x - figure.x) < 1 && abs(back.y - figure.y) < 1,
+          "The code moved under the pointer: the figure's tag from \(figure) to \(back)")
+        try await page.mouse.move(x: back.x, y: back.y)
         try await Self.expectRegion(page, zone, "ok", "Back on the figure")
         try await page.mouse.move(x: 2, y: 2)
         try await Self.expectRegion(page, zone, "none", "The pointer left the reader")

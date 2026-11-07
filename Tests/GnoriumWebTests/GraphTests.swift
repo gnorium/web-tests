@@ -84,13 +84,24 @@ struct GraphTests {
         try await expect(page.locator("aside")).toHaveCount(0)
         // The swap icon (2026-10-03): the two arrows one above the other,
         // the same size, a clear gap between them, offset to fill a square,
-        // centered in the box together.
+        // centered in the box together. Each arrow is its head and its shaft
+        // (Lucide's `arrow-left-right`, four paths since 2026-10-26), so an
+        // arrow is the paths in its half of the box, together.
         let stacked = try await page.evaluate(
           """
           (() => {
             const svg = document.querySelector('form.graph-query svg.arrow-left-right-icon-view');
-            const [a, b] = [...svg.querySelectorAll('path')].map(p => p.getBoundingClientRect());
             const box = svg.getBoundingClientRect();
+            const rects = [...svg.querySelectorAll('path')].map(p => p.getBoundingClientRect());
+            const across = box.top + box.height / 2;
+            const arrow = (upper) => {
+              const own = rects.filter(r => (r.top + r.height / 2 < across) === upper);
+              const r = {
+                left: Math.min(...own.map(o => o.left)), right: Math.max(...own.map(o => o.right)),
+                top: Math.min(...own.map(o => o.top)), bottom: Math.max(...own.map(o => o.bottom)) };
+              return { ...r, width: r.right - r.left, height: r.bottom - r.top };
+            };
+            const [a, b] = [arrow(true), arrow(false)];
             const middle = r => r.left + r.width / 2;
             return Math.abs(a.width - b.width) < 0.5
               && Math.abs(a.height - b.height) < 0.5 && b.top - a.bottom >= 1.5
@@ -152,7 +163,7 @@ struct GraphTests {
         let count = row.locator("a.graph-count")
         try await expect(count).toHaveText("3 citations")
         try await expect(count).toHaveAttribute(
-          "href", "\(cited.path)/citations?work=\(citing.recordID)&direction=citations")
+          "href", "\(cited.path)/citations?biblio-record=\(citing.recordID)&direction=citations")
         // The drawing: the record asked at the root, the citing work under
         // it, the edge named, its arrowhead a marker at the root's end.
         let drawing = page.locator(".relation-graph-view svg")
@@ -364,10 +375,12 @@ struct GraphTests {
     }
   }
 
-  /// The listed column's header, and the other end's (nil: no such column).
+  /// The listed column's header, and the other end's (nil: no such column),
+  /// each found by its column's id (`GraphView`: "listed", "last"), its
+  /// label the text expected.
   private func expectHeaders(_ page: Page, listed: String, last: String?) async throws {
-    try await expect(page.locator(".graph-table th[data-table-column-id=\"\(listed)\"] .table-header-label")).toHaveText(listed)
-    let lastHeader = page.locator(".graph-table th[data-table-column-id=\"\(last ?? "")\"] .table-header-label")
+    try await expect(page.locator(".graph-table th[data-table-column-id='listed'] .table-header-label")).toHaveText(listed)
+    let lastHeader = page.locator(".graph-table th[data-table-column-id='last'] .table-header-label")
     if let last {
       try await expect(lastHeader).toHaveText(last)
     } else {

@@ -101,8 +101,9 @@ struct GlossTests {
         }
         // Once the panel has slid in (the ellipsis menu's motion), it is the
         // pane's box (`.artifact-markup-box`, with its 1px edge the state
-        // ring is drawn on; the text inside it is inset by that edge), or the
-        // popover on the screen.
+        // ring is drawn on, the text inside it inset by that edge) and the
+        // 1px around it the ring's outline is drawn in, outward (user,
+        // 2026-11-05), or the popover on the screen.
         let covers = try await pane.evaluate(
           """
           async (el) => {
@@ -110,7 +111,8 @@ struct GlossTests {
             const sheet = document.querySelector('.gloss-sheet[data-state=open]'), s = sheet.querySelector('.sheet-panel').getBoundingClientRect();
             if (sheet.dataset.placement === 'popover')
               return innerWidth >= 769 && s.width >= 320 && s.height <= 320 && s.left >= 0 && s.right <= innerWidth && s.top >= 0 && s.bottom <= innerHeight;
-            const p = el.querySelector('.artifact-markup-box').getBoundingClientRect();
+            const box = el.querySelector('.artifact-markup-box'), b = box.getBoundingClientRect(), m = parseFloat(getComputedStyle(box).marginTop) || 0;
+            const p = {top: b.top - m, left: b.left - m, width: b.width + 2 * m, height: b.height + 2 * m};
             return innerWidth < 769 && Math.abs(s.top - p.top) <= 1 && Math.abs(s.left - p.left) <= 1
               && Math.abs(s.height - p.height) <= 1 && Math.abs(s.width - p.width) <= 1;
           }

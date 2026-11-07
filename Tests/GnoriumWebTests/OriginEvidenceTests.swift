@@ -246,7 +246,7 @@ struct OriginEvidenceTests {
           """)
         try await page.openHydrated(madrigal)
         try await page.locator("button[form='madrigal-permit']").click()
-        try await expect(page.locator("body"), timeout: .seconds(15)).toContainText("names no permitted testament")
+        try await expect(page.locator("body"), timeout: .seconds(15)).toContainText("names no testament")
         let refused = try TestAdmin.query(
           "SELECT count(*) FROM biblio_record_versions WHERE biblio_record_id = '\(revised.work.recordID)';"
         ).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -268,7 +268,7 @@ struct OriginEvidenceTests {
           """
           (() => {
             const quote = document.querySelector('.origin-view .outgoing-citations-view .attestation-view');
-            const step = quote && quote.closest('.origin-step-view, .outliner-item, [data-origin-id]');
+            const step = quote && quote.closest('.outliner-item, [data-origin-id]');
             return step ? step.textContent.includes('Web tests source two') && !step.textContent.includes('Web tests source one') : false;
           })()
           """)

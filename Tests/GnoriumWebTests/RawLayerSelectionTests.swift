@@ -53,18 +53,23 @@ struct RawLayerSelectionTests {
         let pane = try #require(try await page.locator(".artifact-markup").first.boundingBox())
         // The long line (the words), from its first character: a drag from
         // the text selects (a drag from the gutter or the ground pans, user
-        // 2026-10-12).
+        // 2026-10-12). Read, Raw lays the page out (`TEIView.shownCode`):
+        // the line is indented, its indent a text node of its own before the
+        // first colored token, so its first character is the first that is
+        // no white space, in whichever of its text nodes.
         let start = try await text.evaluate(
           """
           e => { const lines = [...e.querySelectorAll('.code-line')];
             const line = lines.reduce((a, b) => (b.textContent.length > a.textContent.length ? b : a));
             const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
-            const node = walker.nextNode(); const at = node.data.search(/\\S/); const r = document.createRange();
+            let node = walker.nextNode(), at = node ? node.data.search(/\\S/) : -1;
+            while (node && at < 0) { node = walker.nextNode(); at = node ? node.data.search(/\\S/) : -1; }
+            if (!node) return null; const r = document.createRange();
             r.setStart(node, at); r.setEnd(node, at + 1); const b = r.getBoundingClientRect();
             return [b.left + 1, b.top + b.height / 2] }
           """)
-        let startX = start.array?.first?.double ?? box.x
-        let y = start.array?.last?.double ?? box.y
+        let startX = try #require(start.array?.first?.double, "the long line has no character to drag from")
+        let y = try #require(start.array?.last?.double, "the long line has no character to drag from")
         try await page.mouse.down(x: startX, y: y)
         for step in 1...8 { try await page.mouse.move(x: box.x + Double(step) * 80, y: y) }
         // Held past the pane's edge, as a person holds it.

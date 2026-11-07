@@ -153,7 +153,8 @@ struct ArtifactOverlayTests {
   /// shows with no image (`"blank":true`: changed at its source, no copy of
   /// what was sent kept).
   static func structureServer(
-    blankPage: Bool = false, blankCanvas: Bool = false, imageSwitch: Bool = false, words: Bool = false
+    blankPage: Bool = false, blankCanvas: Bool = false, imageSwitch: Bool = false, words: Bool = false,
+    reflowSwitch: Bool = false
   ) async throws -> FixtureServer {
     let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let assets = root.appendingPathComponent("gnorium-web/Public")
@@ -202,7 +203,9 @@ struct ArtifactOverlayTests {
       """# + (imageSwitch ? #"<header><div class="artifact-canvas-toggle"><button>Frame</button></div></header>"# : "") + #"""
       <div class="artifact-viewer-container"><div class="artifact-markup-viewport"><div class="artifact-markup"><div class="tei-view"><div class="tei-page" data-service-id="/scan" data-active="true" data-has-markup="true" data-text-block="300,240 700,248 694,700 294,692"\#(wordData)><div class="tei-page-text" data-layer="rendering" data-type-area="true" style="--tei-type-area-measure: 30; --tei-type-area-height: 40; --tei-type-area-margin: 5; --tei-page-width: 0; --tei-page-height: 0"><div class="tei-text-block">
       """# + lines + "</div></div></div>" + blank + #"""
-      </div></div></div><div class="artifact-object"><div class="frame-view" data-service-id="/scan"><div class="frame-viewport"><div class="frame-spinner"></div></div></div></div></div><footer><div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
+      </div></div></div><div class="artifact-object"><div class="frame-view" data-service-id="/scan"><div class="frame-viewport"><div class="frame-spinner"></div></div></div></div></div><footer>
+      """# + (reflowSwitch ? #"<div class="artifact-reflow-toggle"><button>Reflow</button></div>"# : "") + #"""
+      <div class="artifact-overlay-toggle"><button>Overlay</button></div><div class="artifact-detach-toggle"><button class="button-view"><span class="button-icon">Detach</span></button></div></footer></div><script src="/loader.js"></script></body></html>
       """#
     var files: [String: FixtureServer.File] = [
       "/": .init(contentType: "text/html", body: Data(html.utf8)),
@@ -613,6 +616,51 @@ struct ArtifactOverlayTests {
     }
   }
 
+  /// Reflow puts the overlay away (user, 2026-10-26: no page to lay on the
+  /// scan), its structure with it, at once (user, 2026-11-05: overlay, then
+  /// Reflow, left the scene's boxes at the unreflowed page's place, off the
+  /// reflowed text, fully drawn once the overlay's fade was done): no
+  /// structure in the pane, the overlay not active, its switch off and
+  /// disabled. Reflow off brings the overlay back as it was, its structure
+  /// drawn again. A structure is drawn only from the scan's measured lines
+  /// and the body's leading (`measuredStructure`): the page carries the
+  /// tools' zones (`words`) and its leading is planted.
+  @Test(arguments: [1440, 440])
+  func reflowPutsTheOverlayAndItsStructureAway(width: Int) async throws {
+    let server = try await Self.structureServer(words: true, reflowSwitch: true)
+    defer { server.stop() }
+    let config = BrowserTestConfiguration(baseURL: URL(string: server.baseURL)!, engines: [.chrome], defaultTimeout: .seconds(30))
+    try await withPage(.chrome, config, viewport: .init(width: width, height: 600)) { page in
+      try await page.goto("/")
+      try await expect(page.locator("html")).toHaveAttribute("data-wasm-status", "started")
+      try await page.evaluate("new Promise(resolve=>setTimeout(resolve,700))")
+      let checks = try await page.evaluate(#"""
+        (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),r=document.querySelector('.artifact-view');
+          const press=(wrap,on)=>{wrap.setAttribute('aria-pressed',on?'true':'false');wrap.querySelector('button').setAttribute('aria-pressed',on?'true':'false');
+            wrap.dispatchEvent(new CustomEvent('toggle-button-update',{detail:on?'true':'false'}))};
+          const reflow=r.querySelector('.artifact-reflow-toggle'),overlay=r.querySelector('.artifact-overlay-toggle'),button=overlay.querySelector('button');
+          const drawn=()=>!!r.querySelector('.artifact-markup .artifact-structure');
+          r.querySelector('.tei-page').dataset.bodyLeading='1.25';
+          press(overlay,true);await wait(900);
+          const overlayOn=r.dataset.overlayActive==='true'&&drawn();
+          press(reflow,true);await wait(80);
+          const goneAtOnce=r.dataset.reflow==='true'&&!drawn();
+          await wait(900);
+          const away=!drawn()&&r.dataset.overlayActive==='false'&&r.dataset.overlayRegistered!=='true'
+            &&overlay.getAttribute('aria-pressed')==='false'&&button.disabled&&button.getAttribute('aria-disabled')==='true';
+          press(reflow,false);await wait(900);
+          const back=r.dataset.reflow==='false'&&r.dataset.overlayActive==='true'&&overlay.getAttribute('aria-pressed')==='true'&&drawn();
+          return [overlayOn,goneAtOnce,away,back].map(Number)})()
+        """#, as: [Int].self)
+      let named = [
+        "the overlay on, its structure drawn", "Reflow on: the structure gone at once",
+        "Reflow on: the overlay off and its switch disabled, no structure", "Reflow off: the overlay back, its structure drawn",
+      ]
+      for (check, name) in zip(checks, named) { #expect(check == 1, "\(name) at \(width)") }
+      try await page.expectNoErrors()
+    }
+  }
+
   /// A word whose `@facs` names several zones of one scan line—a title's
   /// letter-spaced "OF", a zone a letter, as on prod madrigal dd5cc0b2's
   /// page 3—is banded on the scan as one box, the union of its zones,
@@ -879,7 +927,8 @@ struct ArtifactOverlayTests {
       // A word's gloss covers the text pane exactly, never the image's
       // (user, 2026-10-14), stacked (440); side by side (1440), a wide
       // screen, it is a popover beside the word instead (user, 2026-11-01),
-      // at least 320×320 and on the screen.
+      // above or below it, on the screen, at least 320 wide and growing to
+      // fit what it holds up to 320 tall (SheetView, user, 2026-11-01).
       if canvas == 5 {
         let gloss = try await page.evaluate(#"""
           (async()=>{const wait=ms=>new Promise(r=>setTimeout(r,ms)),R=e=>e.getBoundingClientRect(),p=document.querySelector('.artifact-markup'),o=document.querySelector('.artifact-object');
@@ -887,7 +936,8 @@ struct ArtifactOverlayTests {
             const w=[...p.querySelectorAll('.tei-word')].find(w=>{const b=R(w),r=R(p);return b.top>r.top&&b.bottom<r.bottom&&b.left>r.left&&b.right<r.right});
             w.click();await wait(500);const s=R(document.querySelector('.gloss-sheet .sheet-panel')),q=R(p),a=R(o);
             const pop=document.querySelector('.gloss-sheet').dataset.placement==='popover';
-            const covers=pop?(innerWidth>=769&&s.width>=320&&s.height>=320&&s.left>=0&&s.right<=innerWidth):(innerWidth<769&&Math.abs(s.left-q.left)<=1&&Math.abs(s.top-q.top)<=1&&Math.abs(s.width-q.width)<=1&&Math.abs(s.height-q.height)<=1);
+            const wb=R(w),beside=s.top>=wb.bottom-1||s.bottom<=wb.top+1;
+            const covers=pop?(innerWidth>=769&&beside&&s.width>=320&&s.height>0&&s.height<=320.5&&s.left>=0&&s.right<=innerWidth&&s.top>=0&&s.bottom<=innerHeight):(innerWidth<769&&Math.abs(s.left-q.left)<=1&&Math.abs(s.top-q.top)<=1&&Math.abs(s.width-q.width)<=1&&Math.abs(s.height-q.height)<=1);
             const apart=pop||s.right<=a.left+1||s.bottom<=a.top+1,still=Math.abs(a.left-before.left)<1&&Math.abs(a.top-before.top)<1&&Math.abs(a.width-before.width)<1&&Math.abs(a.height-before.height)<1;
             (document.activeElement||document.body).dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await wait(500);return JSON.stringify([covers,apart,still,[s.left,s.top,s.width,s.height],[q.left,q.top,q.width,q.height],[a.left,a.top,a.width,a.height]])})()
           """#, as: String.self)

@@ -434,12 +434,13 @@ struct LexicographicAmendmentTests {
   /// amendment form it is frozen and stays where it is. The tree's removal
   /// stepper still steps to it (user, 2026-11-03), and to the sentiment it
   /// stands under, which would take it along: its "− Sentiment" disabled
-  /// there, the palinode's whole UUID linked in its tooltip, as a held
-  /// testament's radio; the add stepper likewise at a place under it. A
-  /// second palinode on it, posted anyway, is refused (the form drawn
-  /// again) naming and linking the open one.
+  /// there, the whole UUID of its line's latest object (its overture; user,
+  /// 2026-11-05) linked in its tooltip, as a held testament's radio; the add
+  /// stepper likewise at a place under it. A second palinode on it, posted
+  /// anyway, is refused (the form drawn again) naming and linking that
+  /// object.
   @Test(arguments: [BrowserEngine.chrome])
-  func aSentimentAnOpenPalinodeHoldsLinksItsPalinode(engine: BrowserEngine) async throws {
+  func aSentimentAnOpenPalinodeHoldsLinksItsLatestObject(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
@@ -472,8 +473,9 @@ struct LexicographicAmendmentTests {
         }
 
         // Drawn again: the held sentiment is frozen, its marker the plain
-        // disc—no grip, no handle—its tooltip linking the palinode (user,
-        // 2026-11-03: only its holder shifts it).
+        // disc—no grip, no handle—its tooltip linking its line's latest
+        // object, the overture (user, 2026-11-03: only its holder shifts it;
+        // 2026-11-05: the latest object, never the palinode).
         try await page.openHydrated("\(word.path)/amendments/new")
         let item = form.locator(".outliner-item[data-outliner-id='s-1-1']")
         try await expect(item).toHaveAttribute("data-sentiment-held", "true")
@@ -482,11 +484,11 @@ struct LexicographicAmendmentTests {
         let marker = item.locator(":scope > .outliner-row .record-node-marker").first
         try await expect(marker).toHaveAttribute("data-outliner-held", "true")
         try await expect(marker.locator(".outliner-marker-grip")).toHaveCount(0)
-        let palinode = try TestAdmin.query(
-          "SELECT upper(id::text) FROM lexicographic_palinodes WHERE lexico_record_id = '\(record)' ORDER BY created_at DESC LIMIT 1"
+        let overture = try TestAdmin.query(
+          "SELECT upper(o.id::text) FROM lexicographic_record_overtures o JOIN lexicographic_palinodes p ON p.id = o.lexicographic_palinode_id WHERE p.lexico_record_id = '\(record)' ORDER BY p.created_at DESC LIMIT 1"
         ).trimmingCharacters(in: .whitespacesAndNewlines)
         try await expect(item.locator(":scope > .outliner-row .record-node-hold").first).toBeAttached()
-        try await expect(item).toHaveAttribute("data-outliner-hold", palinode)
+        try await expect(item).toHaveAttribute("data-outliner-hold", overture)
         // The others stay open.
         try await expect(form.locator(".outliner-item[data-outliner-id='s-1']")).toHaveAttribute(
           "data-sentiment-frozen", "false")
@@ -535,7 +537,7 @@ struct LexicographicAmendmentTests {
           """)
         #expect(taken == .bool(true), "a field of the held sentiment's Metadata takes input")
 
-        // Stepped to, "− Sentiment 1.1." is disabled, the palinode's whole
+        // Stepped to, "− Sentiment 1.1." is disabled, the overture's whole
         // UUID its tooltip's one link.
         let removal = steps.holdTooltip("remove")
         let addition = steps.holdTooltip("add")
@@ -543,7 +545,7 @@ struct LexicographicAmendmentTests {
         try await expect(steps.removeButton).toBeDisabled()
         try await expect(removal).toHaveAttribute("data-tooltip-off", "false")
         // The bubble shown: each stepper's has its own.
-        let link = page.locator(".tooltip-content a[href*='/mission-control/palinodes/lexicographic/']")
+        let link = page.locator(".tooltip-content a[href*='/mission-control/overtures/lexicographic/amendments/']")
           .filter(visible: true).first
         // Pointed at once the page is still (a scroll closes a tooltip).
         func point() async throws {
@@ -554,13 +556,13 @@ struct LexicographicAmendmentTests {
         }
         try await point()
         try await expect(link).toBeVisible()
-        try await expect(link).toHaveText(palinode)
+        try await expect(link).toHaveText(overture)
         let href = try await link.getAttribute("href") ?? ""
         // Upper case, as every UUID is shown (user, 2026-11-03).
-        #expect(href == "/mission-control/palinodes/lexicographic/\(palinode)", "\(href)")
+        #expect(href == "/mission-control/overtures/lexicographic/amendments/\(overture)", "\(href)")
         // Mono, as an identifier's tooltip is.
         try await expect(
-          page.locator(".tooltip-content[data-font='mono']:has(a[href*='/mission-control/palinodes/lexicographic/'])")
+          page.locator(".tooltip-content[data-font='mono']:has(a[href*='/mission-control/overtures/lexicographic/amendments/'])")
             .filter(visible: true).first
         ).toBeVisible()
         // "− Sentiment 1." too: it would take the held one along.
@@ -578,7 +580,7 @@ struct LexicographicAmendmentTests {
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
 
-        // Posted anyway: refused, the form drawn again naming the palinode.
+        // Posted anyway: refused, the form drawn again naming the overture.
         let answer = try await page.evaluate(
           """
           (async () => {
@@ -591,15 +593,15 @@ struct LexicographicAmendmentTests {
           })()
           """, as: String.self)
         #expect(answer.hasPrefix("422 "), "\(answer.prefix(80))")
-        #expect(answer.contains("is held by open palinode \(palinode)"), "the refusal names the palinode")
+        #expect(answer.contains("is held by open overture \(overture)"), "the refusal names the overture")
 
-        // Its link opens the palinode.
+        // Its link opens the overture.
         #expect(try await steps.choose("remove", "Remove sentiment 1.1."))
         try await point()
         try await expect(link).toBeVisible()
         try await link.click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the palinode's page") {
-          $0.path == "/mission-control/palinodes/lexicographic/\(palinode)"
+        try await expect(page, timeout: .seconds(15)).toHaveURL("the overture's page") {
+          $0.path == "/mission-control/overtures/lexicographic/amendments/\(overture)"
         }
       }
     } catch {

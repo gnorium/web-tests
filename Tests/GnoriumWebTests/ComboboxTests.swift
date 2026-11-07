@@ -334,4 +334,155 @@ struct ComboboxTests {
     work.remove()
     try await admin.remove()
   }
+
+  /// A server's suggestions that fail to come say so (user, 2026-11-05), as
+  /// a dropdown's do (`OptionsStatusView`): typed, the list opens under the
+  /// field with the wait, then one vague message in the wait's place, a
+  /// field's error, the name kept as typed. The next open, and the next
+  /// key, ask again, the message gone. An earlier query's answer, or its
+  /// failure, never shows and ends no wait. A voice's Name on Submit
+  /// Testament, its asks answered in the page (`fetch` wrapped): failed
+  /// after a moment, or a suggestion made up there, at once or late.
+  /// Nothing is submitted.
+  @Test(arguments: gnorium.engines, Layout.allCases)
+  func aFailedSearchSaysSoAndALateOneNever(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated(Self.form)
+        let rows = "[data-item-list='work-voice'] [data-item-section='true']:not([data-item-template] *)"
+        let voice = page.locator(".submit-testament-form \(rows) .combobox-view").first
+        let field = voice.getByRole(.combobox, name: "Name")
+        let value = voice.locator("input[type='hidden']")
+        let menu = voice.locator(".combobox-menu")
+        let status = menu.locator(":scope > .options-status-view")
+        let wait = status.locator(":scope > .options-status-loading")
+        let failed = status.locator(":scope > .options-status-failed")
+        let now = voice.locator(".combobox-option[data-value='Web Tests Now']")
+        try await expect(field).toHaveCount(1)
+        try await expect(status).toHaveAttribute("data-state", "idle")
+        #expect(
+          try await page.evaluate(
+            """
+            (() => {
+              window.searchAsks = [];
+              window.searchAnswered = [];
+              // A suggestion made up in the page, drawn as the server draws
+              // one (`ComboboxView.option`).
+              const answer = (name) => new Response(
+                `<div class="combobox-view" data-combobox="true"><ul class="combobox-listbox" role="listbox">`
+                  + `<li class="combobox-option" role="option" aria-selected="false" data-combobox-option="true"`
+                  + ` data-value="${name}" data-display="${name}" data-context="" data-alt-display="" data-depth=""`
+                  + ` data-chosen="false" data-hidden="false"><span class="combobox-option-display-text">${name}</span></li>`
+                  + `</ul></div>`,
+                { status: 200, headers: { 'Content-Type': 'text/html' } });
+              const plans = {
+                'web tests fails': { status: 503, delay: 300 },
+                'web tests late': { status: 503, delay: 1500 },
+                'web tests early': { name: 'Web Tests Early', delay: 1500 },
+                'web tests now': { name: 'Web Tests Now', delay: 0 },
+              };
+              const fetched = window.fetch;
+              window.fetch = (url, options) => {
+                const asked = new URL(String(url), location.href);
+                const query = asked.searchParams.get('q');
+                const plan = asked.pathname === '/mission-control/record-choices/voices' && query !== null
+                  ? plans[query] : undefined;
+                if (!plan) return fetched(url, options);
+                window.searchAsks.push(query);
+                return new Promise((resolve) => setTimeout(resolve, plan.delay))
+                  .then(() => plan.name ? answer(plan.name) : new Response('', { status: plan.status }))
+                  .then((response) => { window.searchAnswered.push(query); return response; });
+              };
+              const status = document.querySelector(
+                ".submit-testament-form \(rows) .combobox-view .combobox-menu > .options-status-view");
+              window.searchStates = [];
+              new MutationObserver(() => window.searchStates.push(status.dataset.state))
+                .observe(status, { attributes: true, attributeFilter: ['data-state'] });
+              return true;
+            })()
+            """, as: Bool.self))
+        func states() async throws -> String {
+          try await page.evaluate("window.searchStates.splice(0).join(' ')").string ?? ""
+        }
+        func asked(_ query: String) async throws {
+          _ = try await page.evaluate(
+            """
+            new Promise((resolve) => {
+              const check = () => window.searchAsks.includes('\(query)') ? resolve(true) : setTimeout(check, 20);
+              check();
+            })
+            """)
+        }
+        // Its planned answer handed to the bridge, and a moment for the
+        // bridge to tell the combobox.
+        func answered(_ query: String) async throws {
+          _ = try await page.evaluate(
+            """
+            new Promise((resolve) => {
+              const check = () => window.searchAnswered.includes('\(query)')
+                ? setTimeout(() => resolve(true), 300) : setTimeout(check, 20);
+              check();
+            })
+            """)
+        }
+
+        // Typed, a search that fails: the list open under the field, the
+        // wait, then the message in its place, the name as typed.
+        try await field.fill("web tests fails")
+        try await expect(field).toHaveAttribute("aria-expanded", "true")
+        try await expect(failed).toBeVisible()
+        try await expect(failed.locator(".field-validation-message-text")).toHaveText(
+          "The options could not be loaded.")
+        try await expect(failed.locator(".field-validation-message-view")).toHaveAttribute("data-status", "error")
+        try await expect(wait).toBeHidden()
+        try await expect(field).toHaveValue("web tests fails")
+        try await expect(value).toHaveValue("web tests fails")
+        let tall = try await failed.evaluate("(row) => row.getBoundingClientRect().height >= 40").bool
+        #expect(tall == true, "a one-line option's row")
+        #expect(try await states() == "busy failed", "the wait, then the message")
+
+        // Closed and opened again, it asks again; the next key too, the
+        // message gone once its answer is in.
+        try await page.keyboard.press("Escape")
+        try await expect(field).toHaveAttribute("aria-expanded", "false")
+        try await voice.locator(".combobox-toggle").click()
+        try await expect(field).toHaveAttribute("aria-expanded", "true")
+        try await expect(failed).toBeVisible()
+        try await field.fill("web tests now")
+        try await expect(now).toBeVisible()
+        try await expect(failed).toBeHidden()
+        try await expect(wait).toBeHidden()
+        #expect(try await states() == "busy failed busy idle", "asked again on the open, and on the key")
+        let fails = try await page.evaluate("window.searchAsks.filter((q) => q === 'web tests fails').length").int
+        #expect(fails == 2, "the failed query asked again: \(fails ?? -1)")
+
+        // An earlier query's failure, late, never shows, and ends no wait.
+        try await field.fill("web tests late")
+        try await asked("web tests late")
+        try await field.fill("web tests now")
+        try await expect(now).toBeVisible()
+        try await answered("web tests late")
+        try await expect(failed).toBeHidden()
+        try await expect(status).toHaveAttribute("data-state", "idle")
+        try await expect(now).toBeVisible()
+        #expect(try await states() == "busy idle", "one wait, never the late failure")
+
+        // An earlier query's answer, late, never shows.
+        try await field.fill("web tests early")
+        try await asked("web tests early")
+        try await field.fill("web tests now")
+        try await expect(now).toBeVisible()
+        try await answered("web tests early")
+        try await expect(voice.locator(".combobox-option[data-value='Web Tests Early']")).toHaveCount(0)
+        try await expect(now).toBeVisible()
+        try await expect(value).toHaveValue("web tests now")
+        try await page.expectNoHorizontalOverflow()
+      }
+    } catch {
+      try await admin.remove(after: error)
+    }
+    try await admin.remove()
+  }
 }

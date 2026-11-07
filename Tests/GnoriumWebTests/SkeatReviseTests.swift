@@ -7,42 +7,44 @@ import WebTestsTesting
 /// its document as an explication assembles it (the witness's renditions in
 /// its header, each scan's measured text block), its scans served on this
 /// machine. Each page's source reads as one headed TEI document wherever it
-/// is shown; canvas 3's bookplate stands in the frame's head, over the
-/// scan's, before and after an explication's headed page is pasted over it;
+/// is shown; canvas 3's bookplate, an owner's mark, stays in its code and
+/// is never set in the reading pane (user, 2026-10-26), before and after an
+/// explication's headed page is pasted over it;
 /// a page fetched in as the reader turns is colored in XML at once. A
 /// throwaway contributor's scratch madrigal; Chrome, desktop.
 @Suite("Skeat revise", .serialized)
 struct SkeatReviseTests {
   static let canvases = [2, 3, 4, 5]
 
-  /// The bookplate's box against the frame's and the page's, in the
-  /// reader's pixels, on the page on screen.
-  struct Placement: Decodable {
-    let note: Bool
-    let noteTop: Double
-    let noteBottom: Double
-    let blockTop: Double
-    let pageTop: Double
-    let pageBottom: Double
+  /// What the reading pane sets on the page on screen: its marginal boxes
+  /// (-1 where it has no rendering layer), the bookplate's words it draws,
+  /// and whether its title is set.
+  struct Reading: Decodable {
+    let margins: Int
+    let drawn: [String]
+    let title: Bool
   }
 
-  static let placement = """
+  static let reading = """
     (() => { const page = document.querySelector(".artifact-markup .tei-page[data-active='true'] [data-layer='rendering']");
-      const note = page.querySelector(".tei-margin[data-place='top']");
-      const block = page.querySelector('.tei-text-block');
-      const box = e => e ? e.getBoundingClientRect() : { top: -1, bottom: -1 };
-      const p = box(page);
-      return { note: !!note, noteTop: box(note).top, noteBottom: box(note).bottom, blockTop: box(block).top,
-        pageTop: p.top, pageBottom: p.bottom }; })()
+      const text = page ? page.textContent : '';
+      return { margins: page ? page.querySelectorAll('.tei-margin').length : -1,
+        drawn: ['This book is a gift', 'Southern Evangelical', 'William E. Nix'].filter((s) => text.includes(s)),
+        title: text.includes('ETYMOLOGICAL') && text.includes('LANGUAGE') }; })()
     """
 
-  static func expectBookplateAtTheHead(_ page: Page, _ context: String) async throws {
-    let at = try await page.evaluate(Self.placement, as: Placement.self)
-    #expect(at.note, "\(context): the bookplate is not in the frame's head margin")
-    // Over the frame's head: above the text block, in the page's top part.
-    #expect(at.noteBottom <= at.blockTop + 1, "\(context): the bookplate runs into the text block: \(at)")
-    #expect(at.noteTop >= at.pageTop - 1 && at.noteBottom < at.pageTop + (at.pageBottom - at.pageTop) / 2,
-      "\(context): the bookplate is not at the page's head: \(at)")
+  /// Canvas 3's bookplate is an owner's mark (`<note type="provenance">`):
+  /// kept in the page's code, the scan's alone, never set in the reading
+  /// pane (user, 2026-10-26: a copy's makers' work is rendered, its owners'
+  /// marks are the image pane's; xml-utilities `TEIRenderer.isOwnersMark`,
+  /// as `ArtifactOverlayTests` holds the structure to). Before 2026-10-26 it
+  /// stood in the frame's head margin, which this test measured. The page's
+  /// own text is set as ever.
+  static func expectBookplateInItsCodeAlone(_ page: Page, _ context: String) async throws {
+    let at = try await page.evaluate(Self.reading, as: Reading.self)
+    #expect(at.margins == 0, "\(context): the reading pane sets \(at.margins) margin boxes, the bookplate's among them")
+    #expect(at.drawn.isEmpty, "\(context): the reading pane sets the bookplate's words: \(at.drawn)")
+    #expect(at.title, "\(context): the page's title is not set")
   }
 
   static func shot(_ page: Page, _ name: String) async throws {
@@ -60,8 +62,7 @@ struct SkeatReviseTests {
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
     let commit = try ScratchCommit(owner: contributor, sourceURL: witness.server.baseURL + "/manifest.json")
     let json = String(decoding: try JSONSerialization.data(withJSONObject: ["teiXml": witness.document]), as: UTF8.self)
-    let pasted = try String(
-      contentsOfFile: "/Users/Madhavik/Downloads/Gnorium/skeat-pages-2026-10-14/canvas-3.xml", encoding: .utf8)
+    let pasted = try String(contentsOfFile: "\(ReviseEditorTests.skeatPages)/canvas-3.xml", encoding: .utf8)
     do {
       _ = try TestAdmin.query(
         "UPDATE bibliographic_madrigals SET proposed_content_json = '\(json.replacingOccurrences(of: "'", with: "''"))' WHERE id = '\(commit.madrigalID)'")
@@ -113,15 +114,15 @@ struct SkeatReviseTests {
         try await Self.shot(page, "skeat-3-revise-xml")
         try await page.locator(".artifact-xml-toggle button").first.click()
 
-        // The scans shown, then the overlay at rest: the bookplate over the
-        // frame's head.
+        // The scans shown, then the overlay at rest: the bookplate the
+        // scan's alone, none of it in the reading pane.
         if try await page.locator(".artifact-view").first.getAttribute("data-canvas-shown") != "true" {
           try await page.locator(".artifact-canvas-toggle button").first.click()
         }
         try await expect(page.locator(".artifact-view").first).toHaveAttribute("data-canvas-shown", "true")
         try await page.locator(".artifact-overlay-toggle button").first.click()
         try await Task.sleep(for: .milliseconds(1500))
-        try await Self.expectBookplateAtTheHead(page, "stored")
+        try await Self.expectBookplateInItsCodeAlone(page, "stored")
         try await Self.shot(page, "skeat-3-stored")
         try await page.locator(".artifact-overlay-toggle button").first.click()
         try await Task.sleep(for: .milliseconds(800))
@@ -141,7 +142,7 @@ struct SkeatReviseTests {
         try await page.locator(".artifact-xml-toggle button").first.click()
         try await page.locator(".artifact-overlay-toggle button").first.click()
         try await Task.sleep(for: .milliseconds(1500))
-        try await Self.expectBookplateAtTheHead(page, "pasted")
+        try await Self.expectBookplateInItsCodeAlone(page, "pasted")
         try await Self.shot(page, "skeat-3-pasted")
         try await page.locator(".artifact-overlay-toggle button").first.click()
         try await Task.sleep(for: .milliseconds(800))

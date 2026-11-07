@@ -179,7 +179,9 @@ struct QuoteSourcesTests {
         #"[{"id":"\#(step)","relations":["based_on"],"typed":{"title":"Web tests source","voices":[]},"origins":[],"#
         + #""outgoingCitations":[{"id":"\#(UUID().uuidString)","claim":{"field":"origin","row":"\#(step)"},"#
         + #""quotes":[{"id":"\#(UUID().uuidString)","anchors":[],"#
-        + #""pending":{"sourceURL":"\#(source)","images":[1,2],"text":"The pendingword stood fast","title":"Pending shape","language":"eng","class":"play"}}]}]}]"#
+        + #""pending":{"sourceURL":"\#(source)","images":[1,2],"text":"The pendingword stood fast","title":"Pending shape","language":"eng","class":"play","forms":[[{"word":2,"surface":"pendingword"}]]}},"#
+        + #"{"id":"\#(UUID().uuidString)","anchors":[],"#
+        + #""pending":{"sourceURL":"\#(source)","images":[3],"text":"It stood long after","title":"Pending shape","language":"eng","class":"play"}}]}]}]"#
       _ = try TestAdmin.query(
         "UPDATE bibliographic_overtures SET origins_json = '\(origins)' WHERE id = '\(overture.overtureID)';")
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
@@ -208,6 +210,48 @@ struct QuoteSourcesTests {
         try await expect(pending.locator(".info-chip-text")).toHaveCount(0)
         try await expect(pending).not.toContainText("Frames")
         try await expect(pending.locator(".pending-quote-status")).toHaveCount(0)
+
+        // Nothing traces its words on its frames (user, 2026-11-05): XML,
+        // Reflow, the pager and fullscreen, never Detach or Overlay.
+        let footer = pending.locator(".artifact-footer")
+        try await expect(footer.locator(".artifact-xml-toggle")).toHaveCount(1)
+        try await expect(footer.locator(".artifact-reflow-toggle")).toHaveCount(1)
+        try await expect(footer.locator(".artifact-page-nav")).toHaveCount(1)
+        try await expect(footer.locator(".artifact-fullscreen-button")).toHaveCount(1)
+        try await expect(page.locator(".pending-quote-view .artifact-detach-toggle, .pending-quote-view .artifact-overlay-toggle"))
+          .toHaveCount(0)
+        // Its text is the quote (user, 2026-11-05): every character of it
+        // violet, its form magenta; one with no form violet whole too.
+        // Reflow off and on.
+        let paint = """
+          (v) => { const layer = v.querySelector(".artifact-markup [data-layer='rendering']");
+            const marks = [...layer.querySelectorAll('.tei-highlight')].filter((m) => !m.parentElement.closest('.tei-highlight'));
+            const bare = (s) => s.replace(/\\s+/g, '');
+            const none = 'rgba(0, 0, 0, 0)', title = (m) => m.dataset.highlight === 'title';
+            const violet = [...new Set(marks.filter((m) => !title(m)).map((m) => getComputedStyle(m).backgroundColor))];
+            const magenta = marks.filter(title).map((m) => getComputedStyle(m).backgroundColor);
+            return [bare(marks.map((m) => m.textContent).join('')) === bare(layer.textContent),
+              violet.length === 1 && violet[0] !== none,
+              magenta.every((g) => g !== none && g !== violet[0]),
+              marks.filter(title).map((m) => m.textContent.trim()).join('|')]; }
+          """
+        let quotes = page.locator(".pending-quote-view")
+        try await expect(quotes).toHaveCount(2)
+        for reflowed in [false, true] {
+          if reflowed {
+            try await footer.locator(".artifact-reflow-toggle button").click()
+            try await expect(pending.locator(".artifact-view")).toHaveAttribute("data-reflow", "true")
+          }
+          for (index, form) in [(0, "pendingword"), (1, "")] {
+            let shown = try await quotes.nth(index).evaluate(paint).array ?? []
+            let state = "quote \(index + 1), Reflow \(reflowed ? "on" : "off"): \(shown)"
+            #expect(shown.count == 4, "\(state)")
+            #expect(shown.first?.bool == true, "all of its text violet, \(state)")
+            #expect(shown.dropFirst().first?.bool == true, "one violet ground, \(state)")
+            #expect(shown.dropFirst(2).first?.bool == true, "its form magenta over it, \(state)")
+            #expect(shown.last?.string == form, "its form alone magenta, \(state)")
+          }
+        }
       }
     } catch {
       holder?.remove()

@@ -35,7 +35,9 @@ let package = Package(
     ),
     .testTarget(
       name: "GnoriumWebTests",
-      dependencies: ["WebTests", "WebTestsTesting"]
+      dependencies: ["WebTests", "WebTestsTesting"],
+      // Pages the tests read from disk (`#filePath`), not built.
+      exclude: ["Fixtures"]
     ),
   ]
 )

@@ -159,13 +159,14 @@ struct AmendmentRemovalTests {
         try await expect(heldMarker).toHaveAttribute("data-outliner-held", "true")
         try await expect(heldMarker.locator(".outliner-marker-grip")).toHaveCount(0)
         try await expect(manifest.locator(":scope > .outliner-row .outliner-handle")).toHaveCount(0)
-        // Its tooltip's link the holder's whole UUID (its bubble drawn in
-        // the top layer, the hold kept on the item).
+        // Its tooltip's link the holder's whole UUID, the line's latest
+        // object, here its madrigal, never the palinode (user, 2026-11-05;
+        // its bubble drawn in the top layer, the hold kept on the item).
         try await expect(manifest.locator(":scope > .outliner-row .record-node-hold").first).toBeAttached()
         try await expect(manifest).toHaveAttribute(
           "data-outliner-hold",
           try TestAdmin.query(
-            "SELECT upper(bibliographic_palinode_id::text) FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND bibliographic_palinode_id IS NOT NULL;"
+            "SELECT upper(id::text) FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND bibliographic_palinode_id IS NOT NULL;"
           ).trimmingCharacters(in: .whitespacesAndNewlines))
         try await expect(manifest.locator(":scope > .outliner-row .testament-outliner-node").first)
           .toHaveAttribute("data-testament-frozen", "true")

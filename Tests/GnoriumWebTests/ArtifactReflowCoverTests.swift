@@ -181,13 +181,13 @@ struct ArtifactReflowCoverTests {
   }
 
   /// Nothing past the pane's sides, so it never scrolls sideways; at its
-  /// top, its first line whole in sight, inside the pane's inset; no line
+  /// top, its first line whole in sight, inside its leaf's head; no line
   /// run out of sight before its start.
   static func expectInSight(_ reading: Reading, sourceLocation: SourceLocation = #_sourceLocation) {
     #expect(reading.pane.scrollWidth <= reading.pane.clientWidth, "the pane scrolls sideways: \(reading.pane.scrollWidth) in \(reading.pane.clientWidth)", sourceLocation: sourceLocation)
     #expect(reading.pane.scrollTop == 0, "the pane opened \(reading.pane.scrollTop) px down", sourceLocation: sourceLocation)
-    // Inside the text pane's inset (16 px, the page's around its zoomed text), less the glyph box a line set
-    // solid lifts past its line's top: against the pane's top at its fit, "THE" stood 4 px under it.
+    // Inside its leaf's head (no pane has an inset, user 2026-11-05), less the glyph box a line set solid lifts
+    // past its line's top: against the pane's top at its fit, "THE" stood 4 px under it.
     if let first = reading.lines.first {
       #expect(first.top >= reading.pane.top + 8, "\(first.text) stands \(first.top - reading.pane.top) px under the pane's top", sourceLocation: sourceLocation)
     }

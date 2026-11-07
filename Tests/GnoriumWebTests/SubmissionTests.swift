@@ -22,7 +22,7 @@ import WebTestsTesting
 /// digitization. A new sentiment is founded on a quote in its Source box (its
 /// testament's Source URL, its image number, its sentence); a chosen lexico-record takes it by its
 /// amendment, as a chosen biblio-record does. A manuscript's citations are its
-/// copy's. A work's page offers its amendment; a word's, its submission
+/// copy's. A biblio-record's page offers its amendment; a lexico-record's, its submission
 /// with the record chosen; signed out, each says so in an alert. Each case
 /// is submitted, and its evidence and overture read back from the database.
 /// A throwaway admin owns the scratch records and every row submitted,
@@ -471,8 +471,8 @@ struct SubmissionTests {
 
   // MARK: - From a record's page
 
-  /// A record's page offers its one road in—Submit Amendment, on a work's
-  /// and a word's alike, which opens the record's amendment. Signed out, the button is there all the same and says
+  /// A record's page offers its one road in—Submit Amendment, on a biblio-record's
+  /// and a lexico-record's alike, which opens the record's amendment. Signed out, the button is there all the same and says
   /// so in an alert, as the form's Submit does; no page explains it in prose.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func aRecordsPageOpensItsSubmissionWithItChosen(engine: BrowserEngine, layout: Layout) async throws {
@@ -542,7 +542,7 @@ struct SubmissionTests {
         try await expect(gate).toBeHidden()
         try await page.locator(".record-actions button[type='submit']").click()
         try await expect(gate).toBeVisible()
-        try await expect(page.locator(".record-actions .alert-content")).toContainText("Signing in is needed to file this sentiment.")
+        try await expect(page.locator(".record-actions .alert-content")).toContainText("Signing in is needed to submit this sentiment.")
         #expect(URL(string: try await page.url())?.path == Self.sentimentForm)
         // Its link opens sign-in in a new tab, back to this form.
         try await expect(page.locator(".record-actions .action-gate-alert a")).toHaveAttribute("target", "_blank")

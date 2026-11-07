@@ -48,8 +48,12 @@ struct FormerOwnerSourcesTests {
       try await expect(cards).toHaveCount(1)
       let card = cards.first
       let claim = card.locator(".outgoing-citation-claim")
-      try await expect(claim.locator(".dropdown-option[data-value^='formerOwners:']"))
-        .toHaveText("Former owner › Sir Henry Bunbury")
+      // A trail (`BreadcrumbLabelView`): "Former owner", its chevron, the
+      // owner's name.
+      let offered = claim.locator(".dropdown-option[data-value^='formerOwners:'] .breadcrumb-label-view")
+      try await expect(offered.locator(".breadcrumb-label-context")).toHaveText("Former owner")
+      try await expect(offered.locator(".breadcrumb-separator-view")).toHaveCount(1)
+      try await expect(offered.locator(".breadcrumb-label-text")).toHaveText("Sir Henry Bunbury")
       try await claim.locator(".dropdown-trigger").click()
       try await claim.locator(".dropdown-option[data-value^='formerOwners:']").filter(visible: true).first.click()
 
@@ -67,9 +71,10 @@ struct FormerOwnerSourcesTests {
         .toHaveTexts(["Quote", "Citation"])
       let pane = quotes.first.locator(".quote-passage-text .tei-page-text")
       try await expect(pane, timeout: .seconds(15)).toBeAttached()
-      // The whole typing area the caret's (user, 2026-11-03): its
-      // placeholder and the empty room under it show the I-beam, and a
-      // click there puts the caret at the end of the text.
+      // The I-beam over the text alone (user, 2026-11-05): its text and its
+      // placeholder show it, the room off the text the pane's pan (a drag
+      // there pans); a click there still puts the caret at the end of the
+      // text.
       let markup = quotes.first.locator(".quote-passage-text .artifact-markup")
       let beams = try await markup.evaluate(
         """
@@ -78,7 +83,7 @@ struct FormerOwnerSourcesTests {
             getComputedStyle(p, '::before').content].join('|'); }
         """
       ).string ?? ""
-      #expect(beams == "text|text|text|\"Quote\"", "the I-beam over the typing area, its placeholder Quote: \(beams)")
+      #expect(beams == "grab|text|text|\"Quote\"", "the I-beam over the text alone, its placeholder Quote: \(beams)")
       try await pane.fill("Bought of Sir")
       let room = try await markup.evaluate(
         """
@@ -112,6 +117,17 @@ struct FormerOwnerSourcesTests {
       try await expect(quotes.first.locator(".quote-typed-word.tei-highlight")).toHaveCount(5)
       try await expect(quotes.first.locator(".quote-typed-space.tei-highlight")).toHaveCount(4)
       try await expect(quotes.first.locator("[data-highlight='title']")).toHaveCount(0)
+      // Drawn violet, a ground, Reflow off and on (user, 2026-11-05).
+      let ground = "(w) => getComputedStyle(w).backgroundColor"
+      let unflowed = try await typedWords.first.evaluate(ground).string ?? ""
+      #expect(!unflowed.isEmpty && unflowed != "rgba(0, 0, 0, 0)", "violet: \(unflowed)")
+      let reflow = quotes.first.locator(".artifact-reflow-toggle button")
+      try await reflow.click()
+      try await expect(quotes.first.locator(".artifact-view")).toHaveAttribute("data-reflow", "true")
+      let reflowed = try await typedWords.first.evaluate(ground).string ?? ""
+      #expect(reflowed == unflowed, "violet with Reflow on: \(reflowed)")
+      try await reflow.click()
+      try await expect(quotes.first.locator(".artifact-view")).toHaveAttribute("data-reflow", "false")
       try await page.addForm(
         in: source, from: ".quote-typed-word[data-typed-word='3']", to: ".quote-typed-word[data-typed-word='5']")
       try await expect(quotes.first.locator(".quote-typed-word[data-highlight='title']")).toHaveTexts(
@@ -148,6 +164,54 @@ struct FormerOwnerSourcesTests {
       try await expect(cards).toHaveCount(0)
       try await expect(json).toHaveValue("")
       try await page.expectNoHorizontalOverflow()
+      _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
+      try await page.expectNoErrors()
+    }
+  }
+
+  /// A typed form is exactly what was selected (user, 2026-11-05: "keep
+  /// selected text"): "Cavendish" selected inside "(Cavendish)," is the
+  /// form "Cavendish", marked on those characters alone, the rest of its
+  /// word beside it; "'tis" selected whole stays "'tis". Each posts by
+  /// place with its surface as selected.
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func aTypedFormIsWhatWasSelected(engine: BrowserEngine, layout: Layout) async throws {
+    guard gnorium.engines.contains(engine) else { return }
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      try await page.openHydrated(Self.form)
+      _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
+      try await page.openHydrated(Self.form)
+
+      try await page.locator("input[name='former-owner-item1-text-input']").fill("Sir Henry Cavendish")
+      let view = page.locator(".outgoing-citations-view:has(#outgoing-citations-4)")
+      try await view.locator(".outgoing-citations-actions .outgoing-citations-add").click()
+      let card = view.locator(".outgoing-citations-list > .outgoing-citation").first
+      let claim = card.locator(".outgoing-citation-claim")
+      try await claim.locator(".dropdown-trigger").click()
+      try await claim.locator(".dropdown-option[data-value^='formerOwners:']").filter(visible: true).first.click()
+      let source = card.locator(".evidence-source-view")
+      try await source.locator("input[name$='-source-url-title']").fill("A Catalogue of the Library")
+      let quote = source.locator(".quote-passage-quotes > .quote-passage-quote").first
+      let pane = quote.locator(".quote-passage-text .tei-page-text")
+      try await expect(pane, timeout: .seconds(15)).toBeAttached()
+      try await pane.fill("Bought of (Cavendish), 'tis said")
+      try await expect(quote.locator(".quote-typed-word")).toHaveCount(5)
+
+      // Inside "(Cavendish),": "Cavendish" alone.
+      try await page.addForm(in: source, typedWord: 3, from: 1, to: 10)
+      let marked = quote.locator(".quote-typed-word[data-highlight='title']")
+      try await expect(marked).toHaveTexts(["Cavendish"])
+      try await expect(quote.locator(".quote-typed-rest")).toHaveTexts(["(", "),"])
+      try await expect(pane).toHaveText("Bought of (Cavendish), 'tis said")
+      // "'tis" whole: "'tis", its apostrophe kept.
+      try await page.addForm(in: source, from: ".quote-typed-word[data-typed-word='4']")
+      try await expect(marked).toHaveTexts(["Cavendish", "'tis"])
+
+      let json = page.locator("input[name='outgoing-citations-json-4']")
+      let posted = try await json.evaluate("(i) => i.value").string ?? ""
+      #expect(
+        posted.contains(#""forms":[[[{"surface":"Cavendish","word":3}],[{"surface":"'tis","word":4}]]]"#),
+        "each form as selected, by place: \(posted)")
       _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
       try await page.expectNoErrors()
     }

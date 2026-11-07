@@ -166,7 +166,12 @@ struct DraftSourcesTests {
       try await expect(owner).toHaveAttribute("data-row-id", row)
       try await expect(citations, timeout: .seconds(15)).toHaveCount(1)
       try await expect(card.locator("input[name$='-claim']"), timeout: .seconds(15)).toHaveValue("formerOwners:\(row)")
-      try await expect(claim.locator(".dropdown-selected-text")).toHaveText("Former owner › Sir Henry Bunbury")
+      // The claim a trail (`BreadcrumbLabelView`): "Former owner", its
+      // chevron, the owner's name.
+      let chosen = claim.locator(".dropdown-selected-text .breadcrumb-label-view")
+      try await expect(chosen.locator(".breadcrumb-label-context")).toHaveText("Former owner")
+      try await expect(chosen.locator(".breadcrumb-separator-view")).toHaveCount(1)
+      try await expect(chosen.locator(".breadcrumb-label-text")).toHaveText("Sir Henry Bunbury")
       try await expect(source.locator("input[name$='-source-url-title']")).toHaveValue("A Catalogue of the Library")
       try await expect(quotes).toHaveCount(2)
       try await expect(Self.pane(quotes.first), timeout: .seconds(15)).toHaveText("Bought of Sir Henry Bunbury.")

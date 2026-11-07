@@ -167,10 +167,16 @@ struct ArtifactZoomSyncTests {
             && code.dataset.zoom === '1' && getComputedStyle(code).zoom === '1';
           await toggle('.artifact-xml-toggle', false);
           const rendered = pane.querySelector('[data-page-scale]') !== null && rendering.getBoundingClientRect().height > 0;
+          // Reflowed, the page's scale box stays where it is with no box of
+          // its own (`restoreFlow`: `display: contents`, user, 2026-11-05),
+          // the layer in flow, unscaled; Reflow off, a box again around it.
+          const scaleBox = () => rendering.closest('[data-page-scale]');
           await toggle('.artifact-reflow-toggle', true);
-          const reflow = pane.querySelector('[data-page-scale]') === null && getComputedStyle(rendering).transform === 'none';
+          const reflow = scaleBox() !== null && getComputedStyle(scaleBox()).display === 'contents'
+            && getComputedStyle(rendering).transform === 'none' && getComputedStyle(rendering).position !== 'absolute';
           await toggle('.artifact-reflow-toggle', false);
-          const restored = pane.querySelector('[data-page-scale]') !== null && rendering.getBoundingClientRect().height > 0;
+          const restored = scaleBox() !== null && getComputedStyle(scaleBox()).display === 'block'
+            && rendering.getBoundingClientRect().height > 0;
           const wait = ms => new Promise(resolve=>setTimeout(resolve,ms));
           await toggle('.artifact-detach-toggle', false); await wait(500);
           const imageZoom = () => Number(root.querySelector('.frame-tile-compositor').getAttribute('transform').match(/[-\d.]+/g)[2]);
@@ -193,7 +199,8 @@ struct ArtifactZoomSyncTests {
           return [raw,rendered,reflow,restored,animated,cancelled];
         })()
         """#, as: [Bool].self)
-      #expect(modes.allSatisfy { $0 }, "Raw and Reflow leave and restore the scaled frame correctly")
+      let named = ["Raw", "Raw off", "Reflow on", "Reflow off", "Detach off animated", "a gesture cancels the match"]
+      #expect(modes.allSatisfy { $0 }, "Raw and Reflow leave and restore the scaled frame correctly: \(zip(named, modes).filter { !$0.1 }.map(\.0))")
       try await page.expectNoErrors()
     }
   }

@@ -7,14 +7,16 @@ import WebTestsTesting
 /// `calibration.base_tei`, user, 2026-10-25): every rendition its header
 /// declares applied—a speech prefix's indent step, a centered run, a
 /// running head's placement, a display line's letter-spacing, an explicit
-/// vertical space—and the page REGULARIZED, read at its own size: never
-/// drawn at the scan's whole width, though its frame declares the scans'
-/// white around the text block (`margin:26.17em`, Hamlet Q1's). Shaped on
+/// vertical space. Its margins are its leaf's (user, 2026-10-26,
+/// 2026-10-28: the white its typesetter left, Hamlet Q1's as integrated,
+/// never the photograph's 26.17em around the text block), and the leaf
+/// opens at its fit, whole in its pane (user, 2026-10-31), so what is
+/// measured on screen is read back in the page's own pixels. Shaped on
 /// dev's Hamlet p. 14.
 @Suite("TEI renditions read", .serialized)
 struct TEIRenditionsReadTests {
   static let tei = #"""
-    <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc><encodingDesc><tagsDecl><rendition xml:id="text-block" scheme="css" selector="text">font-size:85.59px;inline-size:26.50em;block-size:47.89em;margin:26.17em;max-inline-size:80.10em</rendition><rendition xml:id="size-6" scheme="css">font-size:1rem</rendition><rendition xml:id="leading-6" scheme="css">line-height:1.25rem</rendition><rendition xml:id="indent-1" scheme="css">text-indent:1.5rem</rendition><rendition xml:id="align-center-1" scheme="css">margin-inline-start:2em</rendition><rendition xml:id="fw-header" scheme="css">text-align:center</rendition><rendition xml:id="ls-0123456789-L9" scheme="css">letter-spacing:0.25em</rendition></tagsDecl></encodingDesc></teiHeader><text><body>
+    <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt><title>t</title></titleStmt></fileDesc><encodingDesc><tagsDecl><rendition xml:id="text-block" scheme="css" selector="text">font-size:85.59px;inline-size:26.50em;block-size:47.89em;margin:7.42em 13.26em 11.23em 9.33em;max-inline-size:80.10em</rendition><rendition xml:id="size-6" scheme="css">font-size:1rem</rendition><rendition xml:id="leading-6" scheme="css">line-height:1.25rem</rendition><rendition xml:id="indent-1" scheme="css">text-indent:1.5rem</rendition><rendition xml:id="align-center-1" scheme="css">margin-inline-start:2em</rendition><rendition xml:id="fw-header" scheme="css">text-align:center</rendition><rendition xml:id="ls-0123456789-L9" scheme="css">letter-spacing:0.25em</rendition></tagsDecl></encodingDesc></teiHeader><text><body>
     <pb n="p. 14" facs="https://example.org/iiif/web-tests/full/1300,/0/default.jpg"/>
     <lb/><fw rendition="#fw-header" type="header">The Tragedye of Hamlet</fw>
     <ab rendition="#size-6 #leading-6"><lb/>Thou canst not then be false to any one,</ab>
@@ -39,14 +41,18 @@ struct TEIRenditionsReadTests {
         try await expect(blocks).toHaveCount(4)
         // The running head in its role's placement: centered.
         try await expect(text.locator(".tei-line-forme-header")).toHaveCSS("text-align", "center")
-        // The speech prefix's line indented by its step, 1.5 of the body's 16.
+        // The speech prefix's line indented by its step, 1.5 of the body's 16, in the page's own pixels: the
+        // leaf is drawn at its fit (a transform), its screen pixels its own times that scale.
         let flush = try #require(try await blocks.nth(0).locator(".tei-line").first.boundingBox())
         try await expect(blocks.nth(1).locator(".tei-line").first).toHaveCSS("text-indent", "24px")
         let prefix = try #require(
           try await blocks.nth(1).locator(".tei-line").first.evaluate(
             "e => { const r = document.createRange(); r.selectNodeContents(e); return String(r.getClientRects()[0].left) }"
           ).string)
-        #expect(abs((Double(prefix) ?? 0) - flush.x - 24) < 2, "the indented line starts 24 in")
+        let ratio = try #require(
+          try await text.evaluate("e => String(e.getBoundingClientRect().width / e.offsetWidth)").string)
+        let scale = try #require(Double(ratio))
+        #expect(abs(((Double(prefix) ?? 0) - flush.x) / scale - 24) < 2, "the indented line starts 24 in, at a scale of \(scale)")
         // The centered run: centered, its centering step's offset applied.
         try await expect(blocks.nth(2)).toHaveCSS("text-align", "center")
         try await expect(blocks.nth(2)).toHaveCSS("margin-inline-start", "32px")
@@ -54,14 +60,19 @@ struct TEIRenditionsReadTests {
         try await expect(blocks.nth(3)).toHaveCSS("letter-spacing", "4px")
         // The explicit vertical space, 2em of the body.
         try await expect(text.locator(".tei-space")).toHaveCSS("height", "32px")
-        // Regularized: the page's inset is the pane's own 16, never the
-        // scan's 26.17em of white, and its type at the body's 16, drawn at
-        // its own size (no zoom out to the scan's extent).
-        try await expect(text).toHaveCSS("padding-top", "16px")
+        // Its head its leaf's own, 7.42 of the body's 16 (the type area's
+        // margin, TEIView), no inset of a pane's added (user, 2026-11-05),
+        // and its type at the body's 16; the whole leaf in its pane.
+        try await expect(text).toHaveCSS("padding-top", "118.72px")
         try await expect(blocks.nth(0).locator(".tei-line").first).toHaveCSS("font-size", "16px")
-        let drawn = try #require(
-          try await text.evaluate("e => String(e.getBoundingClientRect().width / e.offsetWidth)").string)
-        #expect(abs((Double(drawn) ?? 0) - 1) < 0.01, "the page is drawn at its own size")
+        let whole = try #require(
+          try await text.evaluate(
+            """
+            e => { const pane = e.closest('.artifact-markup'), b = e.getBoundingClientRect();
+              return String(b.width <= pane.clientWidth + 1 && b.height <= pane.clientHeight + 1) }
+            """
+          ).string)
+        #expect(whole == "true", "the leaf is drawn whole in its pane")
       }
     } catch {
       reading.remove()
