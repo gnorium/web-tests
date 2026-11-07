@@ -263,6 +263,12 @@ struct MarkupRegionTests {
         #expect(try await page.evaluate(Self.caretScript("ulx=\"10"), as: Bool.self))
         try await Self.expectRegion(page, [101, 200, 500, 201], "ok", "The caret back in the zone")
         try await expect(page.locator(".frame-view[data-active='true'] .frame-crop-handle")).toHaveCount(4)
+        // One screen pixel in zone units, across and down: a mouse event's
+        // point is whole pixels in Chrome, so the drag lands within one of
+        // the target (the image here is about 3 units a pixel across).
+        let pixel = (try await page.evaluate(
+          "(() => { const b = document.querySelector(\".artifact-view .frame-view[data-active='true'] .frame-tile-compositor\").getBoundingClientRect(); return Math.ceil(1000 / b.width) + ',' + Math.ceil(1000 / b.height); })()",
+          as: String.self)).split(separator: ",").compactMap { Int($0) }
         let corner = try await Self.screenPoint(page, 601, 401)
         let target = try await Self.screenPoint(page, 700, 500)
         try await page.mouse.move(x: corner.x, y: corner.y)
@@ -278,7 +284,7 @@ struct MarkupRegionTests {
           let text = try await page.evaluate(Self.editorText, as: String.self)
           zoneTag = text.firstMatch(of: /<zone[^>]*>/).map { String($0.output) } ?? "no <zone> in the editor"
           if let match = text.firstMatch(of: /ulx="101" uly="200" lrx="(\d+)" lry="(\d+)"/),
-            let right = Int(match.1), let bottom = Int(match.2), abs(right - 700) <= 1, abs(bottom - 500) <= 1
+            let right = Int(match.1), let bottom = Int(match.2), abs(right - 700) <= pixel[0], abs(bottom - 500) <= pixel[1]
           {
             written = (right, bottom)
           } else {

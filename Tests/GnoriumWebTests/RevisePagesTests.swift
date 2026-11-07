@@ -482,12 +482,14 @@ struct RevisePagesTests {
     try await contributor.remove()
   }
 
-  /// Each process's Prompts list its continuation prompt third (user,
-  /// 2026-10-15): the system prompt, the task prompt template, the
-  /// continuation prompt—one text, no system prompt—then the
-  /// subagent prompt and the autocompaction (user, 2026-10-24). Read on each process's palinode's Revise page.
+  /// Each process's Prompts list its nodes in the order they come into
+  /// play (`PromptNode`, user, 2026-10-25): the system prompt, the task
+  /// prompt template, then the one-text nodes—reminder, subagent,
+  /// autocompaction, continuation, none with a system prompt—and last an
+  /// Integration where the process has one (user, 2026-10-26). Read on each
+  /// process's palinode's Revise page.
   @Test(arguments: [BrowserEngine.chrome])
-  func eachProcessListsItsContinuationPromptThird(engine: BrowserEngine) async throws {
+  func eachProcessListsItsNodesInTheirOrder(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let contributor = try await TestAdmin.create(baseURL: gnorium.baseURL, admin: false)
@@ -509,7 +511,8 @@ struct RevisePagesTests {
               return named.map(a => a.querySelector('.accordion-summary').textContent.trim()).join(' | ');
             })()
             """, as: String.self)
-          #expect(order == "System Prompt | Task Prompt | Continuation Prompt | Subagent Prompt | Autocompaction Prompt", "\(slot): \(order)")
+          let nodes = "System Prompt | Task Prompt | Reminder Prompt | Subagent Prompt | Autocompaction Prompt | Continuation Prompt"
+          #expect(order == (slot == "bibliographic_explication" ? nodes + " | Integration" : nodes), "\(slot): \(order)")
           let continuation = "\(slot)_continuation"
           try await expect(page.locator("textarea[name='prompt-task-\(continuation)']")).toHaveCount(1)
           try await expect(page.locator("textarea[name='prompt-system-\(continuation)']")).toHaveCount(0)
@@ -779,8 +782,10 @@ struct RevisePagesTests {
         try await expect(box).toBeVisible()
         try await expect(box).toHaveValue("Un sens feuille.")
         try await expect(page.locator(".sentiment-value-native").first).toHaveAttribute("lang", "fr")
-        // Its English value is not translation's: frozen, posting nothing.
-        try await expect(page.locator("textarea#sentiment-value")).toBeDisabled()
+        // Its English value is not translation's: frozen, read as a
+        // disabled field is (`NodeValueView` .read, user, 2026-11-03), posting
+        // nothing.
+        try await expect(page.locator(".sentiment-value-english #sentiment-value.node-value-box")).toHaveCount(1)
         try await expect(page.locator("textarea[name='sentiment-value']")).toHaveCount(0)
         try await box.fill("Un sens feuille, corrigé.")
         try await expect(page.locator("[data-diff-annotation][data-visible='true']").first).toBeAttached()

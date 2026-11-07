@@ -1,4 +1,5 @@
 import Foundation
+import WebTests
 
 /// A throwaway overture of one process's prompt vignette in force (user,
 /// 2026-10-21), opened as an admin's Amend opens one: the test's account
@@ -71,9 +72,16 @@ struct ScratchPromptOverture {
 
   /// One prompt's text in force: `system_prompt`, `task_prompt`,
   /// `autocompaction_system_prompt`, … of the process's vignette in force.
+  /// Exactly as stored: read as base64, since `TestAdmin.query` trims, and
+  /// a prompt ending in a blank line trimmed is a change of its own that
+  /// clashes with every revision made over it.
   static func inForce(_ slot: String, _ column: String) throws -> String {
-    try TestAdmin.query(
-      "SELECT \(column) FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)')")
+    let encoded = try TestAdmin.query(
+      "SELECT encode(convert_to(\(column), 'UTF8'), 'base64') FROM prompt_vignettes WHERE id = (SELECT vignette_id FROM active_prompt_vignettes WHERE slot = '\(slot)')")
+    guard let data = Data(base64Encoded: encoded.filter { !$0.isWhitespace }),
+      let text = String(data: data, encoding: .utf8)
+    else { throw WebTestError("No \(column) in force for \(slot).") }
+    return text
   }
 
   /// A revision of its process's own prompts, `previous` to `proposed`
