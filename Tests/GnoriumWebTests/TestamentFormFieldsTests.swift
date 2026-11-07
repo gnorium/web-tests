@@ -117,7 +117,7 @@ struct TestamentFormFieldsTests {
           #expect(row.retold == nil, "reference tooltip retold under \(row.chosen): \(row.retold ?? "")")
         }
         for tooltip in references.tooltips {
-          #expect(tooltip == "The identifier within the classification scheme.")
+          #expect(tooltip == "The identifier within the reference scheme.")
         }
         try await page.expectNoErrors()
       }
