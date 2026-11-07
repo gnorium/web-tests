@@ -42,8 +42,8 @@ struct TestamentFormsTests {
   /// A record page shows each node's Forms frozen, after its description
   /// fields, a card a form: the edition's from the citations its explication
   /// placed at it, the work's from those linked to the record alone, each
-  /// with its testaments and no date; a work naming itself counts. Chrome
-  /// headless.
+  /// the form alone, never its testaments nor a date (user, 2026-11-07); a
+  /// work naming itself counts. Chrome headless.
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aRecordPageShowsItsDerivedForms(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -102,13 +102,14 @@ struct TestamentFormsTests {
           """
         ).string
         #expect(order == "ok", "\(order ?? "")")
-        // A frozen card a form, as a Genre's (user, 2026-11-07): its form,
-        // then its testaments.
+        // A frozen card a form, as a Genre's (user, 2026-11-07): its Form
+        // alone, never its testaments (user, 2026-11-07).
         let cards = try await page.evaluate(
           "JSON.stringify([...document.querySelectorAll('.derived-forms-card')].map((c) => [...c.querySelectorAll('input')].map((i) => i.value).join(' | ')))"
         ).string ?? "[]"
-        #expect(cards.contains("The Placement Report | \(work.title)"), "\(cards)")
-        #expect(cards.contains("Placement Rep. | \(work.title)"), "\(cards)")
+        #expect(cards.contains(#""The Placement Report""#), "\(cards)")
+        #expect(cards.contains(#""Placement Rep.""#), "\(cards)")
+        #expect(!cards.contains(work.title), "\(cards)")
         // Never a date: a testament's may be a range, and a span of ranges does not read.
         #expect(!cards.contains("AD 1958"), "\(cards)")
         // The work's its own, none from its edition (user, 2026-11-07).

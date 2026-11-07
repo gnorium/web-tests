@@ -162,10 +162,12 @@ struct SentenceSelectionTests {
         // is the other form's strip.
         try await expect(box.locator("[data-quote-strip-selected='true'][data-quote-strip-start][data-quote-strip-end]"))
           .toHaveCount(2)
-        // Its Forms: each form once, its words apart joined by "…".
+        // Its Forms: each form once, its words apart joined by "…", a card
+        // its Form alone (user, 2026-11-07).
         let derived = page.locator(".submit-sentiment-form .derived-forms-view .derived-forms-card input")
+        try await expect(derived).toHaveCount(2)
         try await expect(derived.nth(0)).toHaveValue("The … stood")
-        try await expect(derived.nth(2)).toHaveValue("scratchwords")
+        try await expect(derived.nth(1)).toHaveValue("scratchwords")
         // Escape lets it go; clicked again, "− Form" dissolves it whole.
         try await page.keyboard.press("Escape")
         try await expect(box.locator("[data-quote-form-selected]")).toHaveCount(0)
