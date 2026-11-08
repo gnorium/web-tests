@@ -673,9 +673,9 @@ struct SubmissionTests {
         try await expect(boxes).toHaveCount(0)
         try await expect(sources.locator("input[name='quote-keys']")).toHaveValue("")
         try await expect(sources.locator(".quote-sources-add-btn")).toBeVisible()
-        // Its Forms, none: the frozen form's field, its placeholder.
-        try await expect(form.locator("#sentiment-derived-forms")).toHaveValue("")
-        try await expect(form.locator("#sentiment-derived-forms")).toHaveAttribute("placeholder", "Forms")
+        // Its Forms, none: one empty frozen Form card, its placeholder.
+        try await expect(form.locator("#sentiment-derived-form-0")).toHaveValue("")
+        try await expect(form.locator("#sentiment-derived-form-0")).toHaveAttribute("placeholder", "Form")
         try await form.locator(".record-actions button[type='submit']").click()
         try await expect(page, timeout: .seconds(15)).toHaveURL("its overture's page") {
           $0.path.hasPrefix("/mission-control/overtures/lexicographic/")

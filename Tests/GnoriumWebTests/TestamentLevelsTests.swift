@@ -186,6 +186,59 @@ struct TestamentLevelsTests {
     }
   }
 
+  /// A Reference's identifier links where its scheme resolves it, as it is
+  /// typed (user, 2026-11-08): the URL itself, a plain link that opens in a
+  /// new tab, under the identifier; gone as the identifier is cleared, and
+  /// for a scheme with no resolver.
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func aReferenceLinksWhereItsSchemeResolvesIt(engine: BrowserEngine, layout: Layout) async throws {
+    if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
+    let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
+    do {
+      try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
+        try await page.openHydrated(Self.form)
+        let form = page.locator(".submit-testament-form")
+        try await choose("print", "Print", in: form.locator(".dropdown-view:has(#testament-carrier)"))
+        let live = ":not([data-item-template] *)"
+        let row = form.locator("[data-item-list='citation-number'] [data-item-section='true']\(live)").first
+        let scheme = row.getByRole(.combobox, name: "Scheme")
+        let identifier = row.locator("input[name='citation-number-item1-text-input']")
+        let link = row.locator(".identifier-link-view")
+        try await expect(link).toBeHidden()
+        try await scheme.fill("HathiTrust")
+        try await expect(row.locator("input[name='citation-number-item1-dropdown']")).toHaveValue("hathitrust")
+        try await identifier.fill(" 001234567 ")
+        let url = "https://catalog.hathitrust.org/Record/001234567"
+        try await expect(link).toBeVisible()
+        try await expect(link.locator("a")).toHaveAttribute("href", url)
+        try await expect(link.locator("a")).toHaveText(url)
+        try await expect(link.locator("a")).toHaveAttribute("target", "_blank")
+        try await expect(row.locator(".link-external, .link-external-icon")).toHaveCount(0)
+        // Cleared, it goes; a scheme with no resolver links nothing.
+        try await identifier.fill("")
+        try await expect(link).toBeHidden()
+        try await scheme.fill("STC")
+        try await identifier.fill("22275")
+        try await expect(link).toBeHidden()
+        // Its scheme picked again, it comes back at once.
+        try await scheme.fill("HathiTrust")
+        try await expect(link.locator("a")).toHaveAttribute("href", "https://catalog.hathitrust.org/Record/22275")
+        // A row added by "+ Reference" links as the first does.
+        try await form.locator("[data-item-list='citation-number'] .item-add-btn").first.click()
+        let added = form.locator("[data-item-list='citation-number'] [data-item-section='true']\(live)").nth(1)
+        try await added.getByRole(.combobox, name: "Scheme").fill("OCLC")
+        try await added.locator("input[name='citation-number-item2-text-input']").fill("12345678")
+        try await expect(added.locator(".identifier-link-view a"))
+          .toHaveAttribute("href", "https://www.worldcat.org/oclc/12345678")
+        try await page.expectNoHorizontalOverflow()
+        try await page.expectNoErrors()
+      }
+    } catch {
+      try await admin.remove(after: error)
+    }
+    try await admin.remove()
+  }
+
   /// A manuscript's overture, revised: no edition, its Production shown
   /// and posted as it stands, its Acquisition shown and posted.
   @Test(arguments: gnorium.engines, Layout.allCases)

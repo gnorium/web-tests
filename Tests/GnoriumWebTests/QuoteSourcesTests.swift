@@ -124,6 +124,48 @@ struct QuoteSourcesTests {
     }
   }
 
+  /// A Source box's parts stand one gap apart (user, 2026-11-08): its
+  /// fields, its Quote cards and its row, and with its last card taken away
+  /// ("− Quote") its row one gap under its "+ Page", never two (the empty
+  /// list of cards took a place of its own).
+  @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
+  func aSourcesRowStandsOneGapUnderWhatIsAboveIt(engine: BrowserEngine, layout: Layout) async throws {
+    try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
+      try await page.openHydrated(Self.sentimentForm)
+      let box = page.locator(".submit-sentiment-form .quote-sources-view .quote-source").first
+      try await expect(box.locator(".quote-passage-pages [data-item-add-btn]")).toBeVisible()
+      // The white over the row, and over the cards: each the body's gap.
+      let spacing = """
+        (box) => {
+          const body = box.querySelector('.quote-passage-body');
+          const gap = parseFloat(getComputedStyle(body).rowGap);
+          const add = body.querySelector(':scope > .quote-passage-fields .quote-passage-pages [data-item-add-btn]');
+          const quotes = body.querySelector(':scope > .quote-passage-quotes');
+          const row = body.querySelector(':scope > .quote-passage-actions');
+          const card = quotes.querySelector(':scope > .quote-passage-quote');
+          const top = card ? card.getBoundingClientRect().top : row.getBoundingClientRect().top;
+          const overRow = row.getBoundingClientRect().top
+            - (card ? quotes.getBoundingClientRect().bottom : add.getBoundingClientRect().bottom);
+          return [gap, top - add.getBoundingClientRect().bottom, overRow];
+        }
+        """
+      let withCard = try await box.evaluate(spacing).array ?? []
+      #expect(withCard.count == 3)
+      if withCard.count == 3, let gap = withCard[0].double, let over = withCard[1].double, let row = withCard[2].double {
+        #expect(abs(over - gap) < 0.5, "its card one gap under its + Page: \(over) for \(gap)")
+        #expect(abs(row - gap) < 0.5, "its row one gap under its card: \(row) for \(gap)")
+      }
+      try await box.locator(".quote-passage-quote-remove").first.click()
+      try await expect(box.locator(".quote-passage-quotes > .quote-passage-quote")).toHaveCount(0)
+      let without = try await box.evaluate(spacing).array ?? []
+      #expect(without.count == 3)
+      if without.count == 3, let gap = without[0].double, let over = without[1].double {
+        #expect(abs(over - gap) < 0.5, "its row one gap under its + Page, not two: \(over) for \(gap)")
+      }
+      try await page.expectNoErrors()
+    }
+  }
+
   /// A testament leaf's Source accordion holds only its URL (user,
   /// 2026-11-02): no Images start or end (its images are all of its
   /// source's), no Quote; open on Submit, under the leaf's Metadata and Note.
