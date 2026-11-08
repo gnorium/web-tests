@@ -12,6 +12,6 @@ This directory is its own Git repository. The parent Gnorium workspace is not a 
 
 Use focused suites for the changed behavior, in headless Chrome. Do not run a full parallel browser suite unless requested. Build the current client/styles before testing hydration; use local fixture servers where a database is unnecessary.
 
-Use throwaway test accounts and scratch rows; never attribute test contributions to real users. Audit logs remain immutable. Follow TestAdmin's cleanup rules for accounts that have contributed or been logged.
+Web tests never touch the dev server or gnorium_dev: each run makes its own database and server (`Support/WebTestServer.swift`) and removes them; it refuses to start pointed at gnorium_dev or port 8080. Use throwaway test accounts and scratch rows; never attribute test contributions to real users. Audit logs remain immutable. Follow TestAdmin's cleanup rules for accounts that have contributed or been logged.
 
 When controls/classes are renamed, update selectors and fixtures as well. Check state/scroll stability and exact copied source, not just that an element exists.

@@ -807,7 +807,7 @@ struct ArtifactOverlayTests {
   /// measured layout (canvas 2's zone derived: the work's type area placed on a
   /// scan with no main text) (design-notes/skeat: each one's TEI with its
   /// zones and the witness's renditions, `header.xml`; its scan), rendered
-  /// by the dev server's TEI preview (its words marked, as a reader's) and
+  /// by the run's server's TEI preview (its words marked, as a reader's) and
   /// read by the client (user, 2026-10-14). Side by side, every word of
   /// the edition bands its zones on the scan, as the tools linked them
   /// (each `<w>`'s `@facs`, user, 2026-10-15), and a band's zone on the scan

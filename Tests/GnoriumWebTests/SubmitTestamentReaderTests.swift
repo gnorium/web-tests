@@ -14,7 +14,7 @@ import WebTestsTesting
 /// never words in a markup pane (user, 2026-10-09).
 ///
 /// The manifests are served by a fixture server on this machine
-/// (`FixtureServer`), which the dev server may fetch because `.env.dev`
+/// (`FixtureServer`), which the run's server may fetch because `.env.dev`
 /// sets `MANIFEST_FETCH_ALLOW_LOOPBACK=true`. The images are not served and
 /// need not load. Nothing is submitted. Needs a signed-in account, made for
 /// the test and removed after.

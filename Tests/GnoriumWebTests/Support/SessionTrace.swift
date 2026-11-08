@@ -7,7 +7,7 @@ import Foundation
 /// received, a block whole as `{"at": milliseconds since 1970, "block":
 /// {…}}`—inserted, never updated. Nothing ties a batch to its session by
 /// foreign key, so a test that deletes its sessions deletes their batches
-/// first (`delete`), in the same transaction: the dev database's owner may,
+/// first (`delete`), in the same transaction: the run's database's owner may,
 /// as TestAdmin connects; the app's role may only read and insert them.
 enum SessionTrace {
   /// SQL appending `blocks` to the session's trace as its next batch, one

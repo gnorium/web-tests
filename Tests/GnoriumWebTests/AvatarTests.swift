@@ -6,7 +6,7 @@ import WebTestsTesting
 /// An avatar, added and removed on the profile page by a contributor with
 /// one accepted contribution (seeded), saved by Save Profile, and shown in
 /// the navbar's menu: the picture goes from the browser straight to the
-/// store's upload form (on the dev server, the directory store's own
+/// store's upload form (on the run's server, the directory store's own
 /// `/avatars/uploads`), and the profile is sent with its key. And a
 /// locution's two gaps: what was said as one block, twice the gap above
 /// its footer row. Throwaway accounts.

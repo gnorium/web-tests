@@ -136,7 +136,7 @@ WEB_TESTS_HEADED=1 swift test               # watch Chrome work
 
 | Variable | Meaning |
 |---|---|
-| `<PREFIX>_BASE_URL` | where relative URLs point (for Gnorium, `GNORIUM_BASE_URL`, default `http://localhost:8080`) |
+| `<PREFIX>_BASE_URL` | where relative URLs point (for Gnorium, the run's own server: see Gnorium's tests) |
 | `BROWSERS` | `chrome`, `safari` or `chrome,safari` (the default) |
 | `WEB_TESTS_CHROME` | another Chrome binary (headless runs otherwise prefer an installed `chrome-headless-shell`, which leaves no app clone in the temporary folder; `npx @puppeteer/browsers install chrome-headless-shell@stable --path ~/.cache/puppeteer` installs one) |
 | `WEB_TESTS_HEADED` | `1` shows Chrome's window |
@@ -155,7 +155,20 @@ Until then, Safari tests are skipped with these steps as the reason.
 
 ## Gnorium's tests
 
-`Tests/GnoriumWebTests` runs against the dev server (`make dev`, port 8080), on both engines:
+`Tests/GnoriumWebTests` never runs against the dev server or its database, gnorium_dev: every run makes its own (`Support/WebTestServer.swift`).
+
+- **Its own database:** `gnorium_webtests_<pid>_<hex>` on the local PostgreSQL, made by the cluster's superuser (`GNORIUM_WEB_TESTS_ADMIN_URL`, default the OS user over localhost) with the `vector` extension, owned by `gnorium`, migrated with the server's own `migrate --yes` and granted to `gnorium_app` (`grant-app-role`), as `make dev-local-migrate` builds dev's.
+- **Its own server:** gnorium-web's built `.bin/Server` (`make server` first; `make client` and `make styles` for hydration) on a free port of 127.0.0.1, with gnorium-web's `.env.dev`, `.env.dev.secrets` and `.env.worker-controls` as `make serve` loads them, but nothing that reaches what dev shares: no Computorium dispatch or worker-control sync to the Python services, no re-derivation sweep, no citation indexing into the quotes service, no Elsewhere checks or Wayback saves, no provider keys (no paid model call), its avatars in the run's own folder. `WEB_TESTS_SERVER_<NAME>=value` sets `<NAME>` for it (e.g. `WEB_TESTS_SERVER_COMPUTORIUM_DISPATCHER_ENABLED=true`).
+- **Gone at the end:** the server stopped and the database dropped when the test process exits (or on Ctrl-C/SIGTERM); a run killed harder is swept by the next (every `gnorium_webtests_` database whose test process is gone, and its server). `GNORIUM_WEB_TESTS_KEEP=1` keeps the database to look at; the server's log is in `$TMPDIR/gnorium-web-tests/<database>/server.log`.
+- **Refusals:** `GNORIUM_BASE_URL` with `GNORIUM_DATABASE_URL` (its owner's URL) runs against a server someone else started; either alone, or any that names gnorium_dev or the dev server's port 8080, stops the run before a test starts.
+- **Shared still:** the Python services (ports 8002–8005) answer the run's server's synchronous calls (TEI previews, page builds); they call back to `GNORIUM_SERVER_URL`, the dev server, only to read (cited works, romanization), never to write, since nothing is dispatched to them.
+
+```sh
+cd gnorium-web && make server client styles      # once per change, as for dev
+cd web-tests && BROWSERS=chrome swift test --disable-sandbox --filter TestamentLevelsTests
+```
+
+The suites, on both engines:
 
 - **Hydration smoke**: home, biblio-records, lexico-records, a biblio record and sign-in load, start the WebAssembly client, log no errors, have no same-origin request fail, and do not scroll sideways, at 375 wide (touch in Chrome) and at 1400.
 - **Watchtower**: each permit link opens the records page whose Treatment filter (or Pipelines, as it may be named) shows the link's phrase.
@@ -168,7 +181,7 @@ Until then, Safari tests are skipped with these steps as the reason.
 - **Form item rows**: on the Submit Amendment form, removing a middle author renumbers the rows after it and the form serializes both remaining rows. Nothing is submitted.
 - **Amendment metadata**: on the Submit Amendment form, a field is edited directly, with no field ticks or field boxes. Nothing is submitted.
 
-The date picker, form item rows, amendment metadata and change password tests need an admin. Each registers a throwaway account over HTTP with a random password that never leaves memory, makes it an admin with one `UPDATE` in the dev database (`GNORIUM_DATABASE_URL`, psql from `GNORIUM_PSQL` or Homebrew), signs it in over HTTP, sets the session cookie in the browser context, and deletes that account's row afterwards. No one's password is typed anywhere.
+The date picker, form item rows, amendment metadata and change password tests need an admin. Each registers a throwaway account over HTTP with a random password that never leaves memory, makes it an admin with one `UPDATE` in the run's database (psql from `GNORIUM_PSQL` or Homebrew), signs it in over HTTP, sets the session cookie in the browser context, and deletes that account's row afterwards. No one's password is typed anywhere.
 
 ## Design notes
 

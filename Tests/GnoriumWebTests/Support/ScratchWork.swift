@@ -27,7 +27,7 @@ struct ScratchWork {
 
   /// The corpus every permitted work joins, made as the server makes it on
   /// the first permit (`BiblioRecord.findOrCreateDefaultCorpus`): a fresh
-  /// dev database has none, and a record without one fails to load. Kept,
+  /// run's database has none, and a record without one fails to load. Kept,
   /// as the server keeps it.
   static let corpus = """
     INSERT INTO corpora (id, name, slug, description, language_period, work_count, word_count, created_at, updated_at)

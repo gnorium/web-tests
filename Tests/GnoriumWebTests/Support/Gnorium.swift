@@ -2,10 +2,15 @@ import Foundation
 import WebTests
 import WebTestsTesting
 
-/// The Gnorium dev server under test: `GNORIUM_BASE_URL` (default
-/// http://localhost:8080) on the engines in `BROWSERS` (default chrome;
-/// safari only when named).
-let gnorium = BrowserTestConfiguration.fromEnvironment(prefix: "GNORIUM", defaultBaseURL: "http://localhost:8080")
+/// The Gnorium server under test: this run's own (`WebTestServer`: its own
+/// database and process, never the dev server or gnorium_dev), on the engines
+/// in `BROWSERS` (default chrome; safari only when named).
+let gnorium: BrowserTestConfiguration = {
+  var configuration = BrowserTestConfiguration.fromEnvironment(
+    prefix: "GNORIUM", defaultBaseURL: WebTestServer.baseURL.absoluteString)
+  configuration.baseURL = WebTestServer.baseURL
+  return configuration
+}()
 
 /// The layouts every page must hold up in.
 enum Layout: String, CaseIterable, Sendable, CustomStringConvertible {

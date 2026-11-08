@@ -8,21 +8,22 @@ import WebTests
 /// Nobody's password is typed or stored. The account is registered over
 /// HTTP with a random password generated here and held only in memory, so
 /// the server hashes it its own way; it is made an admin with one UPDATE in
-/// the dev database, and signed in over HTTP.
+/// the run's database (`WebTestServer`: never gnorium_dev), and signed in
+/// over HTTP.
 ///
 /// `remove()` never touches the event log, which is history: its rows name
 /// their user, and `event_logs.user_id` is ON DELETE RESTRICT (server
 /// migration 0385). Submitted input is history too: a submission's user is
 /// frozen, so an account that submitted can't lose its row either. An
 /// account neither names is deleted outright (one DELETE of its row, as the
-/// dev database's owner; its sessions go by cascade). An account either
+/// run's database's owner; its sessions go by cascade). An account either
 /// names is deleted the way its owner deletes it, through Delete account
 /// with its password (`AccountDeletion`: private data erased, the row kept
 /// for the username, as for every deleted account). Either way a failure
 /// throws; nothing is left behind silently. The leftovers of killed runs are swept in `create` by the same rule.
 ///
-/// `GNORIUM_DATABASE_URL` overrides the dev database; `GNORIUM_PSQL` the
-/// psql binary.
+/// The database is the run's (`WebTestServer.databaseURL`, as its owner);
+/// `GNORIUM_PSQL` names the psql binary.
 struct TestAdmin: Sendable {
   let username: String
   let cookie: Cookie
@@ -226,7 +227,7 @@ struct TestAdmin: Sendable {
 
   // MARK: - Database
 
-  private static let psqlPath: String? = {
+  static let psqlPath: String? = {
     let candidates = [
       ProcessInfo.processInfo.environment["GNORIUM_PSQL"],
       "/opt/homebrew/opt/postgresql@18/bin/psql",
@@ -238,15 +239,15 @@ struct TestAdmin: Sendable {
     return candidates.compactMap { $0 }.first { FileManager.default.isExecutableFile(atPath: $0) }
   }()
 
-  private static let databaseURL =
-    ProcessInfo.processInfo.environment["GNORIUM_DATABASE_URL"]
-    ?? "postgresql://gnorium:password@localhost:5432/gnorium_dev"
+  /// The run's database, as its owner: never gnorium_dev (`WebTestServer`
+  /// refuses to start otherwise).
+  private static var databaseURL: String { WebTestServer.databaseURL }
 
   private static func runSQL(_ sql: String) throws {
     _ = try query(sql)
   }
 
-  /// Runs `sql` against the dev database and returns what psql prints,
+  /// Runs `sql` against the run's database and returns what psql prints,
   /// unaligned and without headers. A test's own fixtures only: rows it
   /// makes under its throwaway account and removes after.
   static func query(_ sql: String) throws -> String {

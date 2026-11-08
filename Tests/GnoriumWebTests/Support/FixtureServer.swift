@@ -6,7 +6,7 @@ import Network
 /// on 127.0.0.1 at a port the system picks, answers GET with the file at the
 /// path (404 for any other), and closes each connection after its answer.
 ///
-/// The dev server fetches it only because `.env.dev` sets
+/// The run's server (`WebTestServer`) fetches it only because `.env.dev` sets
 /// `MANIFEST_FETCH_ALLOW_LOOPBACK=true` (gnorium-server `ManifestFetch`),
 /// which production never honors.
 final class FixtureServer: @unchecked Sendable {
