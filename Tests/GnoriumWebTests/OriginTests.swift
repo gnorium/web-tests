@@ -211,10 +211,10 @@ struct OriginTests {
         ] {
           try await page.openHydrated(url)
           let block = page.locator(".origin-field-view").first
-          // Its own section, headed "Origin", between the Metadata and the
+          // Its own section, headed "Origins", between the Metadata and the
           // tree, never a field in the Metadata (user, 2026-11-03): no
           // field label of its own.
-          try await expect(page.locator("#origin > .record-section-title")).toHaveText("Origin")
+          try await expect(page.locator("#origin > .record-section-title")).toHaveText("Origins")
           try await expect(page.locator("#origin .origin-field-view")).toHaveCount(1)
           try await expect(page.locator("#record-metadata .origin-field-view")).toHaveCount(0)
           try await expect(block.locator(":scope > .field-view")).toHaveCount(0)
@@ -973,7 +973,7 @@ struct OriginTests {
       try await page.openHydrated(translation.path)
       let tree = page.locator("#origin .origin-view")
       try await expect(tree).toHaveCount(1)
-      try await expect(page.locator("#origin .record-section-title")).toHaveText("Origin")
+      try await expect(page.locator("#origin .record-section-title")).toHaveText("Origins")
       try await expect(page.locator("#record-origin")).toHaveCount(0)
       let order = try await page.evaluate(
         """

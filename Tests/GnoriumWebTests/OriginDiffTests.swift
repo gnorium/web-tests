@@ -9,7 +9,7 @@ import WebTestsTesting
 /// with its "Diff: 4 → 1", one it removes framed red where it stood, one it
 /// adds in its plain frame with its fields green, one it edits open on the
 /// form's own fields, each changed one framed orange with its "Diff:" line
-/// under it, and no card tinted; its thread's "Origin" links to that diff. A scratch lexicographic figurant,
+/// under it, and no card tinted; its thread's "Origins" links to that diff. A scratch lexicographic figurant,
 /// overture and revision of a throwaway admin, removed after. Headless
 /// Chrome only (user: web-tests never in Safari).
 ///
@@ -170,7 +170,7 @@ struct OriginDiffTests {
         // `RevisePagesTests.expectChangedLinksLand`); the tree has no
         // format toggle, so it opens as it is.
         try await tab.openHydrated(page)
-        let link = tab.locator(".thread-event-changed a").filter(hasText: "Origin")
+        let link = tab.locator(".thread-event-changed a").filter(hasText: "Origins")
         try await expect(link).toHaveCount(1)
         let href = try await link.evaluate("(el) => el.getAttribute('href')")
         #expect(

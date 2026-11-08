@@ -70,9 +70,9 @@ struct LexicographicOvertureOriginsReviseTests {
         try await tab.expectNoErrors()
         try await tab.expectNoHorizontalOverflow()
         try await expect(tab.locator("main")).toContainText("webtestsetymon")
-        // The thread's line names Origin among what changed.
+        // The thread's line names Origins among what changed.
         try await tab.openHydrated(page)
-        try await expect(tab.locator(".thread")).toContainText("Origin")
+        try await expect(tab.locator(".thread")).toContainText("Origins")
       }
     } catch {
       remove()

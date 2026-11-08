@@ -103,11 +103,13 @@ struct TypedQuotePageTests {
         try await expect(box.locator("input[name='quote-s1-start-frame']")).toHaveValue("2")
         // Its page kept through it all.
         try await expect(field).toHaveValue("318")
-        // A source Gnorium lacks gives its Title, Language and Class.
+        // A source Gnorium lacks gives its Title, Language and Class, and
+        // its Provider (user, 2026-11-08: never inferred).
         _ = try await box.evaluate(
           """
           (b) => {
-            for (const [k, v] of [['title', 'Web tests source'], ['language', 'eng'], ['class', 'report']]) {
+            for (const [k, v] of [['title', 'Web tests source'], ['language', 'eng'], ['class', 'report'],
+                                  ['provider', 'Web tests library']]) {
               const f = b.querySelector(`[name='quote-s1-source-url-${k}']`); f.disabled = false; f.value = v; }
             return true; }
           """)

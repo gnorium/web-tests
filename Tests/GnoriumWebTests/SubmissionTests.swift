@@ -767,8 +767,10 @@ struct SubmissionTests {
         b.querySelector("input[name='quote-s1-quote']").value = 'A web tests quote.';
         b.querySelector("input[name='quote-s1-forms']").value = '[[[{"surface":"web","word":2}]]]';
         // A source Gnorium lacks gives its Title, Language and Class
-        // (user, 2026-11-02), as its box asks once its URL is read.
-        for (const [k, v] of [['title', 'Web tests source'], ['language', 'eng'], ['class', 'report']]) {
+        // (user, 2026-11-02), as its box asks once its URL is read, and its
+        // Provider (user, 2026-11-08: never inferred).
+        for (const [k, v] of [['title', 'Web tests source'], ['language', 'eng'], ['class', 'report'],
+                              ['provider', 'Web tests library']]) {
           const f = b.querySelector(`[name='quote-s1-source-url-${k}']`); f.disabled = false; f.value = v; }
         return true; }
       """)
