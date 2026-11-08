@@ -34,6 +34,10 @@ struct DerivedMetadataModesTests {
         for label in Self.derived {
           try await expect(submit.locator("input[disabled][placeholder='\(label)']")).toHaveCount(1)
         }
+        // Its Voices as a work's Voice rows, frozen (user, 2026-11-08): none
+        // yet, the frozen field over a frozen "+ Voice", never an empty card.
+        try await expect(submit.locator(".record-voices button[aria-label='Add Voice'][disabled]")).toHaveCount(1)
+        try await expect(submit.locator(".record-voices .form-item-view")).toHaveCount(0)
         // No dash in its fields (its Origin rows are their own field).
         let dashed = try await submit.evaluate(
           "(view) => [...view.children].some((c) => !c.matches('.origin-field-view') && c.textContent.includes('—'))"

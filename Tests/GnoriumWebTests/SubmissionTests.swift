@@ -472,60 +472,54 @@ struct SubmissionTests {
   // MARK: - From a record's page
 
   /// A record's page offers its one road in—Submit Amendment, on a biblio-record's
-  /// and a lexico-record's alike, which opens the record's amendment. Signed out, the button is there all the same and says
-  /// so in an alert, as the form's Submit does; no page explains it in prose.
+  /// and a lexico-record's alike, which opens the record's amendment: a plain
+  /// link in its sidebar under Vignettes (user, 2026-11-08), no button over
+  /// the page. Signed out, the link is there all the same, and the form's
+  /// Submit says signing in is needed; no page explains it in prose.
   @Test(arguments: gnorium.engines, Layout.allCases)
   func aRecordsPageOpensItsSubmissionWithItChosen(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let admin = try await TestAdmin.create(baseURL: gnorium.baseURL)
     let work = try ScratchWork(owner: admin)
     let word = try ScratchWord(owner: admin)
+    // The sidebar's Submit Amendment link on the record at `path`, the
+    // link after Vignettes, opening the record's amendment. The page draws
+    // its sidebar twice (the column and the phone's sheet): the first.
+    func link(on page: Page, at path: String) async throws -> String {
+      try await page.openHydrated(path)
+      let sidebar = page.locator(".record-sidebar-view").first
+      let links = sidebar.locator("a")
+      try await expect(links.filter(hasText: "Submit Amendment")).toHaveAttribute("href", "\(path)/amendments/new")
+      let order = try await sidebar.evaluate(
+        """
+        (s) => [...s.querySelectorAll('a')].map((a) => a.textContent.trim())
+          .filter((t) => t === 'Vignettes' || t === 'Submit Amendment').join('|')
+        """
+      ).string ?? ""
+      #expect(order == "Vignettes|Submit Amendment", "\(path): \(order)")
+      try await expect(page.locator(".record-actions")).toHaveCount(0)
+      return try await links.filter(hasText: "Submit Amendment").getAttribute("href") ?? ""
+    }
     do {
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
-        for (path, label) in [(work.path, "Submit Amendment"), (word.path, "Submit Amendment")] {
-          try await page.openHydrated(path)
-          // Its one action: on a phone full width, wider content-width
-          // (user, 2026-09-30).
-          let shape = try await page.locator(".record-actions .action-gate-actions").evaluate(
-            """
-            (g) => {
-              const w = g.closest('.record-actions').getBoundingClientRect().width;
-              const rs = [...g.querySelectorAll(':scope > * .button-view')].map((b) => b.getBoundingClientRect());
-              const full = rs.every((r) => Math.abs(r.width - w) < 2);
-              const narrow = rs.every((r) => r.width < w / 2);
-              return rs.length + (full ? ':full' : narrow ? ':content' : ':mixed');
-            }
-            """
-          ).string ?? ""
-          if layout == .phone {
-            #expect(shape == "1:full", "\(label)'s page: its action full width on a phone, not \(shape)")
-          } else {
-            #expect(shape == "1:content", "\(label)'s page: its action content-width, not \(shape)")
-          }
-          try await page.locator(".record-actions a").filter(hasText: label).click()
-        }
         // The word's amendment.
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the word's amendment") {
-          $0.path == "\(word.path)/amendments/new"
-        }
+        let wordAmendment = try await link(on: page, at: word.path)
+        try await page.openHydrated(wordAmendment)
+        #expect(URL(string: try await page.url())?.path == "\(word.path)/amendments/new")
         // The work's amendment.
-        try await page.openHydrated(work.path)
-        try await page.locator(".record-actions a").filter(hasText: "Submit Amendment").click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the record's amendment") {
-          $0.path == "\(work.path)/amendments/new"
-        }
+        let workAmendment = try await link(on: page, at: work.path)
+        try await page.openHydrated(workAmendment)
+        #expect(URL(string: try await page.url())?.path == "\(work.path)/amendments/new")
         try await expect(page.locator(".testament-outliner-view")).toHaveCount(1)
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
       }
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
-        try await page.openHydrated(work.path)
         // Signed out, the amendment's form opens all the same (user,
         // 2026-10-22); only its Submit needs a person.
-        try await page.locator(".record-actions a").filter(hasText: "Submit Amendment").click()
-        try await expect(page, timeout: .seconds(15)).toHaveURL("the record's amendment, signed out") {
-          $0.path == "\(work.path)/amendments/new"
-        }
+        let workAmendment = try await link(on: page, at: work.path)
+        try await page.openHydrated(workAmendment)
+        #expect(URL(string: try await page.url())?.path == "\(work.path)/amendments/new")
         try await expect(page.locator(".testament-outliner-view")).toHaveCount(1)
         // Pressed once the gate holds the Submit: reached by a link, the page
         // is not waited on as `openHydrated` waits, and a press before the

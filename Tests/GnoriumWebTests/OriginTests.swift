@@ -1019,10 +1019,10 @@ struct OriginTests {
       try await expect(recordStep.locator("#origin-tree-step-1-1-year")).toHaveValue("1958")
       try await expect(recordStep.locator("#origin-tree-step-1-1-voice-item1-text-input")).toHaveValue(original.author)
       // Above the tree, the tree in one sentence: each step's relations,
-      // its voice's, its language (at the prose's weight, never semibold:
-      // user, 2026-11-03), its title (linked where it is
-      // a record, never italic) and its class, never a date (an etymology
-      // has none, user 2026-11-01); a step's own origin after ", ".
+      // its voice's, its language (semibold, user 2026-11-08), its title
+      // (linked where it is a record, never italic) and its class, never a
+      // date (an etymology has none, user 2026-11-01); a step's own origin
+      // after ", ".
       let sentence = page.locator("#origin .origin-sentence-view")
       try await expect(sentence).toHaveText(
         "A translation and abridgment of the Old English \(typed) (treatise), a translation of "
@@ -1047,7 +1047,7 @@ struct OriginTests {
         })()
         """)
       #expect(look["above"].bool == true, "\(look)")
-      #expect(look["weight"].string == "400", "\(look)")
+      #expect(look["weight"].string == "600", "\(look)")
       #expect(look["style"].string == "normal", "\(look)")
       #expect(look["lang"].string == "ang", "\(look)")
 

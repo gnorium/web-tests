@@ -15,9 +15,9 @@ import WebTestsTesting
 /// wrapping, the closed control fading its end. The Publication card
 /// holds the Container: its record field (asked of the server, as an
 /// origin's is), the host as typed while no record is chosen, and the
-/// locator. A record contained in another says so in prose ("Contained in
-/// the English report …, volume 1, pages 3–5."), and the host lists it in
-/// what it Contains. A throwaway admin owns two scratch works, removed after.
+/// locator. What a testament is contained in reads in its own Metadata, no
+/// sentence for the whole record (user, 2026-11-08), and the host lists it
+/// in what it Contains. A throwaway admin owns two scratch works, removed after.
 @Suite("Carrier", .serialized)
 struct CarrierTests {
   static let form = "/mission-control/submit/bibliographic/testament"
@@ -194,12 +194,11 @@ struct CarrierTests {
       let overflow = try await page.evaluate("document.documentElement.scrollWidth > window.innerWidth").bool
       #expect(overflow == false)
 
-      // The article's page: a Container section after its Metadata, in prose.
+      // The article's page: its Container in its testament's Metadata
+      // alone, no sentence for the whole record (user, 2026-11-08).
       try await page.openHydrated(article.path)
-      try await expect(page.locator("#container .record-section-title")).toHaveText("Container")
-      let prose = page.locator("#container .contained-in-view p")
-      try await expect(prose).toHaveText("Contained in the English report \(host.title), volume 1, pages 3–5.")
-      try await expect(prose.locator("a[href='\(host.path)']")).toHaveCount(1)
+      try await expect(page.locator("#container")).toHaveCount(0)
+      try await expect(page.locator(".contained-in-view")).toHaveCount(0)
 
       // The host lists it under Contains.
       try await page.openHydrated(host.path)

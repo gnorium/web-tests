@@ -70,13 +70,13 @@ struct TestamentLevelsTests {
           const at = (selector) => form.querySelector(selector);
           const chain = [
             // Voices in identity order (user, 2026-11-03): after its class.
-            '#work-language', '#work-title', '#work-type', "[data-item-list='work-voice']", '#work-place',
+            '#work-language', '#work-title', '#work-type', "[data-item-list='work-voice']", "[data-item-list='work-place']",
             "[name='year']", "[data-item-list='work-genre']", '#testament-carrier',
             ".activity-statement-view[data-as-namespace='publication']", '#work-edition',
-            "[data-item-list='as-publication']", "[name='as-publication-year']", "[name='as-publication-place']",
+            "[data-item-list='as-publication']", "[name='as-publication-year']", "[data-item-list='as-publication-place']",
             '#testament-copy-label', ".activity-statement-view[data-as-namespace='production']",
             ".activity-statement-view[data-as-namespace='reproduction']", "[name='provider-dropdown']",
-            "[data-item-list='as-reproduction']", "[name='as-reproduction-place']",
+            "[data-item-list='as-reproduction']", "[data-item-list='as-reproduction-place']",
             // The leaf's URL in its Source accordion, under its Metadata and
             // its Note (user, 2026-11-02).
             '#testament-digitization-license', '#testament-source-url',
@@ -88,7 +88,7 @@ struct TestamentLevelsTests {
           }
           for (const kind of ['publication', 'production', 'reproduction']) {
             const block = at(`.activity-statement-view[data-as-namespace='${kind}']`);
-            const place = `[name='as-${kind}-place']`, agents = `[data-item-list='as-${kind}']`;
+            const place = `[data-item-list='as-${kind}-place']`, agents = `[data-item-list='as-${kind}']`;
             const year = `[name='as-${kind}-year']`;
             const parts = (kind === 'production' ? [place, agents, year] : [agents, year, place])
               .map((s) => block.querySelector(s));
@@ -128,7 +128,7 @@ struct TestamentLevelsTests {
       try await expect(form.locator("#testament-copy-label")).toBeVisible()
       try await expect(acquisition.locator("input[name='holding-institution-dropdown']")).toHaveCount(1)
       try await expect(acquisition.locator(".section-legend").filter(hasText: "Call number")).toBeVisible()
-      try await expect(form.locator("input[name='as-production-place']")).toHaveCount(1)
+      try await expect(form.locator("input[name='as-production-place-item1-text-input']")).toHaveCount(1)
 
       // The date check: a publication before the work is warned of under
       // its date, and the warning goes when the date is mended.
@@ -208,7 +208,7 @@ struct TestamentLevelsTests {
     do {
       let user = try admin.column("id")
       let statements = """
-        [{"kind":"production","place":"Web tests scriptorium","agents":[{"role":"scribe","name":"Web Tests Scribe"}],"year":1601}]
+        [{"kind":"production","places":["Web tests scriptorium"],"agents":[{"role":"scribe","name":"Web Tests Scribe"}],"year":1601}]
         """
       _ = try TestAdmin.query(
         """
@@ -239,7 +239,7 @@ struct TestamentLevelsTests {
         try await expect(label).toHaveValue("Web tests copy 9")
         try await expect(acquisition.locator("input[name='call_number_value']")).toHaveValue("22273")
         try await expect(acquisition.locator("input[name='holding_institution']")).toHaveValue("folger_shakespeare_library")
-        try await expect(copy.locator("input[name='as-production-place']")).toHaveValue("Web tests scriptorium")
+        try await expect(copy.locator("input[name='as-production-place-item1-text-input']")).toHaveValue("Web tests scriptorium")
         try await shoot(page, "revise-manuscript", layout)
         try await label.fill("Web tests copy 10")
 
@@ -259,7 +259,7 @@ struct TestamentLevelsTests {
       #expect(json["holdingInstitution"] as? String == "folger_shakespeare_library")
       #expect((json["callNumber"] as? [String: Any])?["identifier"] as? String == "22273")
       let kept = (json["activityStatements"] as? [[String: Any]] ?? []).first { $0["kind"] as? String == "production" }
-      #expect(kept?["place"] as? String == "Web tests scriptorium", "Its production is posted as it stands.")
+      #expect(kept?["places"] as? [String] == ["Web tests scriptorium"], "Its production is posted as it stands.")
       #expect(kept?["year"] as? Int == 1601)
     } catch {
       remove()

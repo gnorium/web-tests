@@ -138,7 +138,7 @@ struct SubmitTestamentDraftTests {
 
       let carrier = page.locator(".dropdown-view:has(#testament-carrier)")
       let publication = page.locator(".activity-statement-view[data-as-namespace='publication']").first
-      let place = publication.locator("input[name='as-publication-place']")
+      let place = publication.locator("input[name='as-publication-place-item1-text-input']")
       try await carrier.locator(".dropdown-trigger").click()
       try await carrier.locator(".dropdown-option[data-value='print']").click()
       try await expect(carrier.locator(".dropdown-selected-text")).toHaveText("Print")
