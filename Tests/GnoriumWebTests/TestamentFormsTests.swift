@@ -27,9 +27,9 @@ struct TestamentFormsTests {
         try await expect(form.locator("[data-item-list='title-form'], .title-form-json")).toHaveCount(0)
         // Its "+ Form" frozen, as a Genre's is (user, 2026-11-07).
         try await expect(form.locator("button[aria-label='Add Form']").first).toBeDisabled()
-        // A new testament has no citations yet: its Forms one frozen field,
-        // the record's shape kept (derived, never typed).
-        try await expect(form.locator(".derived-forms-view input[name='derived-forms']").first).toBeDisabled()
+        // A new testament has no citations yet: its Forms one empty frozen
+        // card, the record's shape kept (derived, never typed).
+        try await expect(form.locator(".derived-forms-view .derived-forms-empty input[name='derived-form']").first).toBeDisabled()
         try await page.expectNoErrors()
         try await page.expectNoHorizontalOverflow()
       }
