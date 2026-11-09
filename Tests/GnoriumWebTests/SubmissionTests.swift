@@ -685,11 +685,12 @@ struct SubmissionTests {
           "SELECT sentiment_json FROM lexicographic_figurants WHERE title_form_json::json ->> 'title' = '\(title)'")
         #expect(sentiment.contains(#""register":["formal"]"#), "\(sentiment)")
         #expect(!sentiment.contains(#""quotes""#), "\(sentiment)")
-        // Its date and its forms, unknown: empty, each its placeholder, as
-        // every empty frozen field reads, never "—" (user, 2026-11-05).
+        // Its date, unknown: nothing on its row (user, 2026-11-09: "either
+        // show year date or nothing"); its forms, its placeholder, as every
+        // empty frozen field reads, never "—" (user, 2026-11-05).
         let row = page.locator(".outliner-item[data-outliner-id] .record-node-heading").first
-        try await expect(row.locator(".node-value-date")).toHaveText("Date")
-        try await expect(row.locator(".node-value-date.node-value-date-placeholder")).toHaveCount(1)
+        try await expect(row.locator(".node-value-date")).toHaveCount(0)
+        try await expect(row).not.toContainText("Date")
         let forms = page.locator(".sentiment-view .derived-forms-view").first
         try await expect(forms.locator("input")).toHaveValue("")
         try await expect(forms.locator("input")).toHaveAttribute("placeholder", "Forms")
@@ -715,10 +716,10 @@ struct SubmissionTests {
         try await expect(page, timeout: .seconds(15)).toHaveURL("its record's page") {
           $0.path.hasPrefix("/lexico-records/")
         }
-        // Its date and its forms on the record page too: shown, each its
-        // placeholder.
-        try await expect(page.locator(".outliner-item[data-outliner-id] .record-node-heading .node-value-date").first)
-          .toHaveText("Date")
+        // Its date and its forms on the record page too: no date, its
+        // forms' placeholder.
+        try await expect(page.locator(".outliner-item[data-outliner-id] .record-node-heading .node-value-date"))
+          .toHaveCount(0)
         let recordForms = page.locator(".sentiment-view .derived-forms-view").first
         try await expect(recordForms.locator("input")).toHaveAttribute("placeholder", "Forms")
         try await expect(recordForms).not.toContainText("—")

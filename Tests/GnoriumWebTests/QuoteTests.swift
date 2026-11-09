@@ -76,47 +76,28 @@ struct QuoteTests {
         try await expect(row).toHaveAttribute("data-open-finished", "true")
         let quote = attestation.locator(".testament-view")
         try await expect(quote).toHaveCount(1)
-        // Headed by its Source box (user, 2026-11-02), only what the
-        // artifact does not hold: its source, read-only, above the reader;
-        // no citation line, no breadcrumb, no header box, no Images or
-        // Quote field.
-        try await expect(attestation.locator(".chicago-citation-view")).toHaveCount(0)
-        // Its Source accordion over its Quote card (user, 2026-11-03), the
-        // card its artifact; read, the accordion closed, no controls.
-        let heading = attestation.locator(".attestation-quote .quote-source-view")
-        try await expect(attestation.locator(".quote-source-quote .testament-view")).toHaveCount(1)
+        // One artifact (user, 2026-11-09: the Source accordion and the
+        // Quote card compressed into it): no accordion, no card, no
+        // controls, no citation line over it; its source named in its
+        // header after its page's label.
+        try await expect(attestation.locator(".quote-source-view")).toHaveCount(0)
+        try await expect(attestation.locator(".quote-source-quote")).toHaveCount(0)
         try await expect(attestation.locator(".quote-source-actions")).toHaveCount(0)
-        try await expect(heading).toHaveCount(1)
-        let work = scratch.reading.work
-        try await expect(heading.locator(".accordion-title").first).toHaveText("Source")
-        try await heading.locator(".accordion-summary").first.click()
-        // The form's fields (user, 2026-11-02): Biblio-record › Value, no
-        // Quote.
-        try await expect(heading.locator(".quote-source-fields .datum-view .datum-label")).toHaveTexts([
-          "Biblio-record", "Value",
-        ])
-        try await expect(heading.locator(".quote-source-fields")).toContainText(work.title)
-        try await expect(heading.locator(".quote-source-fields")).not.toContainText("Quote")
-        try await expect(heading.locator(".quote-source-fields")).not.toContainText("Frames start")
-        let headingAbove = try await attestation.evaluate(
-          "(view) => { const h = view.querySelector('.quote-source-view').getBoundingClientRect(); const q = view.querySelector('.testament-view').getBoundingClientRect(); return h.bottom <= q.top }")
-        #expect(headingAbove == .bool(true), "the Source box is not above the quote")
+        try await expect(attestation.locator(".attestation-quote > .chicago-citation-view")).toHaveCount(0)
         try await expect(attestation.locator(".breadcrumb-view")).toHaveCount(0)
         try await expect(attestation.locator(".header-view")).toHaveCount(0)
-        // Its Record links to the record's page, its Testament UUID to the
-        // testament's leaf row there, its reader on the quote's page.
-        let links = heading.locator(".quote-source-fields a")
-        try await expect(links.first).toHaveAttribute("href", work.path)
-        // Its Value links to the testament's row on the record's page where
-        // the record's tree names it by its value; a scratch testament the
-        // tree does not label reads "—", unlinked.
-        let value = heading.locator(".quote-source-fields .datum-view").nth(1)
-        let linked = try await value.locator("a").count()
-        if linked > 0 {
-          let href = try await value.locator("a").getAttribute("href") ?? ""
-          #expect(href.hasPrefix("\(work.path)?frame=2#record-row-"), "the Value links to its testament's row: \(href)")
-        } else {
-          try await expect(value).toContainText("—")
+        try await expect(
+          quote.locator(".artifact-header-row .artifact-canvas-title .quote-source-tooltip-view")
+        ).toHaveCount(1)
+        let work = scratch.reading.work
+        // Its bubble: its testament's UUID alone (user, 2026-11-09: "be
+        // minimalist"), linked to the testament's row on the record's page,
+        // where the record's tree names it.
+        let bubble = page.locator(".quote-source-tooltip-content").first
+        try await expect(bubble.locator(".chicago-citation-view")).toHaveCount(0)
+        let identifier = bubble.locator(".quote-source-tooltip-identifier")
+        if try await identifier.count() > 0, let href = try await identifier.getAttribute("href") {
+          #expect(href.hasPrefix("\(work.path)?frame=2#record-row-"), "the UUID links to its testament's row: \(href)")
         }
         // The whole testament (user, 2026-10-31), opened at the quote's
         // page: drawn with the page either side, the windowed reader then
