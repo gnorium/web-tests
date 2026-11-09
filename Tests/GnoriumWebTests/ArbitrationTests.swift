@@ -568,7 +568,7 @@ struct ArbitrationTests {
         // Failed, its alert is prose (user, 2026-10-17): a session that
         // stopped with the service's code reads "Stopped: …"; the code stays
         // in the log and the trace. An admin's Continue carries the
-        // session on from its saved trace (user, 2026-10-18).
+        // session on from its kept conversation (user, 2026-10-18).
         _ = try TestAdmin.query("""
           BEGIN;
           UPDATE bibliographic_arbitration_sessions SET result = 'failed',
@@ -629,7 +629,7 @@ struct ArbitrationTests {
         _ = try await page.evaluate("(() => { window.__notReloaded = true; return true })()", as: Bool.self)
         try await continueButton.click()
         // The same session continued, never restarted (user, 2026-10-18):
-        // no new session, queued again on its call (its saved trace the
+        // no new session, queued again on its call (its kept conversation the
         // service carries on once a worker takes it), on the vignette it was
         // committed with; the reply still its.
         let resumed = page.locator("#locution-\(replyID)")
@@ -690,7 +690,7 @@ struct ArbitrationTests {
         try await expect(resumed.locator(".locution-continue")).toBeHidden()
         _ = try TestAdmin.query("""
           BEGIN;
-          UPDATE bibliographic_arbitration_sessions SET result = 'failed', error_message = 'Stopped: no saved trace to continue from.'
+          UPDATE bibliographic_arbitration_sessions SET result = 'failed', error_message = 'Stopped: no kept session to continue from.'
             WHERE id = '\(sessionID)';
           UPDATE locutions SET call_status = 'failed' WHERE id = '\(callID)';
           COMMIT;
