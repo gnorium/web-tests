@@ -166,7 +166,7 @@ struct DateRangePickerTests {
       try await page.openHydrated(
         "\(Self.list)?createdOn=\(try await DatePickerTests.instant(page, startOf: "2000-01-01"))..\(try await DatePickerTests.instant(page, startOf: "2000-01-03"))")
       try await expect(page.locator(".mission-control-objects-table-empty")).toBeVisible()
-      try await expect(page.locator(".filter-bar-value-input .date-picker-field input")).toHaveValue("Jan 1–2, 2000")
+      try await expect(page.locator(".filter-bar-value-input .date-picker-field input")).toHaveValue("1–2 Jan 2000")
 
       try await page.expectNoErrors()
       try await page.expectNoHorizontalOverflow()
@@ -183,7 +183,7 @@ struct DateRangePickerTests {
   }
 
   /// The "on" and "at" cells read their moment in the reader's zone, as the
-  /// browser's own formatter puts it ("Oct 8, 2026", "5:40 PM").
+  /// browser's own formatter puts it ("8 Oct 2026", "5:40 PM").
   static func expectLocalCells(_ page: Page) async throws {
     let mismatches = try await page.evaluate(
       """
@@ -191,7 +191,7 @@ struct DateRangePickerTests {
         .map(t => {
           const d = new Date(t.getAttribute('datetime'));
           const want = t.dataset.format === 'date'
-            ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
             : d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
           const got = t.textContent.replace(/\\s+/g, ' ').trim();
           return got === want.replace(/\\s+/g, ' ') ? null : got + ' ≠ ' + want;

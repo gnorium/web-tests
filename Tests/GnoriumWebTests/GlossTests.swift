@@ -229,7 +229,7 @@ struct GlossTests {
 
         // A word inside a quote opens the quote's gloss, over the
         // quote's box, as a word of a phrase opens the phrase's (user,
-        // 2026-10-09): its testament's Chicago note, then its words, the
+        // 2026-10-09): its testament's MHRA note, then its words, the
         // word clicked expanded with its own gloss's rows and its record.
         try await page.openHydrated(english.path)
         try await page.locator("#record-row-\(english.leaf)-fold").click()
@@ -245,7 +245,7 @@ struct GlossTests {
         try await expect(again.locator(".gloss-sheet-title .record-label-title")).toHaveText("scratchwords")
         try await expect(again.locator(".gloss-sheet-title .record-label-meta")).toHaveCount(0)
         let work = scratch.reading.work
-        try await expect(again.locator(".chicago-citation-view")).toHaveText("\(work.author), \(work.title) (1958), 1.")
+        try await expect(again.locator(".mhra-citation-view")).toHaveText("\(work.author), \(work.title) (1958), p. 1.")
         let wordRows = again.locator(".gloss-word-row")
         try await expect(wordRows).toHaveCount(3)
         let opened = wordRows.filter(hasText: "scratchwords")

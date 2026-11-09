@@ -26,7 +26,7 @@ struct BaselinesTests {
     let document = """
       {"name": "\(name)", "version": "1", "title": "Web test set \(name)", "task": "bibliographic-explication", "description": "",
        "provenance": "Machine-assisted: pending human review.", "license": {"id": "CC-BY-SA-4.0", "url": null, "holder": null},
-       "source": {"manifest": null, "url": null, "holder": null, "call_number": null, "rights": null, "set": null},
+       "source": {"manifest": null, "url": null, "holder": null, "shelfmark": null, "rights": null, "set": null},
        "normalization": {"map": {}, "remove": [], "no_space_before": []}, "reading_fold": {}, "known_readings": 1,
        "gold_redistributed": true, "items": [\(item)]}
       """

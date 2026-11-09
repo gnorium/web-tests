@@ -152,8 +152,8 @@ struct DatePickerTests {
       as: String.self)
   }
 
-  /// "Oct 9, 2026" for `2026-10-09`, as the field and the "on" columns read.
+  /// "9 Oct 2026" for `2026-10-09`, as the field and the "on" columns read.
   static func words(_ iso: String) -> String? {
-    formatter("yyyy-MM-dd").date(from: iso).map { formatter("MMM d, yyyy").string(from: $0) }
+    formatter("yyyy-MM-dd").date(from: iso).map { formatter("d MMM yyyy").string(from: $0) }
   }
 }

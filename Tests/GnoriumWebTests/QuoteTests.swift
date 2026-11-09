@@ -8,10 +8,10 @@ import WebTestsTesting
 /// only once it comes into view, the whole testament opened at its page
 /// (user, 2026-10-31) and its sentence (split across a page break here) in view,
 /// the sentence and, more strongly, the word marked; its image off. It is
-/// headed by its testament's Chicago note (user, 2026-10-18), its title a
+/// headed by its testament's MHRA note (user, 2026-10-18), its title a
 /// link to the testament's row on its record's page at the quote's
 /// page; no breadcrumb, no header box. Anywhere in
-/// its highlight opens its gloss (user, 2026-10-09): its testament's Chicago
+/// its highlight opens its gloss (user, 2026-10-09): its testament's MHRA
 /// note, its title linked to the testament at its page, then its words. A throwaway
 /// admin owns a scratch work with a permitted testament and a scratch word
 /// attested in it, made by SQL and removed after.
@@ -83,7 +83,7 @@ struct QuoteTests {
         try await expect(attestation.locator(".quote-source-view")).toHaveCount(0)
         try await expect(attestation.locator(".quote-source-quote")).toHaveCount(0)
         try await expect(attestation.locator(".quote-source-actions")).toHaveCount(0)
-        try await expect(attestation.locator(".attestation-quote > .chicago-citation-view")).toHaveCount(0)
+        try await expect(attestation.locator(".attestation-quote > .mhra-citation-view")).toHaveCount(0)
         try await expect(attestation.locator(".breadcrumb-view")).toHaveCount(0)
         try await expect(attestation.locator(".header-view")).toHaveCount(0)
         try await expect(
@@ -94,8 +94,8 @@ struct QuoteTests {
         // then its testament's UUID, the bubble's one link, to the
         // testament's row on the record's page.
         let bubble = page.locator(".quote-source-tooltip-content").first
-        try await expect(bubble.locator(".chicago-citation-view")).toContainText(work.title)
-        try await expect(bubble.locator(".chicago-citation-view a")).toHaveCount(0)
+        try await expect(bubble.locator(".mhra-citation-view")).toContainText(work.title)
+        try await expect(bubble.locator(".mhra-citation-view a")).toHaveCount(0)
         let identifier = bubble.locator(".quote-source-tooltip-identifier")
         if try await identifier.count() > 0, let href = try await identifier.getAttribute("href") {
           #expect(href.hasPrefix("\(work.path)?frame=2#record-row-"), "the UUID links to its testament's row: \(href)")
@@ -139,8 +139,8 @@ struct QuoteTests {
         #expect(mark.y + mark.height <= pane.y + pane.height)
 
         // A word inside the quote opens the quote's gloss: its
-        // Chicago note—the voice, the title italic (a report is
-        // book-length), the date, the page as printed (its pb n)—then its
+        // MHRA note – the voice, the title italic (a report is
+        // book-length), the date, the page (its pb n, "p. 3") – then its
         // words, the one clicked expanded.
         try await quote.locator(".tei-word").filter(hasText: "begins").first.click()
         // A popover over the page on a wide screen, the sheet over the
@@ -153,9 +153,9 @@ struct QuoteTests {
         let address = try await quote.evaluate(
           "(box) => box.closest('[data-quote-gloss]').getAttribute('data-quote-gloss')")
         #expect(address.string?.contains("/quotes/") == true && address.string?.hasPrefix("/lexico-records/") == true, "the gloss is at \(address), the record at \(scratchWord.path)")
-        let citation = gloss.locator(".chicago-citation-view")
-        try await expect(citation).toHaveText("\(work.author), \(work.title) (1958), 3.")
-        try await expect(citation.locator("cite.chicago-citation-title")).toHaveCSS("font-style", "italic")
+        let citation = gloss.locator(".mhra-citation-view")
+        try await expect(citation).toHaveText("\(work.author), \(work.title) (1958), p. 3.")
+        try await expect(citation.locator("cite.mhra-citation-title")).toHaveCSS("font-style", "italic")
         let begins = gloss.locator(".gloss-word-row").filter(hasText: "begins")
         try await expect(begins).toHaveCount(1)
         let open = try await begins.evaluate("(row) => row.querySelector('.accordion-details').hasAttribute('open')")
@@ -165,7 +165,7 @@ struct QuoteTests {
         // Its title opens the testament's page at the quote's page.
         let landed = try await page.evaluate(
           """
-          fetch(document.querySelector('.gloss-sheet[data-state=open] .chicago-citation-view a').href)
+          fetch(document.querySelector('.gloss-sheet[data-state=open] .mhra-citation-view a').href)
             .then(r => (r.ok ? '' : 'HTTP ' + r.status + ' ') + new URL(r.url).pathname + new URL(r.url).search)
           """)
         #expect(landed == .string("\(scratch.reading.work.path)/vignettes/\(scratch.versionID)?frame=2"))
@@ -192,8 +192,8 @@ struct QuoteTests {
           "the object's gloss is at \(objectAddress)")
         try await objectQuote.locator(".tei-word").filter(hasText: "begins").first.click()
         let objectGloss = page.locator(".gloss-sheet[data-state='open']")
-        try await expect(objectGloss.locator(".chicago-citation-view")).toHaveText(
-          "\(work.author), \(work.title) (1958), 3.")
+        try await expect(objectGloss.locator(".mhra-citation-view")).toHaveText(
+          "\(work.author), \(work.title) (1958), p. 3.")
         try await expect(objectGloss.locator(".gloss-word-row").filter(hasText: "begins")).toHaveCount(1)
         try await page.keyboard.press("Escape")
 
