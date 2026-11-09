@@ -90,11 +90,12 @@ struct QuoteTests {
           quote.locator(".artifact-header-row .artifact-canvas-title .quote-source-tooltip-view")
         ).toHaveCount(1)
         let work = scratch.reading.work
-        // Its bubble: its testament's UUID alone (user, 2026-11-09: "be
-        // minimalist"), linked to the testament's row on the record's page,
-        // where the record's tree names it.
+        // Its bubble: its work's short note, author and title, unlinked,
+        // then its testament's UUID, the bubble's one link, to the
+        // testament's row on the record's page.
         let bubble = page.locator(".quote-source-tooltip-content").first
-        try await expect(bubble.locator(".chicago-citation-view")).toHaveCount(0)
+        try await expect(bubble.locator(".chicago-citation-view")).toContainText(work.title)
+        try await expect(bubble.locator(".chicago-citation-view a")).toHaveCount(0)
         let identifier = bubble.locator(".quote-source-tooltip-identifier")
         if try await identifier.count() > 0, let href = try await identifier.getAttribute("href") {
           #expect(href.hasPrefix("\(work.path)?frame=2#record-row-"), "the UUID links to its testament's row: \(href)")
