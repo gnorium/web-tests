@@ -15,8 +15,9 @@ import WebTestsTesting
 @Suite("Date range picker", .serialized)
 struct DateRangePickerTests {
   static let list = "/mission-control/madrigals/bibliographic"
-  /// The column the filter asks of: ID, Title, Status, Created by, Created on.
-  static let createdOnColumn = 5
+  /// The column the filter asks of: ID, Title, Status, Testament ID, Created
+  /// by, Created on (the node column since 2026-10-31).
+  static let createdOnColumn = 6
   /// Each layout in each zone; Chrome only, which emulates a zone.
   static let cases: [(Layout, String)] = Layout.allCases.flatMap { layout in
     ["Asia/Kolkata", "America/New_York", "Asia/Kathmandu"].map { (layout, $0) }
@@ -42,7 +43,9 @@ struct DateRangePickerTests {
       let row = page.locator(".filter-bar-row").first
       let fields = try await row.locator(".filter-bar-field-picker .dropdown-option").allTextContents()
         .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-      #expect(fields == ["ID", "Title", "Status", "Created by", "Created on", "Created at"], "fields: \(fields)")
+      #expect(
+        fields == ["ID", "Title", "Status", "Testament ID", "Created by", "Created on", "Created at"],
+        "fields: \(fields)")
 
       try await row.locator(".filter-bar-field-picker .dropdown-trigger").click()
       try await row.locator(".filter-bar-field-picker .dropdown-option").filter(hasText: "Created on", exact: true).click()
