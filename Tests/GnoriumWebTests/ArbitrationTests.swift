@@ -100,7 +100,9 @@ struct ArbitrationTests {
         try await page.locator("#thread-locution-body").fill("@gnorium Hi")
         try await page.locator(".thread-submit").click()
         try await expect(page.locator(".locution-view"), timeout: .seconds(15)).toHaveCount(1)
-        try await expect(page.locator(".locution-call-page")).toHaveCount(0)
+        // Its byline names the frame its writer was on (user, 2026-10-17),
+        // ticked or not; it reads none.
+        try await expect(page.locator(".locution-call-page")).toHaveText("Frame 2")
         #expect(try TestAdmin.query("""
           SELECT count(*) FROM locutions WHERE locutable_id = '\(objectID)' AND kind = 'call' AND query = 'Hi'
             AND evidence_id IS NULL AND metadata_ids IS NULL AND prompt_ids IS NULL AND locution_ids IS NULL
@@ -135,22 +137,23 @@ struct ArbitrationTests {
         try await page.openHydrated(reading.path)
         try await expect(page.locator(".prompt-previews-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
-        // The admin's roster: the explicated page has no checkbox, the
-        // blank ones do.
+        // The admin's roster: the explicated page, not yet integrated, keeps
+        // its box—its Commit integrates it (user, 2026-10-24); the blank
+        // ones keep theirs for explication.
         let rows = page.locator("#madrigal-frames .roster-row")
         try await expect(rows).toHaveCount(3)
-        try await expect(rows.nth(0)).toHaveAttribute("data-locked", "true")
-        try await expect(rows.nth(0).locator(".checkbox-icon-wrapper")).toBeHidden()
-        try await expect(rows.nth(0).locator(".checkbox-input")).toBeDisabled()
+        try await expect(rows.nth(0)).toHaveAttribute("data-locked", "false")
+        try await expect(rows.nth(0).locator(".checkbox-icon-wrapper")).toBeVisible()
+        try await expect(rows.nth(0).locator(".checkbox-input")).toBeEnabled()
         try await expect(rows.nth(1)).toHaveAttribute("data-locked", "false")
         try await expect(rows.nth(1).locator(".checkbox-icon-wrapper")).toBeVisible()
-        // Its checkbox's column kept, the locked row's ordinal, mark and
-        // label line up with an unlocked row's (user, 2026-10-10).
+        // Its checkbox's column kept, every row's ordinal, mark and label
+        // line up (user, 2026-10-10).
         #expect(try await page.evaluate("""
           (() => { const rows = document.querySelectorAll('#madrigal-frames .roster-row')
             const x = (row, s) => row.querySelector(s).getBoundingClientRect().left
             return ['.roster-marker', '.roster-status', '.roster-label'].every(s => x(rows[0], s) === x(rows[1], s)) })()
-          """, as: Bool.self), "Locked and unlocked rows align")
+          """, as: Bool.self), "Explicated and blank rows align")
         let call = page.locator("#locution-\(callID)")
         // No status chip; its Commit under its words, above its reactions,
         // where an act's verdicts stand (user, 2026-10-11).
@@ -487,6 +490,9 @@ struct ArbitrationTests {
         // deltas folded and drawn once, the handle dragged smoothly, the bar
         // there before the frames are.
         try await expectReplayScrub(page, path: reading.path, replyID: replyID)
+        // Freshly loaded, the reply opens folded again: unfolded to read on.
+        if try await reply.getAttribute("data-collapsed") == "true" { try await reply.locator(".locution-collapse").click() }
+        try await expect(reply).toHaveAttribute("data-collapsed", "false")
         // The page image in the task prompt as the model received it (user,
         // 2026-10-17): one stage at the message's whole width, zoomed in
         // place—no chip, thumbnail, name or lightbox, no loose lines under
@@ -684,7 +690,9 @@ struct ArbitrationTests {
         // The Continue, an act of the thread.
         let act = page.locator(".thread-event-line").filter(hasText: "continued locution \(callID)")
         try await expect(act).toHaveCount(1)
-        try await expect(act).not.toContainText("instance")
+        // Its instance word drawn and hidden until a second instance
+        // (user, 2026-10-24).
+        try await expect(act.locator(".thread-event-instance")).toBeHidden()
         // Waiting again: its Continue drawn hidden, shown only should it fail
         // as the page watches—without a reload.
         try await expect(resumed.locator(".locution-continue")).toBeHidden()
@@ -817,9 +825,9 @@ struct ArbitrationTests {
       }
       """)
     try await page.openHydrated(path + "?pace=1#pace-test")
-    // Drawn hidden in the reply's bar; the bar moves to the foot of the
-    // page's content column once Replay is pressed.
-    let group = page.locator("\(reply) .playback-bar-view .playback-speed-view, .layout-content-area > .playback-bar-view .playback-speed-view")
+    // Drawn hidden in the reply's bar, which stays at its session's end
+    // once Replay is pressed (user, 2026-10-29).
+    let group = page.locator("\(reply) .playback-bar-view .playback-speed-view")
     try await expect(group).toHaveCount(1)
     try await expect(group).toBeHidden()
     try await expect(group).toHaveAttribute("role", "group")
@@ -838,7 +846,7 @@ struct ArbitrationTests {
             if (text.includes('Pace ' + word + '.') && !window.__paced[word]) {
               window.__paced[word] = performance.now()
               const speed = { one: '2', two: '4' }[word]
-              if (speed) document.querySelector('.layout-content-area > .playback-bar-view .playback-speed-view [data-value="' + speed + '"]').click()
+              if (speed) document.querySelector('\(reply) .playback-bar-view .playback-speed-view [data-value="' + speed + '"]').click()
             }
         }).observe(content, { childList: true, subtree: true, characterData: true })
         return true })()
@@ -872,9 +880,10 @@ struct ArbitrationTests {
   /// Replay's seek bar (user, 2026-10-21) on the reply's replay, its stream
   /// the test's stand-in (at `#seek-test`): frames recorded 0, 60 and 120
   /// seconds in, a model call starting at 0 and at 60. Drawn hidden in the
-  /// reply until Replay is pressed; then a bar at the end of the page's
-  /// content area (`.layout-content-area`), sticky at the foot of the viewport
-  /// over the page's content, holding Pause, the track, the clock, the
+  /// reply until Replay is pressed; then shown where it is drawn, at its
+  /// session's end, sticky 24 above the viewport's foot while the transcript
+  /// is read and at rest above the Drumrolls past it (user, 2026-10-29),
+  /// holding Pause, the track, the clock, the
   /// speed and a close ×: "0:0x / 2:00", a slider "Replay position" to
   /// 120000 with one tick (the second call), and Pause. Escape leaves it
   /// playing. The arrows seek 5s: twelve
@@ -919,20 +928,23 @@ struct ArbitrationTests {
       }
       """)
     try await page.openHydrated(path + "?seek=1#seek-test")
+    // A reply opens folded; its Replay, and the bar that stays in its
+    // session (user, 2026-10-29), are read once it is unfolded.
+    let folded = page.locator(reply)
+    if try await folded.getAttribute("data-collapsed") == "true" { try await folded.locator(".locution-collapse").click() }
+    try await expect(folded).toHaveAttribute("data-collapsed", "false")
     let session = page.locator("\(reply) .computorium-session-view")
-    // Drawn hidden with the reply; moved, once shown, to the page's
-    // content column.
+    // Drawn hidden with the reply, and shown there (user, 2026-10-29).
     try await expect(page.locator("\(reply) .playback-bar-view")).toHaveCount(1)
     try await expect(page.locator("\(reply) .playback-bar-view")).toBeHidden()
     try await expect(page.locator(".playback-bar-view:not([hidden])")).toHaveCount(0)
-    let seek = page.locator(".layout-content-area > .playback-bar-view")
+    let seek = page.locator("\(reply) .playback-bar-view")
     let slider = seek.locator(".playback-bar-slider")
     let toggle = seek.locator(".playback-bar-toggle")
     let time = seek.locator(".playback-bar-time")
     let close = seek.locator(".playback-bar-close")
     _ = try await page.locator("\(reply) .replay-btn").evaluate("el => el.click()")
     try await expect(seek).toBeVisible()
-    try await expect(page.locator("\(reply) .playback-bar-view")).toHaveCount(0)
     // One bar, holding all of playback: Pause, track, clock, speed, ×.
     try await expect(page.locator(".playback-bar-view:not([hidden])")).toHaveCount(1)
     try await expect(seek.locator(".playback-speed-view")).toHaveCount(1)
@@ -945,33 +957,25 @@ struct ArbitrationTests {
         : e.classList.contains('playback-bar-close') ? 'close' : 'other').join(' ')
       """).string
     #expect(parts == "toggle slider time speed close", Comment(rawValue: parts ?? "—"))
-    // Sticky at the foot of the viewport over the page, within the
-    // content column, wherever the reader has scrolled to.
+    // While its transcript is read, sticky 24 above the viewport's foot
+    // within its session (user, 2026-10-29).
     let placed = try await seek.evaluate("""
       el => { const s = getComputedStyle(el)
-        window.scrollTo(0, 0)
+        el.parentElement.scrollIntoView({ block: 'start' })
         const r = el.getBoundingClientRect(), column = el.parentElement.getBoundingClientRect()
-        return s.position === 'sticky' && Number(s.zIndex) > 0
+        return s.position === 'sticky' && s.bottom === '24px' && Number(s.zIndex) > 0
           && r.top >= 0 && r.bottom <= innerHeight + 1
           && r.left >= column.left - 1 && r.right <= column.right + 1 }
       """).bool
-    #expect(placed == true, "The bar sticks to the viewport's foot within the content column")
-    // At rest at the page's end, one space above it and below it, to the
-    // footer's rule (user, 2026-10-21).
-    let spaces = try await seek.evaluate("""
-      el => { const section = document.querySelector('.page-section')
-        section.style.minHeight = (2 * innerHeight) + 'px'
-        window.scrollTo(0, document.documentElement.scrollHeight)
-        let above = el.previousElementSibling
-        while (above && above.getBoundingClientRect().height === 0) above = above.previousElementSibling
-        const bar = el.getBoundingClientRect(), footer = document.querySelector('.layout-footer').getBoundingClientRect()
-        const result = [bar.top - above.getBoundingClientRect().bottom, footer.top - bar.bottom]
-        section.style.minHeight = ''
-        window.scrollTo(0, 0)
-        return result }
-      """)
-    let above = spaces[0].double ?? -1, below = spaces[1].double ?? -2
-    #expect(above > 0 && abs(above - below) <= 1, "Equal space above and below the bar: \(above) / \(below)")
+    #expect(placed == true, "The bar sticks 24 above the viewport's foot within its session")
+    // Scrolled past, it rests in the page's flow at its session's end,
+    // above the Drumrolls (user, 2026-10-29).
+    let rests = try await seek.evaluate("""
+      el => { const drumroll = document.querySelector('[id^="drumroll-"]')
+        return !drumroll || (el.compareDocumentPosition(drumroll) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0 }
+      """).bool
+    #expect(rests == true, "The bar rests above the Drumrolls")
+    _ = try await page.evaluate("(() => { window.scrollTo(0, 0); return true })()", as: Bool.self)
     // Escape never stops it: only × closes.
     try await toggle.focus()
     try await page.keyboard.press("Escape")
@@ -1128,8 +1132,13 @@ struct ArbitrationTests {
       }
       """)
     try await page.openHydrated(path + "?scrub=1#scrub-test")
+    // A reply opens folded; its Replay, and the bar that stays in its
+    // session (user, 2026-10-29), are read once it is unfolded.
+    let folded = page.locator(reply)
+    if try await folded.getAttribute("data-collapsed") == "true" { try await folded.locator(".locution-collapse").click() }
+    try await expect(folded).toHaveAttribute("data-collapsed", "false")
     let session = page.locator("\(reply) .computorium-session-view")
-    let seek = page.locator(".layout-content-area > .playback-bar-view")
+    let seek = page.locator("\(reply) .playback-bar-view")
     let slider = seek.locator(".playback-bar-slider")
     let toggle = seek.locator(".playback-bar-toggle")
     let time = seek.locator(".playback-bar-time")
@@ -1143,7 +1152,7 @@ struct ArbitrationTests {
     _ = try await page.locator("\(reply) .replay-btn").evaluate("el => el.click()")
     try await expect(seek, timeout: .milliseconds(1000)).toBeVisible()
     let before = try await page.evaluate("""
-      (() => { const bar = document.querySelector('.layout-content-area > .playback-bar-view')
+      (() => { const bar = document.querySelector('\(reply) .playback-bar-view')
         return [performance.now() - window.__pressedAt, bar.dataset.replayDurationMs ?? '',
           bar.querySelector('.playback-bar-slider').getAttribute('aria-valuemax')] })()
       """)
@@ -1172,7 +1181,7 @@ struct ArbitrationTests {
     var landed = ""
     for key in ["Home", "End", "PageDown"] {
       let result = try await page.evaluate("""
-        (async () => { const slider = document.querySelector('.layout-content-area > .playback-bar-view .playback-bar-slider')
+        (async () => { const slider = document.querySelector('\(reply) .playback-bar-view .playback-bar-slider')
           slider.focus()
           const start = performance.now()
           slider.dispatchEvent(new KeyboardEvent('keydown', { key: '\(key)', bubbles: true }))
@@ -1349,8 +1358,10 @@ struct ArbitrationTests {
         let roster = page.locator("#madrigal-frames")
         let rows = roster.locator(".roster-row")
         try await expect(rows).toHaveCount(4)
-        // Commit mode: the three read pages locked, the blank one ticked for.
-        try await expect(rows.nth(0).locator(".checkbox-icon-wrapper")).toBeHidden()
+        // Commit mode: the three read pages, not yet integrated, keep their
+        // boxes—a Commit integrates them (user, 2026-10-24); the blank one
+        // is ticked for explication.
+        try await expect(rows.nth(0).locator(".checkbox-icon-wrapper")).toBeVisible()
         try await expect(rows.nth(3).locator(".checkbox-icon-wrapper")).toBeVisible()
         let body = page.locator("#thread-locution-body")
         try await body.focus()
@@ -1368,7 +1379,7 @@ struct ArbitrationTests {
         try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked()
         try await rows.nth(2).locator("input").click()
         try await expect(rows.nth(2).locator(".checkbox-input")).toBeChecked(false)
-        try await expect(page.locator(".field-validation-message-view")).toContainText("Tick one frame, or two in a row.")
+        try await expect(page.locator(".field-validation-message-view:not(.options-status-view *)")).toContainText("Tick one frame, or two in a row.")
         try await rows.nth(1).locator("input").click()
         try await expect(rows.nth(1).locator(".checkbox-input")).toBeChecked()
         // A tick keeps the box focused and the roster attaching (user,
@@ -1381,7 +1392,7 @@ struct ArbitrationTests {
         // "@gnorium" typed.
         try await page.locator(".thread-title, h3").first.click()
         try await expect(roster).toHaveAttribute("data-mode", "commit")
-        try await expect(rows.nth(0).locator(".checkbox-icon-wrapper")).toBeHidden()
+        try await expect(rows.nth(0).locator(".checkbox-icon-wrapper")).toBeVisible()
         try await expect(rows.nth(0).locator(".checkbox-input")).toBeChecked(false)
         try await expect(rows.nth(0).locator(".checkbox-input")).toHaveAttribute("form", "commit-form")
         try await expect(rows.nth(3).locator(".checkbox-icon-wrapper")).toBeVisible()
@@ -1656,11 +1667,11 @@ struct ArbitrationTests {
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
         // The process after Arbitration: the overture's page's calibration,
-        // filled; the epilogue's completed translation sends nothing, so it
-        // has no accordion (user, 2026-10-17).
+        // filled; the open epilogue's translation, the vignette in force, as
+        // every open object shows its process's (user, 2026-11-06).
         let cases: [(String, String?, String)] = [
           (scratch.overturePath, "Calibration", "bibliographic_arbitration"),
-          ("/mission-control/epilogues/lexicographic/\(epilogue)?process=translation", nil, "lexicographic_arbitration"),
+          ("/mission-control/epilogues/lexicographic/\(epilogue)?process=translation", "Translation", "lexicographic_arbitration"),
         ]
         for (path, process, slot) in cases {
           try await page.openHydrated(path)
@@ -1677,14 +1688,20 @@ struct ArbitrationTests {
             // One accordion a process, its three nested (user, 2026-10-10).
             try await expect(sections.nth(index).locator("#\(id) .prompt-preview-title-words").first).toHaveText(name)
             try await expect(sections.nth(index).locator("#\(id)")).toHaveAttribute("data-expanded", "false")
-            try await expect(sections.nth(index).getByText("System Prompt", exact: true)).toHaveCount(1)
+            // Its own prompts; a process with an Integration (Calibration)
+            // nests the Integration's System and Task Prompt in their own
+            // accordion (user, 2026-10-30), read apart from these.
+            let own = ":not(.prompt-preview-integration *)"
+            let titles = sections.nth(index).locator(".prompt-preview-title-words\(own)")
+            try await expect(titles.filter(hasText: "System Prompt")).toHaveCount(1)
+            try await expect(sections.nth(index).locator("[id^='prompt-preview-integration-system'] .prompt-preview-title-words"))
+              .toHaveCount(name == "Calibration" ? 1 : 0)
             // Its task filled as sent, or its template where none can be,
             // and its autocompaction prompt, one text with no variables
             // (user, 2026-10-24); a template lists its variables.
-            let titles = sections.nth(index).locator(".prompt-preview-title-words")
             try await expect(titles.filter(hasText: "Task Prompt")).toHaveCount(1)
             try await expect(titles.filter(hasText: "Template")).toHaveCount(0)
-            try await expect(sections.nth(index).locator(".prompt-variables-view")).toHaveCount(filled ? 0 : 1)
+            try await expect(sections.nth(index).locator(".prompt-variables-view\(own)")).toHaveCount(filled ? 0 : 1)
             try await expect(sections.nth(index).getByText("Autocompaction Prompt", exact: true)).toHaveCount(1)
           }
           // Its Revise page holds no prompt: a process's prompts are revised
