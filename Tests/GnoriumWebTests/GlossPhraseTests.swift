@@ -67,9 +67,9 @@ struct GlossPhraseTests {
         try await expect(title.locator("a.record-label-title")).toHaveAttribute("href", word.path)
         let details = sheet.locator(".gloss-view")
         let term = details.locator(".metadata-group-view").first
-        // Its language and class are the header's, not rows again (user, 2026-11-01).
-        try await expect(term.locator(".datum-label")).toHaveTexts(["Lemma"])
-        try await expect(term.locator(".datum-value")).toHaveTexts(["kick the bucket"])
+        // Its lemma and its class (user, 2026-11-09); its language heads the card.
+        try await expect(term.locator(".datum-label")).toHaveTexts(["Lemma", "Class"])
+        try await expect(term.locator(".datum-value")).toHaveTexts(["kick the bucket", "Idiom"])
         try await expect(details.locator(".node-value-view[data-current='true'] .node-value-text:not([data-native])"))
           .toHaveText("A leaf sense.")
         // Its words, the one opened expanded, each with its own gloss.
@@ -78,15 +78,10 @@ struct GlossPhraseTests {
         try await expect(rows.locator(".accordion-summary")).toHaveTexts(["kicked", "the", "bucket"])
         try await expect(rows.nth(1).locator(".gloss-word")).toBeVisible()
         try await expect(rows.nth(0).locator(".gloss-word")).toBeHidden()
-        // The phrase's attributes read in name order (`TEIEncoding`): class, then lemma, then
-        // its xml:id, what its assignment names it by.
-        try await expect(rows.nth(1).locator(".datum-label")).toHaveTexts([
-          "Language", "Lemma", "Class", "Morphology", "Phrase", "Phrase class", "Phrase lemma",
-          "Phrase identifier", "Lexico-record",
-        ])
-        try await expect(rows.nth(1).locator(".datum-value")).toHaveTexts([
-          "English", "the", "Article", "—", "kicked the bucket", "Idiom", "kick the bucket", "webtests-phrase", "—",
-        ])
+        // Each word what a reader reads of it (user, 2026-11-09): its lemma
+        // and its class; the phrase's markup is the phrase's card, never its rows.
+        try await expect(rows.nth(1).locator(".datum-label")).toHaveTexts(["Lemma", "Class", "Lexico-record"])
+        try await expect(rows.nth(1).locator(".datum-value")).toHaveTexts(["the", "Article", "—"])
         // A popover at most 320 tall (user, 2026-11-01): its body scrolls,
         // its header with its close button stays.
         if layout == .desktop {

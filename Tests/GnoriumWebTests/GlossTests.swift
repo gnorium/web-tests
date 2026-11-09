@@ -130,14 +130,12 @@ struct GlossTests {
         // heading, the header names it (user, 2026-11-01).
         let term = details.locator(".metadata-group-view").first
         try await expect(term.locator(".metadata-group-title")).toHaveCount(0)
-        // Its xml:id last: what its sentiment's assignment names it by.
-        // Its language and class are the header's, not rows again.
-        try await expect(term.locator(".datum-label")).toHaveTexts([
-          "Lemma", "Number", "Identifier",
-        ])
-        try await expect(term.locator(".datum-value")).toHaveTexts([
-          "scratchword", "Plural", "webtests-scratchwords",
-        ])
+        // What a reader reads (user, 2026-11-09): its lemma and its class
+        // with its features on one line; never its zone, its identifier or
+        // its encoding, which the XML view shows. Its language heads the card.
+        try await expect(term.locator(".datum-label")).toHaveTexts(["Lemma", "Class"])
+        try await expect(term.locator(".datum-value")).toHaveTexts(["scratchword", "Noun, plural"])
+        try await expect(details.locator(".metadata-group-title").filter(hasText: "Encoding")).toHaveCount(0)
         // Only the lemma links, to the record.
         try await expect(term.locator(".datum-value a")).toHaveCount(1)
         try await expect(term.locator(".datum-value a")).toHaveAttribute("href", english.path)
@@ -188,7 +186,7 @@ struct GlossTests {
         try await expect(title.locator(".record-label-meta")).toHaveText("Verb")
         try await expect(title.locator("a")).toHaveCount(0)
         try await expect(details.locator(".metadata-group-view").first.locator(".datum-value")).toHaveTexts([
-          "stand", "Past",
+          "stand", "Verb, past",
         ])
         try await expect(details.locator(".record-view")).toHaveCount(0)
         try await expect(details.locator(".metadata-group-title").filter(hasText: "Lexico-record")).toHaveCount(0)
