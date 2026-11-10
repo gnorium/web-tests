@@ -194,7 +194,8 @@ struct SentenceSelectionTests {
         try await expect(box.locator("input[name='quote-s1-start-frame']")).toHaveValue("1,1")
 
         // Its first sentence holds no form (user, 2026-11-03): a Submit is
-        // refused, the message at the bottom of the node; a form clears it.
+        // refused, the message at the end of its own Quote card (user,
+        // 2026-11-10); a form clears it.
         try await page.addForm(in: box, from: Self.word("w1.7"))
         let refused = try await box.evaluate(
           """
@@ -205,7 +206,7 @@ struct SentenceSelectionTests {
         #expect(refused == true, "a quote whose first sentence holds no form is refused")
         let message = page.locator(".submit-sentiment-form .node-message")
         try await expect(message).toHaveText(
-          "Add a form in the first and the last sentence of each quote, or let those sentences go.")
+          "Add a form in the first and the last sentence of this quote, or let those sentences go.")
         try await page.addForm(in: box, from: Self.word("w1.4"))
         try await expect(message).toHaveCount(0)
         try await expect(forms).toHaveValue(#"[[["w1.4"],["w1.7"]]]"#)
