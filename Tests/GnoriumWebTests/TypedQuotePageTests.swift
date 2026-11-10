@@ -3,12 +3,11 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A typed quote by a Source URL takes a Page (user, 2026-11-05): its
-/// reader's header names the frame on screen ("326"), so the page printed
-/// there ("318") is typed into its Source's Pages, open for a URL's typed
-/// quote as for a sourceless work's; kept with the quote when it is
-/// submitted, and drawn read-only wherever the quote is drawn. A throwaway
-/// admin owns every row, removed after.
+/// A typed quote by a Source URL names its Frame (user, 2026-11-10: "rename
+/// it to Frame", a frame may hold more than one page and not every page
+/// prints a number): the frame its reader is turned to, by its number among
+/// the source's images, shown frozen in its Source box and never typed.
+/// Pages as printed are typed only where a source has no frames.
 @Suite("Typed quote page", .serialized)
 struct TypedQuotePageTests {
   static let sentimentForm = "/mission-control/submit/lexicographic/sentiment"
@@ -62,19 +61,16 @@ struct TypedQuotePageTests {
         try await box.locator("input[name='quote-s1-source-url']").fill(source)
         // Its frames and the text pane its quote is typed in, one reader.
         try await expect(box.locator(".quote-passage-reader .quote-passage-text"), timeout: .seconds(20)).toBeVisible()
-        // Its Pages typed, as a sourceless work's: a frame's number is not
-        // the page printed on it.
-        let pages = box.locator(".quote-passage-pages")
-        try await expect(pages).toBeVisible()
-        try await expect(box.locator(".quote-passage-pages-held")).toBeHidden()
-        let row = pages.locator("[data-item-section='true']:not([data-item-template] *)").first
-        let field = row.locator("input[name$='-text-input']").first
-        try await expect(field).toBeEnabled()
-        try await expect(field).toHaveAttribute("placeholder", "Page")
+        // Its Frame, its reader's own (user, 2026-11-10: "rename it to
+        // Frame"): a source with frames names the frame each quote is on,
+        // frozen, never typed; Pages are a source with no frames' alone.
+        try await expect(box.locator(".quote-passage-pages")).toBeHidden()
+        let field = box.locator(".quote-passage-pages-held input").first
+        try await expect(field).toBeVisible()
+        try await expect(field).toBeDisabled()
+        try await expect(field).toHaveAttribute("placeholder", "Frame")
         // Its label, a text field's own (`TextInputView`), the placeholder's words.
-        try await expect(row.locator(".text-input-label").first).toHaveText("Page")
-        try await field.fill("318")
-        try await expect(field).toHaveValue("318")
+        try await expect(box.locator(".quote-passage-pages-held .text-input-label").first).toHaveText("Frame")
         try await page.expectNoHorizontalOverflow()
 
         // The rest of the sentiment.
@@ -101,8 +97,8 @@ struct TypedQuotePageTests {
         try await expect(card.locator(".quote-typed-word[data-highlight='title']")).toHaveText("web")
         try await expect(box.locator("input[name='quote-s1-quote']")).toHaveValue("A web tests quote.")
         try await expect(box.locator("input[name='quote-s1-start-frame']")).toHaveValue("2")
-        // Its page kept through it all.
-        try await expect(field).toHaveValue("318")
+        // Its Frame the frame its reader was turned to.
+        try await expect(field).toHaveValue("2")
         // A source Gnorium lacks gives its Title, Language and Class, and
         // its Provider (user, 2026-11-08: never inferred).
         _ = try await box.evaluate(
@@ -122,7 +118,7 @@ struct TypedQuotePageTests {
         let sentiment = try TestAdmin.query(
           "SELECT sentiment_json FROM lexicographic_figurants WHERE title_form_json::json ->> 'title' = '\(title)'")
         #expect(sentiment.contains(#""pending""#) && sentiment.contains(#""images":[2]"#), "\(sentiment)")
-        #expect(sentiment.contains(#""pages":["318"]"#), "its page: \(sentiment)")
+        #expect(!sentiment.contains(#""pages""#), "no page typed: \(sentiment)")
         try await page.expectNoErrors(ignoring: ["/page-"])
       }
     } catch {
@@ -162,13 +158,16 @@ struct TypedQuotePageTests {
         try await expect(pending, timeout: .seconds(15)).toBeAttached()
         let fields = pending.locator(".quote-source-fields")
         try await expect(fields.locator("input[placeholder='URL']")).toHaveValue(source)
-        let printed = fields.locator("input[placeholder='Pages']")
-        try await expect(printed).toHaveCount(1)
-        try await expect(printed).toHaveValue("318")
-        try await expect(printed).toBeDisabled()
-        try await expect(fields.locator(".text-input-view:has(input[placeholder='Pages']) .text-input-label")).toHaveText("Pages")
+        // Its Frame, the frame it is on (user, 2026-11-10), never the
+        // page typed with it before frames named a quote's place.
+        let frame = fields.locator("input[placeholder='Frame']")
+        try await expect(frame).toHaveCount(1)
+        try await expect(frame).toHaveValue("326")
+        try await expect(frame).toBeDisabled()
+        try await expect(fields.locator(".text-input-view:has(input[placeholder='Frame']) .text-input-label")).toHaveText("Frame")
+        try await expect(fields.locator("input[placeholder='Pages']")).toHaveCount(0)
         // Marked added, as its URL is.
-        try await expect(fields.locator(".field-diff-view.diff-wrap-added:has(input[placeholder='Pages'])")).toHaveCount(1)
+        try await expect(fields.locator(".field-diff-view.diff-wrap-added:has(input[placeholder='Frame'])")).toHaveCount(1)
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
