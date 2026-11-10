@@ -187,9 +187,13 @@ struct TestamentLevelsTests {
   }
 
   /// A Reference's identifier links where its scheme resolves it, as it is
-  /// typed (user, 2026-11-08): the URL itself, a plain link that opens in a
-  /// new tab, under the identifier; gone as the identifier is cleared, and
-  /// for a scheme with no resolver.
+  /// typed (user, 2026-11-08): an open-link icon inside the identifier's
+  /// field that opens the URL in a new tab (user, 2026-11-10), right after
+  /// the identifier and not at the field's end (user, 2026-11-11: there
+  /// "it just gets missed"); gone as the identifier is cleared, and for a
+  /// scheme with no resolver. A row added by "+ Reference" links as the
+  /// first does, and its tooltips show as the first's do (user,
+  /// 2026-11-11: "none of the reference tooltips work on hover").
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aReferenceLinksWhereItsSchemeResolvesIt(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
@@ -211,8 +215,25 @@ struct TestamentLevelsTests {
         let url = "https://catalog.hathitrust.org/Record/001234567"
         try await expect(link).toBeVisible()
         try await expect(link.locator("a")).toHaveAttribute("href", url)
-        try await expect(link.locator("a")).toHaveText(url)
         try await expect(link.locator("a")).toHaveAttribute("target", "_blank")
+        // Right after the identifier: 8 from where its text ends, far from the field's end.
+        let gaps = try await page.evaluate("""
+          (() => {
+            const row = document.querySelector("[data-item-list='citation-number'] [data-item-section='true']:not([data-item-template] *)");
+            const input = row.querySelector("input[name='citation-number-item1-text-input']");
+            const link = row.querySelector(".identifier-link-view").getBoundingClientRect();
+            const style = getComputedStyle(input);
+            const canvas = document.createElement("canvas").getContext("2d");
+            canvas.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+            const box = input.getBoundingClientRect();
+            const textEnd = box.left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft) + canvas.measureText(input.value).width;
+            return JSON.stringify({after: Math.round(link.left - textEnd), toEnd: Math.round(box.right - link.right)});
+          })()
+          """).string ?? ""
+        let gap = try JSONSerialization.jsonObject(with: Data(gaps.utf8)) as? [String: Int] ?? [:]
+        #expect(abs((gap["after"] ?? -100) - 8) <= 2, "The icon is not right after the identifier: \(gaps)")
+        // At the field's end it stood 13 from the edge; a phone's field leaves it less room than a desktop's.
+        #expect((gap["toEnd"] ?? 0) > 24, "The icon is still at the field's end: \(gaps)")
         try await expect(row.locator(".link-external, .link-external-icon")).toHaveCount(0)
         // Cleared, it goes; a scheme with no resolver links nothing.
         try await identifier.fill("")
@@ -230,6 +251,14 @@ struct TestamentLevelsTests {
         try await added.locator("input[name='citation-number-item2-text-input']").fill("12345678")
         try await expect(added.locator(".identifier-link-view a"))
           .toHaveAttribute("href", "https://www.worldcat.org/oclc/12345678")
+        // Its tooltips are its own: a row cloned from a bound template is bound again.
+        let bubble = page.locator(".tooltip-view[data-portal='true'][data-visible='true'] .tooltip-content")
+        for index in 0..<2 {
+          try await added.locator(".combobox-label .tooltip-trigger, .text-input-label-row .tooltip-trigger").nth(index).hover()
+          try await expect(bubble).toBeVisible()
+          try await page.mouse.move(x: 0, y: 0)
+          try await expect(bubble).toHaveCount(0)
+        }
         try await page.expectNoHorizontalOverflow()
         try await page.expectNoErrors()
       }
