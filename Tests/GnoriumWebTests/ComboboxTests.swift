@@ -159,6 +159,14 @@ struct ComboboxTests {
       .toHaveValue("folger_shakespeare_library")
     try await expect(panel).toBeVisible()
     try await expect(panel.locator("input[id$='-info-institutionCity']")).toHaveValue("Washington")
+    // Its facts in an Information accordion, closed until it is opened (user, 2026-11-11).
+    let information = panel.locator(".form-info-accordion")
+    try await expect(information.locator("summary")).toContainText("Information")
+    try await expect(panel.locator("input[id$='-info-institutionCity']")).toBeHidden()
+    // The field's list still stands over it until the field is left.
+    _ = try await page.evaluate("document.activeElement.blur()")
+    try await information.locator("summary").click()
+    try await expect(panel.locator("input[id$='-info-institutionCity']")).toBeVisible()
     let typedHolding = "Web Tests Library \(suffix)"
     try await holdingField.fill(typedHolding)
     try await expect(holding.locator("input[name='holding-institution-dropdown']")).toHaveValue(typedHolding)

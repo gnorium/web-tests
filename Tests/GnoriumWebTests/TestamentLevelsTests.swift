@@ -253,8 +253,12 @@ struct TestamentLevelsTests {
           .toHaveAttribute("href", "https://www.worldcat.org/oclc/12345678")
         // Its tooltips are its own: a row cloned from a bound template is bound again.
         let bubble = page.locator(".tooltip-view[data-portal='true'][data-visible='true'] .tooltip-content")
-        for index in 0..<2 {
-          try await added.locator(".combobox-label .tooltip-trigger, .text-input-label-row .tooltip-trigger").nth(index).hover()
+        // Its Scheme's and its Identifier's (its scheme's Information is closed, its own hidden).
+        for trigger in [
+          added.locator(".combobox-label .tooltip-trigger").first,
+          added.locator(".text-input-view:has(input[name='citation-number-item2-text-input']) .tooltip-trigger").first,
+        ] {
+          try await trigger.hover()
           try await expect(bubble).toBeVisible()
           try await page.mouse.move(x: 0, y: 0)
           try await expect(bubble).toHaveCount(0)

@@ -199,7 +199,7 @@ struct SubmissionTests {
     let steps = TreeStepper(in: form, tree: TreeStepper.submission)
     #expect(!(try await steps.choices("remove")).contains("Remove testament 1."), "a manuscript's copy may go")
     try await expect(
-      row(tree, "copy").locator(".testament-metadata-citations[data-citations-slot='production'] \(citations)")
+      row(tree, "copy").locator(".testament-metadata-references[data-references-slot='production'] \(citations)")
     ).toBeVisible()
     // Printed: its edition back, the carrier and publication there; the
     // copy's making gone; the edition named as it is typed.
@@ -209,7 +209,7 @@ struct SubmissionTests {
     try await expect(edition.locator("#testament-carrier")).toHaveCount(1)
     try await expect(
       edition.locator(
-        ".activity-statement-view[data-as-namespace='publication'] [data-citations-slot='publication'] \(citations)")
+        ".activity-statement-view[data-as-namespace='publication'] [data-references-slot='publication'] \(citations)")
     ).toBeVisible()
     try await expect(row(tree, "copy").locator(".activity-statement-view[data-as-namespace='production']"))
       .toBeHidden()
