@@ -65,12 +65,18 @@ struct TypedQuotePageTests {
         // Frame"): a source with frames names the frame each quote is on,
         // frozen, never typed; Pages are a source with no frames' alone.
         try await expect(box.locator(".quote-passage-pages")).toBeHidden()
-        let field = box.locator(".quote-passage-pages-held input").first
+        let field = box.locator(
+          ".quote-passage-pages-held [data-item-section='true']:not([data-item-template] *) input[name$='-text-input']"
+        ).first
         try await expect(field).toBeVisible()
         try await expect(field).toBeDisabled()
         try await expect(field).toHaveAttribute("placeholder", "Frame")
         // Its label, a text field's own (`TextInputView`), the placeholder's words.
-        try await expect(box.locator(".quote-passage-pages-held .text-input-label").first).toHaveText("Frame")
+        try await expect(
+          box.locator(".quote-passage-pages-held [data-item-section='true']:not([data-item-template] *) .text-input-label").first
+        ).toHaveText("Frame")
+        // A frozen "+ Frame": its frames are its readers', never added by hand.
+        try await expect(box.locator(".quote-passage-pages-held .item-add-btn").first).toBeDisabled()
         try await page.expectNoHorizontalOverflow()
 
         // The rest of the sentiment.
@@ -160,14 +166,16 @@ struct TypedQuotePageTests {
         try await expect(fields.locator("input[placeholder='URL']")).toHaveValue(source)
         // Its Frame, the frame it is on (user, 2026-11-10), never the
         // page typed with it before frames named a quote's place.
-        let frame = fields.locator("input[placeholder='Frame']")
+        // (A diff compares a quote's frames as one field, "Frames", as it
+        // does its pages; a frozen box draws a "Frame" a frame.)
+        let frame = fields.locator("input[placeholder='Frames']")
         try await expect(frame).toHaveCount(1)
         try await expect(frame).toHaveValue("326")
         try await expect(frame).toBeDisabled()
-        try await expect(fields.locator(".text-input-view:has(input[placeholder='Frame']) .text-input-label")).toHaveText("Frame")
+        try await expect(fields.locator(".text-input-view:has(input[placeholder='Frames']) .text-input-label")).toHaveText("Frames")
         try await expect(fields.locator("input[placeholder='Pages']")).toHaveCount(0)
         // Marked added, as its URL is.
-        try await expect(fields.locator(".field-diff-view.diff-wrap-added:has(input[placeholder='Frame'])")).toHaveCount(1)
+        try await expect(fields.locator(".field-diff-view.diff-wrap-added:has(input[placeholder='Frames'])")).toHaveCount(1)
         try await page.expectNoHorizontalOverflow()
       }
     } catch {
