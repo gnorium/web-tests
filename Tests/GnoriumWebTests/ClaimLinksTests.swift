@@ -39,7 +39,7 @@ struct ClaimLinksTests {
 
       // A citation claiming the Copy field.
       try await view.locator(".outgoing-citations-actions .outgoing-citations-add").click()
-      let cards = view.locator(".outgoing-citations-list > .outgoing-citation")
+      let cards = view.locator(".outgoing-citations-list > .outgoing-citation-group")
       try await expect(cards).toHaveCount(1)
       let card = cards.first
       let claim = card.locator(".outgoing-citation-claim")

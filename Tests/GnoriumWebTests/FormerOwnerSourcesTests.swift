@@ -44,7 +44,7 @@ struct FormerOwnerSourcesTests {
       try await expect(add).toHaveText("Citation")
       try await expect(add).toHaveAttribute("aria-label", "Add citation")
       try await add.click()
-      let cards = view.locator(".outgoing-citations-list > .outgoing-citation")
+      let cards = view.locator(".outgoing-citations-list > .outgoing-citation-group")
       try await expect(cards).toHaveCount(1)
       let card = cards.first
       let claim = card.locator(".outgoing-citation-claim")
@@ -63,13 +63,13 @@ struct FormerOwnerSourcesTests {
       try await source.locator("input[name$='-source-url-title']").fill("A Catalogue of the Library")
       let quotes = source.locator(".quote-passage-quotes > .quote-passage-quote")
       try await expect(quotes).toHaveCount(1)
-      // After its Source accordion (user, 2026-11-10: "put quotes outside
-      // source accordion"), then its own row: "+ Quote", then
-      // "− Citation", a citation holding one source (user, 2026-11-03).
-      try await expect(source.locator(".source-accordion-view .quote-passage-quote")).toHaveCount(0)
+      // Inside its Source accordion (user, 2026-11-11: "quotes go back
+      // inside the source accordions"), then its own row: "+ Quote", then
+      // "− Source", its card holding "+ Source" and "− Citation".
+      try await expect(source.locator(".source-accordion-view .quote-passage-quote")).toHaveCount(1)
       try await expect(source.locator(".quote-passage-body > .quote-passage-quotes > .quote-passage-quote")).toHaveCount(1)
       try await expect(source.locator(".quote-passage-body .quote-passage-actions .button-label"))
-        .toHaveTexts(["Quote", "Citation"])
+        .toHaveTexts(["Quote", "Source"])
       let pane = quotes.first.locator(".quote-passage-text .tei-page-text")
       try await expect(pane, timeout: .seconds(15)).toBeAttached()
       // The I-beam over the text alone (user, 2026-11-05): its text and its
@@ -155,11 +155,13 @@ struct FormerOwnerSourcesTests {
       let retyped = try await json.evaluate("(i) => i.value").string ?? ""
       #expect(!retyped.contains("\"forms\""), "its stale form let go: \(retyped)")
 
-      // "− Citation" lets it go: a citation holds one source, never a
-      // "+ Source" (user, 2026-11-03).
+      // Its card holds "+ Source" and "− Citation" (user, 2026-11-11);
+      // its one source's "− Source" lets the source go, and its card with
+      // its last.
+      try await expect(card.locator(".outgoing-citation-card-actions .button-label")).toHaveTexts(["Source", "Citation"])
       let remove = card.locator(".quote-passage-actions .quote-passage-citation-remove")
-      try await expect(remove).toHaveText("Citation")
-      try await expect(remove).toHaveAttribute("aria-label", "Remove citation")
+      try await expect(remove).toHaveText("Source")
+      try await expect(remove).toHaveAttribute("aria-label", "Remove source")
       try await expect(card.locator(".quote-sources-add-btn, .quote-passage-source-remove")).toHaveCount(0)
       try await remove.click()
       try await expect(cards).toHaveCount(0)
@@ -186,7 +188,7 @@ struct FormerOwnerSourcesTests {
       try await page.locator("input[name='former-owner-item1-text-input']").fill("Sir Henry Cavendish")
       let view = page.locator(".outgoing-citations-view:has(#outgoing-citations-4)")
       try await view.locator(".outgoing-citations-actions .outgoing-citations-add").click()
-      let card = view.locator(".outgoing-citations-list > .outgoing-citation").first
+      let card = view.locator(".outgoing-citations-list > .outgoing-citation-group").first
       let claim = card.locator(".outgoing-citation-claim")
       try await claim.locator(".dropdown-trigger").click()
       try await claim.locator(".dropdown-option[data-value^='formerOwners:']").filter(visible: true).first.click()
@@ -241,7 +243,7 @@ struct FormerOwnerSourcesTests {
         try await page.locator("input[name='former-owner-item1-text-input']").fill("Sir Henry Bunbury")
         let view = page.locator(".outgoing-citations-view:has(#outgoing-citations-4)")
         try await view.locator(".outgoing-citations-actions .outgoing-citations-add").click()
-        let card = view.locator(".outgoing-citations-list > .outgoing-citation").first
+        let card = view.locator(".outgoing-citations-list > .outgoing-citation-group").first
         let source = card.locator(".evidence-source-view")
         try await expect(source.locator(".quote-passage-accessed, input[name$='-source-url-accessed']")).toHaveCount(0)
 

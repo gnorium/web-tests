@@ -159,7 +159,7 @@ struct OriginEvidenceTests {
         try await expect(add).toHaveText("Citation")
         try await expect(add).toHaveAttribute("aria-label", "Add citation")
         try await add.click()
-        let citation = second.locator(".outgoing-citations-list > .outgoing-citation")
+        let citation = second.locator(".outgoing-citations-list > .outgoing-citation-group")
         let card = citation.locator(".evidence-source-view")
         try await expect(card).toHaveCount(1)
         // Its record field in place (it is asked for as the box comes),

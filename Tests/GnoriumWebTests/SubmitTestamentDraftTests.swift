@@ -89,7 +89,7 @@ struct SubmitTestamentDraftTests {
       try await expect(title(second)).toHaveValue("Web tests origin two")
       try await expect(title(nested)).toHaveValue("Web tests origin two one")
       try await expect(title(third)).toHaveValue("Web tests origin three")
-      try await expect(field.locator(".origin-field-steps .record-node-number")).toHaveTexts(["1", "2", "2.1", "3"])
+      try await expect(field.locator(".origin-field-steps .record-node-number")).toHaveTexts(["1.", "2.", "2.1.", "3."])
       // 2.1 stands under origin 2.
       let parent = try await rows.nth(2).evaluate(
         "(row) => row.closest('.outliner-item').parentElement.closest('.outliner-item').querySelector('[data-origin-row]').dataset.originKey"
@@ -260,7 +260,7 @@ struct SubmitTestamentDraftTests {
       try await expect(title(second)).toHaveValue("Web tests origin two")
       try await expect(title(nested)).toHaveValue("Web tests origin two one")
       try await expect(title(third)).toHaveValue("Web tests origin three")
-      try await expect(field.locator(".origin-field-steps .record-node-number")).toHaveTexts(["1", "2", "2.1", "3"])
+      try await expect(field.locator(".origin-field-steps .record-node-number")).toHaveTexts(["1.", "2.", "2.1.", "3."])
       try await expect(origins.addButton).toHaveAttribute("aria-label", "Add origin 4.")
       try await expect(voices).toHaveCount(2)
       try await expect(page.locator("input[name='work-voice-item2-text-input']")).toHaveValue("Web tests Voice Two")

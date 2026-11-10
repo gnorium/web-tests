@@ -104,15 +104,14 @@ struct OriginFormStampTests {
       let card = source.locator(".quote-passage-quotes > .quote-passage-quote").first
       try await expect(card.locator(":scope > .quote-passage-reader")).toHaveCount(1)
       try await expect(card.locator("input[name$='-certainty']")).toHaveCount(1)
-      // The Source's own fields ask none: its accordion holds its fields
-      // alone, its Quote cards after it (user, 2026-11-10: "put quotes
-      // outside source accordion"), and the card's is the Source's one.
-      try await expect(source.locator(".source-accordion-view input[name$='-certainty']")).toHaveCount(0)
-      try await expect(source.locator(".source-accordion-view .quote-passage-quote")).toHaveCount(0)
+      // The Source's own fields ask none: the card's, inside its
+      // accordion after them (user, 2026-11-11), is the Source's one.
+      try await expect(source.locator(".quote-passage-fields input[name$='-certainty']")).toHaveCount(0)
+      try await expect(source.locator(".source-accordion-view .quote-passage-quote")).toHaveCount(1)
       try await expect(source.locator("input[name$='-certainty']")).toHaveCount(1)
-      // A new card's row: "+ Quote", then "− Citation".
+      // A new source's row: "+ Quote", then "− Source".
       let remove = citation.locator(".quote-passage-actions .quote-passage-citation-remove")
-      try await expect(remove).toHaveText("Citation")
+      try await expect(remove).toHaveText("Source")
       try await remove.click()
       try await expect(field.locator(".outgoing-citation")).toHaveCount(0)
     }

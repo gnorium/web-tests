@@ -761,7 +761,7 @@ struct OriginTests {
       try await expect(rows).toHaveCount(2)
       let second = rows.nth(1)
       // Numbered as the first is: "2." before its title.
-      try await expect(second.locator(".record-node-number")).toHaveText("2")
+      try await expect(second.locator(".record-node-number")).toHaveText("2.")
       // Its record field is asked for once it is on the page: settled, the
       // row stops moving what is under it.
       try await expect(second.locator(".origin-record-field-view")).toHaveCount(1)
@@ -808,7 +808,7 @@ struct OriginTests {
       try await secondType.locator(".dropdown-trigger").click()
       try await secondType.locator(".dropdown-search-input .search-input").fill("Treatise")
       try await secondType.locator(".dropdown-option[data-value='treatise']").filter(visible: true).first.click()
-      let secondDate = second.locator(".origin-field-typed > .form-date-view")
+      let secondDate = second.locator(".origin-field-typed .form-date-view")
       try await expect(secondDate).toHaveCount(1)
       let yearEnd = secondDate.locator("input[name='\(secondKey)-year-end']")
       try await expect(yearEnd).toBeHidden()
@@ -839,7 +839,7 @@ struct OriginTests {
       // Flush with it, no card round it and no indent (user, 2026-11-03).
       #expect(indent == 0, "a step under a step stands flush with it, not \(String(describing: indent))px in")
       try await expect(nested.first.locator(".origin-record-field-view")).toHaveCount(1)
-      try await expect(nested.first.locator(".record-node-number")).toHaveText("2.1")
+      try await expect(nested.first.locator(".record-node-number")).toHaveText("2.1.")
       // The steppers name it, and the places round it.
       #expect(try await stepper.choices("remove") == ["Remove origin 1.", "Remove origin 2.", "Remove origin 2.1."])
       #expect(
@@ -1155,7 +1155,7 @@ struct OriginTests {
       let wordType = wordRow.locator(".dropdown-view:has(#\(wordKey)-type)")
       try await expect(wordType.locator(".dropdown-option[data-value='verb']")).toHaveCount(1)
       try await expect(wordType.locator(".dropdown-option[data-value='other']")).toHaveCount(0)
-      try await expect(wordRow.locator(".origin-field-typed > .form-date-view")).toHaveCount(1)
+      try await expect(wordRow.locator(".origin-field-typed .form-date-view")).toHaveCount(1)
     }
   }
 }

@@ -17,6 +17,10 @@ struct QuoteXMLNumbersTests {
     let count: Int
     let numbers: [String]
     let before: [String]
+    /// An editor's own gutter, a number a line: a typed quote's XML is
+    /// edited (user, 2026-11-10), and an editor numbers its lines there,
+    /// its lines' own `::before` drawing none.
+    let gutter: [String]
   }
 
   /// The code lines of `card`'s XML: how many, each one's number, and what
@@ -30,6 +34,7 @@ struct QuoteXMLNumbersTests {
           count: lines.length,
           numbers: lines.map((line) => line.getAttribute('data-code-number') || ''),
           before: lines.map((line) => getComputedStyle(line, '::before').content),
+          gutter: [...code.querySelectorAll('.code-gutter-lines > span')].map((n) => n.textContent.trim()),
         })
       }
       """)
@@ -39,6 +44,10 @@ struct QuoteXMLNumbersTests {
   static func expectNumbered(_ lines: Lines, _ moment: String) {
     #expect(lines.count > 0, "\(moment): the XML has no lines")
     #expect(lines.numbers == (0..<lines.count).map { String($0 + 1) }, "\(moment): \(lines.numbers)")
+    if !lines.gutter.isEmpty {
+      #expect(lines.gutter == (0..<lines.count).map { String($0 + 1) }, "\(moment): its gutter reads \(lines.gutter)")
+      return
+    }
     for (index, shown) in lines.before.enumerated() {
       // Its own number, as the cascade gives it: the attribute it reads,
       // or the number itself; never a counter.
@@ -64,7 +73,7 @@ struct QuoteXMLNumbersTests {
         try await view.locator(".accordion-summary").first.click()
       }
       try await add.click()
-      let citations = view.locator(".outgoing-citations-list > .outgoing-citation")
+      let citations = view.locator(".outgoing-citations-list > .outgoing-citation-group")
       try await expect(citations).toHaveCount(1)
       // A sourceless work: its Quote card's text-only reader.
       let source = citations.first.locator(".evidence-source-view")

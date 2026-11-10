@@ -82,7 +82,7 @@ struct RecordTreeTests {
               getComputedStyle(number).color === subtle].join(' ')
           }
           """).string
-        #expect(column == "node-value-number record-node-number outliner-number 1 true true true", "the number is not the box's first column: \(String(describing: column))")
+        #expect(column == "node-value-number record-node-number outliner-number 1. true true true", "the number is not the box's first column: \(String(describing: column))")
         // The rest of the heading in the box too (user, 2026-11-03): its
         // date and its info its last columns, on the value's first line,
         // the value's words ending before them; the heading the box alone.

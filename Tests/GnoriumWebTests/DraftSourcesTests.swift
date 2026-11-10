@@ -123,7 +123,7 @@ struct DraftSourcesTests {
       // only probable.
       let view = page.locator(".outgoing-citations-view:has(#outgoing-citations-4)")
       try await view.locator(".outgoing-citations-actions .outgoing-citations-add").click()
-      let citations = view.locator(".outgoing-citations-list > .outgoing-citation")
+      let citations = view.locator(".outgoing-citations-list > .outgoing-citation-group")
       try await expect(citations).toHaveCount(1)
       let card = citations.first
       let claim = card.locator(".outgoing-citation-claim")
@@ -146,7 +146,7 @@ struct DraftSourcesTests {
       let step = page.locator(".origin-field-view [data-origin-row='true']").first
       let stepView = step.locator(".outgoing-citations-view")
       try await stepView.locator(".outgoing-citations-actions .outgoing-citations-add").click()
-      let stepCitations = stepView.locator(".outgoing-citations-list > .outgoing-citation")
+      let stepCitations = stepView.locator(".outgoing-citations-list > .outgoing-citation-group")
       try await expect(stepCitations).toHaveCount(1)
       let stepSource = stepCitations.first.locator(".evidence-source-view")
       try await stepSource.locator("input[name$='-source-url-title']").fill("A History of the Origin")
@@ -182,7 +182,8 @@ struct DraftSourcesTests {
       let posted = try await Self.posted(page, "input[name='outgoing-citations-json-4']", holding: "probable")
       #expect(posted.contains("\"claim\":\"formerOwners:\(row)\""), "its claim: \(posted)")
       #expect(posted.contains("Bought of Sir Henry Bunbury.") && posted.contains("Sold by Sir Henry Bunbury."), "both quotes: \(posted)")
-      #expect(posted.contains("\"certainties\":[\"\",\"probable\"]"), "each card's Certainty: \(posted)")
+      // The first as its card came, Certain (every claim's Quote cards ask one; user, 2026-11-10).
+      #expect(posted.contains("\"certainties\":[\"certain\",\"probable\"]"), "each card's Certainty: \(posted)")
       // The step's citation back, posted in its row.
       try await expect(stepCitations).toHaveCount(1)
       try await expect(stepSource.locator("input[name$='-source-url-title']")).toHaveValue("A History of the Origin")
