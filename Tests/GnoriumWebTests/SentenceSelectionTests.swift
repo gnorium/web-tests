@@ -70,12 +70,17 @@ struct SentenceSelectionTests {
         // Each word names its sentence; no tooltip inside a word.
         try await expect(box.locator(".quote-passage-reader .tei-word[data-sentence='0']")).toHaveCount(3)
         try await expect(box.locator(".quote-passage-reader .tei-word .tei-run-alternative")).toHaveCount(0)
-        // The Source accordion holds its fields, then its Quote cards, then
-        // its own row (user, 2026-11-03).
+        // The Source accordion holds its fields alone; its Quote cards and
+        // its own row stand after it (user, 2026-11-10: "put quotes
+        // outside source accordion").
         let accordion = box.locator(".source-accordion-view").first
-        try await expect(accordion.locator(".quote-passage-quotes > .quote-passage-quote")).toHaveCount(1)
-        try await expect(accordion.locator(".quote-passage-actions .quote-passage-quote-add")).toHaveCount(1)
-        try await expect(accordion.locator(".quote-passage-actions .quote-passage-source-remove")).toHaveCount(1)
+        try await expect(accordion.locator(".quote-passage-fields")).toHaveCount(1)
+        try await expect(accordion.locator(".quote-passage-quote")).toHaveCount(0)
+        try await expect(accordion.locator(".quote-passage-actions")).toHaveCount(0)
+        let body = box.locator(".quote-passage-body").first
+        try await expect(body.locator(":scope > .quote-passage-quotes > .quote-passage-quote")).toHaveCount(1)
+        try await expect(body.locator(".quote-passage-actions .quote-passage-quote-add")).toHaveCount(1)
+        try await expect(body.locator(".quote-passage-actions .quote-passage-source-remove")).toHaveCount(1)
 
         if layout == .desktop {
           // The sentence under the pointer violet; nothing guessed in it.

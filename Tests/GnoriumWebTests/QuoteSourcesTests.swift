@@ -24,25 +24,29 @@ struct QuoteSourcesTests {
       let boxes = sources.locator(".quote-source")
       try await expect(boxes).toHaveCount(1)
       let first = boxes.first
-      // Its own Source accordion, no box around it (user, 2026-11-03): its
-      // fields, then its Quote cards, the card its artifact, then its own
-      // row, "+ Quote" and "− Source", all inside it; the node's "+
-      // Source" below every accordion, alone in its row.
+      // Its own Source accordion, no box around it (user, 2026-11-03),
+      // its fields alone inside it; after it its Quote cards, the card its
+      // artifact, then its own row, "+ Quote" and "− Source" (user,
+      // 2026-11-10: "put quotes outside source accordion"); the node's "+
+      // Source" below them all, alone in its row.
       try await expect(first.locator(".source-accordion-view")).toHaveCount(1)
       try await expect(first.locator(".source-accordion-view").first).toContainText("Source")
       try await expect(first.locator(":scope > .form-item-legend")).toHaveCount(0)
-      try await expect(first.locator(".source-accordion-view .quote-passage-reader")).toHaveCount(1)
-      try await expect(first.locator(".source-accordion-view .quote-passage-actions")).toHaveCount(1)
+      try await expect(first.locator(".source-accordion-view .quote-passage-fields")).toHaveCount(1)
+      try await expect(first.locator(".source-accordion-view .quote-passage-reader")).toHaveCount(0)
+      try await expect(first.locator(".source-accordion-view .quote-passage-actions")).toHaveCount(0)
+      try await expect(first.locator(".quote-passage-body .quote-passage-reader")).toHaveCount(1)
       let inside = try await first.evaluate(
         """
-        (box) => { const body = box.querySelector('.source-accordion-view .quote-passage-body');
-          return [...body.children].filter((c) => c.tagName !== 'TEMPLATE')
-            .map((c) => c.classList.contains('quote-passage-fields') ? 'fields'
-              : c.classList.contains('quote-passage-quotes') ? 'quotes'
+        (box) => { const body = box.querySelector('.quote-passage-body');
+          const accordion = box.querySelector('.source-accordion-view');
+          const after = !!(accordion.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING);
+          return (after ? 'after:' : 'before:') + [...body.children].filter((c) => c.tagName !== 'TEMPLATE')
+            .map((c) => c.classList.contains('quote-passage-quotes') ? 'quotes'
               : c.classList.contains('quote-passage-actions') ? 'row' : 'other').join(','); }
         """
       ).string
-      #expect(inside == "fields,quotes,row", "its fields, its Quote cards, its row: \(inside ?? "")")
+      #expect(inside == "after:quotes,row", "after its accordion, its Quote cards, then its row: \(inside ?? "")")
       let alone = try await sources.evaluate(
         """
         (s) => { const add = s.querySelector(':scope > .quote-sources-add');
@@ -125,9 +129,10 @@ struct QuoteSourcesTests {
   }
 
   /// A Source box's parts stand one gap apart (user, 2026-11-08): its
-  /// fields, its Quote cards and its row, and with its last card taken away
-  /// ("− Quote") its row one gap under its "+ Page", never two (the empty
-  /// list of cards took a place of its own).
+  /// Source accordion, its Quote cards after it (user, 2026-11-10) and its
+  /// row, and with its last card taken away ("− Quote") its row one gap
+  /// under its accordion, never two (the empty list of cards took a place
+  /// of its own).
   @Test(arguments: [BrowserEngine.chrome], Layout.allCases)
   func aSourcesRowStandsOneGapUnderWhatIsAboveIt(engine: BrowserEngine, layout: Layout) async throws {
     try await withPage(engine, gnorium, viewport: layout.viewport(for: engine)) { page in
@@ -139,20 +144,20 @@ struct QuoteSourcesTests {
         (box) => {
           const body = box.querySelector('.quote-passage-body');
           const gap = parseFloat(getComputedStyle(body).rowGap);
-          const add = body.querySelector(':scope > .quote-passage-fields .quote-passage-pages [data-item-add-btn]');
+          const source = box.querySelector('.source-accordion-view');
           const quotes = body.querySelector(':scope > .quote-passage-quotes');
           const row = body.querySelector(':scope > .quote-passage-actions');
           const card = quotes.querySelector(':scope > .quote-passage-quote');
           const top = card ? card.getBoundingClientRect().top : row.getBoundingClientRect().top;
           const overRow = row.getBoundingClientRect().top
-            - (card ? quotes.getBoundingClientRect().bottom : add.getBoundingClientRect().bottom);
-          return [gap, top - add.getBoundingClientRect().bottom, overRow];
+            - (card ? quotes.getBoundingClientRect().bottom : source.getBoundingClientRect().bottom);
+          return [gap, top - source.getBoundingClientRect().bottom, overRow];
         }
         """
       let withCard = try await box.evaluate(spacing).array ?? []
       #expect(withCard.count == 3)
       if withCard.count == 3, let gap = withCard[0].double, let over = withCard[1].double, let row = withCard[2].double {
-        #expect(abs(over - gap) < 0.5, "its card one gap under its + Page: \(over) for \(gap)")
+        #expect(abs(over - gap) < 0.5, "its card one gap under its Source accordion: \(over) for \(gap)")
         #expect(abs(row - gap) < 0.5, "its row one gap under its card: \(row) for \(gap)")
       }
       try await box.locator(".quote-passage-quote-remove").first.click()
@@ -160,7 +165,7 @@ struct QuoteSourcesTests {
       let without = try await box.evaluate(spacing).array ?? []
       #expect(without.count == 3)
       if without.count == 3, let gap = without[0].double, let over = without[1].double {
-        #expect(abs(over - gap) < 0.5, "its row one gap under its + Page, not two: \(over) for \(gap)")
+        #expect(abs(over - gap) < 0.5, "its row one gap under its Source accordion, not two: \(over) for \(gap)")
       }
       try await page.expectNoErrors()
     }
@@ -228,25 +233,30 @@ struct QuoteSourcesTests {
         "UPDATE bibliographic_overtures SET origins_json = '\(origins)' WHERE id = '\(overture.overtureID)';")
       try await withPage(engine, gnorium, viewport: layout.viewport(for: engine), cookies: [admin.cookie]) { page in
         try await page.openHydrated(overture.path)
-        let pending = page.locator(".pending-quote-view").first
-        try await expect(pending, timeout: .seconds(15)).toBeAttached()
-        try await expect(pending.locator(".quote-source-view")).toHaveCount(1)
-        // A Disputorium read: the form's fields frozen, each its value.
-        let fields = pending.locator(".quote-source-fields")
+        let citation = page.locator(".outgoing-citation:has(.pending-quote-view)").first
+        try await expect(citation, timeout: .seconds(15)).toBeAttached()
+        // Its one Source accordion, its source's fields alone inside it
+        // (user, 2026-11-10): a Disputorium read, the form's fields frozen,
+        // each its value.
+        let accordion = citation.locator(".outgoing-citation-source")
+        try await expect(accordion).toHaveCount(1)
+        let fields = accordion.locator(".quote-source-fields")
+        try await expect(fields).toHaveCount(1)
         try await expect(fields.locator("input[placeholder='URL']")).toHaveValue(source)
         try await expect(fields.locator("input[placeholder='Title']")).toHaveValue("Pending shape")
         try await expect(fields.locator("input[placeholder='Language']")).toHaveValue("English")
         try await expect(fields.locator("input[placeholder='Class']")).toHaveValue("Play")
+        try await expect(accordion.locator(".quote-source-quote")).toHaveCount(0)
+        // After it, its Quote cards, each its reader, then the row of its
+        // Citation card (user, 2026-11-03), disabled: "+ Quote" and
+        // "− Citation".
+        let pending = citation.locator(".pending-quote-view:has(.quote-source-quote)").first
         try await expect(pending.locator(".testament-view")).toHaveCount(1)
         try await expect(pending.locator(".testament-view .artifact-markup")).toContainText("pendingword")
-        // Its Source accordion, then its Quote card, the card its reader;
-        // the row is its Citation card's (user, 2026-11-03), disabled:
-        // "+ Quote" and "− Citation".
-        let shape = try await pending.evaluate(
-          "(v) => { const box = v.querySelector('.quote-source-box'); return [...box.children].map((n) => n.matches('.source-accordion-wrapper') ? 'source' : n.matches('.quote-source-quote') ? 'quote' : n.matches('.quote-source-actions') ? 'row' : 'other').join(',') }"
+        let shape = try await citation.evaluate(
+          "(c) => [...c.children].map((n) => n.matches('.source-accordion-wrapper') ? 'source' : n.matches('.pending-quote-view') ? 'quote' : n.matches('.outgoing-citation-actions') ? 'row' : '').filter((k) => k).join(',')"
         ).string
-        #expect(shape == "source,quote", "a pending quote shows its Source accordion and its Quote card")
-        let citation = page.locator(".outgoing-citation:has(.pending-quote-view)").first
+        #expect(shape == "source,quote,quote,row", "its Source accordion, its Quote cards after it, then its row: \(shape ?? "")")
         try await expect(citation.locator(".outgoing-citation-actions button[disabled]")).toHaveCount(2)
         try await expect(pending.locator(".quote-source-quote .testament-view")).toHaveCount(1)
         try await expect(pending.locator(".info-chip-text")).toHaveCount(0)
@@ -277,7 +287,9 @@ struct QuoteSourcesTests {
               magenta.every((g) => g !== none && g !== violet[0]),
               marks.filter(title).map((m) => m.textContent.trim()).join('|')]; }
           """
-        let quotes = page.locator(".pending-quote-view")
+        // Its two quotes, a card each (its Source's fields a part of their
+        // own, inside its accordion).
+        let quotes = page.locator(".pending-quote-view:has(.quote-source-quote)")
         try await expect(quotes).toHaveCount(2)
         for reflowed in [false, true] {
           if reflowed {
@@ -329,7 +341,9 @@ struct QuoteSourcesTests {
           .toHaveCount(1)
         let typed = box.locator(".quote-passage-typed")
         try await expect(typed).toBeHidden()
-        try await expect(box.locator("textarea")).toHaveCount(0)
+        // No field typed in but its reader's own (a typed quote's XML is
+        // edited there, its hidden copy the editor's: user, 2026-11-10).
+        try await expect(box.locator("textarea:not(.code-editor-input)")).toHaveCount(0)
         // The record picked: its leaf read under the box.
         _ = try await box.evaluate(
           """
