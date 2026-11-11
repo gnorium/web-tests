@@ -129,7 +129,7 @@ struct AmendmentInsertionTests {
         // Submitted empty: it says what to fill in.
         try await page.locator(".record-actions button[type='submit']").click()
         try await expect(volume.locator(":scope > .outliner-footer > .testament-draft-message")).toHaveText(
-          "Fill in the volume, or remove the volume.")
+          "Fill in the volume or its place, agents or date, or remove the volume.")
         #expect(try await page.url().hasSuffix("/amendments/new"))
 
         // Filled: its row named by its statement, and submitted as the

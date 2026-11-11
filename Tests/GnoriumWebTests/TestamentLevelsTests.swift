@@ -176,7 +176,7 @@ struct TestamentLevelsTests {
       let statements = try JSONSerialization.jsonObject(with: Data(posted.utf8)) as? [[String: Any]] ?? []
       #expect(
         statements.map { $0["kind"] as? String }
-          == ["publication", "manufacture", "distribution", "production", "reproduction"])
+          == ["publication", "volume-publication", "manufacture", "distribution", "production", "reproduction"])
       #expect(statements.first?["year"] as? Int == 1610)
       #expect(statements.allSatisfy { $0["type"] == nil }, "No creation, no provision tag.")
 
