@@ -26,7 +26,7 @@ struct FormerOwnerSourcesTests {
       try await page.openHydrated(Self.form)
 
       try await page.locator("input[name='former-owner-item1-text-input']").fill("Sir Henry Bunbury")
-      let view = page.locator(".outgoing-citations-view:has(#outgoing-citations-4)")
+      let view = page.locator(".outgoing-citations-view:has(#outgoing-citations-5)")
       try await expect(view).toHaveCount(1)
       // Its owners' Start and End cards stacked, one column.
       let owner = page.locator("[data-item-list='former-owner'] > [data-item-section='true']").first
@@ -141,7 +141,7 @@ struct FormerOwnerSourcesTests {
 
       // Posted as the copy's list: its claim the owner's row, its Source,
       // its form by place.
-      let json = page.locator("input[name='outgoing-citations-json-4']")
+      let json = page.locator("input[name='outgoing-citations-json-5']")
       let posted = try await json.evaluate("(i) => i.value").string ?? ""
       #expect(posted.contains("\"claim\":\"formerOwners:"), "its claim the owner's row: \(posted)")
       #expect(posted.contains("\"source\":"), "a new card posts its Source: \(posted)")
@@ -186,7 +186,7 @@ struct FormerOwnerSourcesTests {
       try await page.openHydrated(Self.form)
 
       try await page.locator("input[name='former-owner-item1-text-input']").fill("Sir Henry Cavendish")
-      let view = page.locator(".outgoing-citations-view:has(#outgoing-citations-4)")
+      let view = page.locator(".outgoing-citations-view:has(#outgoing-citations-5)")
       try await view.locator(".outgoing-citations-actions .outgoing-citations-add").click()
       let card = view.locator(".outgoing-citations-list > .outgoing-citation-group").first
       let claim = card.locator(".outgoing-citation-claim")
@@ -210,7 +210,7 @@ struct FormerOwnerSourcesTests {
       try await page.addForm(in: source, from: ".quote-typed-word[data-typed-word='4']")
       try await expect(marked).toHaveTexts(["Cavendish", "'tis"])
 
-      let json = page.locator("input[name='outgoing-citations-json-4']")
+      let json = page.locator("input[name='outgoing-citations-json-5']")
       let posted = try await json.evaluate("(i) => i.value").string ?? ""
       #expect(
         posted.contains(#""forms":[[[{"surface":"Cavendish","word":3}],[{"surface":"'tis","word":4}]]]"#),
@@ -241,7 +241,7 @@ struct FormerOwnerSourcesTests {
         try await page.openHydrated(Self.form)
 
         try await page.locator("input[name='former-owner-item1-text-input']").fill("Sir Henry Bunbury")
-        let view = page.locator(".outgoing-citations-view:has(#outgoing-citations-4)")
+        let view = page.locator(".outgoing-citations-view:has(#outgoing-citations-5)")
         try await view.locator(".outgoing-citations-actions .outgoing-citations-add").click()
         let card = view.locator(".outgoing-citations-list > .outgoing-citation-group").first
         let source = card.locator(".evidence-source-view")

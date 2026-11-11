@@ -28,7 +28,7 @@ struct ClaimLinksTests {
       _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
       try await page.openHydrated(Self.form)
 
-      let view = page.locator(".outgoing-citations-view:has(#outgoing-citations-4)")
+      let view = page.locator(".outgoing-citations-view:has(#outgoing-citations-5)")
       try await expect(view).toHaveCount(1)
       let label = page.locator("[data-claim='copyLabel'] .text-input-label")
       try await expect(label).toHaveCount(1)

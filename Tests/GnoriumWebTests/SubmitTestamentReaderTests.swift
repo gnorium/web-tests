@@ -79,7 +79,7 @@ struct SubmitTestamentReaderTests {
         let placed = try await reader.evaluate(
           """
           (el) => {
-            const node = el.closest(".submission-tree-node[data-draft-level='5']");
+            const node = el.closest(".submission-tree-node[data-draft-level='6']");
             const metadata = node && node.querySelector(".metadata-accordion-view");
             return !!metadata && !!(metadata.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
           }

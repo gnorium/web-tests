@@ -68,10 +68,10 @@ struct SubmitTestamentDraftTests {
       // A testament node taken out: the impression (1.1).
       // The volume (1.1) first: the level right under an edition.
       try await testaments.remove("Remove testament 1.1.")
-      try await expect(page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='6']"))
+      try await expect(page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='2']"))
         .toHaveAttribute("data-outliner-removed", "true")
       try await testaments.remove("Remove testament 1.1.")
-      let impression = page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='2']")
+      let impression = page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='3']")
       try await expect(impression).toHaveAttribute("data-outliner-removed", "true")
 
       // Kept a moment after the last change.
@@ -116,7 +116,7 @@ struct SubmitTestamentDraftTests {
 
       // The impression stays out; the issue is 1.1 now.
       try await expect(impression).toHaveAttribute("data-outliner-removed", "true")
-      let issue = page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='3']")
+      let issue = page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='4']")
       try await expect(issue).toHaveAttribute("data-outliner-removed", "false")
       try await expect(issue.locator(":scope > .outliner-row .record-node-number")).toHaveText("1.1")
       #expect(try await testaments.choices("remove").contains("Remove testament 1.1."))
@@ -241,10 +241,10 @@ struct SubmitTestamentDraftTests {
       try await carrier.locator(".dropdown-option[data-value='print']").click()
       // The volume (1.1) first: the level right under an edition.
       try await testaments.remove("Remove testament 1.1.")
-      try await expect(page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='6']"))
+      try await expect(page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='2']"))
         .toHaveAttribute("data-outliner-removed", "true")
       try await testaments.remove("Remove testament 1.1.")
-      let impression = page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='2']")
+      let impression = page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='3']")
       try await expect(impression).toHaveAttribute("data-outliner-removed", "true")
       // No kept draft to fall back on: only the post brings them back.
       try await Task.sleep(for: .milliseconds(600))

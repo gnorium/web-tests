@@ -125,7 +125,7 @@ struct EditionsAndCopiesTests {
       try await expect(printer).toHaveAttribute("data-unoffered", "false")
       let distributor = publication.locator("[data-item-section='true'] .dropdown-option[data-value='distributor']").first
       try await expect(distributor).toHaveAttribute("data-unoffered", "true")
-      let issue = page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='3']")
+      let issue = page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='4']")
       try await stepper.remove(node: issue, noun: "testament")
       try await expect(issue).toHaveAttribute("data-outliner-removed", "true")
       try await expect(distributor).toHaveAttribute("data-unoffered", "false")

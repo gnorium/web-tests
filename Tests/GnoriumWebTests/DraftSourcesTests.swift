@@ -121,7 +121,7 @@ struct DraftSourcesTests {
       let row = try #require(try await owner.getAttribute("data-row-id"))
       // The copy cites the owner: a sourceless work, two quotes, the second
       // only probable.
-      let view = page.locator(".outgoing-citations-view:has(#outgoing-citations-4)")
+      let view = page.locator(".outgoing-citations-view:has(#outgoing-citations-5)")
       try await view.locator(".outgoing-citations-actions .outgoing-citations-add").click()
       let citations = view.locator(".outgoing-citations-list > .outgoing-citation-group")
       try await expect(citations).toHaveCount(1)
@@ -177,7 +177,7 @@ struct DraftSourcesTests {
       try await expect(quotes.locator("input[name$='-certainty']")).toHaveCount(0)
       // Posted again as it was: the owner's row, both quotes, the second's
       // Certainty.
-      let posted = try await Self.posted(page, "input[name='outgoing-citations-json-4']", holding: "Sold by Sir Henry Bunbury.")
+      let posted = try await Self.posted(page, "input[name='outgoing-citations-json-5']", holding: "Sold by Sir Henry Bunbury.")
       #expect(posted.contains("\"claim\":\"formerOwners:\(row)\""), "its claim: \(posted)")
       #expect(posted.contains("Bought of Sir Henry Bunbury.") && posted.contains("Sold by Sir Henry Bunbury."), "both quotes: \(posted)")
       #expect(!posted.contains("certaint"), "no quote's certainty is posted: \(posted)")
