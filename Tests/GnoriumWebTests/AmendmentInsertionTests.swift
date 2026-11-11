@@ -5,11 +5,11 @@ import WebTestsTesting
 
 /// An amendment inserts a level as an overture's fields do (user, 2026-10-03): a
 /// node's "+ Testament" adds a new child at the next level after the ones it
-/// has (an impression under an edition holding its copy: 1.2), and the copy
+/// has (an volume under an edition holding its copy: 1.2), and the copy
 /// is moved into it by the outline's own moves. The new node's "−
 /// Testament" takes it out again. Left empty it stops the amendment with
 /// Submit Testament's words; filled, it names its row, and the reopened
-/// object carries the tree with the impression over the copy, named for it,
+/// object carries the tree with the volume over the copy, named for it,
 /// its fields the palinode's (the object's first state, no revision), and
 /// its Permit publishes that tree. An amendment is one node's act (user,
 /// 2026-10-22). The scratch work's tree is made an edition › copy ›
@@ -17,7 +17,7 @@ import WebTestsTesting
 @Suite("Amendment insertion", .serialized)
 struct AmendmentInsertionTests {
   @Test(arguments: gnorium.engines, Layout.allCases)
-  func anImpressionIsInsertedUnderAnEdition(engine: BrowserEngine, layout: Layout) async throws {
+  func aVolumeIsInsertedUnderAnEdition(engine: BrowserEngine, layout: Layout) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     let fixture = try await FixtureServer.threePageManifest()
     defer { fixture.stop() }
@@ -38,7 +38,7 @@ struct AmendmentInsertionTests {
         """)
     }
     do {
-      // A printed witness with a copy: an impression's publication is drawn
+      // A printed witness with a copy: a volume node is offered
       // for it, and its copy hangs from its edition.
       let stood = try TestAdmin.query(
         "SELECT shape_json FROM biblio_record_versions WHERE id = '\(work.versionID)';")
@@ -60,7 +60,7 @@ struct AmendmentInsertionTests {
         try await page.openHydrated("\(work.path)/amendments/new")
         let edition = page.locator(".outliner-item[data-outliner-id^='edition-']:not([data-testament-draft])")
         let copy = page.locator(".outliner-item[data-outliner-id^='copy-']:not([data-testament-draft])")
-        let impression = page.locator(".outliner-item[data-outliner-id='impression-new']")
+        let volume = page.locator(".outliner-item[data-outliner-id='volume-new']")
         // The tree's one row of steppers adds and takes out (user,
         // 2026-11-03).
         let stepper = TreeStepper(page, tree: "testament-outliner")
@@ -76,7 +76,7 @@ struct AmendmentInsertionTests {
 
         // "+ Testament 1.2." under the edition, after its copy, as it looks
         // everywhere; a new node out of the outline until it is asked for.
-        try await expect(impression).toBeHidden()
+        try await expect(volume).toBeHidden()
         try await expect(page.locator("#testament-outliner .outliner-item[data-testament-draft='true']"))
           .toHaveCount(0)
         #expect(try await stepper.choose("add", "Add testament 1.2."))
@@ -85,8 +85,8 @@ struct AmendmentInsertionTests {
         // A new child at the next level, after the one it has: 1.2, the
         // copy still 1.1.
         try await stepper.add("Add testament 1.2.")
-        try await expect(impression).toBeVisible()
-        try await expect(number(impression)).toHaveText("1.2")
+        try await expect(volume).toBeVisible()
+        try await expect(number(volume)).toHaveText("1.2")
         try await expect(number(copy)).toHaveText("1.1")
         // The amendment's one testament: the others' fields frozen, and a
         // new node offered only under it.
@@ -98,14 +98,14 @@ struct AmendmentInsertionTests {
 
         // Taken out again by "− Testament 1.2.".
         try await stepper.remove("Remove testament 1.2.")
-        try await expect(impression).toBeHidden()
+        try await expect(volume).toBeHidden()
         try await expect(stepper.addButton).toBeEnabled()
-        #expect(!(try await shape()).contains("impression-"))
+        #expect(!(try await shape()).contains("volume-"))
 
         // In again, and the copy moved into it: picked up by its grip, moved
         // after it, put under it.
         try await stepper.add("Add testament 1.2.")
-        try await expect(number(impression)).toHaveText("1.2")
+        try await expect(number(volume)).toHaveText("1.2")
         let grip = copy.locator(":scope > .outliner-row .outliner-handle").first
         // The grip a medium button's target, a size down on a phone (user,
         // 2026-11-01): 40 wide, 32 on a phone.
@@ -117,26 +117,26 @@ struct AmendmentInsertionTests {
         try await grip.press("ArrowDown")
         try await grip.press("ArrowRight")
         try await grip.press("Enter")
-        try await expect(number(impression)).toHaveText("1.1")
+        try await expect(number(volume)).toHaveText("1.1")
         try await expect(number(copy)).toHaveText("1.1.1")
-        try await expect(impression.locator(":scope > .outliner-list > .outliner-item[data-outliner-id^='copy-']"))
+        try await expect(volume.locator(":scope > .outliner-list > .outliner-item[data-outliner-id^='copy-']"))
           .toHaveCount(1)
         let moved = try await shape()
-        #expect(moved.contains("\"impression-new\":{\"parent\":\"edition-\(witness)\""), "\(moved)")
-        #expect(moved.contains("\"copy-\(witness)\":{\"parent\":\"impression-new\""), "\(moved)")
-        try await SubmissionTests.shoot(page, "amendment-impression-over-copy", from: page.locator("#testament-outliner"))
+        #expect(moved.contains("\"volume-new\":{\"parent\":\"edition-\(witness)\""), "\(moved)")
+        #expect(moved.contains("\"copy-\(witness)\":{\"parent\":\"volume-new\""), "\(moved)")
+        try await SubmissionTests.shoot(page, "amendment-volume-over-copy", from: page.locator("#testament-outliner"))
 
         // Submitted empty: it says what to fill in.
         try await page.locator(".record-actions button[type='submit']").click()
-        try await expect(impression.locator(":scope > .outliner-footer > .testament-draft-message")).toHaveText(
-          "Fill in the impression or its place, agents or date, or remove the impression.")
+        try await expect(volume.locator(":scope > .outliner-footer > .testament-draft-message")).toHaveText(
+          "Fill in the volume, or remove the volume.")
         #expect(try await page.url().hasSuffix("/amendments/new"))
 
         // Filled: its row named by its statement, and submitted as the
-        // impression inserted over the copy, named for it.
-        try await impression.locator("[name='impression']").first.fill("Second impression")
-        try await expect(impression.locator(":scope > .outliner-row .record-node-heading .node-value-view textarea").first)
-          .toHaveValue("Second impression")
+        // volume inserted over the copy, named for it.
+        try await volume.locator("[name='volume']").first.fill("2")
+        try await expect(volume.locator(":scope > .outliner-row .record-node-heading .node-value-view textarea").first)
+          .toHaveValue("2")
         // Its one act: no other testament changed (user, 2026-10-22: one
         // node per object).
         try await page.expectNoHorizontalOverflow()
@@ -150,14 +150,14 @@ struct AmendmentInsertionTests {
             WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID)';
           """
         ).trimmingCharacters(in: .whitespacesAndNewlines)
-        #expect(stored.contains("\"impression-\(witness)\":{\"parent\":\"edition-\(witness)\""), "\(stored)")
-        #expect(stored.contains("\"copy-\(witness)\":{\"parent\":\"impression-\(witness)\""), "\(stored)")
+        #expect(stored.contains("\"volume-\(witness)\":{\"parent\":\"edition-\(witness)\""), "\(stored)")
+        #expect(stored.contains("\"copy-\(witness)\":{\"parent\":\"volume-\(witness)\""), "\(stored)")
         #expect(stored.contains("\"edition-\(witness)\""))
         // Its fields are the palinode's, the object's first state: no
         // revision is filed for them (user, 2026-10-31).
         let filed = try TestAdmin.query(
           "SELECT metadata_json FROM bibliographic_palinodes WHERE biblio_record_id = '\(record)';")
-        #expect(filed.contains("\"impression\":\"Second impression\""), "\(filed)")
+        #expect(filed.contains("\"volume\":\"2\""), "\(filed)")
         let revisions = try TestAdmin.query("SELECT count(*) FROM revisions WHERE revisable_id IN (SELECT id FROM bibliographic_madrigals WHERE biblio_record_id = '\(record)' AND id <> '\(work.madrigalID)');").trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(revisions == "0", "the fields are the object's first state")
         try await page.locator("button[form='madrigal-permit']").click()
@@ -165,14 +165,14 @@ struct AmendmentInsertionTests {
         let published = try TestAdmin.query("SELECT shape_json FROM biblio_record_versions WHERE biblio_record_id = '\(record)' ORDER BY created_at DESC LIMIT 1;").trimmingCharacters(in: .whitespacesAndNewlines)
         // One Permit publishes the reviewed tree: its every node in the
         // place the object holds it, each parent node now keeping its own
-        // fields (seeded from its witness, the inserted impression's its
+        // fields (seeded from its witness, the inserted volume's its
         // own: gnorium-server 4de37a73).
         func places(_ json: String) throws -> [String: NSDictionary] {
           let nodes = try #require(try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: [String: Any]])
           return nodes.mapValues { node in node.filter { $0.key != "fields" } as NSDictionary }
         }
         #expect(try places(published) == places(stored), "\(published) vs \(stored)")
-        #expect(published.contains("\"impression\":\"Second impression\""), "\(published)")
+        #expect(published.contains("\"volume\":\"2\""), "\(published)")
         let count = try TestAdmin.query("SELECT count(*) FROM biblio_record_versions WHERE biblio_record_id = '\(record)';").trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(count == "2", "The amendment has one new published version")
         try await page.expectNoErrors()

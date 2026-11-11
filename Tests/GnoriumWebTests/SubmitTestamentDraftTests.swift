@@ -66,6 +66,10 @@ struct SubmitTestamentDraftTests {
       try await title(third).fill("Web tests origin three")
 
       // A testament node taken out: the impression (1.1).
+      // The volume (1.1) first: the level right under an edition.
+      try await testaments.remove("Remove testament 1.1.")
+      try await expect(page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='6']"))
+        .toHaveAttribute("data-outliner-removed", "true")
       try await testaments.remove("Remove testament 1.1.")
       let impression = page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='2']")
       try await expect(impression).toHaveAttribute("data-outliner-removed", "true")
@@ -235,6 +239,10 @@ struct SubmitTestamentDraftTests {
       let carrier = page.locator(".dropdown-view:has(#testament-carrier)")
       try await carrier.locator(".dropdown-trigger").click()
       try await carrier.locator(".dropdown-option[data-value='print']").click()
+      // The volume (1.1) first: the level right under an edition.
+      try await testaments.remove("Remove testament 1.1.")
+      try await expect(page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='6']"))
+        .toHaveAttribute("data-outliner-removed", "true")
       try await testaments.remove("Remove testament 1.1.")
       let impression = page.locator(".outliner-item[data-testament-draft='true'][data-draft-level='2']")
       try await expect(impression).toHaveAttribute("data-outliner-removed", "true")

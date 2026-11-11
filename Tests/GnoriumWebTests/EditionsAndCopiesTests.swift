@@ -118,6 +118,9 @@ struct EditionsAndCopiesTests {
       // The impression (1.1) out, then the issue (1.1 again): their
       // manufacture and distribution fold into the edition.
       let stepper = TreeStepper(page, tree: TreeStepper.submission)
+      // The volume (1.1) first: it has no activity, so nothing folds.
+      try await stepper.remove("Remove testament 1.1.")
+      try await expect(printer).toHaveAttribute("data-unoffered", "true")
       try await stepper.remove("Remove testament 1.1.")
       try await expect(printer).toHaveAttribute("data-unoffered", "false")
       let distributor = publication.locator("[data-item-section='true'] .dropdown-option[data-value='distributor']").first
