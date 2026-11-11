@@ -105,6 +105,24 @@ struct TypedQuotePageTests {
         try await expect(box.locator("input[name='quote-s1-start-frame']")).toHaveValue("2")
         // Its Frame the frame its reader was turned to.
         try await expect(field).toHaveValue("2")
+        // A quote is one frame's (user, 2026-11-11): turned to another frame,
+        // its card stays on its own and that frame has a card of its own,
+        // its pane empty; nothing runs on.
+        let quotes = box.locator(".quote-passage-quotes > .quote-passage-quote")
+        try await expect(quotes).toHaveCount(1)
+        try await viewer.locator(".pagination-prev").first.click()
+        try await expect(quotes).toHaveCount(2)
+        try await expect(quotes.nth(0)).toHaveAttribute("data-quote-starts", "2")
+        try await expect(quotes.nth(0)).toHaveAttribute("data-quote-ends", "")
+        try await expect(quotes.nth(0)).toHaveAttribute("data-quote-text", "A web tests quote.")
+        try await expect(quotes.nth(1)).toHaveAttribute("data-quote-starts", "1")
+        try await expect(quotes.nth(1)).toHaveAttribute("data-quote-text", "")
+        try await expect(quotes.nth(0).locator("#artifact-page-input"), timeout: .seconds(20)).toHaveValue("2")
+        try await expect(quotes.nth(1).locator("#artifact-page-input"), timeout: .seconds(20)).toHaveValue("1")
+        try await expect(box.locator("input[name='quote-s1-quote']")).toHaveValue("A web tests quote.")
+        try await expect(box.locator("input[name='quote-s1-start-frame']")).toHaveValue("2")
+        try await expect(box.locator("input[name='quote-s1-end-frame']")).toHaveValue("")
+        try await expect(field).toHaveValue("2")
         // A source Gnorium lacks gives its Title, Language and Class, and
         // its Provider (user, 2026-11-08: never inferred).
         _ = try await box.evaluate(
