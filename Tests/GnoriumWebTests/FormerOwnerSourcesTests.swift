@@ -69,7 +69,7 @@ struct FormerOwnerSourcesTests {
       try await expect(source.locator(".source-accordion-view .quote-passage-quote")).toHaveCount(1)
       try await expect(source.locator(".quote-passage-body > .quote-passage-quotes > .quote-passage-quote")).toHaveCount(1)
       try await expect(source.locator(".quote-passage-body .quote-passage-actions .button-label"))
-        .toHaveTexts(["Quote", "Source"])
+        .toHaveTexts(["Quote", "Quote", "Source"])
       let pane = quotes.first.locator(".quote-passage-text .tei-page-text")
       try await expect(pane, timeout: .seconds(15)).toBeAttached()
       // The I-beam over the text alone (user, 2026-11-05): its text and its

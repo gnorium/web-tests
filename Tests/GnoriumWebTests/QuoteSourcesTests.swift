@@ -58,10 +58,12 @@ struct QuoteSourcesTests {
       #expect(alone == true, "the node's + Source below the accordions, alone in its row")
       let cards = first.locator(".quote-passage-quotes > .quote-passage-quote")
       try await expect(cards).toHaveCount(1)
-      try await expect(cards.first.locator(".form-item-legend")).toHaveText("Quote")
+      // A quote is its artifact alone, in no box of its own (user, 2026-11-11).
+      try await expect(cards.first.locator(".form-item-legend")).toHaveCount(0)
+      try await expect(cards.first.locator(".quote-passage-quote-actions")).toBeHidden()
       try await expect(cards.first.locator(":scope > .quote-passage-reader")).toHaveCount(1)
       try await expect(first.locator(".quote-passage-quote-text")).toHaveCount(0)
-      try await expect(first.locator(".quote-passage-actions .button-label")).toHaveTexts(["Quote", "Source"])
+      try await expect(first.locator(".quote-passage-actions .button-label")).toHaveTexts(["Quote", "Quote", "Source"])
       // Its record field, asked for as the page opens: Record, then
       // Testament once a record is picked.
       try await expect(first.locator(".quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
@@ -112,7 +114,7 @@ struct QuoteSourcesTests {
       try await expect(first.locator(".quote-passage-source-remove")).toBeVisible()
       try await expect(second.locator(".quote-passage-source-remove")).toBeVisible()
       try await expect(second.locator(".quote-passage-source-remove")).toHaveAttribute("aria-label", "Remove source")
-      try await expect(first.locator(".quote-passage-actions .button-label")).toHaveTexts(["Quote", "Source"])
+      try await expect(first.locator(".quote-passage-actions .button-label")).toHaveTexts(["Quote", "Quote", "Source"])
       try await page.expectArtifactsUnclipped()
 
       // "− Source": the first goes, the second stays, alone again, still
@@ -161,7 +163,7 @@ struct QuoteSourcesTests {
         #expect(abs(over - gap) < 0.5, "its card one gap under its Source's fields: \(over) for \(gap)")
         #expect(abs(row - gap) < 0.5, "its row one gap under its card: \(row) for \(gap)")
       }
-      try await box.locator(".quote-passage-quote-remove").first.click()
+      try await box.locator(".quote-passage-actions .quote-passage-last-quote-remove").click()
       try await expect(box.locator(".quote-passage-quotes > .quote-passage-quote")).toHaveCount(0)
       let without = try await box.evaluate(spacing).array ?? []
       #expect(without.count == 3)
@@ -172,29 +174,18 @@ struct QuoteSourcesTests {
     }
   }
 
-  /// A testament leaf's Source accordion holds only its URL (user,
-  /// 2026-11-02): no Images start or end (its images are all of its
-  /// source's), no Quote; open on Submit, under the leaf's Metadata and Note.
+  /// A testament leaf's URL is a field of its Metadata, "Source URL" (user,
+  /// 2026-11-11: "move the URL field back into metadata, rming Source
+  /// above testament"): no Source accordion stands over its artifact.
   @Test(arguments: gnorium.engines)
-  func aTestamentsDigitizationHasASourceBox(engine: BrowserEngine) async throws {
+  func aTestamentsDigitizationURLIsInItsMetadata(engine: BrowserEngine) async throws {
     try await withPage(engine, gnorium, viewport: Layout.desktop.viewport(for: engine)) { page in
       try await page.openHydrated("/mission-control/submit/bibliographic/testament")
-      let box = page.locator(".testament-source-view")
-      try await expect(box).toHaveCount(1)
-      try await expect(box.locator(".accordion-title").first).toHaveText("Source")
-      let url = box.locator("input[name='source-url']")
+      try await expect(page.locator(".testament-source-view")).toHaveCount(0)
+      let url = page.locator(".metadata-accordion input[name='source-url']")
+      try await expect(url).toHaveCount(1)
       try await expect(url).toBeVisible()
-      try await expect(url).toHaveAttribute("placeholder", "URL")
-      let shape = try await box.evaluate(
-        """
-        (b) => {
-          const note = document.querySelector("textarea[name='digitization_note']");
-          return !b.querySelector("[name='testament-start-frame'], [name='testament-end-frame'], textarea")
-            && !!note && !!(note.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
-        }
-        """
-      ).bool
-      #expect(shape == true, "its URL alone, after the leaf's Note")
+      try await expect(url).toHaveAttribute("placeholder", "Source URL")
       try await page.expectNoErrors()
     }
   }

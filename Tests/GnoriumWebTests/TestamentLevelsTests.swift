@@ -6,7 +6,7 @@ import WebTestsTesting
 /// The testament form is the record page in edit mode (user, 2026-09-28):
 /// the work first, then the tree's one new node, its Carrier first, then its
 /// levels' fields in one stack, unheaded (user, 2026-10-01)—an edition's
-/// Publication, a copy's Acquisition (holding institution, shelfmark,
+/// Publication, a copy's Acquisition (holding institution, call number,
 /// copy label) and its Production, a Digitization—each level's description
 /// fields first (`TestamentLabel`, user, 2026-10-03): a publication's
 /// and a digitization's agents and date before its place, a Production's
@@ -77,9 +77,8 @@ struct TestamentLevelsTests {
             '#testament-copy-label', ".activity-statement-view[data-as-namespace='production']",
             ".activity-statement-view[data-as-namespace='reproduction']", "[name='provider-dropdown']",
             "[data-item-list='as-reproduction']", "[data-item-list='as-reproduction-place']",
-            // The leaf's URL in its Source accordion, under its Metadata and
-            // its Note (user, 2026-11-02).
-            '#testament-digitization-license', '#testament-source-url',
+            // The leaf's URL in its Metadata again (user, 2026-11-11).
+            '#testament-source-url', '#testament-digitization-license',
           ];
           for (let i = 1; i < chain.length; i++) {
             const a = at(chain[i - 1]), b = at(chain[i]);
@@ -127,7 +126,7 @@ struct TestamentLevelsTests {
       try await expect(acquisition).toBeVisible()
       try await expect(form.locator("#testament-copy-label")).toBeVisible()
       try await expect(acquisition.locator("input[name='holding-institution-dropdown']")).toHaveCount(1)
-      try await expect(acquisition.locator(".section-legend").filter(hasText: "Shelfmark")).toBeVisible()
+      try await expect(acquisition.locator(".section-legend").filter(hasText: "Call number")).toBeVisible()
       try await expect(form.locator("input[name='as-production-place-item1-text-input']")).toHaveCount(1)
 
       // The date check: a publication before the work is warned of under
@@ -304,7 +303,7 @@ struct TestamentLevelsTests {
           VALUES ('\(figurant)', '\(submission)', 'https://example.org/web-tests/levels', 'eng', 'pending',
             'Web tests levels \(overture.prefix(8))', 'manuscript', 1623);
         INSERT INTO bibliographic_overtures (id, batch_id, bibliographic_figurant_id, source_url, language, processing_status, title, type,
-          year_qualifier, era, year, provider, holding_institution, copy_label, shelfmark_json, activity_statements_json, carrier)
+          year_qualifier, era, year, provider, holding_institution, copy_label, call_number_json, activity_statements_json, carrier)
           VALUES ('\(overture)', '\(submission)', '\(figurant)', 'https://example.org/web-tests/levels', 'eng', 'pending',
             'Web tests levels \(overture.prefix(8))', 'manuscript', 'exact', 'anno_domini', 1623, 'folger_shakespeare_library',
             'folger_shakespeare_library', 'Web tests copy 9', '{"scheme":"stc","identifier":"22273"}', '\(statements)', 'manuscript');
@@ -323,7 +322,7 @@ struct TestamentLevelsTests {
         let label = form.locator("#testament-copy-label")
         try await expect(label).toBeVisible()
         try await expect(label).toHaveValue("Web tests copy 9")
-        try await expect(acquisition.locator("input[name='shelfmark_value']")).toHaveValue("22273")
+        try await expect(acquisition.locator("input[name='call_number_value']")).toHaveValue("22273")
         try await expect(acquisition.locator("input[name='holding_institution']")).toHaveValue("folger_shakespeare_library")
         try await expect(copy.locator("input[name='as-production-place-item1-text-input']")).toHaveValue("Web tests scriptorium")
         try await shoot(page, "revise-manuscript", layout)
@@ -343,7 +342,7 @@ struct TestamentLevelsTests {
       let json = try JSONSerialization.jsonObject(with: Data(content.utf8)) as? [String: Any] ?? [:]
       #expect(json["copyLabel"] as? String == "Web tests copy 10", "Its copy label is posted and kept.")
       #expect(json["holdingInstitution"] as? String == "folger_shakespeare_library")
-      #expect((json["shelfmark"] as? [String: Any])?["identifier"] as? String == "22273")
+      #expect((json["callNumber"] as? [String: Any])?["identifier"] as? String == "22273", "Its call number is kept.")
       let kept = (json["activityStatements"] as? [[String: Any]] ?? []).first { $0["kind"] as? String == "production" }
       #expect(kept?["places"] as? [String] == ["Web tests scriptorium"], "Its production is posted as it stands.")
       #expect(kept?["year"] as? Int == 1601)

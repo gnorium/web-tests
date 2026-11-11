@@ -89,8 +89,8 @@ struct OriginFormStampTests {
       try await expect(row.locator(".outgoing-citations-list")).toHaveCSS("display", "none")
       // "+ Citation" (user, 2026-11-03): a card at once, its claim the step,
       // its Source's accordion of fields, its record field asked for; its
-      // Quote card under it, asking the quote's Certainty; then "+ Quote"
-      // and "− Citation".
+      // quote under them, its artifact alone; then "+ Quote", "− Quote" and
+      // "− Source".
       let quotes = try await page.evaluate(
         Self.addedWithinAFrame(
           "'.origin-field-view [data-origin-row=\"true\"] .outgoing-citations-add'",
@@ -103,12 +103,9 @@ struct OriginFormStampTests {
         .toHaveCount(1)
       let card = source.locator(".quote-passage-quotes > .quote-passage-quote").first
       try await expect(card.locator(":scope > .quote-passage-reader")).toHaveCount(1)
-      try await expect(card.locator("input[name$='-certainty']")).toHaveCount(1)
-      // The Source's own fields ask none: the card's, inside its
-      // accordion after them (user, 2026-11-11), is the Source's one.
-      try await expect(source.locator(".quote-passage-fields input[name$='-certainty']")).toHaveCount(0)
+      // No quote asks a Certainty (user, 2026-11-11): the step's own says it.
+      try await expect(source.locator("input[name$='-certainty']")).toHaveCount(0)
       try await expect(source.locator(".source-accordion-view .quote-passage-quote")).toHaveCount(1)
-      try await expect(source.locator("input[name$='-certainty']")).toHaveCount(1)
       // A new source's row: "+ Quote", then "− Source".
       let remove = citation.locator(".quote-passage-actions .quote-passage-citation-remove")
       try await expect(remove).toHaveText("Source")

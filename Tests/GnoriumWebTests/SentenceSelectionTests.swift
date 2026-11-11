@@ -216,14 +216,16 @@ struct SentenceSelectionTests {
         try await expect(message).toHaveCount(0)
         try await expect(forms).toHaveValue(#"[[["w1.4"],["w1.7"]]]"#)
 
-        // Its Quote card IS its artifact (legend "Quote"), never its text;
-        // its "− Quote" even while alone, a sentiment needing no quote
-        // (user, 2026-11-05).
+        // Its quote IS its artifact, in no box of its own (user,
+        // 2026-11-11), never its text; its "− Quote", in its Source's own
+        // row, even while alone, a sentiment needing no quote (user,
+        // 2026-11-05).
         let groups = box.locator(".quote-passage-quotes > .quote-passage-quote")
         try await expect(groups).toHaveCount(1)
-        try await expect(groups.first.locator(".form-item-legend")).toHaveText("Quote")
+        try await expect(groups.first.locator(".form-item-legend")).toHaveCount(0)
         try await expect(box.locator(".quote-passage-quote-text")).toHaveCount(0)
-        try await expect(groups.first.locator(".quote-passage-quote-remove")).toBeVisible()
+        let removeLast = box.locator(".quote-passage-actions .quote-passage-last-quote-remove")
+        try await expect(removeLast).toBeVisible()
         let add = box.locator(".quote-passage-actions .quote-passage-quote-add")
         try await expect(add).toHaveAttribute("aria-label", "Add quote")
         try await expect(add).toHaveText("Quote")
@@ -246,7 +248,7 @@ struct SentenceSelectionTests {
         try await expect(groups.first.locator(".quote-passage-quote-remove")).toBeVisible()
 
         // "− Quote" lets the second go.
-        try await groups.nth(1).locator(".quote-passage-quote-remove").click()
+        try await removeLast.click()
         try await expect(groups).toHaveCount(1)
         let back = try await quote.evaluate("(q) => q.value").string ?? ""
         #expect(back == "They fel.\nA scratchword lay.", "the second let go: \(back)")
@@ -269,7 +271,7 @@ struct SentenceSelectionTests {
         try await expect(groups).toHaveCount(2)
         try await expect(groups.nth(1).locator(".tei-word.tei-highlight"), timeout: .seconds(20)).toHaveCount(3)
         try await expect(forms).toHaveValue(#"[[],[["w1.7"]]]"#)
-        try await groups.nth(1).locator(".quote-passage-quote-remove").click()
+        try await removeLast.click()
         let first = try await quote.evaluate("(q) => q.value").string ?? ""
         #expect(first == "The scratchwords stood.", "the split quote let go: \(first)")
         try await expect(forms).toHaveValue("")

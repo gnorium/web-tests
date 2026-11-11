@@ -650,7 +650,7 @@ struct SubmissionTests {
         // Its one Quote card's "− Quote", and "+ Quote" puts one back.
         let cards = box.locator(".quote-passage-quotes > .quote-passage-quote")
         try await expect(cards).toHaveCount(1)
-        let removeQuote = cards.first.locator(".quote-passage-quote-remove")
+        let removeQuote = box.locator(".quote-passage-actions .quote-passage-last-quote-remove")
         try await expect(removeQuote).toBeVisible()
         try await expect(removeQuote).toHaveText("Quote")
         try await removeQuote.click()

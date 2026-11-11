@@ -138,9 +138,6 @@ struct DraftSourcesTests {
       try await expect(quotes).toHaveCount(2)
       try await expect(Self.pane(quotes.nth(1)), timeout: .seconds(15)).toBeAttached()
       try await Self.pane(quotes.nth(1)).fill("Sold by Sir Henry Bunbury.")
-      let certainty = quotes.nth(1).locator(".dropdown-view:has(input[name$='-certainty'])")
-      try await certainty.locator(".dropdown-trigger").click()
-      try await certainty.locator(".dropdown-option[data-value='probable']").filter(visible: true).first.click()
       // Origin 1 cites its own source, its claim the step itself.
       try await page.locator(".origin-field-view input[name='origin-1-title']").fill("Web tests draft origin")
       let step = page.locator(".origin-field-view [data-origin-row='true']").first
@@ -176,14 +173,14 @@ struct DraftSourcesTests {
       try await expect(quotes).toHaveCount(2)
       try await expect(Self.pane(quotes.first), timeout: .seconds(15)).toHaveText("Bought of Sir Henry Bunbury.")
       try await expect(Self.pane(quotes.nth(1)), timeout: .seconds(15)).toHaveText("Sold by Sir Henry Bunbury.")
-      try await expect(quotes.nth(1).locator("input[name$='-certainty']")).toHaveValue("probable")
+      // A quote asks no Certainty (user, 2026-11-11).
+      try await expect(quotes.locator("input[name$='-certainty']")).toHaveCount(0)
       // Posted again as it was: the owner's row, both quotes, the second's
       // Certainty.
-      let posted = try await Self.posted(page, "input[name='outgoing-citations-json-4']", holding: "probable")
+      let posted = try await Self.posted(page, "input[name='outgoing-citations-json-4']", holding: "Sold by Sir Henry Bunbury.")
       #expect(posted.contains("\"claim\":\"formerOwners:\(row)\""), "its claim: \(posted)")
       #expect(posted.contains("Bought of Sir Henry Bunbury.") && posted.contains("Sold by Sir Henry Bunbury."), "both quotes: \(posted)")
-      // The first as its card came, Certain (every claim's Quote cards ask one; user, 2026-11-10).
-      #expect(posted.contains("\"certainties\":[\"certain\",\"probable\"]"), "each card's Certainty: \(posted)")
+      #expect(!posted.contains("certaint"), "no quote's certainty is posted: \(posted)")
       // The step's citation back, posted in its row.
       try await expect(stepCitations).toHaveCount(1)
       try await expect(stepSource.locator("input[name$='-source-url-title']")).toHaveValue("A History of the Origin")

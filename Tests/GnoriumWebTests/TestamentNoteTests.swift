@@ -153,13 +153,11 @@ struct TestamentNoteTests {
         try await expect(digitizationNote).toBeEnabled()
         try await expect(digitizationNote).toHaveAttribute("placeholder", "Note")
         try await digitizationNote.fill(Self.note)
-        // Under its node's Metadata, above its Source.
+        // Under its node's Metadata.
         let noteBox = try #require(try await digitizationNote.boundingBox())
         let metadataBox = try #require(
           try await manifest.locator(".metadata-accordion-view").first.boundingBox())
         #expect(metadataBox.y + metadataBox.height <= noteBox.y)
-        let sourceBox = try #require(try await manifest.locator(".testament-source-view").first.boundingBox())
-        #expect(noteBox.y + noteBox.height <= sourceBox.y)
         try await expect(form.locator(".record-choice-field-view .record-choice-field-slot"), timeout: .seconds(20))
           .toHaveAttribute("aria-busy", "false")
         try await expect(form.locator(".testament-draft-reader .artifact-view"), timeout: .seconds(20)).toBeVisible()
