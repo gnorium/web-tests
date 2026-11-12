@@ -1477,6 +1477,9 @@ struct ArbitrationTests {
         try await body.focus()
         try await expect(page.locator("html")).toHaveAttribute("data-locution-attaching", "true")
         try await expect(page.locator(".metadata-accordion .call-tick-view")).toHaveCount(0)
+        // The Evidence tick stays while an item may be ticked for the call
+        // (user, 2026-11-12: gone where none may).
+        try await expect(page.locator(".evidence-select-all").first).toHaveAttribute("data-none", "false")
         try await expect(locutionTick).toBeVisible()
         try await expect(locutionTick).toBeChecked(false)
         try await locutionTick.click()
