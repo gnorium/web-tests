@@ -14,7 +14,7 @@ struct ArbitrationTests {
   /// with no archived copy, so its chip shows an empty box.
   static let sentImage = "http://127.0.0.1:9/sent-page-1.jpg"
   static let toolDefinition =
-    #"[{"type":"function","function":{"name":"read_record","description":"Read the exact human Revise fields and attached evidence.","parameters":{"type":"object","properties":{},"additionalProperties":false}}}]"#
+    #"[{"type":"function","function":{"name":"read_object","description":"Read the exact human Revise fields and attached evidence.","parameters":{"type":"object","properties":{},"additionalProperties":false}}}]"#
 
   /// The sessions' table, which owns their traces (`SessionTrace`).
   static let sessions = "bibliographic_arbitration_sessions"
@@ -26,7 +26,7 @@ struct ArbitrationTests {
     ["type": "image_sent", "url": sentImage, "source_sha256": "abc", "sha256": "def", "caption": ""],
     ["type": "tools", "content": toolDefinition],
     ["type": "thinking", "content": String(repeating: "Reading the selected evidence carefully.\n\n", count: 90)],
-    ["type": "tool", "name": "read_record", "arguments": "{}", "status": "ok", "call_id": "arbitration_read",
+    ["type": "tool", "name": "read_object", "arguments": "{}", "status": "ok", "call_id": "arbitration_read",
      "result": #"{"nodes":[{"id":"work","label":"Work","number":"1","fields":[{"id":"title","label":"Title","value":"Web tests evidence"}]}],"evidence":{"id":"selected-evidence","kind":"canvas","label":"Title page","markup":"<p>Evidence fixture 2.</p>"}}"#],
     ["type": "tools", "content": toolDefinition],
     ["type": "text", "content": reply],
@@ -1433,13 +1433,14 @@ struct ArbitrationTests {
     try await admin.remove()
   }
 
-  /// A call ticks its object's Metadata accordions whole and the thread's
-  /// locutions (user, 2026-10-15, 2026-10-16): one box on each, shown only
-  /// while a call is written, none ticked, a press on one keeping the box
-  /// focused. The call stores what was ticked; its byline names the page on
-  /// screen, and its Attached line what it ticked (user, 2026-10-17).
+  /// A call ticks the thread's locutions (user, 2026-10-15): one box on
+  /// each, shown only while a call is written, none ticked, a press on one
+  /// keeping the box focused. A Metadata accordion has no box (user,
+  /// 2026-11-12: a call is sent its object's metadata whatever it ticks).
+  /// The call stores what was ticked; its byline names the page on screen,
+  /// and its Attached line what it ticked (user, 2026-10-17).
   @Test(arguments: [BrowserEngine.chrome])
-  func aCallTicksMetadataAccordionsAndLocutions(engine: BrowserEngine) async throws {
+  func aCallTicksLocutionsAndNoMetadata(engine: BrowserEngine) async throws {
     if let reason = TestAdmin.unavailableReason() { try Test.cancel(Comment(rawValue: reason)) }
     guard gnorium.engines.contains(engine) else { return }
     let fixture = try await FixtureServer.threePageManifest()
@@ -1471,42 +1472,16 @@ struct ArbitrationTests {
         try await rail.click()
         try await expect(entry).toHaveAttribute("data-collapsed", "false")
         // Hidden until a call is written.
-        let work = page.locator("#metadata-tick-work")
         let locutionTick = page.locator("#locution-tick-\(firstID)")
-        try await expect(work).toBeHidden()
         try await expect(locutionTick).toBeHidden()
-        // A header bearing a tick keeps its height when the tick shows, the
-        // box centered on the header's line (user, 2026-10-17).
-        let headers = """
-          [...document.querySelectorAll('.accordion-summary')].filter(s => s.querySelector('.call-tick-view'))
-            .map(s => s.getBoundingClientRect().height)
-          """
-        let ticks = """
-          [...document.querySelectorAll('.accordion-summary .call-tick-view')].filter(t => t.offsetParent)
-            .map(t => { const box = t.querySelector('.checkbox-icon').getBoundingClientRect()
-              const title = t.closest('.accordion-title').getBoundingClientRect()
-              return Math.abs((box.top + box.bottom) / 2 - (title.top + title.bottom) / 2) })
-          """
-        let before = try await page.evaluate(headers, as: [Double].self)
         try await body.focus()
         try await expect(page.locator("html")).toHaveAttribute("data-locution-attaching", "true")
-        let after = try await page.evaluate(headers, as: [Double].self)
-        #expect(!before.isEmpty && before == after, "headers keep their height as their ticks show: \(before) → \(after)")
-        let offsets = try await page.evaluate(ticks, as: [Double].self)
-        #expect(!offsets.isEmpty && offsets.allSatisfy { $0 < 0.5 }, "each tick centered on its header's line: \(offsets)")
+        try await expect(page.locator(".metadata-accordion .call-tick-view")).toHaveCount(0)
         try await expect(locutionTick).toBeVisible()
         try await expect(locutionTick).toBeChecked(false)
         try await locutionTick.click()
         try await expect(locutionTick).toBeChecked()
         try await expect(body).toBeFocused()
-        // The work's Metadata, ticked from its header, leaves it closed.
-        try await expect(work).toBeVisible()
-        let open = "(()=>{const e=document.getElementById('record-metadata');return String((e.matches('details')?e:e.querySelector('details')).open)})()"
-        let wasOpen = try await page.evaluate(open, as: String.self)
-        try await work.click()
-        try await expect(work).toBeChecked()
-        let isOpen = try await page.evaluate(open, as: String.self)
-        #expect(isOpen == wasOpen, "a tick in the header leaves the accordion as it was")
         try await body.fill("@gnorium Is the title right?")
         // And an image on another page than the one on screen (page 1).
         let page2 = page.locator("#madrigal-frames .roster-row").nth(1).locator("input")
@@ -1519,11 +1494,11 @@ struct ArbitrationTests {
           SELECT coalesce(evidence_id, '—') || '|' || coalesce(metadata_ids, '') || '|' || coalesce(locution_ids, '')
           FROM locutions WHERE locutable_id = '\(objectID)' AND kind = 'call'
           """)
-        #expect(stored == "\(fixture.baseURL)/page-2|[\"work\"]|[\"\(firstID)\"]", Comment(rawValue: stored))
+        #expect(stored == "\(fixture.baseURL)/page-2||[\"\(firstID)\"]", Comment(rawValue: stored))
         // Its body as typed; the byline names the page on screen, and
-        // nothing ticked (user, 2026-10-17); its Attachments list the three
-        // in the order its message carries them—Metadata, evidence,
-        // locutions—the page's image a line-high chip.
+        // nothing ticked (user, 2026-10-17); its Attachments list the two
+        // in the order its message carries them—evidence, locutions—the
+        // page's image a line-high chip.
         let call = page.locator(".locution-view").last
         try await expect(call.locator(".locution-header")).toContainText("on Frame 1")
         try await expect(call.locator(".locution-header")).not.toContainText("Frame 2")
@@ -1538,12 +1513,10 @@ struct ArbitrationTests {
           """).string
         let joined = try await attachments.evaluate(
           "e => e.querySelector('.list-sentence-lead').textContent + '|' + [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('|')").string
-        #expect(joined == "Attached| |, |, and |.", Comment(rawValue: joined ?? "—"))
-        // Metadata by its node's heading, as its accordion names it.
-        #expect(crumbs?.hasPrefix("Metadata › ") == true && crumbs?.hasSuffix(" | Frame 2 | Locution \(firstID)") == true
-          && crumbs?.components(separatedBy: " | ").count == 3, Comment(rawValue: crumbs ?? "—"))
+        #expect(joined == "Attached| | and |.", Comment(rawValue: joined ?? "—"))
+        #expect(crumbs == "Frame 2 | Locution \(firstID)", Comment(rawValue: crumbs ?? "—"))
         try await expect(attachments.locator(".locution-attachments-item a[href='#locution-\(firstID)']")).toHaveCount(1)
-        try await expect(attachments.locator(".locution-attachments-item").nth(1)
+        try await expect(attachments.locator(".locution-attachments-item").nth(0)
           .locator(".locution-attachment[data-presentation='line']")).toHaveCount(1)
         // A locution that ticks nothing, a plain one, has no Attachments.
         try await expect(page.locator("#locution-\(firstID) .locution-attachments")).toHaveCount(0)
