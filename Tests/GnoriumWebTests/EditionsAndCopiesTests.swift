@@ -25,8 +25,8 @@ struct EditionsAndCopiesTests {
 
       // The edition's physical description; the copy's dimension.
       try await expect(page.locator("#testament-format")).toHaveCount(1)
-      try await expect(page.locator(".combobox-view:has(#testament-format) [data-value='quarto']")).toHaveCount(1)
-      try await expect(page.locator(".combobox-view:has(#testament-format) [data-value='other']")).toHaveCount(0)
+      try await expect(page.locator(".dropdown-view:has(#testament-format) [data-value='quarto']")).toHaveCount(1)
+      try await expect(page.locator(".dropdown-view:has(#testament-format) [data-value='other']")).toHaveCount(0)
       try await expect(page.locator(".dropdown-view:has(#testament-extent-unit) .dropdown-selected-text"))
         .toContainText("Leaves")
       try await expect(page.locator(".dropdown-view:has(#testament-dimension-unit) .dropdown-selected-text"))
