@@ -153,6 +153,16 @@ struct GraphTests {
         try await page.openHydrated(Self.query(["incoming-mention-of"], record: cited.path))
         try await expect(page.locator("meta[name='robots']")).toHaveAttribute("content", "noindex, follow")
         try await expect(page.locator(".records-count-view")).toContainText("1 incoming mention")
+        // The same mentions from the work making them (user, 2026-11-13):
+        // "Outgoing mentions of [the citing work]" lists the cited one.
+        try await page.openHydrated(Self.query(["outgoing-mention-of"], record: citing.path))
+        try await expect(page.locator(".records-count-view")).toContainText("1 outgoing mention")
+        let named = page.locator(".graph-table tbody tr")
+        try await expect(named).toHaveCount(1)
+        try await expect(named.locator("a[href='\(cited.path)'] .breadcrumb-label-text")).toHaveText(cited.title)
+        try await expect(named.locator("a.graph-count")).toHaveAttribute(
+          "href", "\(citing.path)/citations?biblio-record=\(cited.recordID)&direction=cites")
+        try await page.openHydrated(Self.query(["incoming-mention-of"], record: cited.path))
         let row = page.locator(".graph-table tbody tr")
         try await expect(row).toHaveCount(1)
         // The record the site's way: "Language › Title" over its type.

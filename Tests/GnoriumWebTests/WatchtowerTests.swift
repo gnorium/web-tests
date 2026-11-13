@@ -105,7 +105,7 @@ struct WatchtowerTests {
           .find(e => e.textContent.trim() === 'Halftone')
           ?.closest('.watchtower-object-view').querySelector('.watchtower-object-description')?.textContent.trim() ?? ''
         """, as: String.self)
-      #expect(description == "The calibrated document people settle, then commit or permit.", "\(description)")
+      #expect(description == "The calibrated object people settle, then commit or permit.", "\(description)")
       // Each box's process, then its columns' headings and figures' words.
       let columns = try await page.evaluate("""
         [...document.querySelectorAll('.watchtower-process-figures')].map(box =>
@@ -204,7 +204,7 @@ struct WatchtowerTests {
           const kinds = ['rotating-dotted-ring-sector-view', 'rotating-ring-sector-with-disc-view',
             'rotating-ring-sector-view', 'rotating-sector-view', 'ringed-disc-icon-view', 'dotted-ring-view',
             'ring-icon-view', 'disc-icon-view', 'check-icon-view', 'inbox-icon-view', 'octagon-alert-icon-view', 'triangle-alert-icon-view',
-            'gavel-icon-view', 'stamp-icon-view']
+            'signature-icon-view', 'stamp-icon-view']
           const owner = figure => {
             const box = figure.closest('.watchtower-processes-view')
             const region = figure.closest('.live-region-view')?.id ?? ''
@@ -251,7 +251,7 @@ struct WatchtowerTests {
         "overture": ("dotted-ring-view", [:]),
         "halftone": ("dotted-ring-view", [:]),
         "madrigal": ("ring-icon-view", [:]),
-        "epilogue": ("disc-icon-view", [:]),
+        "epilogue": ("disc-icon-view", ["lexicographic": "disc-icon-view"]),
       ]
       var processes = 0
       var machines = 0
@@ -305,7 +305,7 @@ struct WatchtowerTests {
           let tab = figure.column
           switch word {
           case "pending": wanted = entry.value.pending
-          case "committed": wanted = entry.value.committed[tab] ?? "gavel-icon-view"
+          case "committed": wanted = entry.value.committed[tab] ?? "signature-icon-view"
           // Input changed since its work was done: the orange triangle
           // (gnorium-web d1f9e1413, 2026-10-22).
           case "stale": wanted = "triangle-alert-icon-view"; color = "orange"
