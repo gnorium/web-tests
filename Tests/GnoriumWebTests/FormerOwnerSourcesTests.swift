@@ -42,7 +42,7 @@ struct FormerOwnerSourcesTests {
       // "+ Support": a card, its Claim offering the owner by name.
       let add = view.locator(".outgoing-citations-actions .outgoing-citations-add")
       try await expect(add).toHaveText("Support")
-      try await expect(add).toHaveAttribute("aria-label", "Add citation")
+      try await expect(add).toHaveAttribute("aria-label", "Add support")
       try await add.click()
       let cards = view.locator(".outgoing-citations-list > .outgoing-citation-group")
       try await expect(cards).toHaveCount(1)

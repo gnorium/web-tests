@@ -157,7 +157,7 @@ struct OriginEvidenceTests {
         // card, its claim the step itself, its Source the form's.
         let add = second.locator(".outgoing-citations-actions .outgoing-citations-add")
         try await expect(add).toHaveText("Support")
-        try await expect(add).toHaveAttribute("aria-label", "Add citation")
+        try await expect(add).toHaveAttribute("aria-label", "Add support")
         try await add.click()
         let citation = second.locator(".outgoing-citations-list > .outgoing-citation-group")
         let card = citation.locator(".evidence-source-view")
