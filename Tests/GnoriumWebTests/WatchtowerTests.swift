@@ -176,9 +176,9 @@ struct WatchtowerTests {
   ///   the red cross.
   /// - a Disputorium object's figures its chip's: pending its level's
   ///   pending mark (an overture's and a halftone's the dotted ring, a
-  ///   madrigal's the ring, an epilogue's the disc), committed the blue
-  ///   arrow right (a lexicographic epilogue's committed, on its verdict,
-  ///   the disc), permitted the green stamp; a figurant's and a
+  ///   madrigal's the ring, an epilogue's the disc), committed the
+  ///   signature on both sides (a lexicographic epilogue's states are a
+  ///   bibliographic one's), permitted the green stamp; a figurant's and a
   ///   palinode's submitted the green inbox (user, 2026-10-25); Arbitration's box's
   ///   passed the blue check, its work done. Neither stale nor hidden is a figure.
   /// A turning mark always turns, at zero too (its computed animation is
@@ -251,7 +251,7 @@ struct WatchtowerTests {
         "overture": ("dotted-ring-view", [:]),
         "halftone": ("dotted-ring-view", [:]),
         "madrigal": ("ring-icon-view", [:]),
-        "epilogue": ("disc-icon-view", ["lexicographic": "disc-icon-view"]),
+        "epilogue": ("disc-icon-view", [:]),
       ]
       var processes = 0
       var machines = 0

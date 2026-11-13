@@ -1638,7 +1638,7 @@ struct ArbitrationTests {
         INSERT INTO lexicographic_epilogues (id, lexico_record_id, lexico_record_version_id, sentiment_id, tei,
           target, status, submitted_by_user_id, summary, value_translation_json)
           VALUES ('\(epilogue)', '\(word.recordID)', '\(word.versionID)', '\(word.leaf)',
-            '<sense><def>A leaf sense.</def></sense>', 'value', 'committed', '\(user)', 'Web tests arbitration prompts.',
+            '<sense><def>A leaf sense.</def></sense>', 'value', 'pending', '\(user)', 'Web tests arbitration prompts.',
             '{"languageCode":"fra","tei":"<def xml:lang=\\"fr\\">Un sens feuille.</def>","confidence":"clear","reason":"Web tests."}');
         """)
       try await withPage(engine, gnorium, viewport: .desktop, cookies: [contributor.cookie]) { page in
