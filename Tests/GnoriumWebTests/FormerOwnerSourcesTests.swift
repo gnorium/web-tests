@@ -5,11 +5,11 @@ import WebTestsTesting
 
 /// Evidence first (user, 2026-11-03): a node's claims rest on its
 /// Incoming supports, one accordion a node under its Note. On Submit
-/// Testament a copy's "+ Citation" stamps a card: its Claim (the copy's
+/// Testament a copy's "+ Support" stamps a card: its Claim (the copy's
 /// fields, and each former owner by name as it is typed), its Source
 /// accordion holding its fields, its Quote cards (a sourceless work's
 /// text-only reader, its quote typed there) and its own row, "+ Quote" and
-/// "− Citation": a citation holds exactly one source (user, 2026-11-03). A typed quote's words naming the claim
+/// "− Support": a citation holds exactly one source (user, 2026-11-03). A typed quote's words naming the claim
 /// are picked as any quote's (a text selection and "+ Form"), never
 /// matched by the owner's name. The copy's list posts as JSON, each new
 /// card its claim and its Source, its forms by place.
@@ -39,9 +39,9 @@ struct FormerOwnerSourcesTests {
       ).bool
       #expect(stacked == true, "Start over End, one column")
 
-      // "+ Citation": a card, its Claim offering the owner by name.
+      // "+ Support": a card, its Claim offering the owner by name.
       let add = view.locator(".outgoing-citations-actions .outgoing-citations-add")
-      try await expect(add).toHaveText("Citation")
+      try await expect(add).toHaveText("Support")
       try await expect(add).toHaveAttribute("aria-label", "Add citation")
       try await add.click()
       let cards = view.locator(".outgoing-citations-list > .outgoing-citation-group")
@@ -65,7 +65,7 @@ struct FormerOwnerSourcesTests {
       try await expect(quotes).toHaveCount(1)
       // Inside its Source accordion (user, 2026-11-11: "quotes go back
       // inside the source accordions"), then its own row: "+ Quote", then
-      // "− Source", its card holding "+ Source" and "− Citation".
+      // "− Source", its card holding "+ Source" and "− Support".
       try await expect(source.locator(".source-accordion-view .quote-passage-quote")).toHaveCount(1)
       try await expect(source.locator(".quote-passage-body > .quote-passage-quotes > .quote-passage-quote")).toHaveCount(1)
       try await expect(source.locator(".quote-passage-body .quote-passage-actions .button-label"))
@@ -155,10 +155,10 @@ struct FormerOwnerSourcesTests {
       let retyped = try await json.evaluate("(i) => i.value").string ?? ""
       #expect(!retyped.contains("\"forms\""), "its stale form let go: \(retyped)")
 
-      // Its card holds "+ Source" and "− Citation" (user, 2026-11-11);
+      // Its card holds "+ Source" and "− Support" (user, 2026-11-11);
       // its one source's "− Source" lets the source go, and its card with
       // its last.
-      try await expect(card.locator(".outgoing-citation-card-actions .button-label")).toHaveTexts(["Source", "Citation"])
+      try await expect(card.locator(".outgoing-citation-card-actions .button-label")).toHaveTexts(["Source", "Support"])
       let remove = card.locator(".quote-passage-actions .quote-passage-citation-remove")
       try await expect(remove).toHaveText("Source")
       try await expect(remove).toHaveAttribute("aria-label", "Remove source")

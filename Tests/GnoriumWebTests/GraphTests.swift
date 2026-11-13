@@ -111,7 +111,7 @@ struct GraphTests {
           """)
         #expect(stacked == .bool(true), "The swap arrows sit one above the other, centered together.")
         let relations = query.locator(".graph-relation [data-dropdown-option='true']")
-        try await expect(relations.first).toHaveAttribute("data-display", "Citations")
+        try await expect(relations.first).toHaveAttribute("data-display", "Incoming mentions")
         for plural in [
           "Translations", "Expositions", "Derivatives", "Borrowings", "Affixes", "Back-formations", "Eponyms",
           "Containers", "Equivalents", "Etymons",
@@ -149,10 +149,10 @@ struct GraphTests {
         try await suggestion.first.click()
         try await expect(query.locator("input[name='record']")).toHaveValue(cited.path)
 
-        // "Citations of [the cited work]".
-        try await page.openHydrated(Self.query(["citation-of"], record: cited.path))
+        // "Incoming mentions of [the cited work]".
+        try await page.openHydrated(Self.query(["incoming-mention-of"], record: cited.path))
         try await expect(page.locator("meta[name='robots']")).toHaveAttribute("content", "noindex, follow")
-        try await expect(page.locator(".records-count-view")).toContainText("1 citation")
+        try await expect(page.locator(".records-count-view")).toContainText("1 incoming mention")
         let row = page.locator(".graph-table tbody tr")
         try await expect(row).toHaveCount(1)
         // The record the site's way: "Language › Title" over its type.
@@ -161,7 +161,7 @@ struct GraphTests {
         try await expect(listed.locator("a[href='\(citing.path)'] .breadcrumb-label-text")).toHaveText(citing.title)
         try await expect(listed.locator(".record-type-view")).toHaveCount(1)
         let count = row.locator("a.graph-count")
-        try await expect(count).toHaveText("3 citations")
+        try await expect(count).toHaveText("3 mentions")
         try await expect(count).toHaveAttribute(
           "href", "\(cited.path)/citations?biblio-record=\(citing.recordID)&direction=citations")
         // The drawing: the record asked at the root, the citing work under
@@ -169,7 +169,7 @@ struct GraphTests {
         let drawing = page.locator(".relation-graph-view svg")
         try await expect(drawing).toHaveCount(1)
         try await expectTexts(drawing.locator(".relation-graph-title"), [cited.title, citing.title])
-        try await expectTexts(drawing.locator(".relation-graph-label"), ["citation of"])
+        try await expectTexts(drawing.locator(".relation-graph-label"), ["incoming mention of"])
         try await expect(drawing.locator("marker#relation-graph-arrowhead path")).toHaveCount(1)
         try await expect(drawing.locator(".relation-graph-edge")).toHaveAttribute(
           "marker-end", "url(#relation-graph-arrowhead)")
@@ -184,23 +184,23 @@ struct GraphTests {
         try await expect(page.locator(".record-citations-citation")).toHaveCount(3)
 
         // A filter narrows the records listed.
-        try await page.openHydrated(Self.query(["citation-of"], record: cited.path, extra: "&language=eng"))
+        try await page.openHydrated(Self.query(["incoming-mention-of"], record: cited.path, extra: "&language=eng"))
         try await expect(page.locator(".graph-table tbody tr a[href='\(citing.path)']")).toHaveCount(1)
-        try await page.openHydrated(Self.query(["citation-of"], record: cited.path, extra: "&language=fra"))
-        try await expect(page.locator(".records-count-view")).toContainText("0 citations")
-        try await expect(page.locator(".graph-empty-message")).toHaveText("No citations.")
+        try await page.openHydrated(Self.query(["incoming-mention-of"], record: cited.path, extra: "&language=fra"))
+        try await expect(page.locator(".records-count-view")).toContainText("0 incoming mentions")
+        try await expect(page.locator(".graph-empty-message")).toHaveText("No incoming mentions.")
         // Voice name, the paths' records' voice names' atom: one name a row,
         // repeatable, the rows OR'd (user, 2026-10-08).
         let author = citing.author.lowercased().addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
         try await page.openHydrated(
-          Self.query(["citation-of"], record: cited.path, extra: "&voice=\(author)&voice=web%20tests%20nobody"))
+          Self.query(["incoming-mention-of"], record: cited.path, extra: "&voice=\(author)&voice=web%20tests%20nobody"))
         try await expect(page.locator(".graph-table tbody tr a[href='\(citing.path)']")).toHaveCount(1)
         try await expect(page.locator(".filter-bar-view .filter-bar-row")).toHaveCount(2)
         try await expect(
           page.locator(".filter-bar-view .filter-bar-field-picker .dropdown-selected-text").filter(hasText: "Voice name")
         ).toHaveCount(2)
-        try await page.openHydrated(Self.query(["citation-of"], record: cited.path, extra: "&voice=web%20tests%20nobody"))
-        try await expect(page.locator(".records-count-view")).toContainText("0 citations")
+        try await page.openHydrated(Self.query(["incoming-mention-of"], record: cited.path, extra: "&voice=web%20tests%20nobody"))
+        try await expect(page.locator(".records-count-view")).toContainText("0 incoming mentions")
 
         // None: said in words, no drawing.
         try await page.openHydrated(Self.query(["container-of"], record: cited.path))
@@ -219,7 +219,7 @@ struct GraphTests {
         // plural, objects by the noun.
         try await expectHeaders(page, listed: "Translations", last: "Translation of")
 
-        // "+" adds a hop: "Translations of citations of [the cited work]".
+        // "+" adds a hop: "Translations of incoming mentions of [the cited work]".
         try await page.openHydrated(Self.query(["translation-of"], record: cited.path))
         try await expect(page.locator(".graph-empty-message")).toHaveText("No translations.")
         try await page.locator("form.graph-query button[aria-label='Add a relation']").click()
@@ -228,14 +228,14 @@ struct GraphTests {
         try await expect(page.locator("html"), timeout: .seconds(20)).toHaveAttribute("data-wasm-status", "started")
         try await expect(page.locator("form.graph-query input[name='record']")).toHaveValue(cited.path)
         try await second.locator(".dropdown-trigger").click()
-        try await second.locator(".dropdown-option[data-value='citation-of']").click()
+        try await second.locator(".dropdown-option[data-value='incoming-mention-of']").click()
         try await page.locator("form.graph-query button[type='submit']").filter(hasText: "Search").click()
         try await expect(page.locator(".records-count-view")).toContainText("1 translation")
         let chained = page.locator(".graph-table tbody tr")
         try await expect(chained).toHaveCount(1)
         try await expect(chained.locator("a[href='\(translation.path)']")).toHaveCount(1)
         try await expect(chained.locator(".graph-via a[href='\(citing.path)']")).toHaveCount(1)
-        // "Translations of / citations of / [record]", laid out as the
+        // "Translations of / incoming mentions of / [record]", laid out as the
         // filter bar: each word on its control's line, + on the first hop
         // and − on the second; a phone stacks the rest at full width, swap
         // and Search last; a desktop ends the first hop's line with + and
@@ -276,7 +276,7 @@ struct GraphTests {
         try await expectHeaders(page, listed: "Translations", last: nil)
         try await expectTexts(
           page.locator(".relation-graph-view .relation-graph-title"), [cited.title, citing.title, translation.title])
-        try await expectTexts(page.locator(".relation-graph-view .relation-graph-label"), ["citation of", "translation of"])
+        try await expectTexts(page.locator(".relation-graph-view .relation-graph-label"), ["incoming mention of", "translation of"])
         await shoot(page, "chain", layout)
         // Every hop after the first removable, by its −.
         let removes = page.locator("form.graph-query a[aria-label='Remove this relation']")
@@ -339,13 +339,13 @@ struct GraphTests {
 
         // Chained, each hop's row "[noun] of".
         try await page.openHydrated(
-          Self.query(["translation-of", "citation-of"], record: translation.path, extra: "&form=sentence"))
+          Self.query(["translation-of", "incoming-mention-of"], record: translation.path, extra: "&form=sentence"))
         try await expectTexts(page.locator("form.graph-query .graph-word"), ["is", "of", "of"])
         try await expectTexts(
-          page.locator("form.graph-query .graph-relation .dropdown-selected-text"), ["translation", "citation"])
-        try await expectTexts(page.locator(".relation-graph-view .relation-graph-label"), ["translation of", "citation of"])
+          page.locator("form.graph-query .graph-relation .dropdown-selected-text"), ["translation", "incoming mention"])
+        try await expectTexts(page.locator(".relation-graph-view .relation-graph-label"), ["translation of", "incoming mention of"])
 
-        // "Citations of [the cited work]", as its Citations open it.
+        // "Incoming mentions of [the cited work]", as its Citations open it.
         try await page.openHydrated(cited.path)
         try await page.locator("#record-citations .accordion-summary").first.click()
         let fromCitations = page.locator("#record-citations a.citations-graph")

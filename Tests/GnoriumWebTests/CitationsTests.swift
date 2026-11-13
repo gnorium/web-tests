@@ -48,11 +48,11 @@ struct CitationsTests {
         try await citations.locator(".accordion-summary").first.click()
         let row = citations.locator(".citations-work")
         try await expect(row.locator("a[href='\(citing.path)']")).toHaveCount(1)
-        try await expect(row.locator(".citations-count")).toHaveText("1 citation")
+        try await expect(row.locator(".citations-count")).toHaveText("1 mention")
         // How many, its Citations datum: at the head of its Incoming
         // citations (user, 2026-11-03), no longer in its Metadata.
-        let datum = citations.locator(".incoming-citations-body > .datum-view").filter(hasText: "Citations")
-        try await expect(datum.locator(".datum-label")).toHaveText("Citations")
+        let datum = citations.locator(".incoming-citations-body > .datum-view").filter(hasText: "Mentions")
+        try await expect(datum.locator(".datum-label")).toHaveText("Mentions")
         try await expect(datum.locator(".datum-value")).toHaveText("1 work")
         let metadata = page.locator("#record-metadata")
         try await metadata.locator(".accordion-summary").first.click()
@@ -61,7 +61,9 @@ struct CitationsTests {
         // The citing work cites; nothing cites it: no Incoming mentions,
         // the accordion not drawn where nothing cites the record.
         try await page.openHydrated(citing.path)
-        try await expect(page.locator(".incoming-citations-view")).toHaveCount(0)
+        // It does name another work: an Outgoing mentions section, never an
+        // Incoming one.
+        try await expect(page.locator("#incoming-citations")).toHaveCount(0)
         try await expect(page.locator("#record-citations")).toHaveCount(0)
       }
     } catch {
@@ -130,7 +132,7 @@ struct CitationsTests {
         let work = citations.locator(".citations-work")
         try await expect(work).toHaveCount(1)
         try await expect(work.locator("a[href='\(catalogPath)']")).toHaveCount(1)
-        try await expect(work.locator(".citations-count")).toHaveText("2 citations")
+        try await expect(work.locator(".citations-count")).toHaveText("2 mentions")
         try await page.expectNoHorizontalOverflow()
       }
     } catch {

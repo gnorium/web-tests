@@ -132,12 +132,12 @@ struct EntriesAndCitationsTests {
         try await expect(rows).toHaveCount(2)
         try await expect(citations.locator(".filter-bar-view")).toHaveCount(1)
         let lettersRow = rows.filter(hasText: letters.title)
-        try await expect(lettersRow.locator(".citations-count")).toHaveText("3 citations")
-        try await expect(rows.filter(hasText: catalog.title).locator(".citations-count")).toHaveText("1 citation")
+        try await expect(lettersRow.locator(".citations-count")).toHaveText("3 mentions")
+        try await expect(rows.filter(hasText: catalog.title).locator(".citations-count")).toHaveText("1 mention")
         // Its Incoming mentions count them, its Citations datum at their
         // head (user, 2026-11-03), no longer in its Metadata.
         try await expect(
-          citations.locator(".incoming-citations-body > .datum-view").filter(hasText: "Citations").locator(".datum-value")
+          citations.locator(".incoming-citations-body > .datum-view").filter(hasText: "Mentions").locator(".datum-value")
         ).toHaveText("2 works")
         let metadata = page.locator("#record-metadata")
         try await metadata.locator(".accordion-summary").first.click()
@@ -152,7 +152,7 @@ struct EntriesAndCitationsTests {
         // The pair's page: every citation between the two, the catalog's in the entry it stands in.
         try await page.openHydrated(
           "\(cited.path)/citations?biblio-record=\(catalog.recordID)&direction=citations")
-        try await expect(page.locator("h1")).toHaveText("Citations in \(catalog.title)")
+        try await expect(page.locator("h1")).toHaveText("Incoming mentions from \(catalog.title)")
         let table = page.locator(".record-citations-table")
         try await expect(table).toContainText("ANOTHER HEADING")
         try await expect(table).toContainText("Cited 1")
@@ -216,7 +216,7 @@ struct EntriesAndCitationsTests {
         let citations = page.locator("#record-citations")
         try await citations.locator(".accordion-summary").first.click()
         try await expect(citations.locator(".citations-work")).toHaveCount(1)
-        try await expect(citations.locator(".citations-count")).toHaveText("2 citations")
+        try await expect(citations.locator(".citations-count")).toHaveText("2 mentions")
         try await page.expectNoHorizontalOverflow()
 
         // The biblio-records sidebar's Canons: the list filtered to the reference types.

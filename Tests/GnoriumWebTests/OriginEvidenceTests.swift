@@ -153,10 +153,10 @@ struct OriginEvidenceTests {
         let rows = page.locator("[data-revise-form] .origin-field-view [data-origin-row='true']")
         try await expect(rows).toHaveCount(2)
         let second = rows.nth(1)
-        // Its Incoming supports (user, 2026-11-03): "+ Citation" stamps a
+        // Its Incoming supports (user, 2026-11-03): "+ Support" stamps a
         // card, its claim the step itself, its Source the form's.
         let add = second.locator(".outgoing-citations-actions .outgoing-citations-add")
-        try await expect(add).toHaveText("Citation")
+        try await expect(add).toHaveText("Support")
         try await expect(add).toHaveAttribute("aria-label", "Add citation")
         try await add.click()
         let citation = second.locator(".outgoing-citations-list > .outgoing-citation-group")
@@ -166,7 +166,7 @@ struct OriginEvidenceTests {
         // so nothing moves under the next press.
         try await expect(card.locator(".quote-passage-record .origin-record-field-view"), timeout: .seconds(15))
           .toHaveCount(1)
-        // Removed by its own "− Citation", added again.
+        // Removed by its own "− Support", added again.
         try await citation.locator(".quote-passage-actions .quote-passage-citation-remove").click()
         try await expect(card).toHaveCount(0)
         try await add.click()

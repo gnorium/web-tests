@@ -5,7 +5,7 @@ import WebTestsTesting
 
 /// The Origin field on Submit Testament: its date is the work date model (an
 /// exact date offers Month and Day, posted in `origins-json`); the tree's
-/// "+ Origin 2.", "+ Origin 2.1." and "+ Citation" stamp their rows from the page's templates,
+/// "+ Origin 2.", "+ Origin 2.1." and "+ Support" stamp their rows from the page's templates,
 /// so each is there within one frame of the click, its own date with a Month
 /// and a Day; and a native name in another script never waits on Noto's
 /// symbol faces.
@@ -85,9 +85,9 @@ struct OriginFormStampTests {
       #expect(nested == 1)
       try await expect(rows).toHaveCount(3)
 
-      // No citations yet: the empty list takes no gap above "+ Citation".
+      // No citations yet: the empty list takes no gap above "+ Support".
       try await expect(row.locator(".outgoing-citations-list")).toHaveCSS("display", "none")
-      // "+ Citation" (user, 2026-11-03): a card at once, its claim the step,
+      // "+ Support" (user, 2026-11-03): a card at once, its claim the step,
       // its Source's accordion of fields, its record field asked for; its
       // quote under them, its artifact alone; then "+ Quote", "− Quote" and
       // "− Source".
