@@ -66,7 +66,7 @@ struct QuoteXMLNumbersTests {
       _ = try await page.evaluate("localStorage.removeItem('gnorium:draft:' + location.pathname)")
       try await page.openHydrated(form)
 
-      // Outgoing citations › + Citation, on the work.
+      // Incoming supports › + Citation, on the work.
       let view = page.locator(".outgoing-citations-view:has(#outgoing-citations-0)").first
       let add = view.locator(".outgoing-citations-actions .outgoing-citations-add").first
       if !(try await add.isVisible()) {

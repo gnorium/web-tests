@@ -211,7 +211,7 @@ struct QuoteSourcesTests {
       let overture = try ScratchOverture(owner: admin, sealed: false)
       holder = overture
       let source = "https://web-tests.invalid/pending-shape.json"
-      // Its evidence its outgoing citations, each claiming the step
+      // Its evidence its incoming supports, each claiming the step
       // (user, 2026-11-03).
       let step = UUID().uuidString
       let origins =

@@ -58,7 +58,7 @@ struct CitationsTests {
         try await metadata.locator(".accordion-summary").first.click()
         try await expect(metadata.locator(".datum-label").filter(hasText: "Citations", exact: true)).toHaveCount(0)
         try await page.expectNoHorizontalOverflow()
-        // The citing work cites; nothing cites it: no Incoming citations,
+        // The citing work cites; nothing cites it: no Incoming mentions,
         // the accordion not drawn where nothing cites the record.
         try await page.openHydrated(citing.path)
         try await expect(page.locator(".incoming-citations-view")).toHaveCount(0)

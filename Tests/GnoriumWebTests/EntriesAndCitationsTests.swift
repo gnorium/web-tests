@@ -134,7 +134,7 @@ struct EntriesAndCitationsTests {
         let lettersRow = rows.filter(hasText: letters.title)
         try await expect(lettersRow.locator(".citations-count")).toHaveText("3 citations")
         try await expect(rows.filter(hasText: catalog.title).locator(".citations-count")).toHaveText("1 citation")
-        // Its Incoming citations count them, its Citations datum at their
+        // Its Incoming mentions count them, its Citations datum at their
         // head (user, 2026-11-03), no longer in its Metadata.
         try await expect(
           citations.locator(".incoming-citations-body > .datum-view").filter(hasText: "Citations").locator(".datum-value")

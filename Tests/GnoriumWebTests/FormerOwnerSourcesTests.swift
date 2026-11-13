@@ -4,7 +4,7 @@ import WebTests
 import WebTestsTesting
 
 /// Evidence first (user, 2026-11-03): a node's claims rest on its
-/// Outgoing citations, one accordion a node under its Note. On Submit
+/// Incoming supports, one accordion a node under its Note. On Submit
 /// Testament a copy's "+ Citation" stamps a card: its Claim (the copy's
 /// fields, and each former owner by name as it is typed), its Source
 /// accordion holding its fields, its Quote cards (a sourceless work's
@@ -13,7 +13,7 @@ import WebTestsTesting
 /// are picked as any quote's (a text selection and "+ Form"), never
 /// matched by the owner's name. The copy's list posts as JSON, each new
 /// card its claim and its Source, its forms by place.
-@Suite("Outgoing citations")
+@Suite("Incoming supports")
 struct FormerOwnerSourcesTests {
   static let form = "/mission-control/submit/bibliographic/testament"
 

@@ -153,7 +153,7 @@ struct OriginEvidenceTests {
         let rows = page.locator("[data-revise-form] .origin-field-view [data-origin-row='true']")
         try await expect(rows).toHaveCount(2)
         let second = rows.nth(1)
-        // Its Outgoing citations (user, 2026-11-03): "+ Citation" stamps a
+        // Its Incoming supports (user, 2026-11-03): "+ Citation" stamps a
         // card, its claim the step itself, its Source the form's.
         let add = second.locator(".outgoing-citations-actions .outgoing-citations-add")
         try await expect(add).toHaveText("Citation")

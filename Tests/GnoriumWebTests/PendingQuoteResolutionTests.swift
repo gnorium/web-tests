@@ -77,7 +77,7 @@ struct PendingQuoteResolutionTests {
       // The quote pending on another object's origin: images 1 and 2.
       let other = try ScratchOverture(owner: admin, sealed: false)
       holder = other
-      // Its evidence its outgoing citations, each claiming the step
+      // Its evidence its incoming supports, each claiming the step
       // (user, 2026-11-03).
       let step = UUID().uuidString
       let pending =

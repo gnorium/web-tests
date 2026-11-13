@@ -3,9 +3,9 @@ import Testing
 import WebTests
 import WebTestsTesting
 
-/// A node's fields and the outgoing citations that claim them, linked both
+/// A node's fields and the incoming supports that claim them, linked both
 /// ways as a form changes (user, 2026-11-05): on a live form (Submit
-/// Testament's copy, the same Outgoing citations a Revise form draws), a
+/// Testament's copy, the same Incoming supports a Revise form draws), a
 /// citation claiming the Copy field makes the field's label a link to its
 /// card and the value its Claim shows a link back (user, 2026-11-06), its
 /// label "Claim" plain: a click on the value's words follows it, one on the

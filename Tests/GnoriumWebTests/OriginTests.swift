@@ -130,7 +130,7 @@ struct OriginTests {
         try await expect(repeated.locator(named)).toHaveText(first.title)
         try await expect(repeated.locator("a[href='\(first.path)']")).toHaveCount(0)
         // Its relation, and the record's own year and voice, in the form's
-        // controls. Its evidence is its Outgoing citations now (user,
+        // controls. Its evidence is its Incoming supports now (user,
         // 2026-11-03), none drawn on a record's page for a step with none.
         try await expect(repeated.locator("input[id$='-relation']")).toHaveValue("based_on")
         try await expect(repeated.locator("input[id$='-year']")).toHaveValue("1958")
@@ -1000,7 +1000,7 @@ struct OriginTests {
       try await expect(typedStep.locator("#origin-tree-step-1-type")).toHaveValue("treatise")
       try await expect(typedStep.locator("#origin-tree-step-1-year-qualifier")).toHaveValue("circa")
       try await expect(typedStep.locator("#origin-tree-step-1-year")).toHaveValue("890")
-      // Its evidence is its Outgoing citations now (user, 2026-11-03), none
+      // Its evidence is its Incoming supports now (user, 2026-11-03), none
       // drawn on a record's page for a step with none.
       try await expect(typedStep.locator(".outgoing-citations-view")).toHaveCount(0)
       try await expect(typedStep.locator("a")).toHaveCount(0)
