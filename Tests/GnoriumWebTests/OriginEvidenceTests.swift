@@ -206,14 +206,14 @@ struct OriginEvidenceTests {
         #expect(!content.contains(Self.words), "the typed words were kept: \(content)")
         #expect(content.contains("\"forms\""), "its form carried onto its anchor: \(content)")
 
-        // The thread's line: "Origin 2 › Citation 1".
+        // The thread's line: "Origin 2 › Support 1".
         let line = page.locator(".thread-event-changed").last
         try await expect(line).toBeVisible()
         let text = try await line.evaluate("(el) => el.textContent.replace(/\\s+/g, ' ')")
         let said = text.string ?? ""
         #expect(
-          said.contains("Origin 2") && said.contains("Citation 1") && !said.contains("Origin 1"),
-          "the Changed line does not name Origin 2 › Citation 1: \(said)")
+          said.contains("Origin 2") && said.contains("Support 1") && !said.contains("Origin 1"),
+          "the Changed line does not name Origin 2 › Support 1: \(said)")
         if let folder = ProcessInfo.processInfo.environment["NOTE_SCREENSHOTS"] {
           _ = try await line.evaluate("(el) => el.scrollIntoView({ block: 'center' })")
           try await page.screenshot(
