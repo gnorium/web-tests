@@ -1025,7 +1025,7 @@ struct OriginTests {
       // after ", ".
       let sentence = page.locator("#origin .origin-sentence-view")
       try await expect(sentence).toHaveText(
-        "A translation and abridgment of the Old English \(typed) (treatise), a translation of "
+        "A translation and abridgment of the Old English \(typed) (treatise), itself a translation of "
           + "\(original.author)'s English \(original.title) (report).")
       try await expect(sentence.locator(".origin-sentence-language")).toHaveTexts(["Old English", "English"])
       // A term never navigates (user, 2026-11-01): a control that previews.

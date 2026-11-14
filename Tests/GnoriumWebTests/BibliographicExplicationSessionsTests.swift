@@ -580,7 +580,7 @@ struct BibliographicExplicationSessionsTests {
       ).trimmingCharacters(in: .whitespacesAndNewlines)
       let template = try TestAdmin.query("SELECT task_prompt FROM prompt_vignettes WHERE id = '\(vignette)'")
         .trimmingCharacters(in: .whitespacesAndNewlines)
-      let sent = "Transcribe the image \"1\", shown above, exactly as it appears on its surface.\n\nThe last sentence of the image before: none (this is the witness's first canvas image)"
+      let sent = "Transcribe the image \"1\", shown above, exactly as it appears on its surface.\n\nThe last sentence of the image before: none (this is the testament's first canvas image)"
       let recorded: [[String: String]] = [
         ["type": "image_url", "content": "https://example.org/iiif/web-tests/full/1300,/0/default.jpg"],
         ["type": "task_prompt_instance", "content": sent, "system_prompt": "Read the image as sent.", "template_id": vignette],
