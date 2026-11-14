@@ -178,7 +178,7 @@ struct DraftSourcesTests {
       // Posted again as it was: the owner's row, both quotes, the second's
       // Certainty.
       let posted = try await Self.posted(page, "input[name='outgoing-citations-json-5']", holding: "Sold by Sir Henry Bunbury.")
-      #expect(posted.contains("\"claim\":\"formerOwners:\(row)\""), "its claim: \(posted)")
+      #expect(posted.contains("\"claims\":[\"formerOwners:\(row)\"]"), "its claim: \(posted)")
       #expect(posted.contains("Bought of Sir Henry Bunbury.") && posted.contains("Sold by Sir Henry Bunbury."), "both quotes: \(posted)")
       #expect(!posted.contains("certaint"), "no quote's certainty is posted: \(posted)")
       // The step's citation back, posted in its row.

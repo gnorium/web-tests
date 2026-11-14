@@ -171,7 +171,7 @@ struct TypedQuotePageTests {
       let step = UUID().uuidString
       let origins =
         #"[{"id":"\#(step)","relations":["based_on"],"typed":{"title":"Web tests source","voices":[]},"origins":[],"#
-        + #""outgoingCitations":[{"id":"\#(UUID().uuidString)","claim":{"field":"origin","row":"\#(step)"},"#
+        + #""outgoingCitations":[{"id":"\#(UUID().uuidString)","claims":[{"field":"origin","row":"\#(step)"}],"#
         + #""quotes":[{"id":"\#(UUID().uuidString)","anchors":[],"#
         + #""pending":{"sourceURL":"\#(source)","images":[326],"pages":["318"],"text":"The pageword stood fast","title":"Typed page","language":"eng","class":"play","forms":[[{"word":2,"surface":"pageword"}]]}}]}]}]"#
       _ = try TestAdmin.query(

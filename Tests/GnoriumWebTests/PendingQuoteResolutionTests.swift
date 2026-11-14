@@ -82,7 +82,7 @@ struct PendingQuoteResolutionTests {
       let step = UUID().uuidString
       let pending =
         #"[{"id":"\#(step)","relations":["based_on"],"typed":{"title":"Web tests source","voices":[]},"origins":[],"#
-        + #""outgoingCitations":[{"id":"\#(UUID().uuidString)","claim":{"field":"origin","row":"\#(step)"},"#
+        + #""outgoingCitations":[{"id":"\#(UUID().uuidString)","claims":[{"field":"origin","row":"\#(step)"}],"#
         + #""quotes":[{"id":"\#(UUID().uuidString)","anchors":[],"#
         + #""pending":{"sourceURL":"\#(source)","images":[1,2],"text":"\#(Self.opening) \#(Self.rest)"}}]}]}]"#
       _ = try TestAdmin.query(

@@ -216,7 +216,7 @@ struct QuoteSourcesTests {
       let step = UUID().uuidString
       let origins =
         #"[{"id":"\#(step)","relations":["based_on"],"typed":{"title":"Web tests source","voices":[]},"origins":[],"#
-        + #""outgoingCitations":[{"id":"\#(UUID().uuidString)","claim":{"field":"origin","row":"\#(step)"},"#
+        + #""outgoingCitations":[{"id":"\#(UUID().uuidString)","claims":[{"field":"origin","row":"\#(step)"}],"#
         + #""quotes":[{"id":"\#(UUID().uuidString)","anchors":[],"#
         + #""pending":{"sourceURL":"\#(source)","images":[1,2],"text":"The pendingword stood fast","title":"Pending shape","language":"eng","class":"play","forms":[[{"word":2,"surface":"pendingword"}]]}},"#
         + #"{"id":"\#(UUID().uuidString)","anchors":[],"#

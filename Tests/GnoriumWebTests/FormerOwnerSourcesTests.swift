@@ -143,7 +143,7 @@ struct FormerOwnerSourcesTests {
       // its form by place.
       let json = page.locator("input[name='outgoing-citations-json-5']")
       let posted = try await json.evaluate("(i) => i.value").string ?? ""
-      #expect(posted.contains("\"claim\":\"formerOwners:"), "its claim the owner's row: \(posted)")
+      #expect(posted.contains("\"claims\":[\"formerOwners:"), "its claim the owner's row: \(posted)")
       #expect(posted.contains("\"source\":"), "a new card posts its Source: \(posted)")
       #expect(posted.contains("Bought of Sir Henry Bunbury."), "its quote: \(posted)")
       #expect(

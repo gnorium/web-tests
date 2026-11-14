@@ -229,7 +229,7 @@ struct TypedQuoteDiffTests {
       let step = UUID().uuidString
       let origins =
         #"[{"id":"\#(step)","relations":["based_on"],"typed":{"title":"Web tests source","voices":[]},"origins":[],"#
-        + #""outgoingCitations":[{"id":"\#(UUID().uuidString)","claim":{"field":"origin","row":"\#(step)"},"#
+        + #""outgoingCitations":[{"id":"\#(UUID().uuidString)","claims":[{"field":"origin","row":"\#(step)"}],"#
         + #""quotes":[{"id":"\#(UUID().uuidString)","anchors":[],"#
         + #""pending":{"sourceURL":"\#(source)","images":[2],"text":"The typedword stood on its frame","title":"Typed frames","language":"eng","class":"play"}}]}]}]"#
       _ = try TestAdmin.query(
