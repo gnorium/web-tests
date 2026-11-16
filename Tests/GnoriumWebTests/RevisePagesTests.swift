@@ -212,7 +212,7 @@ struct RevisePagesTests {
         try await expect(event.locator(".avatar-view img").first)
           .toHaveAttribute("src", "/avatars/\(user)?v=webtest")
         try await expect(event).toContainText("suggested revision")
-        try await expect(event.locator(".thread-event-added")).toBeVisible()
+        try await expect(event.locator(".diff-size-added")).toBeVisible()
         try await expect(event.locator(".thread-event-changed a").first).toBeVisible()
         try await expect(event.locator("form[action$='/accept'] button")).toHaveCount(1)
         try await expect(event.locator("form[action$='/reject'] button")).toHaveCount(1)
