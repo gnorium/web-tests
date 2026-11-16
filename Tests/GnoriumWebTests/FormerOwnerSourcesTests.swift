@@ -155,13 +155,13 @@ struct FormerOwnerSourcesTests {
       let retyped = try await json.evaluate("(i) => i.value").string ?? ""
       #expect(!retyped.contains("\"forms\""), "its stale form let go: \(retyped)")
 
-      // Its card holds "+ Source" and "− Support" (user, 2026-11-11);
-      // its one source's "− Source" lets the source go, and its card with
+      // Its card holds "+ Citation" and "− Support" (user, 2026-11-16);
+      // its one citation's "− Citation" lets the citation go, and its card with
       // its last.
-      try await expect(card.locator(".outgoing-citation-card-actions .button-label")).toHaveTexts(["Source", "Support"])
+      try await expect(card.locator(".outgoing-citation-card-actions .button-label")).toHaveTexts(["Citation", "Support"])
       let remove = card.locator(".quote-passage-actions .quote-passage-citation-remove")
-      try await expect(remove).toHaveText("Source")
-      try await expect(remove).toHaveAttribute("aria-label", "Remove source")
+      try await expect(remove).toHaveText("Citation")
+      try await expect(remove).toHaveAttribute("aria-label", "Remove citation")
       try await expect(card.locator(".quote-sources-add-btn, .quote-passage-source-remove")).toHaveCount(0)
       try await remove.click()
       try await expect(cards).toHaveCount(0)

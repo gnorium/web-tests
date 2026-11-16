@@ -8,7 +8,7 @@ import WebTestsTesting
 /// filled with its testament's Source URL, the image the quote is on and
 /// its sentence, and what it attests; Suggest reads it into an anchor in
 /// that permitted testament (the quotes service), and the thread's line
-/// names it "Origin 2 › Source 1", and the revision's page
+/// names it "Origin 2 › Support 1 › Citation 1", and the revision's page
 /// draws the quote under its origin. A madrigal carrying that origin:
 /// Permit refuses it while its quote names no permitted testament's page;
 /// with the quote in place it publishes it, and the record's page draws
