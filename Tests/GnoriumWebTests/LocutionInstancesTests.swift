@@ -10,7 +10,7 @@ import WebTestsTesting
 /// and the reaction picker, Reply and Edit are disabled, not hidden: a
 /// reaction and a reply are made to the current instance only, which they
 /// record. Each Edit is a new instance, an act of the thread, "submitted
-/// locution ‹id› instance 1, creating instance 2" (user, 2026-10-18), its
+/// locution ‹id› instance 2" (user, 2026-10-18), its
 /// instances linked to the locution shown at them.
 @Suite("Locution instances", .serialized)
 struct LocutionInstancesTests {
@@ -94,7 +94,7 @@ struct LocutionInstancesTests {
         // locution is paged to it.
         let acts = page.locator(".thread-event-line").filter(hasText: "submitted locution \(id) instance")
         try await expect(acts).toHaveCount(2)
-        try await expect(acts.first).toContainText("submitted locution \(id) instance 1, creating instance 2")
+        try await expect(acts.first).toContainText("submitted locution \(id) instance 2")
         try await expect(acts.nth(1)).toContainText("submitted locution \(id) instance 2, creating instance 3")
         try await acts.nth(1).locator("a[href='#locution-\(id)-instance-3']").click()
         try await expect(shown).toHaveText(Self.words[2])

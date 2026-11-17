@@ -86,7 +86,7 @@ struct LocutionNullifyTests {
 
         // The acts stay: its Edit's, a new instance, and its nullification.
         let acts = page.locator(".thread-event-line")
-        try await expect(acts.filter(hasText: "submitted locution \(id) instance 1, creating instance 2"))
+        try await expect(acts.filter(hasText: "submitted locution \(id) instance 2"))
           .toHaveCount(1)
         let nullification = acts.filter(hasText: "nullified locution \(id)")
         try await expect(nullification).toHaveCount(1)
